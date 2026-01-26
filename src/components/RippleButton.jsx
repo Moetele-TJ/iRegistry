@@ -1,36 +1,49 @@
-import { useRef } from "react";
+// src/components/RippleButton.jsx
+import React, { useState } from "react";
 
-export default function RippleButton({ children, className = "", onClick }) {
-  const btnRef = useRef(null);
+export default function RippleButton({ children, onClick, className = "" }) {
+  const [rippleArray, setRippleArray] = useState([]);
 
-  function createRipple(e) {
-    const button = btnRef.current;
-    const circle = document.createElement("span");
+  const createRipple = (event) => {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
 
-    const diameter = Math.max(button.clientWidth, button.clientHeight);
-    const radius = diameter / 2;
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
 
-    circle.style.width = circle.style.height = `${diameter}px`;
-    circle.style.left = `${e.clientX - button.getBoundingClientRect().left - radius}px`;
-    circle.style.top = `${e.clientY - button.getBoundingClientRect().top - radius}px`;
+    const newRipple = { x, y, size };
+    setRippleArray((prev) => [...prev, newRipple]);
 
-    circle.classList.add("ripple");
+    setTimeout(() => {
+      setRippleArray((prev) => prev.slice(1));
+    }, 600);
+  };
 
-    const ripple = button.getElementsByClassName("ripple")[0];
-    if (ripple) ripple.remove();
-
-    button.appendChild(circle);
-
+  const handleClick = (e) => {
+    createRipple(e);
     if (onClick) onClick(e);
-  }
+  };
 
   return (
     <button
-      ref={btnRef}
-      onClick={createRipple}
-      className={`relative overflow-hidden ${className}`}
+      onClick={handleClick}
+      className={`relative overflow-hidden select-none ${className}`}
     >
       {children}
+
+      {rippleArray.map((r, i) => (
+        <span
+          key={i}
+          className="absolute bg-white opacity-30 rounded-full animate-ripple"
+          style={{
+            top: r.y,
+            left: r.x,
+            width: r.size,
+            height: r.size,
+          }}
+        ></span>
+      ))}
     </button>
   );
 }

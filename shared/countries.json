@@ -1,0 +1,68 @@
+[
+  { "code": "AF", "name": "Afghanistan", "dialCode": "+93", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/af.png" },
+  { "code": "AL", "name": "Albania", "dialCode": "+355", "minLength": 8, "maxLength": 9, "flag": "https://flagcdn.com/w20/al.png" },
+  { "code": "DZ", "name": "Algeria", "dialCode": "+213", "minLength": 8, "maxLength": 9, "flag": "https://flagcdn.com/w20/dz.png" },
+  { "code": "AD", "name": "Andorra", "dialCode": "+376", "minLength": 6, "maxLength": 6, "flag": "https://flagcdn.com/w20/ad.png" },
+  { "code": "AO", "name": "Angola", "dialCode": "+244", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/ao.png" },
+  { "code": "AR", "name": "Argentina", "dialCode": "+54", "minLength": 10, "maxLength": 11, "flag": "https://flagcdn.com/w20/ar.png" },
+  { "code": "AM", "name": "Armenia", "dialCode": "+374", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/am.png" },
+  { "code": "AU", "name": "Australia", "dialCode": "+61", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/au.png" },
+  { "code": "AT", "name": "Austria", "dialCode": "+43", "minLength": 10, "maxLength": 11, "flag": "https://flagcdn.com/w20/at.png" },
+  { "code": "AZ", "name": "Azerbaijan", "dialCode": "+994", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/az.png" },
+
+  { "code": "BS", "name": "Bahamas", "dialCode": "+1", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/bs.png" },
+  { "code": "BH", "name": "Bahrain", "dialCode": "+973", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bh.png" },
+  { "code": "BD", "name": "Bangladesh", "dialCode": "+880", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/bd.png" },
+  { "code": "BB", "name": "Barbados", "dialCode": "+1", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/bb.png" },
+  { "code": "BY", "name": "Belarus", "dialCode": "+375", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/by.png" },
+  { "code": "BE", "name": "Belgium", "dialCode": "+32", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/be.png" },
+  { "code": "BZ", "name": "Belize", "dialCode": "+501", "minLength": 7, "maxLength": 7, "flag": "https://flagcdn.com/w20/bz.png" },
+  { "code": "BJ", "name": "Benin", "dialCode": "+229", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bj.png" },
+  { "code": "BT", "name": "Bhutan", "dialCode": "+975", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bt.png" },
+  { "code": "BO", "name": "Bolivia", "dialCode": "+591", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bo.png" },
+
+  { "code": "BW", "name": "Botswana", "dialCode": "+267", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bw.png" },
+  { "code": "BR", "name": "Brazil", "dialCode": "+55", "minLength": 10, "maxLength": 11, "flag": "https://flagcdn.com/w20/br.png" },
+  { "code": "BN", "name": "Brunei", "dialCode": "+673", "minLength": 7, "maxLength": 7, "flag": "https://flagcdn.com/w20/bn.png" },
+  { "code": "BG", "name": "Bulgaria", "dialCode": "+359", "minLength": 8, "maxLength": 9, "flag": "https://flagcdn.com/w20/bg.png" },
+  { "code": "BF", "name": "Burkina Faso", "dialCode": "+226", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bf.png" },
+  { "code": "BI", "name": "Burundi", "dialCode": "+257", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/bi.png" },
+
+  { "code": "CM", "name": "Cameroon", "dialCode": "+237", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/cm.png" },
+  { "code": "CA", "name": "Canada", "dialCode": "+1", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/ca.png" },
+  { "code": "CF", "name": "Central African Republic", "dialCode": "+236", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/cf.png" },
+  { "code": "TD", "name": "Chad", "dialCode": "+235", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/td.png" },
+  { "code": "CL", "name": "Chile", "dialCode": "+56", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/cl.png" },
+  { "code": "CN", "name": "China", "dialCode": "+86", "minLength": 11, "maxLength": 11, "flag": "https://flagcdn.com/w20/cn.png" },
+
+  { "code": "CO", "name": "Colombia", "dialCode": "+57", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/co.png" },
+  { "code": "KM", "name": "Comoros", "dialCode": "+269", "minLength": 7, "maxLength": 7, "flag": "https://flagcdn.com/w20/km.png" },
+  { "code": "CG", "name": "Congo", "dialCode": "+242", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/cg.png" },
+  { "code": "CR", "name": "Costa Rica", "dialCode": "+506", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/cr.png" },
+  { "code": "HR", "name": "Croatia", "dialCode": "+385", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/hr.png" },
+  { "code": "CU", "name": "Cuba", "dialCode": "+53", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/cu.png" },
+
+  { "code": "CY", "name": "Cyprus", "dialCode": "+357", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/cy.png" },
+  { "code": "CZ", "name": "Czech Republic", "dialCode": "+420", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/cz.png" },
+
+  { "code": "DK", "name": "Denmark", "dialCode": "+45", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/dk.png" },
+  { "code": "DJ", "name": "Djibouti", "dialCode": "+253", "minLength": 8, "maxLength": 8, "flag": "https://flagcdn.com/w20/dj.png" },
+  { "code": "DO", "name": "Dominican Republic", "dialCode": "+1", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/do.png" },
+
+  { "code": "EG", "name": "Egypt", "dialCode": "+20", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/eg.png" },
+  { "code": "ET", "name": "Ethiopia", "dialCode": "+251", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/et.png" },
+
+  { "code": "FI", "name": "Finland", "dialCode": "+358", "minLength": 9, "maxLength": 10, "flag": "https://flagcdn.com/w20/fi.png" },
+  { "code": "FR", "name": "France", "dialCode": "+33", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/fr.png" },
+
+  { "code": "GA", "name": "Gabon", "dialCode": "+241", "minLength": 7, "maxLength": 7, "flag": "https://flagcdn.com/w20/ga.png" },
+  { "code": "GM", "name": "Gambia", "dialCode": "+220", "minLength": 7, "maxLength": 7, "flag": "https://flagcdn.com/w20/gm.png" },
+  { "code": "DE", "name": "Germany", "dialCode": "+49", "minLength": 10, "maxLength": 11, "flag": "https://flagcdn.com/w20/de.png" },
+  { "code": "GH", "name": "Ghana", "dialCode": "+233", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/gh.png" },
+  { "code": "GR", "name": "Greece", "dialCode": "+30", "minLength": 10, "maxLength": 10, "flag": "https://flagcdn.com/w20/gr.png" },
+
+  { "code": "KE", "name": "Kenya", "dialCode": "+254", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/ke.png" },
+  { "code": "NG", "name": "Nigeria", "dialCode": "+234", "minLength": 10, "maxLength": 11, "flag": "https://flagcdn.com/w20/ng.png" },
+  { "code": "ZA", "name": "South Africa", "dialCode": "+27", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/za.png" },
+  { "code": "ZW", "name": "Zimbabwe", "dialCode": "+263", "minLength": 9, "maxLength": 9, "flag": "https://flagcdn.com/w20/zw.png" }
+]

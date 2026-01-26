@@ -7,8 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        "iregistry-green": "#1FAA63",
+        "iregistrygreen": "#1FAA63",
       },
+      borderRadius: {
+        'card': '12px',
+      }
     },
   },
   plugins: [],

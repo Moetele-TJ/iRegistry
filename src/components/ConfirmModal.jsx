@@ -1,56 +1,147 @@
-/* eslint-disable react/prop-types */
-export default function ConfirmModal({ onCancel, onConfirm }) {
+// src/components/ConfirmModal.jsx
+import React, { useEffect, useRef } from "react";
+
+/**
+ * Props:
+ * - isOpen: boolean
+ * - onClose(): required — called when modal closes (after confirm or cancel)
+ * - onConfirm?: function — called when confirm (signature: () => void)
+ * - action?: function — alternative to onConfirm; called with actionArg when provided
+ * - actionArg?: any — optional argument passed to action()
+ * - afterConfirm?: function — optional hook after confirm (runs before onClose)
+ * - afterCancel?: function — optional hook after cancel (runs before onClose)
+ * - title?: string
+ * - message?: string | ReactNode
+ * - confirmLabel?: string
+ * - cancelLabel?: string
+ * - danger?: boolean
+ */
+export default function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  action,
+  actionArg,
+  afterConfirm,
+  afterCancel,
+  title = "Confirm",
+  message = "Are you sure?", // fallback message
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  danger = false,
+}) {
+  const confirmRef = useRef(null);
+
+  // prevent background scroll when modal open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
+  // keyboard shortcuts + focus management
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // focus confirm button when modal opens
+    if (confirmRef.current) {
+      confirmRef.current.focus();
+    }
+
+    function handleKey(e) {
+      if (e.key === "Escape") {
+        // cancel
+        handleCancel();
+      } else if (e.key === "Enter") {
+        // confirm — ignore if a textarea or input inside modal is focused
+        const active = document.activeElement;
+        const isInput =
+          active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
+        if (!isInput) handleConfirm();
+      }
+    }
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  // internal cancel handler: run hook then close
+  function handleCancel() {
+    try {
+      if (typeof afterCancel === "function") afterCancel();
+    } catch (err) {
+      console.error("afterCancel error", err);
+    } finally {
+      onClose?.();
+    }
+  }
+
+  // internal confirm handler: run action/onConfirm, then afterConfirm, then close
+  function handleConfirm() {
+    try {
+      if (typeof action === "function") {
+        action(actionArg);
+      } else if (typeof onConfirm === "function") {
+        onConfirm();
+      }
+      if (typeof afterConfirm === "function") afterConfirm();
+    } catch (err) {
+      console.error("confirm action error", err);
+    } finally {
+      onClose?.();
+    }
+  }
+
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-20 transition-all duration-700 hover:scale-[1.1] animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={handleCancel}
+        aria-hidden="true"
+      />
 
-      <div className="bg-white p-6 rounded-xl shadow-xl text-center w-80 animate-slideUp Justy-Center">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          Confirm Action
-        </h2>
-        <p className="text-sm text-gray-600 mb-6">
-  Are you sure you want to mark this item as <b>Stolen</b>?<br /><br />
-  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum non
-  risus sed libero venenatis fermentum. Integer at faucibus libero. Donec 
-  vel ex a neque viverra finibus. Suspendisse potenti. Sed ullamcorper 
-  sagittis dui, a commodo magna cursus nec. Cras a porttitor augue, ut 
-  faucibus mi. Duis nec odio purus. Praesent id congue leo. Sed ut sapien 
-  at turpis aliquet varius. Sed porttitor metus ac nunc pharetra sagittis. 
-  Vivamus tincidunt lectus nec nulla suscipit, nec lacinia metus gravida.
-</p>
+      {/* dialog */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative bg-white rounded-2xl shadow-lg max-w-sm w-full mx-4 p-6 z-10"
+      >
+        {title ? <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3> : null}
 
-        <div className="flex justify-around">
+        {/* message accepts string or React node; always render fallback if falsy */}
+        <div className="text-sm text-gray-600 mb-4">
+          {message ?? "Are you sure?"}
+        </div>
+
+        <div className="flex justify-end gap-3">
           <button
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-            onClick={onCancel}
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 rounded-lg bg-white border"
           >
-            Cancel
+            {cancelLabel}
           </button>
+
           <button
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-            onClick={onConfirm}
+            ref={confirmRef}
+            type="button"
+            onClick={handleConfirm}
+            className={
+              "px-4 py-2 rounded-lg text-white " +
+              (danger ? "bg-red-600" : "bg-iregistrygreen")
+            }
           >
-            Yes, Confirm
+            {confirmLabel}
           </button>
         </div>
       </div>
-
-      {/* Animations (kept here for simplicity) */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(40px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease forwards;
-        }
-        .animate-slideUp {
-          animation: slideUp 0.3s ease forwards;
-        }
-      `}</style>
     </div>
   );
 }
