@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { countries } from "../data/countries";
+import { countries } from "../Data/countries";
 
 const RECENT_KEY = "recent_countries";
 
