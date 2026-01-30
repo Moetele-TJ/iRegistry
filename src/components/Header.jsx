@@ -14,6 +14,7 @@ export default function Header() {
 
   async function handleLogout() {
     await logout();
+    setOpen(false);
     navigate("/");
   }
 
@@ -24,6 +25,11 @@ export default function Header() {
     if (role === "police") return "/police";
     if (role === "user") return "/user";
     return "/";
+  }
+
+  function go(path) {
+    setOpen(false);
+    navigate(path);
   }
 
   function isActive(path) {
@@ -45,28 +51,29 @@ export default function Header() {
 
   return (
     <header className="w-full bg-white shadow-lg px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-50">
-      
+
       {/* Logo */}
       <div
         className="flex items-center gap-3 cursor-pointer"
-        onClick={() => navigate(dashboardPath())}
+        onClick={() => go(dashboardPath())}
       >
         <img src={logo} alt="iRegistry" className="h-10 md:h-16" />
       </div>
 
       {/* ===== DESKTOP NAV ===== */}
       <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600">
-        <button onClick={() => navigate("/")} className={isActive("/")}>
+        <button onClick={() => go("/")} className={isActive("/")}>
           Home
         </button>
 
         {user && (
           <>
-            <button onClick={() => navigate(dashboardPath())}>
-              Dashboard
-            </button>
-            <button onClick={() => navigate("/items")}>Items</button>
-            <button onClick={handleLogout} className="border px-3 py-1 rounded">
+            <button onClick={() => go(dashboardPath())}>Dashboard</button>
+            <button onClick={() => go("/items")}>Items</button>
+            <button
+              onClick={handleLogout}
+              className="border px-3 py-1 rounded"
+            >
               Logout
             </button>
           </>
@@ -74,9 +81,9 @@ export default function Header() {
 
         {!user && (
           <>
-            <button onClick={() => navigate("/signup")}>Signup</button>
+            <button onClick={() => go("/signup")}>Signup</button>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => go("/login")}
               className="bg-iregistrygreen text-white px-4 py-2 rounded"
             >
               Login
@@ -89,7 +96,7 @@ export default function Header() {
       <div className="relative md:hidden" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
-          className="text-2xl px-2"
+          className="text-2xl px-2 text-iregistrygreen"
         >
           ☰
         </button>
@@ -99,14 +106,15 @@ export default function Header() {
           <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border text-sm">
             <div className="flex flex-col py-2">
 
-              <MenuItem label="Home" onClick={() => navigate("/")} />
+              <MenuItem icon="🏠" label="Home" onClick={() => go("/")} />
 
               {!user && (
                 <>
-                  <MenuItem label="Signup" onClick={() => navigate("/signup")} />
+                  <MenuItem icon="✍️" label="Signup" onClick={() => go("/signup")} />
                   <MenuItem
+                    icon="🔐"
                     label="Login"
-                    onClick={() => navigate("/login")}
+                    onClick={() => go("/login")}
                     accent
                   />
                 </>
@@ -115,14 +123,17 @@ export default function Header() {
               {user && (
                 <>
                   <MenuItem
+                    icon="📊"
                     label="Dashboard"
-                    onClick={() => navigate(dashboardPath())}
+                    onClick={() => go(dashboardPath())}
                   />
                   <MenuItem
+                    icon="📦"
                     label="Items"
-                    onClick={() => navigate("/items")}
+                    onClick={() => go("/items")}
                   />
                   <MenuItem
+                    icon="🚪"
                     label="Logout"
                     onClick={handleLogout}
                     danger
@@ -137,17 +148,19 @@ export default function Header() {
   );
 }
 
-/* Reusable menu item */
-function MenuItem({ label, onClick, danger, accent }) {
+/* ===== Reusable menu item ===== */
+function MenuItem({ icon, label, onClick, danger, accent }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 text-left hover:bg-gray-100 transition
-        ${danger ? "text-red-600" : ""}
-        ${accent ? "text-iregistrygreen font-semibold" : ""}
+      className={`flex items-center gap-3 px-4 py-2 text-left font-medium transition
+        hover:bg-gray-50
+        ${danger ? "text-red-600" : "text-iregistrygreen"}
+        ${accent ? "font-semibold" : ""}
       `}
     >
-      {label}
+      <span>{icon}</span>
+      <span>{label}</span>
     </button>
   );
 }
