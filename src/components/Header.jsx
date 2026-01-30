@@ -1,5 +1,5 @@
 // src/components/Header.jsx
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/iregistry-logo.png";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -8,11 +8,12 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
 
   async function handleLogout() {
     await logout();
-    setMobileOpen(false);
     navigate("/");
   }
 
@@ -28,141 +29,125 @@ export default function Header() {
   function isActive(path) {
     return location.pathname.startsWith(path)
       ? "text-iregistrygreen font-semibold"
-      : "hover:text-gray-900";
+      : "";
   }
 
+  /* Close menu when clicking outside */
+  useEffect(() => {
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   return (
-    <>
-      {/* ===== HEADER ===== */}
-      <header className="w-full bg-white shadow-lg py-3 px-4 md:px-8 flex items-center justify-between sticky top-0 z-50">
+    <header className="w-full bg-white shadow-lg px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-50">
+      
+      {/* Logo */}
+      <div
+        className="flex items-center gap-3 cursor-pointer"
+        onClick={() => navigate(dashboardPath())}
+      >
+        <img src={logo} alt="iRegistry" className="h-10 md:h-16" />
+      </div>
 
-        {/* Logo */}
-        <div
-          className="flex items-center gap-3 cursor-pointer"
-          onClick={() => navigate(dashboardPath())}
-        >
-          <img
-            src={logo}
-            alt="iRegistry Logo"
-            className="h-10 md:h-20 object-contain"
-          />
-        </div>
+      {/* ===== DESKTOP NAV ===== */}
+      <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600">
+        <button onClick={() => navigate("/")} className={isActive("/")}>
+          Home
+        </button>
 
-        {/* ===== DESKTOP NAV ===== */}
-        <div className="hidden md:flex items-center gap-6 text-gray-600 text-sm">
-
-          <button className={isActive("/")} onClick={() => navigate("/")}>
-            Home
-          </button>
-
-          {!user && (
-            <button
-              className={isActive("/signup")}
-              onClick={() => navigate("/signup")}
-            >
-              Signup
+        {user && (
+          <>
+            <button onClick={() => navigate(dashboardPath())}>
+              Dashboard
             </button>
-          )}
+            <button onClick={() => navigate("/items")}>Items</button>
+            <button onClick={handleLogout} className="border px-3 py-1 rounded">
+              Logout
+            </button>
+          </>
+        )}
 
-          {user && (
-            <>
-              <button
-                className={isActive(dashboardPath())}
-                onClick={() => navigate(dashboardPath())}
-              >
-                Dashboard
-              </button>
-
-              <button
-                className={isActive("/items")}
-                onClick={() => navigate("/items")}
-              >
-                Items
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="ml-4 px-3 py-1 rounded-md border hover:bg-gray-50"
-              >
-                Logout
-              </button>
-            </>
-          )}
-
-          {!user && (
+        {!user && (
+          <>
+            <button onClick={() => navigate("/signup")}>Signup</button>
             <button
               onClick={() => navigate("/login")}
-              className="ml-4 px-4 py-2 rounded-md bg-iregistrygreen text-white"
+              className="bg-iregistrygreen text-white px-4 py-2 rounded"
             >
               Login
             </button>
-          )}
-        </div>
+          </>
+        )}
+      </nav>
 
-        {/* ===== MOBILE MENU BUTTON ===== */}
+      {/* ===== MOBILE MENU BUTTON ===== */}
+      <div className="relative md:hidden" ref={menuRef}>
         <button
-          className="md:hidden text-2xl"
-          onClick={() => setMobileOpen(!mobileOpen)}
+          onClick={() => setOpen(!open)}
+          className="text-2xl px-2"
         >
           ☰
         </button>
-      </header>
 
-      {/* ===== MOBILE MENU ===== */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          {/* Background overlay */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileOpen(false)}
-          />
+        {/* ===== MOBILE POPOVER MENU ===== */}
+        {open && (
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border text-sm">
+            <div className="flex flex-col py-2">
 
-          {/* Menu panel */}
-          <div className="absolute right-0 top-0 h-full w-64 bg-white shadow-xl p-6 space-y-4">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="text-right w-full text-gray-500"
-            >
-              ✕
-            </button>
-
-            <nav className="flex flex-col gap-4 text-sm">
-              <button onClick={() => navigate("/")}>Home</button>
+              <MenuItem label="Home" onClick={() => navigate("/")} />
 
               {!user && (
                 <>
-                  <button onClick={() => navigate("/signup")}>Signup</button>
-                  <button
+                  <MenuItem label="Signup" onClick={() => navigate("/signup")} />
+                  <MenuItem
+                    label="Login"
                     onClick={() => navigate("/login")}
-                    className="text-iregistrygreen font-semibold"
-                  >
-                    Login
-                  </button>
+                    accent
+                  />
                 </>
               )}
 
               {user && (
                 <>
-                  <button onClick={() => navigate(dashboardPath())}>
-                    Dashboard
-                  </button>
-
-                  <button onClick={() => navigate("/items")}>
-                    Items
-                  </button>
-
-                  <button
+                  <MenuItem
+                    label="Dashboard"
+                    onClick={() => navigate(dashboardPath())}
+                  />
+                  <MenuItem
+                    label="Items"
+                    onClick={() => navigate("/items")}
+                  />
+                  <MenuItem
+                    label="Logout"
                     onClick={handleLogout}
-                    className="text-red-600 font-semibold"
-                  >
-                    Logout
-                  </button>
+                    danger
+                  />
                 </>
               )}
-            </nav>
+            </div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/* Reusable menu item */
+function MenuItem({ label, onClick, danger, accent }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 text-left hover:bg-gray-100 transition
+        ${danger ? "text-red-600" : ""}
+        ${accent ? "text-iregistrygreen font-semibold" : ""}
+      `}
+    >
+      {label}
+    </button>
   );
 }
