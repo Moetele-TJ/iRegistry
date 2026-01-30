@@ -110,33 +110,57 @@ export default function Header() {
 
       {/* ===== MOBILE MENU ===== */}
       {mobileOpen && (
-        <div className="md:hidden bg-white shadow-md border-t px-4 py-3 space-y-3 text-sm">
+        <div className="fixed inset-0 z-40 md:hidden">
+          {/* Background overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+          />
 
-          <button onClick={() => navigate("/")}>Home</button>
+          {/* Menu panel */}
+          <div className="absolute right-0 top-0 h-full w-64 bg-white shadow-xl p-6 space-y-4">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="text-right w-full text-gray-500"
+            >
+              ✕
+            </button>
 
-          {!user && (
-            <>
-              <button onClick={() => navigate("/signup")}>Signup</button>
-              <button
-                onClick={() => navigate("/login")}
-                className="block w-full text-left text-iregistrygreen font-semibold"
-              >
-                Login
-              </button>
-            </>
-          )}
+            <nav className="flex flex-col gap-4 text-sm">
+              <button onClick={() => navigate("/")}>Home</button>
 
-          {user && (
-            <>
-              <button onClick={() => navigate(dashboardPath())}>
-                Dashboard
-              </button>
-              <button onClick={() => navigate("/items")}>Items</button>
-              <button onClick={handleLogout} className="text-red-600">
-                Logout
-              </button>
-            </>
-          )}
+              {!user && (
+                <>
+                  <button onClick={() => navigate("/signup")}>Signup</button>
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="text-iregistrygreen font-semibold"
+                  >
+                    Login
+                  </button>
+                </>
+              )}
+
+              {user && (
+                <>
+                  <button onClick={() => navigate(dashboardPath())}>
+                    Dashboard
+                  </button>
+
+                  <button onClick={() => navigate("/items")}>
+                    Items
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    className="text-red-600 font-semibold"
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
+            </nav>
+          </div>
         </div>
       )}
     </>
