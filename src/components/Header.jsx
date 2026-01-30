@@ -9,6 +9,11 @@ export default function Header() {
   const location = useLocation();
   const { user, logout } = useAuth();
 
+  async function handleLogout() {
+    await logout();       // clears server + local state
+    navigate("/");        // redirect to homepage
+  }
+
   const role = user?.role;
 
   // Decide dashboard path based on role
@@ -43,6 +48,26 @@ export default function Header() {
       {/* Navigation */}
       <div className="hidden md:flex items-center gap-6 text-gray-600 text-sm">
 
+        {/* Public links */}
+        <button
+          className={isActive("/")}
+          onClick={() => navigate("/")}
+        >
+          Home
+        </button>
+
+        {/* ===== PUBLIC (logged out only) ===== */}
+        {!user && (
+          <>
+            <button
+              className={isActive("/signup")}
+              onClick={() => navigate("/signup")}
+            >
+              Signup
+            </button>
+          </>
+        )}
+
         {/* Dashboard (role-aware) */}
         {role && (
           <button
@@ -62,16 +87,6 @@ export default function Header() {
             Items
           </button>
         )}
-
-        {role && (
-          <button
-            className={isActive("/signup")}
-            onClick={() => navigate("/signup")}
-          >
-            Signup
-          </button>
-        )}
-
 
         {/* User-only */}
         {role === "user" && (
@@ -115,7 +130,7 @@ export default function Header() {
         {/* Auth actions */}
         {user ? (
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="ml-4 px-3 py-1 rounded-md border hover:bg-gray-50"
           >
             Logout

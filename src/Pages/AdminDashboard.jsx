@@ -4,7 +4,7 @@ import Header from "../components/Header.jsx";
 
 export default function AdminDashboard() { 
   
-  return ( <div className="min-h-screen bg-gray-100"> <Header />
+  return ( <div className="min-h-screen bg-gray-100"> 
 
 <div className="flex">
     {/* Sidebar */}

@@ -1,7 +1,6 @@
 // src/Pages/ItemDetails.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Header from "../components/Header.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
@@ -75,7 +74,6 @@ export default function ItemDetails() {
   if (!item) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header />
         <div className="p-6 max-w-3xl mx-auto">
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">
             <h2 className="text-lg font-semibold">Item not found</h2>
@@ -93,7 +91,6 @@ export default function ItemDetails() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
       <div className="p-6 sm:p-8 max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-6">

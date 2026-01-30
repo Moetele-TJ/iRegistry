@@ -1,9 +1,9 @@
 
-// src/supabase/verify-otp/index.ts
+//supabase/verify-otp/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sign } from "https://deno.land/x/djwt/mod.ts";
+import { create, getNumericDate } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 import { hashOtp, hashToken } from "../shared/crypto.ts";
 import { logAudit } from "../shared/logAudit.ts";
 import { getCorsHeaders } from "../shared/cors.ts";
@@ -21,15 +21,19 @@ const supabase = createClient(
 // MAIN FUNCTION
 // --------------------------------------
 serve(async (req) => {
+
+  //console.log("VERIFY-OTP HIT:",req.method);
+
   const corsHeaders = getCorsHeaders(req);
 
   // 🔥 1️⃣ Preflight — ALWAYS FIRST
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders,
-      }
-    );
+    //console.log("VERIFY-OTP OPTIONS");
+    return new Response(
+      null,{
+        status: 204,
+        headers: corsHeaders,
+    });
   }
 
   try {
@@ -258,10 +262,22 @@ serve(async (req) => {
     const payload = {
       sub: body.id_number,
       role: user.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
+      exp: getNumericDate(60 * 60), // 1 hour
     };
 
-    const token = await sign(payload, JWT_SECRET, "HS256");
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(JWT_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+
+    const token = await create(
+      { alg: "HS256", typ: "JWT" },
+      payload,
+      key
+    );
 
     const tokenHash = await hashToken(token);
 
@@ -306,20 +322,21 @@ serve(async (req) => {
       success: true,
       role: user.role, // user | police | admin
       session_token: token,
-    },
+      },
       corsHeaders,
       200
-  );
+    );
 
-  } catch (err) {
+  }
+  catch (err) {
     console.error("verify-otp crash:", err);
     return respond({
       success: false,
       diag : "SYS-VFY-001",
       message: "Unexpected server error",
-    },
+      },
       corsHeaders,
       500
-  );
+    );
   }
 });

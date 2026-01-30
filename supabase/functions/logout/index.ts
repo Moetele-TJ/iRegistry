@@ -35,7 +35,7 @@ const supabase = createClient(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -56,7 +56,7 @@ serve(async (req) => {
 
     const { data: session } = await supabase
       .from("sessions")
-      .select("id,user_id,expire_at,revoked")
+      .select("id,user_id,expires_at,revoked")
       .eq("token", tokenHash)
       .maybeSingle();
 

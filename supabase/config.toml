@@ -381,90 +381,38 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-[functions.send-otp]
-enabled = true
-verify_jwt = false
-import_map = "./functions/send-otp/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/send-otp/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-otp/*.html" ]
-
 [functions.verify-otp]
 enabled = true
 verify_jwt = false
 import_map = "./functions/verify-otp/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/verify-otp/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/verify-otp/*.html" ]
 
 [functions.create-user]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/create-user/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/create-user/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/create-user/*.html" ]
 
 [functions.check-user-details]
 enabled = true
 verify_jwt = true
 import_map = "./functions/check-user-details/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/check-user-details/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/check-user-details/*.html" ]
 
-[functions.send-otp-channel]
+[functions.dispatch-otp]
 enabled = true
 verify_jwt = false
-import_map = "./functions/send-otp-channel/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/send-otp-channel/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-otp-channel/*.html" ]
+import_map = "./functions/dispatch-otp/deno.json"
+entrypoint = "./functions/dispatch-otp/index.ts"
 
 [functions.logout]
 enabled = true
 verify_jwt = true
 import_map = "./functions/logout/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/logout/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/logout/*.html" ]
 
 [functions.validate-session]
 enabled = true
 verify_jwt = true
 import_map = "./functions/validate-session/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/validate-session/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/validate-session/*.html" ]
-
-[functions.send-email-otp]
-enabled = true
-verify_jwt = true
-import_map = "./functions/send-email-otp/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/send-email-otp/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-email-otp/*.html" ]

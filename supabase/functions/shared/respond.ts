@@ -1,4 +1,4 @@
-// src/supabase/shared/respond.ts
+//supabase/shared/respond.ts
 export function respond(
   payload: unknown,
   corsHeaders: HeadersInit,
@@ -6,9 +6,9 @@ export function respond(
 ) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: {
+    headers: new Headers({
       ...corsHeaders,
       "Content-Type": "application/json",
-    },
+    }),
   });
 }

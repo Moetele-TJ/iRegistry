@@ -1,7 +1,6 @@
 // src/Pages/Items.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
@@ -233,7 +232,6 @@ export default function Items() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
 
       {/* Confirm modal wired to call action(actionArg) and run afterConfirm */}
       <ConfirmModal

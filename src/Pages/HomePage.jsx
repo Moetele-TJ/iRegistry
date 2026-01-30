@@ -2,7 +2,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Header from "../components/Header.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 
@@ -67,7 +66,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
 
       <div className="p-6 max-w-6xl mx-auto">
         {/* Hero */}
@@ -90,7 +88,7 @@ export default function HomePage() {
 
             <RippleButton
               className="px-5 py-2 rounded-lg bg-gray-100 text-gray-800"
-              onClick={() => alert("Signup coming soon")}
+              onClick={() => navigate("/signup")}
             >
               Create Account
             </RippleButton>

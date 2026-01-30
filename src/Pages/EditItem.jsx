@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import Header from "../components/Header.jsx";
 import AddItemStep1 from "./AddItemStep1.jsx";
 import AddItemStep2 from "./AddItemStep2.jsx";
 import RippleButton from "../components/RippleButton.jsx";
@@ -232,7 +231,6 @@ export default function EditItem() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header />
         <div className="p-6 max-w-3xl mx-auto">
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">Loading item...</div>
         </div>
@@ -243,7 +241,6 @@ export default function EditItem() {
   if (!storedItem) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header />
         <div className="p-6 max-w-3xl mx-auto">
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">
             <h2 className="text-lg font-semibold">Item not found</h2>
@@ -261,7 +258,6 @@ export default function EditItem() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
       <div className="p-4 sm:p-6 max-w-3xl mx-auto">
         {step === 1 && (
           <AddItemStep1

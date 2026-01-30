@@ -1,5 +1,5 @@
-// src/Pages/admin/AdminAuditLogs.jsx
-export default function AdminAuditLogs() {
+// src/Pages/admin/AdminSettings.jsx
+export default function AdminSettings() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Admin Overview</h1>

@@ -17,7 +17,7 @@ export async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "iRegistry <onboarding@resend.dev>",
+      from: "iRegistry <no-reply@iregsys.com>",
       to,
       subject: "Your iRegistry OTP",
       html: `

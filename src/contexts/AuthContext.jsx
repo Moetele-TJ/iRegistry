@@ -42,8 +42,7 @@ export function AuthProvider({ children }) {
       );
 
       if (error || !data?.success) {
-        localStorage.removeItem("session");
-        setUser(null);
+        await logout({silent:true});
       } else {
         setUser({
           id: data.user_id,
@@ -52,8 +51,7 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error("Session validation failed:", err);
-      localStorage.removeItem("session");
-      setUser(null);
+      await logout({silent:true});
     } finally {
       setLoading(false);
     }
@@ -76,11 +74,11 @@ export function AuthProvider({ children }) {
   /* ----------------------------------
    * Logout (local + optional server)
    * ---------------------------------- */
-  async function logout() {
+  async function logout({silent=false} ={}) {
     const token = localStorage.getItem("session");
 
     try {
-      if (token) {
+      if (!silent && token) {
         await supabase.functions.invoke("logout", {
           headers: {
             Authorization: `Bearer ${token}`,

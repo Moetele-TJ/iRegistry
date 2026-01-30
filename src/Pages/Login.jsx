@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import Header from "../components/Header.jsx";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
@@ -312,7 +311,6 @@ export default function Login() {
 
   return (
     <>
-      <Header />
 
       {successAnim && (
         <div className="fixed inset-0 bg-green-500 flex items-center justify-center text-white text-3xl font-bold z-50">
