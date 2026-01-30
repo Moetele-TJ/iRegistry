@@ -1,5 +1,5 @@
 // src/components/Header.jsx
-import React from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/iregistry-logo.png";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -8,20 +8,21 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   async function handleLogout() {
-    await logout();       // clears server + local state
-    navigate("/");        // redirect to homepage
+    await logout();
+    setMobileOpen(false);
+    navigate("/");
   }
 
   const role = user?.role;
 
-  // Decide dashboard path based on role
   function dashboardPath() {
     if (role === "admin") return "/admin";
     if (role === "police") return "/police";
     if (role === "user") return "/user";
-    return "/"; // not logged in
+    return "/";
   }
 
   function isActive(path) {
@@ -31,119 +32,113 @@ export default function Header() {
   }
 
   return (
-    <header className="w-full bg-white shadow-lg py-3 px-4 md:px-8 flex items-center justify-between sticky top-0 z-50">
+    <>
+      {/* ===== HEADER ===== */}
+      <header className="w-full bg-white shadow-lg py-3 px-4 md:px-8 flex items-center justify-between sticky top-0 z-50">
 
-      {/* Logo */}
-      <div
-        className="flex items-center gap-3 cursor-pointer"
-        onClick={() => navigate(dashboardPath())}
-      >
-        <img
-          src={logo}
-          alt="iRegistry Logo"
-          className="h-10 md:h-20 object-contain"
-        />
-      </div>
-
-      {/* Navigation */}
-      <div className="hidden md:flex items-center gap-6 text-gray-600 text-sm">
-
-        {/* Public links */}
-        <button
-          className={isActive("/")}
-          onClick={() => navigate("/")}
+        {/* Logo */}
+        <div
+          className="flex items-center gap-3 cursor-pointer"
+          onClick={() => navigate(dashboardPath())}
         >
-          Home
-        </button>
+          <img
+            src={logo}
+            alt="iRegistry Logo"
+            className="h-10 md:h-20 object-contain"
+          />
+        </div>
 
-        {/* ===== PUBLIC (logged out only) ===== */}
-        {!user && (
-          <>
+        {/* ===== DESKTOP NAV ===== */}
+        <div className="hidden md:flex items-center gap-6 text-gray-600 text-sm">
+
+          <button className={isActive("/")} onClick={() => navigate("/")}>
+            Home
+          </button>
+
+          {!user && (
             <button
               className={isActive("/signup")}
               onClick={() => navigate("/signup")}
             >
               Signup
             </button>
-          </>
-        )}
+          )}
 
-        {/* Dashboard (role-aware) */}
-        {role && (
-          <button
-            className={isActive(dashboardPath())}
-            onClick={() => navigate(dashboardPath())}
-          >
-            Dashboard
-          </button>
-        )}
+          {user && (
+            <>
+              <button
+                className={isActive(dashboardPath())}
+                onClick={() => navigate(dashboardPath())}
+              >
+                Dashboard
+              </button>
 
-        {/* Items (all logged-in roles) */}
-        {role && (
-          <button
-            className={isActive("/items")}
-            onClick={() => navigate("/items")}
-          >
-            Items
-          </button>
-        )}
+              <button
+                className={isActive("/items")}
+                onClick={() => navigate("/items")}
+              >
+                Items
+              </button>
 
-        {/* User-only */}
-        {role === "user" && (
-          <button
-            className={isActive("/items/add")}
-            onClick={() => navigate("/items/add")}
-          >
-            Register Item
-          </button>
-        )}
+              <button
+                onClick={handleLogout}
+                className="ml-4 px-3 py-1 rounded-md border hover:bg-gray-50"
+              >
+                Logout
+              </button>
+            </>
+          )}
 
-        {/* Police-only */}
-        {role === "police" && (
-          <button
-            className={isActive("/police")}
-            onClick={() => navigate("/police")}
-          >
-            Police Desk
-          </button>
-        )}
-
-        {/* Admin-only */}
-        {role === "admin" && (
-          <>
+          {!user && (
             <button
-              className={isActive("/admin")}
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate("/login")}
+              className="ml-4 px-4 py-2 rounded-md bg-iregistrygreen text-white"
             >
-              Admin Panel
+              Login
             </button>
+          )}
+        </div>
 
-            <button
-              className={isActive("/admin/users")}
-              onClick={() => navigate("/admin/users")}
-            >
-              Manage Users
-            </button>
-          </>
-        )}
+        {/* ===== MOBILE MENU BUTTON ===== */}
+        <button
+          className="md:hidden text-2xl"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          ☰
+        </button>
+      </header>
 
-        {/* Auth actions */}
-        {user ? (
-          <button
-            onClick={handleLogout}
-            className="ml-4 px-3 py-1 rounded-md border hover:bg-gray-50"
-          >
-            Logout
-          </button>
-        ) : (
-          <button
-            onClick={() => navigate("/login")}
-            className="ml-4 px-4 py-2 rounded-md bg-iregistrygreen text-white"
-          >
-            Login
-          </button>
-        )}
-      </div>
-    </header>
+      {/* ===== MOBILE MENU ===== */}
+      {mobileOpen && (
+        <div className="md:hidden bg-white shadow-md border-t px-4 py-3 space-y-3 text-sm">
+
+          <button onClick={() => navigate("/")}>Home</button>
+
+          {!user && (
+            <>
+              <button onClick={() => navigate("/signup")}>Signup</button>
+              <button
+                onClick={() => navigate("/login")}
+                className="block w-full text-left text-iregistrygreen font-semibold"
+              >
+                Login
+              </button>
+            </>
+          )}
+
+          {user && (
+            <>
+              <button onClick={() => navigate(dashboardPath())}>
+                Dashboard
+              </button>
+              <button onClick={() => navigate("/items")}>Items</button>
+              <button onClick={handleLogout} className="text-red-600">
+                Logout
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </>
   );
 }
