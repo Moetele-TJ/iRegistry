@@ -16,20 +16,22 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-100">
 
-      <div className="flex">
+      <div className="flex self-start rounded-b-3xl">
         {/* Sidebar */}
         <aside
           className={`
             bg-iregistrygreen text-white
-            transition-all duration-300
-            ${expanded ? "w-64" : "w-16"}
-            flex-shrink-0
+            transition-all duration-300 ease-in-out
+            ${expanded ? "w-44" : "w-14"}
+            self-start
+            rounded-br-3xl
+            shadow-lg
             overflow-hidden
           `}
           onMouseEnter={() => setExpanded(true)}
           onMouseLeave={() => setExpanded(false)}
         >
-          <nav className="mt-6 space-y-2 px-2">
+          <nav className="py-4 space-y-2 px-2">
             <SidebarItem
               to="/admin"
               icon={<LayoutDashboard size={20} />}
