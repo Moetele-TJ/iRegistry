@@ -23,7 +23,8 @@ export default function AdminLayout() {
             bg-iregistrygreen text-white
             transition-all duration-300
             ${expanded ? "w-64" : "w-16"}
-            min-h-[calc(100vh-80px)]
+            flex-shrink-0
+            overflow-hidden
           `}
           onMouseEnter={() => setExpanded(true)}
           onMouseLeave={() => setExpanded(false)}
