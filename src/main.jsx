@@ -22,7 +22,7 @@ import AppLayout from "./Layouts/AppLayout.jsx";
 
 // DASHBOARDS
 import UserDashboard from "./Pages/UserDashboard.jsx";
-import AdminDashboard from "./Pages/AdminDashboard.jsx";
+import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import PoliceDashboard from "./Pages/PoliceDashboard.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
@@ -77,7 +77,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   path="/admin"
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminDashboard />
+                      <AdminLayout />
                     </ProtectedRoute>
                   }
                 >

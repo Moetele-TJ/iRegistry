@@ -106,15 +106,26 @@ export default function Header() {
           <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border text-sm">
             <div className="flex flex-col py-2">
 
-              <MenuItem icon="🏠" label="Home" onClick={() => go("/")} />
+              <MenuItem 
+                icon="🏠" 
+                label="Home" 
+                onClick={() => go("/")} />
+                active={location.pathname==="/"}
 
               {!user && (
                 <>
-                  <MenuItem icon="✍️" label="Signup" onClick={() => go("/signup")} />
+                  <MenuItem 
+                    icon="✍️" 
+                    label="Signup" 
+                    onClick={() => go("/signup")}
+                    active={location.pathname.startsWith("/signup")}
+                  />
+                  
                   <MenuItem
                     icon="🔐"
                     label="Login"
                     onClick={() => go("/login")}
+                    active={location.pathname.startsWith("/login")}
                     accent
                   />
                 </>
@@ -126,11 +137,13 @@ export default function Header() {
                     icon="📊"
                     label="Dashboard"
                     onClick={() => go(dashboardPath())}
+                    active={location.pathname==="/"}
                   />
                   <MenuItem
                     icon="📦"
                     label="Items"
                     onClick={() => go("/items")}
+                    active={location.pathname.startsWith("/items")}
                   />
                   <MenuItem
                     icon="🚪"
@@ -149,17 +162,21 @@ export default function Header() {
 }
 
 /* ===== Reusable menu item ===== */
-function MenuItem({ icon, label, onClick, danger, accent }) {
+function MenuItem({ icon, label, onClick, danger, accent, active }) {
   return (
     <button
       onClick={onClick}
       className={`flex items-center gap-3 px-4 py-2 text-left font-medium transition
-        hover:bg-gray-50
-        ${danger ? "text-red-600" : "text-iregistrygreen"}
-        ${accent ? "font-semibold" : ""}
+        ${
+          active
+            ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+            : danger
+            ? "text-red-600"
+            : "text-gray-700 hover:bg-gray-50"
+        }
       `}
     >
-      <span>{icon}</span>
+      <span className="text-base">{icon}</span>
       <span>{label}</span>
     </button>
   );
