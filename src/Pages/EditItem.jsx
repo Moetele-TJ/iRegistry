@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import AddItemStep1 from "./AddItemStep1.jsx";
-import AddItemStep2 from "./AddItemStep2.jsx";
+//import AddItemStep1 from "./AddItemStep1.jsx";
+//import AddItemStep2 from "./AddItemStep2.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 
 import { useItems } from "../contexts/ItemsContext.jsx"; // optional - used if provider is mounted
@@ -259,7 +259,7 @@ export default function EditItem() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-        {step === 1 && (
+        /*{step === 1 && (
           <AddItemStep1
             onNext={handleStep1Next}
             initial={step1Data}
@@ -267,9 +267,9 @@ export default function EditItem() {
             onDelete={handleDelete}
             onClear={() => handleClearToInitial(1)}
           />
-        )}
+        )}*/
 
-        {step === 2 && (
+        /*{step === 2 && (
           <AddItemStep2
             onBack={() => setStep(1)}
             onSubmit={handleStep2Submit}
@@ -278,7 +278,7 @@ export default function EditItem() {
             onDelete={handleDelete}
             onClear={() => handleClearToInitial(2)}
           />
-        )}
+        )}*/
       </div>
     </div>
   );
