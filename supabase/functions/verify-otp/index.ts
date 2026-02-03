@@ -42,12 +42,12 @@ serve(async (req) => {
     // ----------------------------------
     // BASIC INPUT VALIDATION
     // ----------------------------------
-    if (!body?.id_number || !body?.otp) {
+    if (!body?.user_id || !body?.otp) {
       return respond({
         code: "1",
         success: false,
         diag : "OTP-VFY-001",
-        message: "ID number and OTP are required",
+        message: "User ID and OTP are required",
       },
       corsHeaders,
       400
@@ -72,7 +72,7 @@ serve(async (req) => {
     const { data: otpRecord, error: otpError } = await supabase
       .from("login_otps")
       .select("id, otp_hash, expires_at, attempts")
-      .eq("id_number", body.id_number)
+      .eq("user_id", body.user_id)
       .eq("used", false)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -109,7 +109,7 @@ serve(async (req) => {
       await logAudit({
         supabase,
         event: "OTP_LOCKED",
-        id_number: body.id_number,
+        user_id: body.user_id,
         success: false,
         diag: "OTP-LOCK",
         req
@@ -141,7 +141,7 @@ serve(async (req) => {
       await logAudit({
         supabase,
         event: "OTP_INVALID",
-        id_number: body.id_number,
+        user_id: body.user_id,
         success: false,
         diag: "OTP-INVALID/EXPIRED",
         req
@@ -173,7 +173,7 @@ serve(async (req) => {
       await logAudit({
         supabase,
         event: "OTP_VERIFY_FAILURE",
-        id_number: body.id_number,
+        user_id: body.user_id,
         success: false,
         diag: "OTP-VFY-FAIL",
         req
@@ -218,7 +218,7 @@ serve(async (req) => {
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("role")
-      .eq("id_number", body.id_number)
+      .eq("id", body.user_id)
       .maybeSingle();
 
     if (userError || !user) {
@@ -240,7 +240,7 @@ serve(async (req) => {
     await supabase
       .from("sessions")
       .update({ revoked:true })
-      .eq("user_id", body.id_number);
+      .eq("user_id", body.user_id);
 
     //-----------------------------------
     // Create Session
@@ -260,7 +260,7 @@ serve(async (req) => {
     }
 
     const payload = {
-      sub: body.id_number,
+      sub: body.user_id,
       role: user.role,
       exp: getNumericDate(60 * 60), // 1 hour
     };
@@ -285,7 +285,7 @@ serve(async (req) => {
     //SAVE SESSION
     //-----------------------------------
     const {error : sessionError} = await supabase.from("sessions").insert({
-      user_id: body.id_number,
+      user_id: body.user_id,
       role: user.role,
       token: tokenHash,
       ip_address: req.headers.get("x-forwarded-for"),
@@ -309,7 +309,7 @@ serve(async (req) => {
     await logAudit({
       supabase,
       event: "SESSION_CREATED",
-      id_number: body.id_number,
+      user_id: body.user_id,
       success: true,
       diag: "SESS-OK",
       req

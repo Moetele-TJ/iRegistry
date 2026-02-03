@@ -62,10 +62,11 @@ serve(async (req) => {
       .from("users")
       .select("id")
       .eq("id_number", id_number)
+      .is("deleted_at",null)
       .maybeSingle();
 
     if (idExists) {
-      return respondError("The ID number you entered already exists");
+      return respondError("The ID number you entered is in use by an active account.");
     }
 
     // =====================================================
@@ -111,10 +112,11 @@ serve(async (req) => {
       .from("users")
       .select("id")
       .eq("phone", phone)
+      .is("deleted_at",null)
       .maybeSingle();
 
     if (phoneExists) {
-      return respondError("The Phone number you entered already exists");
+      return respondError("The Phone number you entered is in use by an active account.");
     }
 
     
@@ -134,10 +136,11 @@ serve(async (req) => {
       .from("users")
       .select("id")
       .eq("email", email)
+      .is("deleted_at",null)
       .maybeSingle();
 
     if (emailExists) {
-      return respondError("The Email address you entered already exists");
+      return respondError("The Email address you entered is in use by an active account.");
     }
 
 

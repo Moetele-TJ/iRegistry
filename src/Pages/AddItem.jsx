@@ -1,123 +1,313 @@
-// src/Pages/AddItem.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import Header from "../components/Header.jsx";
-import AddItemStep1 from "./AddItemStep1.jsx";
-import AddItemStep2 from "./AddItemStep2.jsx";
-
-import { useItems } from "../contexts/ItemsContext.jsx";
+import RippleButton from "../components/RippleButton.jsx";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 export default function AddItem() {
   const navigate = useNavigate();
-  const { addItem } = useItems();
+  const { user } = useAuth(); // must contain user.id
 
   const [step, setStep] = useState(1);
-  const [step1Data, setStep1Data] = useState({});
-  const [step2Data, setStep2Data] = useState({});
-  // keep initial combined object so Clear can restore initial (for add - initial is empty)
-  const initialCombined = { ...step1Data, ...step2Data };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleStep1Next(payload) {
-    setStep1Data(payload);
+  // combined payload across steps
+  const [form, setForm] = useState({
+    category: "",
+    make: "",
+    model: "",
+    serial1: "",
+    serial2: "",
+    location: "",
+    photos: [],
+    purchaseDate: "",
+    estimatedValue: "",
+    shop: "",
+    warrantyExpiry: "",
+    notes: "",
+  });
+
+  /* ---------------- STEP HANDLERS ---------------- */
+
+  function nextStep(payload) {
+    setForm((f) => ({ ...f, ...payload }));
     setStep(2);
   }
 
-  async function handleStep2Submit(step2Payload) {
-    // merge the two step payloads
-    const final = { ...step1Data, ...step2Payload };
+  function prevStep() {
+    setStep(1);
+  }
 
-    // Build item shape consistent with app expectations (same shape ItemsContext.normalizeItem expects)
-    // Note: ItemsContext will normalize further, so pass all fields here.
-    const itemToStore = {
-      // id omitted so provider will generate one
-      name:
-        final.make && final.model
-          ? `${final.make} ${final.model}`
-          : final.name || (final.category || "").trim() || undefined,
-      category: final.category || "",
-      make: final.make || "",
-      model: final.model || "",
-      status: final.status || "Active",
-      lastSeen: final.purchaseDate || final.lastSeen || "",
-      location: final.location || final.locationFound || "",
-      serial1: final.serial1 || "",
-      serial2: final.serial2 || "",
-      ownerInfo: final.notes || final.ownerInfo || "",
-      ownerId: final.ownerId || "",
-      value: final.estimatedValue || final.value || "",
-      shop: final.shop || "",
-      warrantyExpiry: final.warrantyExpiry || "",
-      imageUrl: final.imageUrl || "",
-      photo: final.photo || null,
-      description: final.description || "",
-      // createdOn/updatedOn are handled by ItemsContext
-      // include any leftover fields so provider has everything it might need
-      ...final,
+  /* ---------------- FINAL SUBMIT ---------------- */
+
+  async function handleSubmit(payload) {
+    setLoading(true);
+    setError("");
+
+    const finalPayload = {
+      ...form,
+      ...payload,
+      ownerId: user?.id,
     };
 
     try {
-      // addItem may be synchronous or async; handle both
-      const res = addItem(itemToStore);
-      let newId;
-      if (res && typeof res.then === "function") {
-        newId = await res;
-      } else {
-        newId = res;
+      const { data, error: invokeError } =
+        await supabase.functions.invoke("create-item", {
+          body: finalPayload,
+        });
+
+      if (invokeError || !data?.success) {
+        setError(data?.message || "Failed to save item");
+        setLoading(false);
+        return;
       }
 
-      // navigate to item details (or items list)
-      if (newId) navigate("/items/" + newId);
-      else navigate("/items");
-    } catch (e) {
-      // fallback: log and navigate to list
-      console.error("Failed to add item:", e);
-      navigate("/items");
+      navigate("/items/" + data.item_id);
+    } catch (err) {
+      console.error(err);
+      setError("Unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
   }
 
-  function handleCancel() {
-    navigate("/items");
-  }
+  /* ================= UI ================= */
 
   return (
     <div className="min-h-screen bg-gray-100">
-  
       <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+
+        {error && (
+          <div className="mb-4 text-sm text-red-600 bg-red-50 p-2 rounded">
+            {error}
+          </div>
+        )}
+
         {step === 1 && (
-          <AddItemStep1
-            onNext={handleStep1Next}
-            initial={step1Data}
-            mode="add"
-            onClear={() => {
-              // reset step1 to initial empty
-              setStep1Data({});
-            }}
+          <Step1
+            initial={form}
+            onNext={nextStep}
           />
         )}
 
         {step === 2 && (
-          <AddItemStep2
-            onBack={() => setStep(1)}
-            onSubmit={handleStep2Submit}
-            initial={{ ...initialCombined, ...step2Data }}
-            mode="add"
-            onClear={() => {
-              // restore step2 fields to their initial values (empty)
-              setStep2Data({});
-            }}
+          <Step2
+            initial={form}
+            onBack={prevStep}
+            onSubmit={handleSubmit}
+            loading={loading}
           />
         )}
-
-        <div className="mt-4 flex gap-2 justify-between">
-          <button
-            className="px-4 py-2 rounded border bg-white"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-        </div>
       </div>
     </div>
+  );
+}
+
+/* ================================================================= */
+/* ============================ STEP 1 ============================== */
+/* ================================================================= */
+
+function Step1({ initial, onNext }) {
+  const [state, setState] = useState(initial);
+
+  function submit(e) {
+    e.preventDefault();
+    onNext(state);
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="w-full max-w-xl mx-auto bg-white rounded-2xl p-8 shadow-lg"
+    >
+      <h1 className="text-center text-2xl font-extrabold text-iregistrygreen">
+        Add New Item
+      </h1>
+      <p className="text-center text-sm text-gray-500 mb-4">
+        Step 1 of 2
+      </p>
+
+      {/* Category */}
+      <Field label="Category">
+        <select
+          value={state.category}
+          onChange={(e) => setState({ ...state, category: e.target.value })}
+          className="input"
+        >
+          <option value="">Select category</option>
+          <option value="Phone">Phone</option>
+          <option value="Laptop">Laptop</option>
+          <option value="TV">TV</option>
+          <option value="Bicycle">Bicycle</option>
+        </select>
+      </Field>
+
+      <Field label="Make">
+        <input
+          className="input"
+          value={state.make}
+          onChange={(e) =>
+            setState({ ...state, make: e.target.value, model: "" })
+          }
+        />
+      </Field>
+
+      <Field label="Model">
+        <input
+          className="input"
+          value={state.model}
+          onChange={(e) =>
+            setState({ ...state, model: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Serial Number 1">
+        <input
+          className="input"
+          value={state.serial1}
+          onChange={(e) =>
+            setState({ ...state, serial1: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Serial Number 2">
+        <input
+          className="input"
+          value={state.serial2}
+          onChange={(e) =>
+            setState({ ...state, serial2: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Location">
+        <input
+          className="input"
+          value={state.location}
+          onChange={(e) =>
+            setState({ ...state, location: e.target.value })
+          }
+        />
+      </Field>
+
+      <RippleButton
+        type="submit"
+        className="w-full mt-4 py-3 bg-iregistrygreen text-white rounded-lg font-semibold"
+      >
+        Next
+      </RippleButton>
+    </form>
+  );
+}
+
+/* ================================================================= */
+/* ============================ STEP 2 ============================== */
+/* ================================================================= */
+
+function Step2({ initial, onBack, onSubmit, loading }) {
+  const [state, setState] = useState(initial);
+
+  function submit(e) {
+    e.preventDefault();
+    onSubmit(state);
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="w-full max-w-xl mx-auto bg-white rounded-2xl p-8 shadow-lg"
+    >
+      <h1 className="text-center text-2xl font-extrabold text-iregistrygreen">
+        Add New Item
+      </h1>
+      <p className="text-center text-sm text-gray-500 mb-4">
+        Step 2 of 2
+      </p>
+
+      <Field label="Purchase Date">
+        <input
+          type="date"
+          className="input"
+          value={state.purchaseDate}
+          onChange={(e) =>
+            setState({ ...state, purchaseDate: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Estimated Value">
+        <input
+          className="input"
+          value={state.estimatedValue}
+          onChange={(e) =>
+            setState({ ...state, estimatedValue: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Shop">
+        <input
+          className="input"
+          value={state.shop}
+          onChange={(e) =>
+            setState({ ...state, shop: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Warranty Expiry">
+        <input
+          type="date"
+          className="input"
+          value={state.warrantyExpiry}
+          onChange={(e) =>
+            setState({ ...state, warrantyExpiry: e.target.value })
+          }
+        />
+      </Field>
+
+      <Field label="Notes">
+        <textarea
+          rows={3}
+          className="input"
+          value={state.notes}
+          onChange={(e) =>
+            setState({ ...state, notes: e.target.value })
+          }
+        />
+      </Field>
+
+      <div className="flex gap-4 mt-4">
+        <RippleButton
+          type="button"
+          className="flex-1 py-3 bg-gray-100 rounded-lg"
+          onClick={onBack}
+        >
+          Back
+        </RippleButton>
+
+        <RippleButton
+          type="submit"
+          disabled={loading}
+          className="flex-1 py-3 bg-iregistrygreen text-white rounded-lg font-semibold"
+        >
+          {loading ? "Saving..." : "Save"}
+        </RippleButton>
+      </div>
+    </form>
+  );
+}
+
+/* ================================================================= */
+
+function Field({ label, children }) {
+  return (
+    <label className="block mb-4">
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <div className="mt-2">{children}</div>
+    </label>
   );
 }

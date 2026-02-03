@@ -12,6 +12,7 @@ export default function Login() {
 
   const [lastName, setLastName] = useState("");
   const [idNumber, setIdNumber] = useState("");
+  const [userId, setUserId] = useState("");
   const [otp, setOtp] = useState("");
 
   const [maskedPhone, setMaskedPhone] = useState("");
@@ -114,6 +115,7 @@ export default function Login() {
       setChannels(data.channels);
       setMaskedPhone(data.masked_phone);
       setMaskedEmail(data.masked_email);
+      setUserId(data.user_id);
       setStep("channel");
 
     } catch (err) {
@@ -134,7 +136,10 @@ export default function Login() {
 
   try {
     const { data, error : ChannelError } = await supabase.functions.invoke("dispatch-otp", {
-      body: { id_number: idNumber, channel },
+      body: { 
+        user_id: userId, 
+        channel,
+      },
     });
 
     if ( ChannelError || !data ) {
@@ -189,16 +194,25 @@ export default function Login() {
     try {
       const { data, error : verifyError } = await supabase.functions.invoke("verify-otp", {
         body: {
-          id_number: idNumber,
+          user_id: userId,
           otp,
         },
       });
+
         //Supabse/network error
-      if(verifyError||!data){
+      if(verifyError && !data){
         setVerifyingOtp(false);
         setError("OTP Verification failed. Please try again");
         return;
       }
+
+      if(!data){
+        setVerifyingOtp(false);
+        setError("No response from server. Please try again");
+        return;
+
+      }
+
       //Back end business logic handling
     if (!data.success) {
 
@@ -236,13 +250,13 @@ export default function Login() {
 
     // store session + update AuthContext
     loginWithToken(data.session_token, data.role);
-
+    
     // short success animation, then redirect
     setTimeout(() => {
       setSuccessAnim(false);
       navigate("/redirect", { replace: true });
-    }, 2000);
-
+    }, 3000);
+    
     setOtp("");
     
     } catch (err) {
@@ -313,8 +327,13 @@ export default function Login() {
     <>
 
       {successAnim && (
-        <div className="fixed inset-0 bg-green-500 flex items-center justify-center text-white text-3xl font-bold z-50">
-          ✅ Verified!
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center animate-scale-in">
+            <div className="text-green-600 text-4xl mb-2">✅</div>
+            <div className="text-lg font-semibold text-gray-800">
+              Verified successfully
+            </div>
+          </div>
         </div>
       )}
 

@@ -27,7 +27,7 @@ serve(async (req) => {
 
   const body = await req.json().catch(() => null);
 
-  if (!body?.id_number || !body?.channel) {
+  if (!body?.user_id || !body?.channel) {
     return respond({ 
       success: false, 
       diag: "AUT-ID-001",
@@ -38,7 +38,7 @@ serve(async (req) => {
   const { data: user, error: userError } = await supabase
     .from("users")
     .select("phone, email")
-    .eq("id_number", body.id_number)
+    .eq("id", body.user_id)
     .maybeSingle();
 
   if (userError || !user) {
@@ -55,7 +55,7 @@ serve(async (req) => {
   const {error : invalidateError} = await supabase
     .from("login_otps")
     .update({ used: true })
-    .eq("id_number", body.id_number)
+    .eq("user_id", body.user_id)
     .eq("used", false);
 
   if (invalidateError){
@@ -69,10 +69,13 @@ serve(async (req) => {
   }
 
   const {error : insertError} = await supabase.from("login_otps").insert({
-    id_number: body.id_number,
+    user_id: body.user_id,
     otp_hash: otpHash,
     channel: body.channel,
-    phone : user.phone,
+    
+    ...(body.channel ==="sms" && {contact: user.phone}),
+    ...(body.channel ==="email" && {contact: user.email}),
+
     expires_at: new Date(Date.now() + 5 * 60 * 1000),
   });
 
@@ -108,7 +111,7 @@ serve(async (req) => {
       await logAudit({
         supabase,
         event: "OTP_SENT",
-        id_number: body.id_number,
+        user_id: body.user_id,
         channel: body.channel,
         success: true,
         diag: "OTP-SENT-OK",
@@ -121,8 +124,8 @@ serve(async (req) => {
       await logAudit({
         supabase,
         event: "SMS_SEND_FAILED",
-        id_number: body.id_number,
-        channel: "sms",
+        user_id: body.user_id,
+        channel: body.channel,
         success: false,
         diag: err?.message || "OTP-SMS-FAIL",
         req
@@ -154,8 +157,8 @@ serve(async (req) => {
       await logAudit({
         supabase,
         event: "EMAIL_OTP_SENT",
-        id_number: body.id_number,
-        channel: "email",
+        user_id: body.user_id,
+        channel: body.channel,
         success: true,
         diag: "OTP-EMAIL-OK",
         req
@@ -166,8 +169,8 @@ serve(async (req) => {
         await logAudit({
         supabase,
         event: "EMAIL_OTP_FAILED",
-        id_number: body.id_number,
-        channel: "email",
+        user_id: body.user_id,
+        channel: body.channel,
         success: false,
         diag: "OTP-EMAIL-FAIL",
         req,

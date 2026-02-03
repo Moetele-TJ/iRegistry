@@ -37,6 +37,10 @@ serve(async (req) => {
         .from("items")
         .select("*", { count: "exact", head: true });
 
+      const { count: activeItems } = await supabase
+        .from("items")
+        .select("Active", { count: "exact", head: true });
+
       return respond(
         {
           success: true,
@@ -77,10 +81,10 @@ serve(async (req) => {
           .from("items")
           .select("*", { count: "exact", head: true })
           .eq("status", "Stolen"),
-        supabase
+        /*supabase
           .from("audit_logs")
           .select("*", { count: "exact", head: true })
-          .eq("severity", "high"),
+          .eq("severity", "high"),*/
       ]);
 
       return respond(

@@ -43,9 +43,10 @@ const supabase = createClient(
 
   const { data: user } = await supabase
     .from("users")
-    .select("phone, email")
+    .select("id, phone, email")
     .eq("last_name", body.last_name)
     .eq("id_number", body.id_number)
+    .is("deleted_at",null)
     .maybeSingle();
 
   if (!user) {
@@ -53,7 +54,7 @@ const supabase = createClient(
     await logAudit({
       supabase,
       event: "OTP_REQUEST_FAILED",
-      id_number: body.id_number,
+      user_id: user.id,
       success: false,
       diag: "OTP-SEND-FAIL",
       req
@@ -73,7 +74,7 @@ const supabase = createClient(
   await logAudit({
     supabase,
     event: "OTP_REQUEST_SUCCESS",
-    id_number: body.id_number,
+    user_id: user.id,
     success: true,
     diag: "OTP-SEND-OK",
     req
@@ -82,6 +83,7 @@ const supabase = createClient(
   return respond({
     success: true,
     channels,
+    user_id: user.id,
     masked_phone: user.phone
       ? user.phone.slice(0, 4) + "••••" + user.phone.slice(-3)
       : null,
