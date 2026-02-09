@@ -1,3 +1,4 @@
+// src/components/Spinner.jsx
 export default function Spinner({ label = "Loading..." }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">

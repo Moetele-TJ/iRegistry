@@ -1,3 +1,4 @@
+// src/utils/auth.js
 import { supabase } from "../lib/supabase";
 
 export async function validateSession() {

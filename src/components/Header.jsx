@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/iregistry-logo.png";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -10,7 +11,19 @@ export default function Header() {
   const { user, logout } = useAuth();
 
   const [open, setOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const menuRef = useRef(null);
+
+  /* Close logout modal on route change */
+  useEffect(() => {
+    setShowLogoutConfirm(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (showLogoutConfirm) {
+      setOpen(false);
+    }
+  }, [showLogoutConfirm]);
 
   async function handleLogout() {
     await logout();
@@ -71,7 +84,7 @@ export default function Header() {
             <button onClick={() => go(dashboardPath())}>Dashboard</button>
             <button onClick={() => go("/items")}>Items</button>
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="border px-3 py-1 rounded"
             >
               Logout
@@ -109,9 +122,10 @@ export default function Header() {
               <MenuItem 
                 icon="🏠" 
                 label="Home" 
-                onClick={() => go("/")} />
+                onClick={() => go("/")} 
                 active={location.pathname==="/"}
-
+              />
+              
               {!user && (
                 <>
                   <MenuItem 
@@ -148,7 +162,8 @@ export default function Header() {
                   <MenuItem
                     icon="🚪"
                     label="Logout"
-                    onClick={handleLogout}
+                    onClick={()=> {setOpen(false); setShowLogoutConfirm(true)
+                    }}
                     danger
                   />
                 </>
@@ -156,7 +171,20 @@ export default function Header() {
             </div>
           </div>
         )}
+
       </div>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Confirm logout"
+        message="Are you sure you want to log out now?"
+        confirmLabel="Logout"
+        cancelLabel="Cancel"
+        danger
+      />
+
     </header>
   );
 }

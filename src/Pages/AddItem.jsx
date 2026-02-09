@@ -1,4 +1,5 @@
-import { useState } from "react";
+// src/Pages/AddItem.jsx
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { supabase } from "../lib/supabase";
@@ -7,6 +8,12 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 export default function AddItem() {
   const navigate = useNavigate();
   const { user } = useAuth(); // must contain user.id
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+
+  if (!user) {
+    navigate("/login");
+    return null;
+  }
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -57,7 +64,13 @@ export default function AddItem() {
           body: finalPayload,
         });
 
-      if (invokeError || !data?.success) {
+      if (invokeError) {
+        setError("Unable to reach server. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      if (!data?.success) {
         setError(data?.message || "Failed to save item");
         setLoading(false);
         return;
@@ -96,7 +109,7 @@ export default function AddItem() {
             initial={form}
             onBack={prevStep}
             onSubmit={handleSubmit}
-            loading={loading}
+            loading={loading || uploadingPhotos}
           />
         )}
       </div>
@@ -111,8 +124,18 @@ export default function AddItem() {
 function Step1({ initial, onNext }) {
   const [state, setState] = useState(initial);
 
+  useEffect(() => {
+    setState(initial);
+  }, [initial]);
+
   function submit(e) {
-    e.preventDefault();
+  e.preventDefault();
+
+  if (!state.category || !state.make || !state.model || !state.serial1 || !state.location) {
+    alert("Please fill in all required fields before continuing.");
+    return;
+    }
+
     onNext(state);
   }
 
@@ -209,6 +232,10 @@ function Step1({ initial, onNext }) {
 
 function Step2({ initial, onBack, onSubmit, loading }) {
   const [state, setState] = useState(initial);
+
+  useEffect(() => {
+    setState(initial);
+  }, [initial]);
 
   function submit(e) {
     e.preventDefault();

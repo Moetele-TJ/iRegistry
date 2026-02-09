@@ -1,4 +1,4 @@
-// src/supabase/shared/crypto.ts
+// supabase/shared/crypto.ts
 
 /* ---------------- TOKEN HASH (JWT) ---------------- */
 export async function hashToken(value: string) {

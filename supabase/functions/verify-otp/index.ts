@@ -1,5 +1,5 @@
 
-//supabase/verify-otp/index.ts
+//supabase/functions/verify-otp/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -77,12 +77,6 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-
-    // DEBUG (safe, no secrets)
-    console.log("DEBUG OTP lookup:", {
-      otpFound: !!otpRecord,
-      otpError,
-    });
 
     // ----------------------------------
     // HANDLE DB FAILURE
@@ -193,24 +187,31 @@ serve(async (req) => {
     // ----------------------------------
     // MARK OTP AS USED (ANTI-REPLAY)
     // ----------------------------------
-    const {  error: serverError } = await supabase
+    const { data: usedOtp, error: serverError } = await supabase
       .from("login_otps")
       .update({ used: true })
-      .eq("id", otpRecord.id);
+      .eq("id", otpRecord.id)
+      .eq("used", false)           // 🔒 atomic guard
+      .select("id")
+      .maybeSingle();
 
-      if (serverError){
-
-        return respond({
+    if (serverError) {
+      return respond({
         code: "1",
         success: false,
-        diag : "OTP-VFY-005",
+        diag: "OTP-VFY-005",
         message: "Technical error! Please try again.",
-      },
-      corsHeaders,
-      500
-    );
+      }, corsHeaders, 500);
+    }
 
-      }
+    if (!usedOtp) {
+      return respond({
+        code: "1",
+        success: false,
+        diag: "OTP-VFY-RACE",
+        message: "OTP already used. Please request a new one.",
+      }, corsHeaders, 409);
+    }
 
     // ----------------------------------
     // FETCH USER ROLE

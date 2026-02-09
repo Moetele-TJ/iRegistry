@@ -1,3 +1,4 @@
+// supabase/functions/dispatch-otp/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -5,17 +6,8 @@ import { hashOtp } from "../shared/crypto.ts";
 import { sendSMS } from "../shared/sms.ts";
 import { sendEmail } from "../shared/email.ts";
 import { logAudit } from "../shared/logAudit.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods":"POST,OPTIONS",
-  "Content-Type":"application/json",
-};
-
-const respond = (payload: unknown) =>
-  new Response(JSON.stringify(payload), { headers : corsHeaders});
+import { getCorsHeaders} from "../shared/cors.ts";
+import { respond} from "../shared/respond.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -23,7 +15,12 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers : corsHeaders });
+  
+  const corsHeaders = getCorsHeaders(req);
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   const body = await req.json().catch(() => null);
 
@@ -49,6 +46,30 @@ serve(async (req) => {
     });
   }
 
+  //check if user already has an existing valid otp before sending a new one
+  const { data: existingOtp } = await supabase
+    .from("login_otps")
+    .select("id, expires_at, attempts")
+    .eq("user_id", body.user_id)
+    .eq("used", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (
+    existingOtp &&
+    new Date(existingOtp.expires_at) > new Date() &&
+    existingOtp.attempts < 3
+  ) {
+    return respond({
+      success: true,
+      diag: "OTP-EXIST",
+      message: "A verification code has already been sent. Please enter it.",
+      reuse: true,
+    });
+  }
+
+  // =============create an OTP=====================
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const otpHash = await hashOtp(otp);
 
@@ -134,7 +155,7 @@ serve(async (req) => {
       return respond({
         success: false,
         diag: "OTP-SMS-001",
-        message: err.message ||  "Failed to send OTP via SMS",
+        message: "Failed to send OTP via SMS",
       });
     }
   }

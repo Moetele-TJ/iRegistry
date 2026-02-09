@@ -1,4 +1,5 @@
 // src/Pages/Items.jsx
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
@@ -48,7 +49,17 @@ export default function Items() {
   }
 
   function closeConfirm() {
-    setConfirm((c) => ({ ...c, isOpen: false }));
+    setConfirm({
+      isOpen: false,
+      title: "",
+      message: "",
+      confirmLabel: "Confirm",
+      cancelLabel: "Cancel",
+      danger: false,
+      action: null,
+      arg: undefined,
+      afterConfirmMessage: null,
+    });
   }
 
   function handleAfterConfirm() {
@@ -105,8 +116,13 @@ export default function Items() {
     return list;
   }, [items, statusFilter, categoryFilter, query, sortBy]);
 
+  useEffect(() => {
+  setPage(1);
+}, [query, statusFilter, categoryFilter, sortBy]);
+
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / perPage));
+
   useEffect(() => {
     setPage((p) => (p > totalPages ? totalPages : p));
   }, [totalPages]);
@@ -368,7 +384,7 @@ export default function Items() {
             <tbody>
               {pageItems.map((item) => {
                 const statusClass =
-                  item.status === "Stolen" ? "bg-iregistrygreen text-white" : "bg-red-600 text-white";
+                  item.status === "Stolen" ? "bg-red-600 text-white" : "bg-iregistrygreen text-white";
                 const toggleLabel = item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
 
                 return (
@@ -422,7 +438,7 @@ export default function Items() {
         <div className="sm:hidden space-y-3">
           {pageItems.map((item) => {
             const statusClass =
-              item.status === "Stolen" ? "bg-iregistrygreen text-white" : "bg-red-600 text-white";
+              item.status === "Stolen" ? "bg-red-600 text-white" : "bg-iregistrygreen text-white";
             const toggleLabel = item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
 
             return (

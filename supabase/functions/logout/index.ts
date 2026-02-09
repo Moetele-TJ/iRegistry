@@ -1,28 +1,11 @@
+// supabase/functions/logout/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { hashToken } from "../shared/crypto.ts";
 import { logAudit } from "../shared/logAudit.ts";
-
-/* ---------------- HEADERS ---------------- */
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-  "Access-Control-Max-Age": "86400",
-  "Content-Type": "application/json",
-};
-
-/* ---------------- HELPERS ---------------- */
-
-function respond(payload: Record<string, unknown>) {
-  return new Response(JSON.stringify(payload), {
-    status: 200,
-    headers: corsHeaders,
-  });
-}
+import { getCorsHeaders } from "../shared/cors.ts";
+import { respond } from "../shared/respond.ts";
 
 /* ---------------- SUPABASE ---------------- */
 
@@ -34,6 +17,8 @@ const supabase = createClient(
 /* ---------------- MAIN ---------------- */
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
@@ -42,11 +27,14 @@ serve(async (req) => {
     const auth = req.headers.get("authorization");
 
     if (!auth || !auth.startsWith("Bearer ")) {
-      return respond({
-        success: false,
-        diag: "LOG-001",
-        message: "Missing authorization token",
-      });
+      return respond(
+        {
+          success: true,
+          message: "Logged out successfully",
+        },
+        corsHeaders,
+        200
+      );
     }
 
     const token = auth.replace("Bearer ", "");
@@ -56,38 +44,26 @@ serve(async (req) => {
 
     const { data: session } = await supabase
       .from("sessions")
-      .select("id,user_id,expires_at,revoked")
+      .select("id, user_id, revoked")
       .eq("token", tokenHash)
       .maybeSingle();
 
+    // No session → already logged out
     if (!session) {
-      return respond({
-        success: false,
-        diag: "LOG-002",
-        message: "Session not found",
-      });
+      return respond(
+        { success: true, message: "Logged out successfully" },
+        corsHeaders,
+        200
+      );
     }
 
-    //-----------------------------------
-    // CHECK IF SESSION ALREADY REVOKED
-    //-----------------------------------
+    // Already revoked → idempotent success
     if (session.revoked) {
-      return respond({
-        success: false,
-        diag: "LOG-REV-003",
-        message: "Session already revoked"
-      });
-    }
-
-    //-----------------------------------
-    // CHECK IF SESSION EXPIRED
-    //-----------------------------------
-    if (new Date(session.expires_at) < new Date()) {
-      return respond({
-        success: false,
-        diag: "LOG-004",
-        message: "Session expired"
-      });
+      return respond(
+        { success: true, message: "Logged out successfully" },
+        corsHeaders,
+        200
+      );
     }
 
     /* 🚫 REVOKE SESSION */
@@ -102,24 +78,31 @@ serve(async (req) => {
     await logAudit({
       supabase,
       event: "LOGOUT",
-      id_number: session.user_id,
+      user_id: session.user_id,
       success: true,
       diag: "LOG-OK",
-      req
+      req,
     });
 
-    return respond({
-      success: true,
-      message: "Logged out successfully",
-    });
-
+    return respond(
+      {
+        success: true,
+        message: "Logged out successfully",
+      },
+      corsHeaders,
+      200
+    );
   } catch (err) {
     console.error("logout crash:", err);
 
-    return respond({
-      success: false,
-      diag: "LOG-500",
-      message: "Unexpected server error",
-    });
+    return respond(
+      {
+        success: false,
+        diag: "LOG-500",
+        message: "Unexpected server error",
+      },
+      corsHeaders,
+      500
+    );
   }
 });

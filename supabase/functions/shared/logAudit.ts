@@ -1,4 +1,4 @@
-// src/supabase/shared/logaudit.ts
+// supabase/shared/logaudit.ts
 // ----------------------------------
 //  AUDIT LOG FUNCTION
 // ----------------------------------
@@ -6,7 +6,7 @@ export async function logAudit(
   {
     supabase,
     event,
-    id_number,
+    user_id,
     channel = null,
     success,
     diag,
@@ -22,7 +22,7 @@ export async function logAudit(
 
   await supabase.from("audit_logs").insert({
     event,
-    id_number,
+    user_id,
     channel,
     ip_address: ip,
     user_agent: ua,

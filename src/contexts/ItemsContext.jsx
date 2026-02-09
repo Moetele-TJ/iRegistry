@@ -1,232 +1,359 @@
-// src/contexts/ItemsContext.jsx
-import React, { createContext, useContext, useEffect, useReducer } from "react";
-import { localStorageService } from "../services/localStorageService.js";
+//src/contexts/ItemsContext.jsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+} from "react";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
-// Fallback example data
-const FALLBACK = [
-  {
-    id: "IR-0001",
-    name: "Samsung Galaxy A30",
-    category: "Phone",
-    make: "Samsung",
-    model: "A30",
-    status: "Active",
-    lastSeen: "2025-02-11",
-    location: "Home",
-    serial1: "SN-A30-12345",
-    createdOn: "2025-02-11T08:00:00Z",
-    updatedOn: "2025-02-11T08:00:00Z",
-  },
-  {
-    id: "IR-0002",
-    name: "HP ProBook 450",
-    category: "Laptop",
-    make: "HP",
-    model: "ProBook 450",
-    status: "Stolen",
-    lastSeen: "2025-02-09",
-    location: "Office",
-    serial1: "HP-450-99999",
-    createdOn: "2025-02-09T10:00:00Z",
-    updatedOn: "2025-02-09T11:00:00Z",
-  },
-];
+/* ===================================================== */
+/* ===================== CONTEXTS ====================== */
+/* ===================================================== */
 
-// CONTEXTS
 const ItemsStateContext = createContext(null);
 const ItemsDispatchContext = createContext(null);
 
-// --- ID GENERATOR (IR-#### style)
-function generateId() {
-  const num = Math.floor(Math.random() * 9000) + 1000;
-  return `IR-${String(num).padStart(4, "0")}`;
-}
+/* ===================================================== */
+/* ===================== REDUCER ======================= */
+/* ===================================================== */
 
-function nowISO() {
-  return new Date().toISOString();
-}
-
-// --- REDUCER ---
 function itemsReducer(state, action) {
+
   switch (action.type) {
+    case "SET_LOADING":
+      return { ...state, loading: action.payload };
+
+    case "SET_ERROR":
+      return { ...state, error: action.payload };
+
     case "SET_ITEMS":
       return { ...state, items: action.payload || [] };
-
-    case "ADD_ITEM": {
-      const newItem = action.payload;
-      return { ...state, items: [newItem, ...(state.items || [])] };
-    }
-
-    case "UPDATE_ITEM": {
-      const { id, updates } = action.payload;
-      const items = (state.items || []).map((it) =>
-        it.id === id ? { ...it, ...updates, updatedOn: nowISO() } : it
-      );
-      return { ...state, items };
-    }
-
-    case "DELETE_ITEM": {
-      const id = action.payload.id;
-      const items = (state.items || []).filter((it) => it.id !== id);
-      return { ...state, items };
-    }
 
     default:
       return state;
   }
 }
 
-// --- PROVIDER ---
+/* ===================================================== */
+/* =============== DB → UI NORMALIZER ================== */
+/* ===================================================== */
+
+function normalizeFromDB(row) {
+  return {
+    id: row.id,
+    ownerId: row.ownerid,
+
+    name: row.name,
+    category: row.category,
+    make: row.make,
+    model: row.model,
+
+    serial1: row.serial1,
+    serial2: row.serial2,
+
+    location: row.location,
+    lastSeen: row.lastseen,
+    reportedStolenAt: row.reportedstolenat,
+
+    photos: row.photos || [],
+
+    purchaseDate: row.purchasedate,
+    estimatedValue: row.estimatedvalue,
+    shop: row.shop,
+    warrantyExpiry: row.warrantyexpiry,
+    notes: row.notes,
+
+    createdOn: row.createdon,
+    updatedOn: row.updatedon,
+    deletedAt: row.deletedat,
+  };
+}
+
+/* ===================================================== */
+/* ===================== PROVIDER ====================== */
+/* ===================================================== */
+
 export function ItemsProvider({ children }) {
-  const initial = {
-    items: localStorageService.loadItems() || FALLBACK,
+  const initialState = {
+    items: [],
+    loading: false,
+    error: null,
   };
 
-  const [state, dispatch] = useReducer(itemsReducer, initial);
+  const [state, dispatch] = useReducer(itemsReducer, initialState);
+  const { user } = useAuth();
 
-  // Persist to storage whenever items change
+  /* ---------------- FETCH ITEMS ---------------- */
+  
+  async function refreshItems(filters = {}) {
+
+    //Only block when there's no user and not explicitly allowed
+    if (!user && !filters.allowUnauthenticated) {
+      dispatch({ type: "SET_ITEMS", payload: [] });
+      return;
+    }
+
+    dispatch({ type: "SET_LOADING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "get-items",
+        {
+          body: {
+            ownerId: filters.ownerId,
+            includeDeleted: filters.includeDeleted,
+            category: filters.category,
+            make: filters.make,
+            model: filters.model,
+            reportedStolen: filters.reportedStolen,
+            hasPhotos: filters.hasPhotos,
+            createdFrom: filters.createdFrom,
+            createdTo: filters.createdTo,
+            search: filters.search,
+          },
+        }
+      );
+
+      if (error || !data?.success) {
+        throw new Error(data?.message || "Failed to load items");
+      }
+
+      dispatch({
+        type: "SET_ITEMS",
+        payload: (data.items || []).map(normalizeFromDB),
+      });
+
+    } catch (err) {
+      dispatch({
+        type: "SET_ERROR",
+        payload: err.message || "Failed to load items",
+      });
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  /* Initial load */
   useEffect(() => {
-    localStorageService.saveItems(state.items || []);
-  }, [state.items]);
+    if (!user?.id) {
+      dispatch({ type: "SET_ITEMS", payload: [] });
+      return;
+    }
+
+    refreshItems({ ownerId: user.id });
+  }, [user?.id]);
+
+  /* ---------------- ADD ITEM ---------------- */
+  
+  async function addItem(payload) {
+    dispatch({ type: "SET_LOADING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "create-item",
+        { body: payload }
+      );
+
+      if (error || !data?.success) {
+        throw new Error(data?.message || "Failed to create item");
+      }
+
+      await refreshItems();
+      return data.item_id;
+
+    }catch (err) {
+      dispatch({ type: "SET_ERROR", payload: err.message });
+      throw err; // optional, for caller handling
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  /* ---------------- UPDATE ITEM ---------------- */
+  
+  async function updateItem(id, updates) {
+    dispatch({ type: "SET_LOADING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+
+    try {
+      const { error } = await supabase.functions.invoke(
+        "update-item",
+        { body: { id, updates } }
+      );
+
+      if (error) {
+        throw new Error("Failed to update item");
+      }
+
+      await refreshItems();
+    }catch (err) {
+      dispatch({ type: "SET_ERROR", payload: err.message });
+      throw err; // optional, for caller handling
+    }finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  /* ---------------- DELETE ITEM (SOFT) ---------------- */
+
+  async function deleteItem(id) {
+  
+  dispatch({ type: "SET_LOADING", payload: true });
+  dispatch({ type: "SET_ERROR", payload: null });
+
+  try {
+    const { error } = await supabase.functions.invoke(
+      "delete-item",
+      { body: { id } }
+    );
+
+    if (error) throw error;
+
+    await refreshItems(); // ✅ always trust server
+
+  } catch (err) {
+    dispatch({ type: "SET_ERROR", payload: err.message });
+    throw err;
+  }finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+}
+
+  /* ---------------- RESTORE ITEM ---------------- */
+
+  async function restoreItem(id) {
+    dispatch({ type: "SET_ERROR", payload: null });
+    dispatch({ type: "SET_LOADING", payload: true });
+
+    try {
+      const { error } = await supabase.functions.invoke(
+        "restore-item",
+        { body: { id } }
+      );
+
+      if (error) throw error;
+
+      await refreshItems({ includeDeleted: true });
+
+    } catch (err) {
+      dispatch({
+        type: "SET_ERROR",
+        payload: err.message || "Failed to restore item",
+      });
+      throw err;
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  /* ---------------- HARD DELETE ITEM ---------------- */
+  async function hardDeleteItem(id) {
+
+    dispatch({ type: "SET_LOADING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+
+    try {
+      const { error } = await supabase.functions.invoke(
+        "hard-delete-item",
+        { body: { id } }
+      );
+
+      if (error) throw error;
+
+      // Always trust DB as source of truth
+      await refreshItems({ includeDeleted: true });
+
+    } catch (err) {
+      dispatch({
+        type: "SET_ERROR",
+        payload: err.message || "Failed to permanently delete item",
+      });
+      throw err;
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  /*========================TRANANSFER OWNERSHIP=======================*/
+  async function transferOwnership({ itemId, newOwnerId, evidence }) {
+    dispatch({ type: "SET_LOADING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+
+    try {
+      const { error } = await supabase.functions.invoke(
+        "transfer-item-ownership",
+        {
+          body: {
+            itemId,
+            newOwnerId,
+            evidence,
+          },
+        }
+      );
+
+      if (error) throw error;
+
+      await refreshItems({ includeDeleted: true });
+
+    } catch (err) {
+      dispatch({
+        type: "SET_ERROR",
+        payload: err.message || "Ownership transfer failed",
+      });
+      throw err;
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  /* ===================================================== */
 
   return (
     <ItemsStateContext.Provider value={state}>
-      <ItemsDispatchContext.Provider value={dispatch}>
+      <ItemsDispatchContext.Provider
+        value={{
+          refreshItems,
+          addItem,
+          updateItem,
+          deleteItem,
+          restoreItem,
+          hardDeleteItem,
+          transferOwnership,
+        }}
+      >
         {children}
       </ItemsDispatchContext.Provider>
     </ItemsStateContext.Provider>
   );
 }
 
-// --- HOOKS / PUBLIC API ---
+/* ===================================================== */
+/* ===================== HOOK ========================== */
+/* ===================================================== */
+
 export function useItems() {
   const state = useContext(ItemsStateContext);
-  const dispatch = useContext(ItemsDispatchContext);
+  const actions = useContext(ItemsDispatchContext);
 
-  if (!state || !dispatch) {
-    throw new Error("useItems must be used inside an ItemsProvider");
-  }
-
-  const items = state.items || [];
-
-  // Normalize a final clean item object for saving/updating
-  function normalizeItem(form, existing = {}) {
-    return {
-      id: existing.id || form.id || generateId(),
-
-      // Name logic: make + model OR provided name OR category OR untitled
-      name:
-        form.make && form.model
-          ? `${form.make} ${form.model}`
-          : form.name || existing.name || form.category || "Untitled",
-
-      category: form.category ?? existing.category ?? "",
-      make: form.make ?? existing.make ?? "",
-      model: form.model ?? existing.model ?? "",
-
-      status: form.status ?? existing.status ?? "Active",
-
-      lastSeen:
-        form.lastSeen ??
-        form.purchaseDate ??
-        existing.lastSeen ??
-        "",
-
-      location:
-        form.location ??
-        form.locationFound ??
-        existing.location ??
-        "",
-
-      serial1: form.serial1 ?? existing.serial1 ?? "",
-      serial2: form.serial2 ?? existing.serial2 ?? "",
-
-      ownerInfo:
-        form.ownerInfo ??
-        form.notes ??
-        existing.ownerInfo ??
-        "",
-
-      ownerId: form.ownerId ?? existing.ownerId ?? "",
-
-      value:
-        form.estimatedValue ??
-        form.value ??
-        existing.value ??
-        "",
-
-      shop: form.shop ?? existing.shop ?? "",
-      warrantyExpiry: form.warrantyExpiry ?? existing.warrantyExpiry ?? "",
-      imageUrl: form.imageUrl ?? existing.imageUrl ?? "",
-      description: form.description ?? existing.description ?? "",
-      photo: form.photo ?? existing.photo ?? null,
-
-      createdOn: existing.createdOn || nowISO(),
-      updatedOn: nowISO(),
-    };
-  }
-
-  // --- ADD ITEM (synchronous)
-  function addItem(form) {
-    const item = normalizeItem(form);
-    dispatch({ type: "ADD_ITEM", payload: item });
-
-    // broadcast update for other non-context consumers
-    try {
-      window.dispatchEvent(new Event("ireg:items-updated"));
-    } catch (e) {
-      // ignore
-    }
-
-    return item.id;
-  }
-
-  // --- UPDATE ITEM (synchronous)
-  function updateItem(id, updates) {
-    // Normalize updates based on existing item
-    const existing = items.find((i) => i.id === id) || {};
-    const updated = normalizeItem(updates, existing);
-
-    // We'll dispatch the updates payload (reducer will merge)
-    dispatch({ type: "UPDATE_ITEM", payload: { id, updates: updated } });
-
-    try {
-      window.dispatchEvent(new Event("ireg:items-updated"));
-    } catch (e) {
-      // ignore
-    }
-
-    return updated;
-  }
-
-  // --- DELETE ITEM (synchronous)
-  function deleteItem(id) {
-    dispatch({ type: "DELETE_ITEM", payload: { id } });
-
-    try {
-      window.dispatchEvent(new Event("ireg:items-updated"));
-    } catch (e) {
-      // ignore
-    }
-
-    return true;
-  }
-
-  // --- TOGGLE STATUS (synchronous wrapper)
-  function toggleStatus(id) {
-    const it = items.find((x) => x.id === id);
-    if (!it) return null;
-    const next = it.status === "Stolen" ? "Active" : "Stolen";
-    return updateItem(id, { status: next });
+  if (!state || !actions) {
+    throw new Error("useItems must be used inside ItemsProvider");
   }
 
   return {
-    items,
-    addItem,
-    updateItem,
-    deleteItem,
-    toggleStatus,
-    dispatch,
-    state,
+    items: state.items,
+    loading: state.loading,
+    error: state.error,
+
+    addItem: actions.addItem,
+    updateItem: actions.updateItem,
+    deleteItem: actions.deleteItem,
+    refreshItems: actions.refreshItems,
+    restoreItem: actions.restoreItem,
+    hardDeleteItem: actions.hardDeleteItem,
+    transferOwnership: actions.transferOwnership,
   };
 }

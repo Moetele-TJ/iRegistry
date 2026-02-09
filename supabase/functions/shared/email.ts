@@ -1,4 +1,4 @@
-// shared/email.ts
+// supabase/shared/email.ts
 
 export async function sendEmail(
   to: string,

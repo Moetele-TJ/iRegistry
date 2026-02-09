@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { logAudit } from "../shared/logAudit.ts";
+import { logItemAudit } from "../shared/logItemAudit.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -52,15 +52,69 @@ serve(async (req) => {
       );
     }
 
-    if (!ownerId) {
+    const { data: authData, error: authError } =
+      await supabase.auth.getUser(auth.replace("Bearer ", ""));
+
+    if (authError || !authData?.user) {
       return respond(
         {
           success: false,
-          diag: "ITEM-CREATE-001",
-          message: "This item has a missing owner ID. An item must belong to an individual",
+          diag: "ITEM-CREATE-AUTH-001",
+          message: "You need to be logged in to perform this task.",
+        },
+        corsHeaders,
+        401
+      );
+    }
+
+    const actor = authData.user;
+    
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("auth_user_id", actor.id)
+      .single();
+
+    if (userError || !userRow) {
+      return respond(
+        {
+          success: false,
+          diag: "AUTH-USER-NOT-FOUND",
+          message: "User profile not found",
+        },
+        corsHeaders,
+        403
+      );
+    }
+
+    // 3️⃣ These become your truth
+    const actorUserId = userRow.id;
+    const actorRole = userRow.role;
+
+    let resolvedOwnerId = ownerId ?? actorUserId;
+
+    if (resolvedOwnerId && typeof resolvedOwnerId !== "string") {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-008",
+          message: "Invalid owner ID",
         },
         corsHeaders,
         400
+      );
+    }
+
+    // Admin override
+    if (!["admin","cashier"].includes(actorRole) && resolvedOwnerId !== actorUserId) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-AUTH-002",
+          message: "You cannot create an item for another user",
+        },
+        corsHeaders,
+        403
       );
     }
 
@@ -130,7 +184,7 @@ serve(async (req) => {
     const { data, error } = await supabase
       .from("items")
       .insert({
-        ownerid: ownerId,
+        ownerid: resolvedOwnerId,
         name,
         category,
         make,
@@ -165,14 +219,17 @@ serve(async (req) => {
       );
     }
 
-    await logAudit({
-      supabase,
-      event: "ITEM_CREATED",
-      user_id: ownerId,
-      success: true,
-      diag: "ITEM-CREATE-OK",
-      req,
-    });
+    await logItemAudit({
+    supabase,
+    itemId: data.id,
+    actorId: actorUserId,      // who performed the action
+    action: "ITEM_CREATED",
+    details: {
+      metadata: {
+        ownerId: resolvedOwnerId,
+      },
+    },
+  });
 
     return respond(
       {
