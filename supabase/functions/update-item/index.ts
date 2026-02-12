@@ -5,6 +5,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
+import { normalizeSerial } from "../shared/serial.ts";
+import { isPrivilegedRole} from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -102,7 +104,7 @@ serve(async (req) => {
     }
 
     const isOwner = existing.ownerid === actorUserId;
-    const isPrivileged = ["admin","cashier"].includes(actorRole);
+    const isPrivileged = isPrivilegedRole(actorRole);
 
     if (!isOwner && !isPrivileged) {
       return respond(
@@ -143,7 +145,6 @@ serve(async (req) => {
 
     // ✅ API-level allowed fields (camelCase)
     const allowed = [
-      "name",
       "category",
       "make",
       "model",
@@ -164,7 +165,10 @@ serve(async (req) => {
       if (!allowed.includes(key)) continue;
 
       const dbField = fieldMap[key] ?? key;
-      cleanUpdates[dbField] = updates[key];
+      const value = updates[key];
+
+      cleanUpdates[dbField] =
+        typeof value === "string" ? value.trim() : value;
     }
 
     if (Object.keys(cleanUpdates).length === 0) {
@@ -178,6 +182,73 @@ serve(async (req) => {
         400
       );
     }
+
+    /* ---------------- SERIAL UPDATE CHECK ---------------- */
+
+    if ("serial1" in cleanUpdates) {
+      const newSerialNormalized = normalizeSerial(cleanUpdates.serial1);
+
+      if (!newSerialNormalized) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-006",
+            message: "Invalid serial number format",
+          },
+          corsHeaders,
+          400
+        );
+      }
+
+      const { data: duplicate } = await supabase
+        .from("items")
+        .select("id")
+        .eq("serial1_normalized", newSerialNormalized)
+        .is("deletedat", null)
+        .neq("id", id)
+        .maybeSingle();
+
+      if (duplicate) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-DUPLICATE",
+            message: "An active item with this serial number already exists.",
+          },
+          corsHeaders,
+          409
+        );
+      }
+
+      cleanUpdates["serial1"] = cleanUpdates.serial1;
+      cleanUpdates["serial1_normalized"] = newSerialNormalized;
+    }
+
+    const requiredFields = ["category", "make", "model", "serial1", "location"];
+
+    for (const field of requiredFields) {
+      const dbField = fieldMap[field] ?? field;
+
+      const newValue =
+        dbField in cleanUpdates ? cleanUpdates[dbField] : existing[dbField];
+
+      if (!newValue) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-REQUIRED",
+            message: `${field} cannot be empty`,
+          },
+          corsHeaders,
+          400
+        );
+      }
+    }
+
+    const newMake = cleanUpdates.make ?? existing.make;
+    const newModel = cleanUpdates.model ?? existing.model;
+
+    cleanUpdates.name = `${newMake} ${newModel}`.trim();
 
     /* ---------------- DIFF ---------------- */
 

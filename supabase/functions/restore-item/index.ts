@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -108,7 +109,7 @@ serve(async (req) => {
     /* ---------------- AUTHORIZE ---------------- */
 
     const isOwner = existing.ownerid === actorUserId;
-    const isPrivileged = ["admin", "cashier"].includes(actorRole);
+    const isPrivileged = isPrivilegedRole(actorRole);
 
     if (!isOwner && !isPrivileged) {
       return respond(

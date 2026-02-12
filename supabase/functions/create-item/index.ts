@@ -5,6 +5,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
+import { normalizeSerial } from "../shared/serial.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -106,7 +108,9 @@ serve(async (req) => {
     }
 
     // Admin override
-    if (!["admin","cashier"].includes(actorRole) && resolvedOwnerId !== actorUserId) {
+    const isPrivileged = isPrivilegedRole(actorRole);
+
+    if (!isPrivileged && resolvedOwnerId !== actorUserId) {
       return respond(
         {
           success: false,
@@ -127,6 +131,53 @@ serve(async (req) => {
         },
         corsHeaders,
         400
+      );
+    }
+
+    const serial1Normalized = normalizeSerial(serial1);
+
+    if (!serial1Normalized) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-009",
+          message: "Invalid serial number format.",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    // 🔒 Prevent duplicates (ignore soft-deleted items)
+    const { data: existingItem, error: duplicateError } = await supabase
+      .from("items")
+      .select("id")
+      .eq("serial1_normalized", serial1Normalized)
+      .is("deletedat", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (duplicateError) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-DUPLICATE-ERROR",
+          message: "We are unable to check whether there is a duplicate serial number, so we can't continue.",
+        },
+        corsHeaders,
+        409
+      );
+    }
+
+    if (existingItem) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-DUPLICATE",
+          message: "An active item with this serial number already exists.",
+        },
+        corsHeaders,
+        409
       );
     }
 
@@ -186,20 +237,21 @@ serve(async (req) => {
       .insert({
         ownerid: resolvedOwnerId,
         name,
-        category,
-        make,
-        model,
-        serial1,
-        serial2,
-        location,
+        category: category.trim(),
+        make: make.trim(),
+        model: model.trim(),
+        serial1: serial1.trim(),
+        serial1_normalized: serial1Normalized,
+        serial2: serial2.trim() || null,
+        location: location.trim(),
         photos,
         purchasedate: purchaseDate,
         estimatedvalue: estimatedValue,
-        shop,
+        shop: shop.trim() || null,
         warrantyexpiry: warrantyExpiry,
         reportedstolenat: null,
         deletedat: null,
-        notes,
+        notes: notes.trim() || null,
         status: "Active",
       })
       .select("id")

@@ -6,9 +6,26 @@ import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 
+function formatCurrency(value) {
+  if (value == null) return "-";
+
+  return new Intl.NumberFormat("en-BW", {
+    style: "currency",
+    currency: "BWP",
+    currencyDisplay: "symbol", // shows P
+  }).format(value);
+  
+}
+
 export default function Items() {
   const navigate = useNavigate();
-  const { items: ctxItems = [], updateItem, deleteItem } = useItems();
+    const {
+    items: ctxItems = [],
+    loading,
+    error,
+    updateItem,
+    deleteItem,
+  } = useItems();
 
   // UI state
   const [query, setQuery] = useState("");
@@ -377,59 +394,114 @@ export default function Items() {
                 <th className="text-left py-3 px-4">Status</th>
                 <th className="text-left py-3 px-4">Last Seen</th>
                 <th className="text-left py-3 px-4">Location</th>
+                <th className="text-right py-3 px-4">Est.Value</th>
                 <th className="text-right py-3 px-4">Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {pageItems.map((item) => {
-                const statusClass =
-                  item.status === "Stolen" ? "bg-red-600 text-white" : "bg-iregistrygreen text-white";
-                const toggleLabel = item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
-
-                return (
-                  <tr key={item.id} className="border-t hover:bg-gray-50">
-                    <td className="py-3 px-4">{item.name}</td>
-                    <td className="py-3 px-4 text-gray-500">{item.id}</td>
-                    <td className="py-3 px-4 text-gray-600">{item.category}</td>
+              {/* ================= LOADING SKELETON ================= */}
+              {loading &&
+                [...Array(perPage)].map((_, i) => (
+                  <tr key={i} className="border-t animate-pulse">
                     <td className="py-3 px-4">
-                      <span
-                        className={
-                          "inline-flex px-2 py-1 rounded-full text-xs font-medium " + statusBadge(item.status)
-                        }
-                      >
-                        {item.status}
-                      </span>
+                      <div className="h-4 bg-gray-200 rounded w-32" />
                     </td>
-                    <td className="py-3 px-4 text-gray-600">{item.lastSeen || "-"}</td>
-                    <td className="py-3 px-4 text-gray-600">{item.location || "-"}</td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-40" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-24" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-6 bg-gray-200 rounded-full w-20" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-28" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-28" />
+                    </td>
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <RippleButton
-                          className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
-                          onClick={() => navigate("/items/" + item.id)}
-                        >
-                          View
-                        </RippleButton>
-
-                        <RippleButton
-                          className={"px-3 py-1 rounded-md text-xs " + statusClass}
-                          onClick={() => confirmToggleStatus(item.id)}
-                        >
-                          {toggleLabel}
-                        </RippleButton>
-
-                        <RippleButton
-                          className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
-                          onClick={() => confirmDelete(item.id)}
-                        >
-                          Delete
-                        </RippleButton>
-                      </div>
+                      <div className="h-6 bg-gray-200 rounded w-24 ml-auto" />
                     </td>
                   </tr>
-                );
-              })}
+                ))}
+
+              {/* ================= DATA ROWS ================= */}
+              {!loading &&
+                pageItems.map((item) => {
+                  const statusClass =
+                    item.status === "Stolen"
+                      ? "bg-red-600 text-white"
+                      : "bg-iregistrygreen text-white";
+
+                  const toggleLabel =
+                    item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
+
+                  return (
+                    <tr key={item.id} className="border-t hover:bg-gray-50">
+                      <td className="py-3 px-4">{item.name}</td>
+                      <td className="py-3 px-4 text-gray-500">{item.id}</td>
+                      <td className="py-3 px-4 text-gray-600">{item.category}</td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={
+                            "inline-flex px-2 py-1 rounded-full text-xs font-medium " +
+                            statusBadge(item.status)
+                          }
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {item.lastSeen || "-"}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {item.location || "-"}
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium text-gray-700">
+                        {formatCurrency(item.estimatedValue)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <RippleButton
+                            className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
+                            onClick={() => navigate("/items/" + item.id)}
+                          >
+                            View
+                          </RippleButton>
+
+                          <RippleButton
+                            className={"px-3 py-1 rounded-md text-xs " + statusClass}
+                            onClick={() => confirmToggleStatus(item.id)}
+                          >
+                            {toggleLabel}
+                          </RippleButton>
+
+                          <RippleButton
+                            className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
+                            onClick={() => confirmDelete(item.id)}
+                          >
+                            Delete
+                          </RippleButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+              {/* ================= EMPTY STATE ================= */}
+              {!loading && pageItems.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="py-6 px-4 text-center text-gray-500"
+                  >
+                    No items found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -448,6 +520,13 @@ export default function Items() {
                     <p className="font-medium text-gray-900">{item.name}</p>
                     <p className="text-xs text-gray-500">ID: {item.id}</p>
                     <p className="text-xs text-gray-500">Category: {item.category}</p>
+                    {item.estimatedValue != null && (
+                    <p className="text-xs text-gray-500">
+                      Value: <span className="font-medium text-gray-700">
+                        {formatCurrency(item.estimatedValue)}
+                      </span>
+                    </p>
+                  )}
                   </div>
 
                   <div className="text-right">

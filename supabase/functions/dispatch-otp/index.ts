@@ -26,10 +26,13 @@ serve(async (req) => {
 
   if (!body?.user_id || !body?.channel) {
     return respond({ 
-      success: false, 
-      diag: "AUT-ID-001",
-      message: "Invalid request, check your credentials and start again.",
-    });
+        success: false, 
+        diag: "AUT-ID-001",
+        message: "Invalid request, check your credentials and start again.",
+      },
+      corsHeaders,
+      400
+    );
   }
 
   const { data: user, error: userError } = await supabase
@@ -40,10 +43,13 @@ serve(async (req) => {
 
   if (userError || !user) {
     return respond({
-      success: false,
-      diag: "CHAN-CONT-001",
-      message: "User contact details not found",
-    });
+        success: false,
+        diag: "CHAN-CONT-001",
+        message: "User contact details not found",
+      },
+      corsHeaders,
+      400
+    );
   }
 
   //check if user already has an existing valid otp before sending a new one
@@ -62,11 +68,14 @@ serve(async (req) => {
     existingOtp.attempts < 3
   ) {
     return respond({
-      success: true,
-      diag: "OTP-EXIST",
-      message: "A verification code has already been sent. Please enter it.",
-      reuse: true,
-    });
+        success: true,
+        diag: "OTP-EXIST",
+        message: "A verification code has already been sent. Please enter it.",
+        reuse: true,
+      },
+      corsHeaders,
+      200
+    );
   }
 
   // =============create an OTP=====================
@@ -85,8 +94,10 @@ serve(async (req) => {
         success: false,
         diag: "CHAN-SEND-002",
         message: "We are unable to process your request. Please try again",
-      }
-    )
+      },
+      corsHeaders,
+      500
+    );
   }
 
   const {error : insertError} = await supabase.from("login_otps").insert({
@@ -107,18 +118,23 @@ serve(async (req) => {
         success : false,
         diag : "CHAN-SEND-003",
         message : "We are unable to process your request any further",
-      }
-    )
+      },
+      corsHeaders,
+      500
+    );
   }
 
   // 🔔 SEND OTP
   if (body.channel === "sms") {
     if (!user.phone) {
-      return respond({
-        success: false,
-        diag: "OTP-SMS-002",
-        message: "No phone number registered for this account",
-      });
+        return respond({
+          success: false,
+          diag: "OTP-SMS-002",
+          message: "No phone number registered for this account",
+        },
+        corsHeaders,
+        400
+      );
     }
 
     try {
@@ -153,20 +169,26 @@ serve(async (req) => {
       });
 
       return respond({
-        success: false,
-        diag: "OTP-SMS-001",
-        message: "Failed to send OTP via SMS",
-      });
+          success: false,
+          diag: "OTP-SMS-001",
+          message: "Failed to send OTP via SMS",
+        },
+        corsHeaders,
+        500
+      );
     }
   }
 
   if (body.channel === "email") {
     if (!user.email) {
-      return respond({
-        success: false,
-        diag: "OTP-EMAIL-002",
-        message: "No email registered for this account",
-      });
+        return respond({
+          success: false,
+          diag: "OTP-EMAIL-002",
+          message: "No email registered for this account",
+        },
+        corsHeaders,
+        400
+      );
     }
 
     try {
@@ -198,15 +220,21 @@ serve(async (req) => {
       });
 
       return respond({
-        success: false,
-        diag: "OTP-EMAIL-001",
-        message: "Failed to send OTP via email",
-      });
+          success: false,
+          diag: "OTP-EMAIL-001",
+          message: "Failed to send OTP via email",
+        },
+        corsHeaders,
+        500
+      );
     }
   }
 
   return respond({
-    success: true,
-    message: "OTP sent",
-  });
+      success: true,
+      message: "OTP sent",
+    },
+    corsHeaders,
+    200
+  );
 });
