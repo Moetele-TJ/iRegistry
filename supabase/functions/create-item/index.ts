@@ -1,4 +1,4 @@
-//supabase/functions/create-item/index.ts
+// supabase/functions/create-item/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -7,6 +7,7 @@ import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -17,12 +18,32 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { 
-      status: 204, 
-      headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
+    /* ================= AUTH ================= */
+
+    const auth = req.headers.get("authorization");
+    const session = await validateSession(supabase, auth);
+
+    if (!session) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-AUTH-001",
+          message: "Unauthorized",
+        },
+        corsHeaders,
+        401
+      );
+    }
+
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
+
+    /* ================= INPUT ================= */
+
     const body = await req.json();
 
     const {
@@ -41,57 +62,7 @@ serve(async (req) => {
       notes,
     } = body ?? {};
 
-    /* ---------------- VALIDATION ---------------- */
-
-    const auth = req.headers.get("authorization");
-    if (!auth) {
-      return respond({ 
-        success:false, 
-        message:"Unauthorized" 
-        }, 
-        corsHeaders, 
-        401
-      );
-    }
-
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser(auth.replace("Bearer ", ""));
-
-    if (authError || !authData?.user) {
-      return respond(
-        {
-          success: false,
-          diag: "ITEM-CREATE-AUTH-001",
-          message: "You need to be logged in to perform this task.",
-        },
-        corsHeaders,
-        401
-      );
-    }
-
-    const actor = authData.user;
-    
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", actor.id)
-      .single();
-
-    if (userError || !userRow) {
-      return respond(
-        {
-          success: false,
-          diag: "AUTH-USER-NOT-FOUND",
-          message: "User profile not found",
-        },
-        corsHeaders,
-        403
-      );
-    }
-
-    // 3️⃣ These become your truth
-    const actorUserId = userRow.id;
-    const actorRole = userRow.role;
+    /* ================= OWNER RESOLUTION ================= */
 
     let resolvedOwnerId = ownerId ?? actorUserId;
 
@@ -107,7 +78,6 @@ serve(async (req) => {
       );
     }
 
-    // Admin override
     const isPrivileged = isPrivilegedRole(actorRole);
 
     if (!isPrivileged && resolvedOwnerId !== actorUserId) {
@@ -122,12 +92,14 @@ serve(async (req) => {
       );
     }
 
+    /* ================= SERIAL VALIDATION ================= */
+
     if (!serial1) {
       return respond(
         {
           success: false,
           diag: "ITEM-CREATE-002",
-          message: "A serial number is missing for this item. please confirm and try again.",
+          message: "Serial number is required.",
         },
         corsHeaders,
         400
@@ -148,13 +120,11 @@ serve(async (req) => {
       );
     }
 
-    // 🔒 Prevent duplicates (ignore soft-deleted items)
     const { data: existingItem, error: duplicateError } = await supabase
       .from("items")
       .select("id")
       .eq("serial1_normalized", serial1Normalized)
       .is("deletedat", null)
-      .limit(1)
       .maybeSingle();
 
     if (duplicateError) {
@@ -162,7 +132,7 @@ serve(async (req) => {
         {
           success: false,
           diag: "ITEM-DUPLICATE-ERROR",
-          message: "We are unable to check whether there is a duplicate serial number, so we can't continue.",
+          message: "Could not verify duplicate serial.",
         },
         corsHeaders,
         409
@@ -181,12 +151,14 @@ serve(async (req) => {
       );
     }
 
+    /* ================= REQUIRED FIELDS ================= */
+
     if (!category || !make || !model) {
       return respond(
         {
           success: false,
           diag: "ITEM-CREATE-003",
-          message: "This item is missing some key fields, please check the information.",
+          message: "Missing required fields.",
         },
         corsHeaders,
         400
@@ -198,19 +170,19 @@ serve(async (req) => {
         {
           success: false,
           diag: "ITEM-CREATE-005",
-          message: "A location is missing for this item. Every item should have a jurisdiction.",
+          message: "Location is required.",
         },
         corsHeaders,
         400
       );
     }
 
-    if (photos && (!Array.isArray(photos) || photos.some(p=>typeof p !=="string"))) {
+    if (photos && (!Array.isArray(photos) || photos.some(p => typeof p !== "string"))) {
       return respond(
         {
           success: false,
           diag: "ITEM-CREATE-007",
-          message: "Make sure the files you provided are picture types",
+          message: "Invalid photo format.",
         },
         corsHeaders,
         400
@@ -222,14 +194,15 @@ serve(async (req) => {
         {
           success: false,
           diag: "ITEM-CREATE-006",
-          message: "You can only upload five(5) photos per item.",
+          message: "Maximum 5 photos allowed.",
         },
         corsHeaders,
         400
       );
     }
 
-    /* ---------------- INSERT ---------------- */
+    /* ================= INSERT ================= */
+
     const name = `${make} ${model}`.trim();
 
     const { data, error } = await supabase
@@ -259,7 +232,6 @@ serve(async (req) => {
 
     if (error) {
       console.error("ITEM INSERT ERROR:", error);
-
       return respond(
         {
           success: false,
@@ -272,16 +244,16 @@ serve(async (req) => {
     }
 
     await logItemAudit({
-    supabase,
-    itemId: data.id,
-    actorId: actorUserId,      // who performed the action
-    action: "ITEM_CREATED",
-    details: {
-      metadata: {
-        ownerId: resolvedOwnerId,
+      supabase,
+      itemId: data.id,
+      actorId: actorUserId,
+      action: "ITEM_CREATED",
+      details: {
+        metadata: {
+          ownerId: resolvedOwnerId,
+        },
       },
-    },
-  });
+    });
 
     return respond(
       {
@@ -291,6 +263,7 @@ serve(async (req) => {
       corsHeaders,
       201
     );
+
   } catch (err) {
     console.error("create-item crash:", err);
 

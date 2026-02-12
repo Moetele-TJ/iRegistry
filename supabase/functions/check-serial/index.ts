@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { hashToken } from "../shared/crypto.ts";
 import { normalizeSerial } from "../shared/serial.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -23,38 +24,23 @@ serve(async (req) => {
     /* ===================== AUTH ===================== */
 
     const auth = req.headers.get("authorization");
-    if (!auth || !auth.startsWith("Bearer ")) {
-      return respond(
-        { success: false, diag: "SERIAL-AUTH-001", message: "Unauthorized" },
-        corsHeaders,
-        401
-      );
-    }
 
-    const token = auth.replace("Bearer ", "");
-    const tokenHash = await hashToken(token);
+    const session = await validateSession(supabase, auth);
 
-    const { data: session } = await supabase
-      .from("sessions")
-      .select("user_id, role, revoked, expires_at")
-      .eq("token", tokenHash)
-      .maybeSingle();
-
-    if (
-      !session ||
-      session.revoked ||
-      new Date(session.expires_at) < new Date()
-    ) {
+    if (!session) {
       return respond(
         {
           success: false,
-          diag: "SERIAL-AUTH-002",
-          message: "Session expired or invalid",
+          diag: "SERIAL-AUTH-001",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
+
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
     /* ===================== INPUT ===================== */
 
@@ -72,7 +58,7 @@ serve(async (req) => {
         400
       );
     }
-    
+
     const cleanSerial = normalizeSerial(serial1);
 
     if (!cleanSerial) {
@@ -88,7 +74,6 @@ serve(async (req) => {
     }
 
     /* ===================== CHECK ===================== */
-    // IMPORTANT: ignore soft-deleted items
 
     const { data, error } = await supabase
       .from("items")

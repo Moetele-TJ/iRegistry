@@ -1,9 +1,10 @@
-//supabase/functions/transfer-item-ownership/index.ts
+// supabase/functions/transfer-item-ownership/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -21,46 +22,22 @@ serve(async (req) => {
     /* ===================== AUTH ===================== */
 
     const auth = req.headers.get("authorization");
-    if (!auth) {
-      return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-    }
+    const session = await validateSession(supabase, auth);
 
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser(auth.replace("Bearer ", ""));
-
-    if (authError || !authData?.user) {
+    if (!session) {
       return respond(
         {
           success: false,
           diag: "ITEM-TRANS-AUTH-001",
-          message: "You need to be logged in to perform this task.",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
 
-    const actor = authData.user;
-
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", actor.id)
-      .single();
-
-    if (userError || !userRow) {
-      return respond({
-          success: false, 
-          diag: "AUTH-USER-NOT-FOUND", 
-          message: "User profile not found" 
-        },
-        corsHeaders,
-        403
-      );
-    }
-
-    const actorUserId = userRow.id;
-    const actorRole = userRow.role;
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
     if (actorRole !== "admin") {
       return respond(
@@ -122,45 +99,48 @@ serve(async (req) => {
     );
 
     if (rpcError) {
-      // Map known DB errors → HTTP responses
       switch (rpcError.message) {
         case "ITEM_NOT_FOUND":
-          return respond({
-            success: false,
-            diag: "ITEM-TRANS-003",
-            message: "We cannot find the specified item, please try again."
-          },
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-TRANS-003",
+              message: "We cannot find the specified item, please try again.",
+            },
             corsHeaders,
             404
           );
 
         case "ITEM_IS_DELETED":
-          return respond({
-            success: false,
-            diag: "ITEM-TRANS-004", 
-            message: "We cannot transfer an already deleted item"
-          },
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-TRANS-004",
+              message: "We cannot transfer an already deleted item",
+            },
             corsHeaders,
             409
           );
 
         case "NEW_OWNER_SAME_AS_CURRENT":
-          return respond({
-            success: false,
-            diag: "ITEM-TRANS-005",
-            message: "New owner is already the current owner" 
-          },
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-TRANS-005",
+              message: "New owner is already the current owner",
+            },
             corsHeaders,
             409
           );
 
         default:
           console.error("transfer-item-ownership rpc error:", rpcError);
-          return respond({
-            success: false,
-            diag: "ITEM-TRANS-006",
-            message: "Ownership transfer failed"
-          },
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-TRANS-006",
+              message: "Ownership transfer failed",
+            },
             corsHeaders,
             500
           );

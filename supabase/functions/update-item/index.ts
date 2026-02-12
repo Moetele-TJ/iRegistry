@@ -6,7 +6,8 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
 import { normalizeSerial } from "../shared/serial.ts";
-import { isPrivilegedRole} from "../shared/roles.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -21,52 +22,27 @@ serve(async (req) => {
   }
 
   try {
+    /* ---------------- AUTH ---------------- */
+
     const auth = req.headers.get("authorization");
-    if (!auth) {
-      return respond(
-        { success: false, message: "Unauthorized" },
-        corsHeaders,
-        401
-      );
-    }
+    const session = await validateSession(supabase, auth);
 
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser(auth.replace("Bearer ", ""));
-
-    if (authError || !authData?.user) {
+    if (!session) {
       return respond(
         {
           success: false,
           diag: "ITEM-UPDATE-AUTH-001",
-          message: "Invalid or expired token",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
 
-    const actor = authData.user;
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", actor.id)
-      .single();
-
-    if (userError || !userRow) {
-      return respond(
-        {
-          success: false,
-          diag: "AUTH-USER-NOT-FOUND",
-          message: "User profile not found",
-        },
-        corsHeaders,
-        403
-      );
-    }
-
-    const actorUserId = userRow.id;
-    const actorRole = userRow.role;
+    /* ---------------- INPUT ---------------- */
 
     const body = await req.json();
     const { id, updates } = body ?? {};
@@ -132,7 +108,6 @@ serve(async (req) => {
 
     /* ---------------- SANITIZE UPDATES ---------------- */
 
-    // Map API (camelCase) → DB (snake_case)
     const fieldMap: Record<string, string> = {
       purchaseDate: "purchasedate",
       estimatedValue: "estimatedvalue",
@@ -143,7 +118,6 @@ serve(async (req) => {
       Object.entries(fieldMap).map(([k, v]) => [v, k])
     );
 
-    // ✅ API-level allowed fields (camelCase)
     const allowed = [
       "category",
       "make",
@@ -220,7 +194,6 @@ serve(async (req) => {
         );
       }
 
-      cleanUpdates["serial1"] = cleanUpdates.serial1;
       cleanUpdates["serial1_normalized"] = newSerialNormalized;
     }
 
@@ -253,7 +226,6 @@ serve(async (req) => {
     /* ---------------- DIFF ---------------- */
 
     const rawDiff = computeDiff(existing, cleanUpdates);
-
     const diff: Record<string, { from: any; to: any }> = {};
 
     for (const [dbKey, change] of Object.entries(rawDiff)) {
@@ -302,8 +274,6 @@ serve(async (req) => {
         changes: diff,
       },
     });
-
-    /* ---------------- RESPONSE ---------------- */
 
     return respond(
       {

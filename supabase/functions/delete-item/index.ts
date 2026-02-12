@@ -1,4 +1,4 @@
-//supabase/functions/delete-item/index.ts
+// supabase/functions/delete-item/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -23,51 +24,22 @@ serve(async (req) => {
     /* ---------------- AUTH ---------------- */
 
     const auth = req.headers.get("authorization");
-    if (!auth) {
-      return respond(
-        { success: false, message: "Unauthorized" },
-        corsHeaders,
-        401
-      );
-    }
+    const session = await validateSession(supabase, auth);
 
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser(auth.replace("Bearer ", ""));
-
-    if (authError || !authData?.user) {
+    if (!session) {
       return respond(
         {
           success: false,
           diag: "ITEM-DELETE-AUTH-001",
-          message: "You need to be logged in to perform this task.",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
 
-    const actor = authData.user;
-
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", actor.id)
-      .single();
-
-    if (userError || !userRow) {
-      return respond(
-        {
-          success: false,
-          diag: "AUTH-USER-NOT-FOUND",
-          message: "User profile not found",
-        },
-        corsHeaders,
-        403
-      );
-    }
-
-    const actorUserId = userRow.id;
-    const actorRole = userRow.role;
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
     /* ---------------- INPUT ---------------- */
 

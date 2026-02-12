@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -23,28 +24,22 @@ serve(async (req) => {
     /* ===================== AUTH ===================== */
 
     const auth = req.headers.get("authorization");
-    if (!auth) {
-      return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-    }
+    const session = await validateSession(supabase, auth);
 
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser(auth.replace("Bearer ", ""));
-
-    if (authError || !authData?.user) {
+    if (!session) {
       return respond(
         {
           success: false,
           diag: "EVIDENCE-AUTH-001",
-          message: "You need to be logged in to perform this task.",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
 
-    const actor = authData.user;
-    const actorId = actor.id;
-    const actorRole = actor.user_metadata?.role;
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
     if (actorRole !== "admin") {
       return respond(
@@ -94,11 +89,10 @@ serve(async (req) => {
     /* ===================== BUILD STORAGE PATH ===================== */
 
     const uploadedAt = new Date().toISOString();
-
     const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
 
     const storagePath =
-      `${itemId}/${uploadedAt.replace(/[:.]/g, "-")}_${actorId}_${safeFilename}`;
+      `${itemId}/${uploadedAt.replace(/[:.]/g, "-")}_${actorUserId}_${safeFilename}`;
 
     /* ===================== UPLOAD ===================== */
 

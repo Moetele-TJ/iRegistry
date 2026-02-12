@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logItemAudit } from "../shared/logItemAudit.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -22,47 +23,22 @@ serve(async (req) => {
     /* ---------------- AUTH ---------------- */
 
     const auth = req.headers.get("authorization");
-    if (!auth) {
-      return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-    }
+    const session = await validateSession(supabase, auth);
 
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser(auth.replace("Bearer ", ""));
-
-    if (authError || !authData?.user) {
+    if (!session) {
       return respond(
         {
           success: false,
           diag: "ITEM-HARD-DELETE-AUTH-001",
-          message: "Invalid or expired token",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
 
-    const actor = authData.user;
-
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", actor.id)
-      .single();
-
-    if (userError || !userRow) {
-      return respond(
-        {
-          success: false,
-          diag: "AUTH-USER-NOT-FOUND",
-          message: "User profile not found",
-        },
-        corsHeaders,
-        403
-      );
-    }
-
-    const actorUserId = userRow.id;
-    const actorRole = userRow.role;
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
     /* ---------------- INPUT ---------------- */
 
@@ -119,7 +95,6 @@ serve(async (req) => {
     let auditMetadata: Record<string, unknown> = {};
 
     if (!isAdmin) {
-      // Users may ONLY hard delete soft-deleted items
       if (!item.deletedat) {
         return respond(
           {
@@ -144,14 +119,11 @@ serve(async (req) => {
         );
       }
 
-      // Must have replacement item with same serial
       const { data: replacement } = await supabase
         .from("items")
         .select("id")
         .eq("ownerid", actorUserId)
-        .or(
-          `serial1.eq.${item.serial1},serial2.eq.${item.serial2}`
-        )
+        .or(`serial1.eq.${item.serial1},serial2.eq.${item.serial2}`)
         .is("deletedat", null)
         .neq("id", id)
         .limit(1);

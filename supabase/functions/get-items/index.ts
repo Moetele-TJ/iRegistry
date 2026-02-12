@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { hashToken } from "../shared/crypto.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -22,37 +22,14 @@ serve(async (req) => {
     /* ===================== AUTH ===================== */
 
     const auth = req.headers.get("authorization");
-    if (!auth || !auth.startsWith("Bearer ")) {
+    const session = await validateSession(supabase, auth);
+
+    if (!session) {
       return respond(
         {
           success: false,
           diag: "GET-ITEMS-AUTH-001",
           message: "Unauthorized",
-        },
-        corsHeaders,
-        401
-      );
-    }
-
-    const token = auth.replace("Bearer ", "");
-    const tokenHash = await hashToken(token);
-
-    const { data: session } = await supabase
-      .from("sessions")
-      .select("user_id, role, revoked, expires_at")
-      .eq("token", tokenHash)
-      .maybeSingle();
-
-    if (
-      !session ||
-      session.revoked ||
-      new Date(session.expires_at) < new Date()
-    ) {
-      return respond(
-        {
-          success: false,
-          diag: "GET-ITEMS-AUTH-002",
-          message: "You need to be logged in to perform this task.",
         },
         corsHeaders,
         401
@@ -73,7 +50,7 @@ serve(async (req) => {
       createdFrom,
       createdTo,
       search,
-    } = body;
+    } = body ?? {};
 
     let query = supabase
       .from("items")
@@ -83,12 +60,10 @@ serve(async (req) => {
     /* ===================== ROLE RULES ===================== */
 
     if (session.role === "user") {
-      // Own items only
       query = query.eq("ownerid", session.user_id);
     }
 
     else if (session.role === "police") {
-      // Get officer station
       const { data: officer, error } = await supabase
         .from("users")
         .select("police_station")
@@ -106,7 +81,6 @@ serve(async (req) => {
         );
       }
 
-      // Only stolen items in their jurisdiction
       query = query
         .not("reportedstolenat", "is", null)
         .eq("location", officer.police_station);
@@ -122,8 +96,6 @@ serve(async (req) => {
         403
       );
     }
-
-    // admin → no ownership restriction
 
     /* ===================== FILTERS ===================== */
 
@@ -162,7 +134,7 @@ serve(async (req) => {
       corsHeaders,
       200
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error("get-items crash:", err);
 
     return respond(
