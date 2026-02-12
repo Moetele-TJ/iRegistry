@@ -98,7 +98,7 @@ export default function Login() {
 
       // 🔴 Transport / system error only
       if (invokeError||!data){
-        setError("Unable to send OTP. Please try again.");
+        setError("Unable to send OTP. Please check your network connection.");
         setIdentifyingUser(false);
         return;
       }
@@ -143,7 +143,7 @@ export default function Login() {
     });
 
     if ( ChannelError || !data ) {
-      setError("Failed to dispatch OTP. Please try again.");
+      setError("Failed to dispatch OTP. Please check your nework connection.");
       return;
     }
 
@@ -202,7 +202,7 @@ export default function Login() {
         //Supabse/network error
       if(verifyError && !data){
         setVerifyingOtp(false);
-        setError("OTP Verification failed. Please try again");
+        setError("OTP Verification failed. Please check your nework connection.");
         return;
       }
 

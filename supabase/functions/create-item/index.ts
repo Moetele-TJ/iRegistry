@@ -242,17 +242,17 @@ serve(async (req) => {
         model: model.trim(),
         serial1: serial1.trim(),
         serial1_normalized: serial1Normalized,
-        serial2: serial2.trim() || null,
         location: location.trim(),
         photos,
         purchasedate: purchaseDate,
         estimatedvalue: estimatedValue,
-        shop: shop.trim() || null,
         warrantyexpiry: warrantyExpiry,
         reportedstolenat: null,
         deletedat: null,
-        notes: notes.trim() || null,
         status: "Active",
+        serial2: typeof serial2 === "string" ? serial2.trim() || null : null,
+        shop: typeof shop === "string" ? shop.trim() || null : null,
+        notes: typeof notes === "string" ? notes.trim() || null : null,
       })
       .select("id")
       .single();
