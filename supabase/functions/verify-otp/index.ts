@@ -321,6 +321,7 @@ serve(async (req) => {
     // ----------------------------------
     return respond({
       success: true,
+      user_id: body.user_id,
       role: user.role, // user | police | admin
       session_token: token,
       },

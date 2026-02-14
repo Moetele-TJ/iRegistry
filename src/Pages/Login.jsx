@@ -249,7 +249,7 @@ export default function Login() {
     setSuccessAnim(true);
 
     // store session + update AuthContext
-    loginWithToken(data.session_token, data.role);
+    loginWithToken(data.session_token, data.role,data.user_id);
     
     // short success animation, then redirect
     setTimeout(() => {
