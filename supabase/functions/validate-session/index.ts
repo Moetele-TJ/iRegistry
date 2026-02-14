@@ -19,9 +19,12 @@ serve(async (req) => {
 
     // Preflight
     if (req.method === "OPTIONS") {
+      console.log("OPTIONS returning");
       return new Response(null, { status: 204, headers: corsHeaders });
     }
   
+    console.log("POST reached");
+    
     const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     console.log("AUTH HEADER:", auth);
 
