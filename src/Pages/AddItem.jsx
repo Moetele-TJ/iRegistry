@@ -37,8 +37,14 @@ export default function AddItem() {
 
     const timer = setTimeout(async () => {
       try {
+        const token = localStorage.getItem("session");
+
         const { data, error } = await supabase.functions.invoke("check-serial", {
           body: { serial1: form.serial1 },
+
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (error) {
@@ -54,7 +60,7 @@ export default function AddItem() {
       } catch {
         setSerialError(null);
       }
-    }, 500);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [form.serial1]);
@@ -208,6 +214,12 @@ export default function AddItem() {
       }
 
       // 1️⃣ Request signed upload URLs
+      const token = localStorage.getItem("session");
+
+      if (!token) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
       const { data: uploadInit, error: uploadError } =
         await supabase.functions.invoke("generate-upload-urls", {
           body: {
@@ -218,6 +230,9 @@ export default function AddItem() {
               size: p.file.size,
             })),
           },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
         });
 
       if (uploadError || !uploadInit?.success) {
@@ -245,6 +260,7 @@ export default function AddItem() {
       }
 
       // 3️⃣ Save photo paths in DB
+      
       const { data: updateData, error: updateError } =
         await supabase.functions.invoke("update-item", {
           body: {
@@ -253,6 +269,9 @@ export default function AddItem() {
               photos: uploadInit.uploads.map(u => u.path),
             },
           },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
         });
 
       if (updateError || !updateData?.success) {

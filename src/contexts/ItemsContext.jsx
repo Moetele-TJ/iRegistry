@@ -153,10 +153,14 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "create-item",
-        { body: payload }
-      );
+      const token = localStorage.getItem("session");
+
+      const { data, error } = await supabase.functions.invoke("create-item", {
+        body: payload,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (error || !data?.success) {
         throw new Error(data?.message || "Failed to create item");
