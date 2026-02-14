@@ -65,6 +65,16 @@ export default function AddItem() {
     };
   }, [photoPreviews]);
 
+  useEffect(() => {
+    if (!toast.visible) return;
+
+    const timer = setTimeout(() => {
+      setToast((t) => ({ ...t, visible: false }));
+    }, 5000); // 5 seconds
+
+    return () => clearTimeout(timer);
+  }, [toast.visible,toast.message]);
+
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
