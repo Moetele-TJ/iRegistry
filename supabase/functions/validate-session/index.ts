@@ -12,15 +12,18 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-
-  // Preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
   try {
+    console.log("🚀 validate-session invoked");
+    const corsHeaders = getCorsHeaders(req);
+    console.log("METHOD:", req.method);
+
+    // Preflight
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+  
     const auth = req.headers.get("authorization") || req.headers.get("Authorization");
+    console.log("AUTH HEADER:", auth);
 
     const session = await validateSession(supabase, auth);
 
