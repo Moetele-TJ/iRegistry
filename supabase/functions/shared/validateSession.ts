@@ -9,14 +9,14 @@ export async function validateSession(
   authHeader: string | null
 ) {
   // ----------------------------------
-  // 1️⃣ Check Authorization header
+  // 1️⃣ Check Authorization
   // ----------------------------------
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader) {
     console.log("❌ Missing or invalid Authorization header");
     return null;
   }
 
-  const token = authHeader.replace("Bearer ", "");
+  const token = authHeader;
   const tokenHash = await hashToken(token);
 
   console.log("🔐 Incoming token hash:", tokenHash);

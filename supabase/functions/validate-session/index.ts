@@ -25,10 +25,25 @@ serve(async (req) => {
   
     console.log("POST reached");
     
-    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-    console.log("AUTH HEADER:", auth);
+    const body = await req.json().catch(() => null);
+    const token = body?.session_token;
 
-    const session = await validateSession(supabase, auth);
+    if (!token) {
+      return respond(
+        {
+          success: false,
+          diag: "VAL-SESS-001",
+          message: "Session token missing",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    const session = await validateSession(
+      supabase,
+      token
+    );
 
     if (!session) {
       return respond(

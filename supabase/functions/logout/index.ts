@@ -24,29 +24,40 @@ serve(async (req) => {
   }
 
   try {
-    const auth = req.headers.get("authorization");
+    const body = await req.json().catch(() => null);
+    const token = body?.session_token;
 
-    if (!auth || !auth.startsWith("Bearer ")) {
+    // If no token → logout locally only (idempotent success)
+    if (!token) {
       return respond(
-        {
-          success: true,
-          message: "Logged out successfully",
-        },
+        { success: true, message: "Logged out successfully" },
         corsHeaders,
         200
       );
     }
 
-    const token = auth.replace("Bearer ", "");
     const tokenHash = await hashToken(token);
 
     /* 🔍 FIND SESSION */
 
-    const { data: session } = await supabase
+    const { data: session, error } = await supabase
       .from("sessions")
       .select("id, user_id, revoked")
       .eq("token", tokenHash)
       .maybeSingle();
+
+    if (error) {
+      console.error("Logout DB lookup error:", error.message);
+      return respond(
+        {
+          success: false,
+          diag: "LOG-DB-001",
+          message: "Database error during logout",
+        },
+        corsHeaders,
+        500
+      );
+    }
 
     // No session → already logged out
     if (!session) {
@@ -68,16 +79,29 @@ serve(async (req) => {
 
     /* 🚫 REVOKE SESSION */
 
-    await supabase
+    const { error: revokeError } = await supabase
       .from("sessions")
       .update({ revoked: true })
       .eq("id", session.id);
+
+    if (revokeError) {
+      console.error("Logout revoke error:", revokeError.message);
+      return respond(
+        {
+          success: false,
+          diag: "LOG-DB-002",
+          message: "Failed to revoke session",
+        },
+        corsHeaders,
+        500
+      );
+    }
 
     /* 📝 AUDIT */
 
     await logAudit({
       supabase,
-      event: "LOGOUT",
+      event: "LOGOUT_toggle",
       user_id: session.user_id,
       success: true,
       diag: "LOG-OK",
