@@ -17,33 +17,28 @@ serve(async (req) => {
     const corsHeaders = getCorsHeaders(req);
     console.log("METHOD:", req.method);
 
-    // Preflight
     if (req.method === "OPTIONS") {
       console.log("OPTIONS returning");
       return new Response(null, { status: 204, headers: corsHeaders });
     }
-  
-    console.log("POST reached");
-    
-    const body = await req.json().catch(() => null);
-    const token = body?.session_token;
 
-    if (!token) {
+    console.log("POST reached");
+
+    const auth = req.headers.get("authorization");
+
+    if (!auth) {
       return respond(
         {
           success: false,
           diag: "VAL-SESS-001",
-          message: "Session token missing",
+          message: "Authorization header missing",
         },
         corsHeaders,
         400
       );
     }
 
-    const session = await validateSession(
-      supabase,
-      token
-    );
+    const session = await validateSession(supabase, auth);
 
     if (!session) {
       return respond(

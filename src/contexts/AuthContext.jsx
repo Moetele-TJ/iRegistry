@@ -36,7 +36,9 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase.functions.invoke(
         "validate-session",
         {
-          body: {session_token: token},
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
         }
       );
 
@@ -79,8 +81,8 @@ export function AuthProvider({ children }) {
     try {
       if (!silent && token) {
         await supabase.functions.invoke("logout", {
-          body: {
-            session_token: token
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
         });
       }

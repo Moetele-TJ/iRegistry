@@ -7,6 +7,7 @@ export function getCorsHeaders(req: Request) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "authorization, content-type, apikey, x-client-info",
+    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
