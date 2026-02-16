@@ -246,6 +246,9 @@ serve(async (req) => {
     //-----------------------------------
     // Create Session
     //-----------------------------------
+
+    const sessionId = crypto.randomUUID();
+
     const JWT_SECRET = Deno.env.get("JWT_SECRET")!;
 
     if (!JWT_SECRET) {
@@ -260,10 +263,17 @@ serve(async (req) => {
     );
     }
 
+    const now = Math.floor(Date.now() / 1000);
+
     const payload = {
-      sub: body.user_id,
-      role: user.role,
-      exp: getNumericDate(60 * 60), // 1 hour
+      iss: "iregsys",
+      aud: "authenticated",
+      sub: user.id,             // user UUID
+      role: user.role,          // from DB
+      sid: sessionId,          // session UUID from sessions table
+      iat: now,
+      exp: now + 3600,          // 1 hour
+      ver: 1
     };
 
     const key = await crypto.subtle.importKey(
@@ -287,6 +297,7 @@ serve(async (req) => {
     //-----------------------------------
     const {error : sessionError} = await supabase.from("sessions").insert({
       user_id: body.user_id,
+      id: sessionId,
       role: user.role,
       token: tokenHash,
       ip_address: req.headers.get("x-forwarded-for"),

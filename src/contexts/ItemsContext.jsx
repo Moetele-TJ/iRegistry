@@ -1,11 +1,12 @@
 //src/contexts/ItemsContext.jsx
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import React, {
   createContext,
   useContext,
   useEffect,
   useReducer,
 } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
 /* ===================================================== */
@@ -153,13 +154,9 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const token = localStorage.getItem("session");
 
-      const { data, error } = await supabase.functions.invoke("create-item", {
+      const { data, error } = await invokeWithAuth("create-item", {
         body: payload,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (error || !data?.success) {
@@ -184,7 +181,7 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { error } = await supabase.functions.invoke(
+      const { error } = await invokeWithAuth(
         "update-item",
         { body: { id, updates } }
       );
@@ -210,7 +207,7 @@ export function ItemsProvider({ children }) {
   dispatch({ type: "SET_ERROR", payload: null });
 
   try {
-    const { error } = await supabase.functions.invoke(
+    const { error } = await invokeWithAuth(
       "delete-item",
       { body: { id } }
     );
@@ -234,7 +231,7 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_LOADING", payload: true });
 
     try {
-      const { error } = await supabase.functions.invoke(
+      const { error } = await invokeWithAuth(
         "restore-item",
         { body: { id } }
       );
@@ -261,7 +258,7 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { error } = await supabase.functions.invoke(
+      const { error } = await invokeWithAuth(
         "hard-delete-item",
         { body: { id } }
       );
@@ -288,7 +285,7 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { error } = await supabase.functions.invoke(
+      const { error } = await invokeWithAuth(
         "transfer-item-ownership",
         {
           body: {

@@ -43,26 +43,27 @@ serve(async (req) => {
 
     /* ---------------- INPUT ---------------- */
 
-    const body = await req.json();
-    const { id } = body ?? {};
+    const body = await req.json().catch(() => null);
 
-    if (!id) {
+    if (!body || typeof body.id !== "string") {
       return respond(
         {
           success: false,
           diag: "ITEM-RESTORE-001",
-          message: "Missing item id",
+          message: "Invalid request body",
         },
         corsHeaders,
         400
       );
     }
 
+    const { id } = body;
+
     /* ---------------- FETCH ITEM ---------------- */
 
     const { data: existing, error: fetchError } = await supabase
       .from("items")
-      .select("*")
+      .select("id,ownerid,deletedat")
       .eq("id", id)
       .maybeSingle();
 
@@ -109,20 +110,22 @@ serve(async (req) => {
 
     /* ---------------- RESTORE ---------------- */
 
-    const { error: restoreError } = await supabase
+    const { error: restoreError, count } = await supabase
       .from("items")
       .update({ deletedat: null })
-      .eq("id", id);
+      .eq("id", id)
+      .not("deletedat", "is", null)
+      .select("id", { count: "exact" });
 
-    if (restoreError) {
+    if (restoreError || count === 0) {
       return respond(
         {
           success: false,
           diag: "ITEM-RESTORE-004",
-          message: "Failed to restore item",
+          message: "Failed to restore item right now, try again",
         },
         corsHeaders,
-        500
+        409
       );
     }
 

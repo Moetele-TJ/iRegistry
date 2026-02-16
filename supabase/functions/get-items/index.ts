@@ -2,9 +2,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { getPagination } from "../shared/pagination.ts";
+import { applyItemFilters } from "../shared/itemFilters.ts";
+import { applyItemAccessControl } from "../shared/accessContolQuery.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -19,29 +23,14 @@ serve(async (req) => {
   }
 
   try {
-    /* ===================== AUTH ===================== */
-
-    const auth = req.headers.get("authorization");
-    const session = await validateSession(supabase, auth);
-
-    if (!session) {
-      return respond(
-        {
-          success: false,
-          diag: "GET-ITEMS-AUTH-001",
-          message: "Unauthorized",
-        },
-        corsHeaders,
-        401
-      );
-    }
-
-    /* ===================== INPUT ===================== */
+    /* ================= INPUT ================= */
 
     const body = await req.json().catch(() => ({}));
 
     const {
-      includeDeleted = false,
+      page,
+      pageSize,
+      includeDeleted,
       category,
       make,
       model,
@@ -52,88 +41,67 @@ serve(async (req) => {
       search,
     } = body ?? {};
 
+    /* ================= PAGINATION ================= */
+
+    const { safePage, safePageSize, from, to } =
+      getPagination(page, pageSize);
+
+    /* ================= AUTH ================= */
+
+    const auth = req.headers.get("authorization");
+    const session = await validateSession(supabase, auth);
+
+    /* ================= BASE QUERY ================= */
+
     let query = supabase
       .from("items")
-      .select("*")
-      .order("createdon", { ascending: false });
+      .select("*", { count: "exact" })
+      .order("createdon", { ascending: false })
+      .range(from, to);
 
-    /* ===================== ROLE RULES ===================== */
+    /* ================= ACCESS CONTROL ================= */
 
-    if (session.role === "user") {
-      query = query.eq("ownerid", session.user_id);
-    }
+    query = await applyItemAccessControl(
+      supabase,
+      query,
+      session
+    );
 
-    else if (session.role === "police") {
-      const { data: officer, error } = await supabase
-        .from("users")
-        .select("police_station")
-        .eq("id", session.user_id)
-        .single();
+    /* ================= FILTERS ================= */
 
-      if (error || !officer?.police_station) {
-        return respond(
-          {
-            success: false,
-            message: "Police station not configured for this officer",
-          },
-          corsHeaders,
-          403
-        );
-      }
+    query = applyItemFilters(query, {
+      includeDeleted,
+      category,
+      make,
+      model,
+      reportedStolen,
+      hasPhotos,
+      createdFrom,
+      createdTo,
+      search,
+    });
 
-      query = query
-        .not("reportedstolenat", "is", null)
-        .eq("location", officer.police_station);
-    }
+    /* ================= EXECUTE ================= */
 
-    else if (session.role !== "admin" && session.role !== "cashier") {
-      return respond(
-        {
-          success: false,
-          message: "You do not have sufficient privileges to perform this task",
-        },
-        corsHeaders,
-        403
-      );
-    }
+    const { data, error, count } = await query;
 
-    /* ===================== FILTERS ===================== */
-
-    if (!includeDeleted) query = query.is("deletedat", null);
-    if (category) query = query.eq("category", category);
-    if (make) query = query.eq("make", make);
-    if (model) query = query.eq("model", model);
-
-    if (reportedStolen === true) {
-      query = query.not("reportedstolenat", "is", null);
-    }
-
-    if (hasPhotos === true) {
-      query = query.not("photos", "is", null);
-    }
-
-    if (createdFrom) query = query.gte("createdon", createdFrom);
-    if (createdTo) query = query.lte("createdon", createdTo);
-
-    if (search) {
-      query = query.or(
-        `name.ilike.%${search}%,serial1.ilike.%${search}%`
-      );
-    }
-
-    /* ===================== QUERY ===================== */
-
-    const { data, error } = await query;
     if (error) throw error;
 
     return respond(
       {
         success: true,
         items: data || [],
+        pagination: {
+          page: safePage,
+          pageSize: safePageSize,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / safePageSize),
+        },
       },
       corsHeaders,
       200
     );
+
   } catch (err: any) {
     console.error("get-items crash:", err);
 

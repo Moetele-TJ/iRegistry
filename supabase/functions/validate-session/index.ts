@@ -13,18 +13,13 @@ const supabase = createClient(
 
 serve(async (req) => {
   try {
-    console.log("🚀 validate-session invoked");
     const corsHeaders = getCorsHeaders(req);
-    console.log("METHOD:", req.method);
 
     if (req.method === "OPTIONS") {
-      console.log("OPTIONS returning");
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    console.log("POST reached");
-
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
 
     if (!auth) {
       return respond(
@@ -63,7 +58,6 @@ serve(async (req) => {
     );
 
   } catch (err) {
-    console.error("validate-session crash:", err);
 
     return respond(
       {

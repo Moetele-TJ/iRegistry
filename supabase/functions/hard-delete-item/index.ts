@@ -22,7 +22,7 @@ serve(async (req) => {
   try {
     /* ---------------- AUTH ---------------- */
 
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
 
     if (!session) {
@@ -42,24 +42,27 @@ serve(async (req) => {
 
     /* ---------------- INPUT ---------------- */
 
-    const { id } = await req.json();
-    if (!id) {
-      return respond(
-        {
-          success: false,
-          diag: "ITEM-HARD-DELETE-001",
-          message: "Missing item id",
-        },
-        corsHeaders,
-        400
-      );
-    }
+    const body = await req.json().catch(() => null);
+
+      if (!body || typeof body.id !== "string") {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-HARD-DELETE-001",
+            message: "Invalid request",
+          },
+          corsHeaders,
+          400
+        );
+      }
+
+      const { id } = body;
 
     /* ---------------- FETCH ITEM ---------------- */
 
     const { data: item, error: fetchError } = await supabase
       .from("items")
-      .select("*")
+      .select("id, ownerid, deletedat, serial1, serial2")
       .eq("id", id)
       .maybeSingle();
 
@@ -119,27 +122,39 @@ serve(async (req) => {
         );
       }
 
-      const { data: replacement } = await supabase
+      let replacementQuery = supabase
         .from("items")
         .select("id")
         .eq("ownerid", actorUserId)
-        .or(`serial1.eq.${item.serial1},serial2.eq.${item.serial2}`)
         .is("deletedat", null)
-        .neq("id", id)
-        .limit(1);
+        .neq("id", id);
 
-      if (!replacement || replacement.length === 0) {
+      if (item.serial1 && item.serial2) {
+        replacementQuery = replacementQuery.or(
+          `serial1.eq.${item.serial1},serial2.eq.${item.serial2}`
+        );
+      } else if (item.serial1) {
+        replacementQuery = replacementQuery.eq("serial1", item.serial1);
+      } else if (item.serial2) {
+        replacementQuery = replacementQuery.eq("serial2", item.serial2);
+      }
+
+
+
+      const { data: replacement, error: replacementError } =
+        await replacementQuery.limit(1);
+
+      if (replacementError || !replacement || replacement.length === 0) {
         return respond(
           {
             success: false,
             diag: "ITEM-HARD-DELETE-004",
-            message: "No replacement item found for this serial number",
+            message: "You currently cannot delete this item.",
           },
           corsHeaders,
           409
         );
       }
-
       auditMetadata = {
         reason: "REPLACED_BY_NEW_ITEM",
         replacementItemId: replacement[0].id,
@@ -152,12 +167,18 @@ serve(async (req) => {
 
     /* ---------------- HARD DELETE ---------------- */
 
-    const { error: deleteError } = await supabase
+    let deleteQuery = supabase
       .from("items")
       .delete()
       .eq("id", id);
 
-    if (deleteError) {
+    if (!isAdmin) {
+      deleteQuery = deleteQuery.not("deletedat", "is", null);
+    }
+
+    const { error: deleteError, count } = await deleteQuery.select("id", { count: "exact" });
+
+    if (deleteError || count === 0) {
       return respond(
         {
           success: false,
@@ -165,7 +186,7 @@ serve(async (req) => {
           message: "Failed to permanently delete item",
         },
         corsHeaders,
-        500
+        409
       );
     }
 

@@ -23,7 +23,7 @@ serve(async (req) => {
   try {
     /* ===================== AUTH ===================== */
 
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
 
     if (!session) {
@@ -39,9 +39,8 @@ serve(async (req) => {
     }
 
     const actorUserId = session.user_id;
-    const actorRole = session.role;
 
-    if (actorRole !== "admin") {
+    if (session.role !== "admin") {
       return respond(
         {
           success: false,
@@ -74,6 +73,34 @@ serve(async (req) => {
       );
     }
 
+    const MAX_SIZE_MB = 10;
+
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      return respond(
+        {
+          success: false,
+          diag: "EVIDENCE-005",
+          message: "File exceeds maximum size (10MB)",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    const allowedMimePrefixes = ["application/pdf", "image/"];
+
+    if (!allowedMimePrefixes.some(prefix => file.type.startsWith(prefix))) {
+      return respond(
+        {
+          success: false,
+          diag: "EVIDENCE-006",
+          message: "Unsupported file type",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
     if (!itemId || !type) {
       return respond(
         {
@@ -86,13 +113,55 @@ serve(async (req) => {
       );
     }
 
+    if (!/^[0-9a-f-]{36}$/i.test(itemId)) {
+      return respond(
+        {
+          success: false,
+          diag: "EVIDENCE-004",
+          message: "Invalid item ID format",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    if (!file.type) {
+      return respond(
+        {
+          success: false,
+          diag: "EVIDENCE-008",
+          message: "Unable to determine file type",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    const { data: itemExists } = await supabase
+      .from("items")
+      .select("id")
+      .eq("id", itemId)
+      .is("deletedat",null)
+      .maybeSingle();
+
+    if (!itemExists) {
+      return respond(
+        {
+          success: false,
+          diag: "EVIDENCE-007",
+          message: "Item not found",
+        },
+        corsHeaders,
+        404
+      );
+    }
+
     /* ===================== BUILD STORAGE PATH ===================== */
 
     const uploadedAt = new Date().toISOString();
-    const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeFilename = (file.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
 
-    const storagePath =
-      `${itemId}/${uploadedAt.replace(/[:.]/g, "-")}_${actorUserId}_${safeFilename}`;
+    const storagePath = `${itemId}/${uploadedAt.replace(/[:.]/g, "-")}_${actorUserId}_${safeFilename}`;
 
     /* ===================== UPLOAD ===================== */
 

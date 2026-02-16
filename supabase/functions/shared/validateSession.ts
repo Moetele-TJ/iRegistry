@@ -12,39 +12,26 @@ export async function validateSession(
   // 1️⃣ Check Authorization
   // ----------------------------------
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log("❌ Missing or invalid Authorization header");
     return null;
   }
 
   const token = authHeader.replace("Bearer ", "");
   const tokenHash = await hashToken(token);
 
-  console.log("🔐 Incoming token hash:", tokenHash);
-
   // ----------------------------------
   // 2️⃣ Look up session in DB
   // ----------------------------------
   const { data: session, error } = await supabase
     .from("sessions")
-    .select("id, user_id, role, expires_at, revoked, token")
+    .select("id, user_id, role, expires_at, revoked")
     .eq("token", tokenHash)
     .maybeSingle();
 
-  console.log("📦 DB session row:", session);
-  console.log("🧾 DB token hash:", session?.token);
-
-  if (error) {
-    console.log("❌ DB error while validating session:", error.message);
-    return null;
-  }
-
-  if (!session) {
-    console.log("❌ No matching session found");
+  if (error || !session) {
     return null;
   }
 
   if (session.revoked) {
-    console.log("❌ Session has been revoked");
     return null;
   }
 
@@ -55,7 +42,6 @@ export async function validateSession(
   const expiresAt = new Date(session.expires_at).getTime();
 
   if (expiresAt < now) {
-    console.log("❌ Session expired");
     return null;
   }
 
@@ -73,14 +59,9 @@ export async function validateSession(
       .eq("id", session.id);
 
     if (updateError) {
-      console.log("⚠️ Failed to refresh session expiry:", updateError.message);
     } else {
-      console.log("🔄 Session expiry refreshed");
       session.expires_at = newExpiry.toISOString();
     }
   }
-
-  console.log("✅ Session validated successfully");
-
   return session;
 }

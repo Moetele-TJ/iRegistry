@@ -24,7 +24,10 @@ serve(async (req) => {
   try {
     /* ================= AUTH ================= */
 
-    const auth = req.headers.get("authorization");
+    const auth =
+    req.headers.get("authorization") ||
+    req.headers.get("Authorization");
+    
     const session = await validateSession(supabase, auth);
 
     if (!session) {
@@ -44,7 +47,19 @@ serve(async (req) => {
 
     /* ================= INPUT ================= */
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+
+    if (!body || typeof body !== "object") {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-001",
+          message: "Invalid request",
+        },
+        corsHeaders,
+        400
+      );
+    }
 
     const {
       ownerId,
@@ -64,9 +79,9 @@ serve(async (req) => {
 
     /* ================= OWNER RESOLUTION ================= */
 
-    let resolvedOwnerId = ownerId ?? actorUserId;
+    const resolvedOwnerId = ownerId ?? actorUserId;
 
-    if (resolvedOwnerId && typeof resolvedOwnerId !== "string") {
+    if (typeof resolvedOwnerId !== "string" || !resolvedOwnerId.trim()) {
       return respond(
         {
           success: false,
@@ -135,7 +150,7 @@ serve(async (req) => {
           message: "Could not verify duplicate serial.",
         },
         corsHeaders,
-        409
+        500
       );
     }
 
@@ -217,9 +232,9 @@ serve(async (req) => {
         serial1_normalized: serial1Normalized,
         location: location.trim(),
         photos,
-        purchasedate: purchaseDate,
-        estimatedvalue: estimatedValue,
-        warrantyexpiry: warrantyExpiry,
+        purchasedate: purchaseDate || null,
+        estimatedvalue: typeof estimatedValue ==="number" ? estimatedValue : null,
+        warrantyexpiry: warrantyExpiry || null,
         reportedstolenat: null,
         deletedat: null,
         status: "Active",

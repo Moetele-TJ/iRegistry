@@ -23,7 +23,7 @@ serve(async (req) => {
   try {
     /* ---------------- AUTH ---------------- */
 
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
 
     if (!session) {
@@ -43,8 +43,21 @@ serve(async (req) => {
 
     /* ---------------- INPUT ---------------- */
 
-    const body = await req.json();
-    const { id } = body ?? {};
+    const body = await req.json().catch(() => null);
+
+    if (!body) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-DELETE-000",
+          message: "Invalid request body",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    const { id } = body;
 
     if (!id || typeof id !== "string") {
       return respond(
@@ -64,6 +77,7 @@ serve(async (req) => {
       .from("items")
       .select("id, ownerid, deletedat")
       .eq("id", id)
+      .is("deletedat",null)
       .maybeSingle();
 
     if (fetchError || !existing) {

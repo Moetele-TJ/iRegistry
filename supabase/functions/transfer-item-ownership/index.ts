@@ -21,7 +21,7 @@ serve(async (req) => {
   try {
     /* ===================== AUTH ===================== */
 
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
 
     if (!session) {
@@ -56,7 +56,10 @@ serve(async (req) => {
     const body = await req.json();
     const { itemId, newOwnerId, evidence } = body ?? {};
 
-    if (!itemId || !newOwnerId) {
+    if (
+      typeof itemId !== "string" ||
+      typeof newOwnerId !== "string"
+    ) {
       return respond(
         {
           success: false,
@@ -65,6 +68,18 @@ serve(async (req) => {
         },
         corsHeaders,
         400
+      );
+    }
+
+    if (newOwnerId === actorUserId) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-TRANS-007",
+          message: "You cannot transfer item to yourself",
+        },
+        corsHeaders,
+        409
       );
     }
 
@@ -131,6 +146,17 @@ serve(async (req) => {
             },
             corsHeaders,
             409
+          );
+
+          case "NEW_OWNER_NOT_FOUND":
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-TRANS-008",
+              message: "The specified new owner does not exist.",
+            },
+            corsHeaders,
+            404
           );
 
         default:

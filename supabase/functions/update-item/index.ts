@@ -24,7 +24,7 @@ serve(async (req) => {
   try {
     /* ---------------- AUTH ---------------- */
 
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
 
     if (!session) {
@@ -44,7 +44,20 @@ serve(async (req) => {
 
     /* ---------------- INPUT ---------------- */
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+
+    if (!body) {
+      return respond(
+        { 
+          success: false, 
+          diag: "ITEM-UPDATE-000",
+          message: "Invalid request"
+        },
+        corsHeaders,
+        400
+      );
+    }
+
     const { id, updates } = body ?? {};
 
     if (!id || !updates || typeof updates !== "object") {
@@ -197,6 +210,18 @@ serve(async (req) => {
       cleanUpdates["serial1_normalized"] = newSerialNormalized;
     }
 
+    if ("estimatedvalue" in cleanUpdates) {
+      const val = Number(cleanUpdates.estimatedvalue);
+      if (isNaN(val)) {
+        return respond(
+          { success: false, message: "Estimated value must be numeric" },
+          corsHeaders,
+          400
+        );
+      }
+      cleanUpdates.estimatedvalue = val;
+    }
+
     const requiredFields = ["category", "make", "model", "serial1", "location"];
 
     for (const field of requiredFields) {
@@ -205,13 +230,30 @@ serve(async (req) => {
       const newValue =
         dbField in cleanUpdates ? cleanUpdates[dbField] : existing[dbField];
 
-      if (!newValue) {
+      if (newValue === null || newValue === undefined || newValue ==="") {
         return respond(
           {
             success: false,
             diag: "ITEM-UPDATE-REQUIRED",
             message: `${field} cannot be empty`,
           },
+          corsHeaders,
+          400
+        );
+      }
+    }
+
+    if ("photos" in cleanUpdates) {
+      const p = cleanUpdates.photos;
+
+      if (
+        p &&
+        (!Array.isArray(p) ||
+          p.some((x: any) => typeof x !== "string") ||
+          p.length > 5)
+      ) {
+        return respond(
+          { success: false, message: "Invalid photos" },
           corsHeaders,
           400
         );
