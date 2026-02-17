@@ -48,7 +48,7 @@ serve(async (req) => {
 
     /* ================= AUTH ================= */
 
-    const auth = req.headers.get("authorization");
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
 
     /* ================= BASE QUERY ================= */

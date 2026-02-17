@@ -5,6 +5,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { supabase } from "../lib/supabase.js";
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
@@ -221,7 +222,7 @@ export default function AddItem() {
       }
 
       const { data: uploadInit, error: uploadError } =
-        await supabase.functions.invoke("generate-upload-urls", {
+        await invokeWithAuth("generate-upload-urls", {
           body: {
             itemId,
             files: photoPreviews.map(p => ({
@@ -230,10 +231,7 @@ export default function AddItem() {
               size: p.file.size,
             })),
           },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
-        });
+      });
 
       if (uploadError || !uploadInit?.success) {
         throw new Error(
@@ -262,16 +260,13 @@ export default function AddItem() {
       // 3️⃣ Save photo paths in DB
       
       const { data: updateData, error: updateError } =
-        await supabase.functions.invoke("update-item", {
+        await invokeWithAuth("update-item", {
           body: {
             id: itemId,
             updates: {
               photos: uploadInit.uploads.map(u => u.path),
             },
           },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
         });
 
       if (updateError || !updateData?.success) {

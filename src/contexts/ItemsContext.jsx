@@ -100,23 +100,27 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "get-items",
-        {
-          body: {
-            ownerId: filters.ownerId,
-            includeDeleted: filters.includeDeleted,
-            category: filters.category,
-            make: filters.make,
-            model: filters.model,
-            reportedStolen: filters.reportedStolen,
-            hasPhotos: filters.hasPhotos,
-            createdFrom: filters.createdFrom,
-            createdTo: filters.createdTo,
-            search: filters.search,
-          },
-        }
-      );
+      const { data, error } = user
+        ? await invokeWithAuth("get-items", {
+            body: {
+              ownerId: filters.ownerId,
+              includeDeleted: filters.includeDeleted,
+              category: filters.category,
+              make: filters.make,
+              model: filters.model,
+              reportedStolen: filters.reportedStolen,
+              hasPhotos: filters.hasPhotos,
+              createdFrom: filters.createdFrom,
+              createdTo: filters.createdTo,
+              search: filters.search,
+            },
+          })
+        : await supabase.functions.invoke("get-items", {
+            body: {
+              includeDeleted: false,
+              reportedStolen: true,
+            },
+        });
 
       if (error || !data?.success) {
         throw new Error(data?.message || "Failed to load items");
