@@ -163,10 +163,14 @@ export function ItemsProvider({ children }) {
         body: payload,
       });
 
-      if (error || !data?.success) {
-        throw new Error(data?.message || "Failed to create item");
+      if (error) {
+        throw new Error(error.message || "Network error");
       }
 
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to create item");
+      }
+      
       await refreshItems();
       return data.item_id;
 
