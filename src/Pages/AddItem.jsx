@@ -2,9 +2,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
-import Toast from "../components/Toast.jsx";
+import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
-import { supabase } from "../lib/supabase.js";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 
 export default function AddItem() {
@@ -12,6 +11,10 @@ export default function AddItem() {
   const { addItem, loading } = useItems();
   const [serialError, setSerialError] = useState(null);
   const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [currentUpload, setCurrentUpload] = useState(0);
+  const [totalUploads, setTotalUploads] = useState(0);
 
   const [form, setForm] = useState({
     category: "",
@@ -27,25 +30,19 @@ export default function AddItem() {
     notes: "",
   });
 
-  const [toast, setToast] = useState({
-    visible: false,
-    message: "",
-    type: "error",
-  });
+  const { alert } = useModal();
 
   useEffect(() => {
     if (!form.serial1.trim()) return;
 
     const timer = setTimeout(async () => {
       try {
-        const token = localStorage.getItem("session");
 
-        const { data, error } = await supabase.functions.invoke("check-serial", {
-          body: { serial1: form.serial1 },
-
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const { data, error } = await invokeWithAuth("check-serial", {
+          body: 
+            { 
+              serial1: form.serial1 
+            },
         });
 
         if (error) {
@@ -61,7 +58,7 @@ export default function AddItem() {
       } catch {
         setSerialError(null);
       }
-    }, 2000);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [form.serial1]);
@@ -71,16 +68,6 @@ export default function AddItem() {
       photoPreviews.forEach(p => URL.revokeObjectURL(p.url));
     };
   }, [photoPreviews]);
-
-  useEffect(() => {
-    if (!toast.visible) return;
-
-    const timer = setTimeout(() => {
-      setToast((t) => ({ ...t, visible: false }));
-    }, 5000); // 5 seconds
-
-    return () => clearTimeout(timer);
-  }, [toast.visible,toast.message]);
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -141,58 +128,69 @@ export default function AddItem() {
     e.preventDefault();
 
     if (serialError) {
-      setToast({
-        visible: true,
-        type: "error",
+      await alert({
+        title: "Serial Conflict",
         message: "Please resolve the serial number conflict before continuing.",
+        variant: "error",
       });
       return;
     }
 
-    if (!form.category) {
-      setToast({
-        visible: true,
-        type: "error",
+    if (!form.category.trim()) {
+      await alert({
+        title: "Missing Information",
         message: "Please fill in the Category field before you continue.",
+        variant: "warning",
       });
+
+      document.querySelector('input[name="category"]')?.focus();
       return;
     }
 
-    if (!form.make) {
-      setToast({
-        visible: true,
-        type: "error",
+    if (!form.make.trim()) {
+      await alert({
+        title: "Missing Information",
         message: "Please fill in the Item Make before you continue.",
+        variant: "warning",
       });
+
+      document.querySelector('input[name="make"]')?.focus();
       return;
     }
 
-    if (!form.model) {
-      setToast({
-        visible: true,
-        type: "error",
+    if (!form.model.trim()) {
+      await alert({
+        title: "Missing Information",
         message: "Please fill in the Item Model before you continue.",
+        variant: "warning",
       });
+
+      document.querySelector('input[name="model"]')?.focus();
       return;
     }
-
-    if (!form.serial1) {
-      setToast({
-        visible: true,
-        type: "error",
+    
+    if (!form.serial1.trim()) {
+      await alert({
+        title: "Missing Information",
         message: "Please fill in the Item's Primary Serial Number before you continue.",
+        variant: "warning",
       });
-      return;
-    }
 
-    if (!form.location) {
-      setToast({
-        visible: true,
-        type: "error",
-        message: "Please fill in the Location field before you continue.",
-      });
+      document.querySelector('input[name="serial1"]')?.focus();
       return;
     }
+    
+    if (!form.location.trim()) {
+      await alert({
+        title: "Missing Information",
+        message: "Please fill in the Location field before you continue.",
+        variant: "warning",
+      });
+
+      document.querySelector('input[name="location"]')?.focus();
+      return;
+    }
+    
 
     try {
       const payload = Object.fromEntries(
@@ -215,12 +213,6 @@ export default function AddItem() {
       }
 
       // 1️⃣ Request signed upload URLs
-      const token = localStorage.getItem("session");
-
-      if (!token) {
-        throw new Error("Session expired. Please log in again.");
-      }
-
       const { data: uploadInit, error: uploadError } =
         await invokeWithAuth("generate-upload-urls", {
           body: {
@@ -240,22 +232,49 @@ export default function AddItem() {
       }
 
       // 2️⃣ Upload files to signed URLs
-      for (let i = 0; i < uploadInit.uploads.length; i++) {
-        const upload = uploadInit.uploads[i];
-        const file = photoPreviews[i].file;
+      setIsUploading(true);
+      setUploadProgress(0);
+      setCurrentUpload(0);
+      setTotalUploads(uploadInit.uploads.length);
+      try {
+        for (let i = 0; i < uploadInit.uploads.length; i++) {
+          setCurrentUpload(i+1);
 
-        const response = await fetch(upload.signedUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type,
-          },
-          body: file,
-        });
+          const upload = uploadInit.uploads[i];
+          const file = photoPreviews[i].file;
 
-        if(!response.ok){
-          throw new Error("Failed to upload one of the photos.");
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            xhr.open("PUT", upload.signedUrl);
+            xhr.setRequestHeader("Content-Type", file.type);
+
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const percent = Math.round(
+                  ((i + event.loaded / event.total) / uploadInit.uploads.length) * 100
+                );
+                setUploadProgress(percent);
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+              } else {
+                reject(new Error("Failed to upload one of the photos."));
+              }
+            };
+
+            xhr.onerror = () => reject(new Error("Upload failed."));
+            xhr.send(file);
+          });
         }
+      }finally{
+        setIsUploading(false);
       }
+
+      setUploadProgress(100);
 
       // 3️⃣ Save photo paths in DB
       
@@ -275,27 +294,32 @@ export default function AddItem() {
         );
       }
 
+      await alert({
+        title: "Item Created",
+        message: "Your item has been successfully registered.",
+        variant: "success",
+        mode: "alert",
+      });
+
       navigate(`/items/${itemId}`);
 
-
-    } catch (err) {
-      setToast({
-        visible: true,
-        type: "error",
-        message: err.message || "Failed to add item",
+      setCurrentUpload(0);
+      setTotalUploads(0);
+      
+    }     
+    catch (err) {
+      await alert({
+        title: "Failed to Add Item",
+        message: err.message || "Something went wrong while processing this item.",
+        variant: "error",
       });
+
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Toast
-        visible={toast.visible}
-        type={toast.type}
-        message={toast.message}
-        onClose={() => setToast((t) => ({ ...t, visible: false }))}
-      />
-
+      
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-iregistrygreen">
@@ -314,6 +338,7 @@ export default function AddItem() {
           {/* Category */}
           <Field label="Category" required>
             <input
+              name="category"
               value={form.category}
               onChange={(e) => updateField("category", e.target.value)}
               className={`input ${isFieldInvalid("category") ? "border-red-500 ring-red-500" : ""}`}
@@ -325,6 +350,7 @@ export default function AddItem() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Make" required>
               <input
+                name="make"
                 value={form.make}
                 onChange={(e) => updateField("make", e.target.value)}
                 className={`input ${isFieldInvalid("make") ? "border-red-500 ring-red-500" : ""}`}
@@ -334,6 +360,7 @@ export default function AddItem() {
 
             <Field label="Model" required>
               <input
+                name="model"
                 value={form.model}
                 onChange={(e) => updateField("model", e.target.value)}
                 className={`input ${isFieldInvalid("model") ? "border-red-500 ring-red-500" : ""}`}
@@ -346,6 +373,7 @@ export default function AddItem() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Serial number" required>
               <input
+                name="serial1"
                 value={form.serial1}
                 onChange={(e) => updateField("serial1", e.target.value)}
                 className={`input ${isFieldInvalid("serial1") ? "border-red-500 ring-red-500" : ""}`}
@@ -357,6 +385,7 @@ export default function AddItem() {
 
             <Field label="Secondary serial">
               <input
+                name="serial2"
                 value={form.serial2}
                 onChange={(e) => updateField("serial2", e.target.value)}
                 className="input"
@@ -367,6 +396,7 @@ export default function AddItem() {
           {/* Location */}
           <Field label="Location" required>
             <input
+              name="location"
               value={form.location}
               onChange={(e) => updateField("location", e.target.value)}
               className={`input ${isFieldInvalid("location") ? "border-red-500 ring-red-500" : ""}`}
@@ -378,6 +408,7 @@ export default function AddItem() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Purchase date">
               <input
+                name="purchaseDate"
                 type="date"
                 value={form.purchaseDate}
                 onChange={(e) => updateField("purchaseDate", e.target.value)}
@@ -387,6 +418,7 @@ export default function AddItem() {
 
             <Field label="Warranty expiry">
               <input
+                name="warrantyExpiry"
                 type="date"
                 value={form.warrantyExpiry}
                 onChange={(e) => updateField("warrantyExpiry", e.target.value)}
@@ -399,6 +431,7 @@ export default function AddItem() {
           {/*Estimated Value*/}
           <Field label="Estimated Value (P)">
             <input
+              name="estimatedValue"
               value={formatCurrency(form.estimatedValue)}
               onChange={handleCurrencyChange}
               className="input"
@@ -419,6 +452,7 @@ export default function AddItem() {
 
             <Field label="Photos (max 5)">
               <input
+                name="photos"
                 type="file"
                 accept="image/*"
                 multiple
@@ -440,23 +474,46 @@ export default function AddItem() {
               )}
             </Field>
           </div>
+
+          {isUploading && (
+            <div className="mb-4">
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-iregistrygreen h-2 transition-all duration-300"
+                  style={{
+                    width: `${uploadProgress}%`,
+                  }}
+                />
+              </div>
+
+              {/* Text Below Bar */}
+              <p className="text-xs text-gray-400 mt-2 text-right tracking-wide">
+                Uploading photo {currentUpload || 1} of {totalUploads}...
+              </p>
+            </div>
+          )}
           
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4">
             <RippleButton
-              type="button"
-              className="px-4 py-2 rounded-lg bg-gray-100"
-              onClick={() => navigate("/items")}
-            >
-              Cancel
+                type="button"
+                className="px-4 py-2 rounded-lg bg-gray-100"
+                onClick={() => navigate("/items")}
+              >
+                Cancel
             </RippleButton>
 
             <RippleButton
               type="submit"
-              disabled={isFormInvalid}
+              disabled={isFormInvalid || isUploading}
               className="px-5 py-2 rounded-lg bg-iregistrygreen text-white"
             >
-              {loading ? "Saving..." : "Submit"}
+              {isUploading
+                ? `Uploading ${currentUpload}/${totalUploads}`
+                : loading
+                ? "Saving..."
+                : "Submit"}
             </RippleButton>
           </div>
         </form>

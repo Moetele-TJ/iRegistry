@@ -2,7 +2,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
+import { ModalProvider } from "./contexts/ModalContext";
 import "./index.css";
 
 // PUBLIC
@@ -45,103 +45,99 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <AuthProvider>
       <ItemsProvider>
         <ToastProvider>
-          <BrowserRouter>
-            <Routes>
+          <ModalProvider>
+            <BrowserRouter>
+              <Routes>
 
-              {/* ===== LAYOUT ROUTE (Header always visible) ===== */}
-              <Route element={<AppLayout />}>
+                <Route element={<AppLayout />}>
 
-                {/* Public */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/unauthorized" element={<Unauthorized />} />
+                  {/* Public */}
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/unauthorized" element={<Unauthorized />} />
 
-                {/* Role resolver */}
-                <Route path="/redirect" element={<RoleRedirect />} />
+                  <Route path="/redirect" element={<RoleRedirect />} />
 
-                {/* Auth pages (DO NOT WRAP) */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+                  {/* Auth */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
 
-                {/* Dashboards */}
-                <Route
-                  path="/user"
-                  element={
-                    <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
-                      <UserDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Dashboards */}
+                  <Route
+                    path="/user"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                        <UserDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* ADMIN DASHBOARD (NESTED) */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  {/* Default admin landing page */}
-                  <Route index element={<AdminHome />} />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <AdminLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<AdminHome />} />
+                    <Route path="users" element={<AdminUsers />} />
+                    <Route path="audit-logs" element={<AdminAuditLogs />} />
+                    <Route path="settings" element={<AdminSettings />} />
+                  </Route>
 
-                  <Route path="users" element={<AdminUsers />} />
-                  <Route path="audit-logs" element={<AdminAuditLogs />} />
-                  <Route path="settings" element={<AdminSettings />} />
+                  <Route
+                    path="/police"
+                    element={
+                      <ProtectedRoute allowedRoles={["police", "admin"]}>
+                        <PoliceDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Items */}
+                  <Route
+                    path="/items"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                        <Items />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/items/add"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin"]}>
+                        <AddItem />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/items/:id"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                        <ItemDetails />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/items/:id/edit"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <EditItem />
+                      </ProtectedRoute>
+                    }
+                  />
+
                 </Route>
 
-                <Route
-                  path="/police"
-                  element={
-                    <ProtectedRoute allowedRoles={["police", "admin"]}>
-                      <PoliceDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="*" element={<Navigate to="/" replace />} />
 
-                {/* Items */}
-                <Route
-                  path="/items"
-                  element={
-                    <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
-                      <Items />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/items/add"
-                  element={
-                    <ProtectedRoute allowedRoles={["user", "admin"]}>
-                      <AddItem />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/items/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
-                      <ItemDetails />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/items/:id/edit"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <EditItem />
-                    </ProtectedRoute>
-                  }
-                />
-
-              </Route>
-              
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-
-            </Routes>
-          </BrowserRouter>
+              </Routes>
+            </BrowserRouter>
+          </ModalProvider>
         </ToastProvider>
       </ItemsProvider>
     </AuthProvider>

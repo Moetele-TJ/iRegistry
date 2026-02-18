@@ -1,21 +1,6 @@
 // src/components/ConfirmModal.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-/**
- * Props:
- * - isOpen: boolean
- * - onClose(): required — called when modal closes (after confirm or cancel)
- * - onConfirm?: function — called when confirm (signature: () => void)
- * - action?: function — alternative to onConfirm; called with actionArg when provided
- * - actionArg?: any — optional argument passed to action()
- * - afterConfirm?: function — optional hook after confirm (runs before onClose)
- * - afterCancel?: function — optional hook after cancel (runs before onClose)
- * - title?: string
- * - message?: string | ReactNode
- * - confirmLabel?: string
- * - cancelLabel?: string
- * - danger?: boolean
- */
 export default function ConfirmModal({
   isOpen,
   onClose,
@@ -25,14 +10,18 @@ export default function ConfirmModal({
   afterConfirm,
   afterCancel,
   title = "Confirm",
-  message = "Are you sure?", // fallback message
+  message = "Are you sure?",
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   danger = false,
+  mode = "confirm",
+  variant = "default",
 }) {
   const confirmRef = useRef(null);
+  const [loading, setLoading] = useState(false);
 
-  // prevent background scroll when modal open
+  /* ================= BODY SCROLL LOCK ================= */
+
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
@@ -42,37 +31,69 @@ export default function ConfirmModal({
     };
   }, [isOpen]);
 
-  // keyboard shortcuts + focus management
+  /* ================= KEYBOARD HANDLING ================= */
+
   useEffect(() => {
     if (!isOpen) return;
 
-    // focus confirm button when modal opens
     if (confirmRef.current) {
       confirmRef.current.focus();
     }
 
     function handleKey(e) {
       if (e.key === "Escape") {
-        // cancel
         handleCancel();
-      } else if (e.key === "Enter") {
-        // confirm — ignore if a textarea or input inside modal is focused
+      }
+
+      if (e.key === "Enter") {
         const active = document.activeElement;
         const isInput =
-          active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
-        if (!isInput) handleConfirm();
+          active &&
+          (active.tagName === "INPUT" ||
+            active.tagName === "TEXTAREA" ||
+            active.isContentEditable);
+
+        if (!isInput && !loading) handleConfirm();
       }
     }
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // internal cancel handler: run hook then close
+  /* ================= ACTION HANDLERS ================= */
+
+  async function handleConfirm() {
+    if (loading) return;
+
+    try {
+      setLoading(true);
+
+      if (mode === "confirm") {
+        if (typeof action === "function") {
+          await action(actionArg);
+        } else if (typeof onConfirm === "function") {
+          await onConfirm();
+        }
+      }
+
+      if (typeof afterConfirm === "function") {
+        await afterConfirm();
+      }
+
+      onClose?.();
+    } catch (err) {
+      console.error("confirm action error", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleCancel() {
+    if (loading) return;
+
     try {
       if (typeof afterCancel === "function") afterCancel();
     } catch (err) {
@@ -82,63 +103,72 @@ export default function ConfirmModal({
     }
   }
 
-  // internal confirm handler: run action/onConfirm, then afterConfirm, then close
-  function handleConfirm() {
-    try {
-      if (typeof action === "function") {
-        action(actionArg);
-      } else if (typeof onConfirm === "function") {
-        onConfirm();
-      }
-      if (typeof afterConfirm === "function") afterConfirm();
-    } catch (err) {
-      console.error("confirm action error", err);
-    } finally {
-      onClose?.();
-    }
+  function getButtonColor() {
+    if (danger || variant === "error") return "bg-red-600 hover:bg-red-700";
+    if (variant === "success") return "bg-green-600 hover:bg-green-700";
+    if (variant === "warning") return "bg-yellow-500 hover:bg-yellow-600";
+    return "bg-iregistrygreen hover:opacity-90";
   }
+
+  /* ================= UI ================= */
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* backdrop */}
+      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
         onClick={handleCancel}
         aria-hidden="true"
       />
 
-      {/* dialog */}
+      {/* Dialog */}
       <div
         role="dialog"
         aria-modal="true"
-        className="relative bg-white rounded-2xl shadow-lg max-w-sm w-full mx-4 p-6 z-10"
+        className="relative bg-white rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 p-5 max-h-[90vh] overflow-y-auto z-10"
       >
-        {title ? <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3> : null}
+        {title && (
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {title}
+          </h3>
+        )}
 
-        {/* message accepts string or React node; always render fallback if falsy */}
         <div className="text-sm text-gray-600 mb-4">
-          {message ?? "Are you sure?"}
+          {message}
         </div>
 
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 rounded-lg bg-white border"
-          >
-            {cancelLabel}
-          </button>
+          {/* Cancel button (confirm mode only) */}
+          {mode === "confirm" && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-white border disabled:opacity-50"
+            >
+              {cancelLabel}
+            </button>
+          )}
 
+          {/* Confirm / OK button */}
           <button
             ref={confirmRef}
             type="button"
             onClick={handleConfirm}
             className={
-              "px-4 py-2 rounded-lg text-white " +
-              (danger ? "bg-red-600" : "bg-iregistrygreen")
+              "px-4 py-2 rounded-lg text-white flex items-center justify-center gap-2 disabled:opacity-60 " +
+              getButtonColor()
             }
+            disabled={loading}
           >
-            {confirmLabel}
+            {loading ? (
+              <>
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Processing...
+              </>
+            ) : (
+              mode === "alert" ? "OK" : confirmLabel
+            )}
           </button>
         </div>
       </div>

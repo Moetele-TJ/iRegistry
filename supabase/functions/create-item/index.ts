@@ -122,24 +122,54 @@ serve(async (req) => {
     }
 
     const serial1Normalized = normalizeSerial(serial1);
+    const serial2Normalized =
+      typeof serial2 === "string" && serial2.trim()
+        ? normalizeSerial(serial2)
+        : null;
 
     if (!serial1Normalized) {
       return respond(
         {
           success: false,
           diag: "ITEM-CREATE-009",
-          message: "Invalid serial number format.",
+          message: "Invalid primary serial number format.",
         },
         corsHeaders,
         400
       );
     }
 
-    const { data: existingItem, error: duplicateError } = await supabase
+    if (serial2 && !serial2Normalized) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-CREATE-010",
+          message: "Invalid secondary serial number format.",
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    const { data: duplicate, error: duplicateError } = await supabase
       .from("items")
       .select("id")
-      .eq("serial1_normalized", serial1Normalized)
       .is("deletedat", null)
+      .or(
+        [
+          `serial1_normalized.eq.${serial1Normalized}`,
+          `serial2_normalized.eq.${serial1Normalized}`,
+          serial2Normalized
+            ? `serial1_normalized.eq.${serial2Normalized}`
+            : null,
+          serial2Normalized
+            ? `serial2_normalized.eq.${serial2Normalized}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(",")
+      )
+      .limit(1)
       .maybeSingle();
 
     if (duplicateError) {
@@ -230,6 +260,7 @@ serve(async (req) => {
         model: model.trim(),
         serial1: serial1.trim(),
         serial1_normalized: serial1Normalized,
+        serial2_normalized: serial2Normalized,
         location: location.trim(),
         photos,
         purchasedate: purchaseDate || null,
