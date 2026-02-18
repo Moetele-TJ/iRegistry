@@ -1,5 +1,5 @@
 // src/Pages/AddItem.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
@@ -15,6 +15,7 @@ export default function AddItem() {
   const [isUploading, setIsUploading] = useState(false);
   const [currentUpload, setCurrentUpload] = useState(0);
   const [totalUploads, setTotalUploads] = useState(0);
+  const activeXhrs = useRef([]);
 
   const [form, setForm] = useState({
     category: "",
@@ -123,6 +124,16 @@ export default function AddItem() {
   }
 
   const isFormInvalid = loading || !!serialError || requiredFields.some(f => !form[f]?.trim());
+
+  function cancelUpload() {
+    activeXhrs.current.forEach(xhr => xhr.abort());
+    activeXhrs.current = [];
+
+    setIsUploading(false);
+    setUploadProgress(0);
+    setCurrentUpload(0);
+    setTotalUploads(0);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -245,6 +256,7 @@ export default function AddItem() {
 
           await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            activeXhrs.current.push(xhr);
 
             xhr.open("PUT", upload.signedUrl);
             xhr.setRequestHeader("Content-Type", file.type);
@@ -259,6 +271,8 @@ export default function AddItem() {
             };
 
             xhr.onload = () => {
+              activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
+
               if (xhr.status >= 200 && xhr.status < 300) {
                 resolve();
               } else {
@@ -266,7 +280,11 @@ export default function AddItem() {
               }
             };
 
-            xhr.onerror = () => reject(new Error("Upload failed."));
+            xhr.onerror = () => {
+              activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
+              reject(new Error("Upload failed."));
+            };
+
             xhr.send(file);
           });
         }
@@ -476,21 +494,31 @@ export default function AddItem() {
           </div>
 
           {isUploading && (
-            <div className="mb-4">
+            <div className="mb-4 space-y-3">
+
               {/* Progress Bar */}
               <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                 <div
                   className="bg-iregistrygreen h-2 transition-all duration-300"
-                  style={{
-                    width: `${uploadProgress}%`,
-                  }}
+                  style={{ width: `${uploadProgress}%` }}
                 />
               </div>
 
               {/* Text Below Bar */}
-              <p className="text-xs text-gray-400 mt-2 text-right tracking-wide">
-                Uploading photo {currentUpload || 1} of {totalUploads}...
+              <p className="text-xs text-gray-400 text-right tracking-wide">
+                Uploading photo {currentUpload} of {totalUploads}...
               </p>
+
+              {/* Cancel Button */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={cancelUpload}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium"
+                >
+                  Cancel Upload
+                </button>
+              </div>
             </div>
           )}
           
