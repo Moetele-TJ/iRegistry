@@ -7,43 +7,49 @@ export async function applyItemAccessControl(
   query: any,
   session: any
 ) {
-  /* ================= PUBLIC ================= */
-  if (!session || !session.role) {
-    return query
-      .not("reportedstolenat", "is", null)
-      .is("deletedat", null);
-  }
-
-  const role = session.role;
-  const userId = session.user_id;
-
-  /* ================= USER ================= */
-  if (role === "user") {
-    return query
-      .eq("ownerid", userId)
-      .is("deletedat", null);
-  }
-
-  /* ================= POLICE ================= */
-  if (role === "police") {
-    const station = await getPoliceStation(supabase, userId);
-
-    if (!station) {
-      // Instead of throwing, return empty result set safely
-      return query.eq("id", "__NO_MATCH__");
+  try {
+    /* ================= PUBLIC ================= */
+    if (!session || !session.role) {
+      return query
+        .not("reportedstolenat", "is", null)
+        .is("deletedat", null);
     }
 
-    return query
-      .not("reportedstolenat", "is", null)
-      .eq("location", station)
-      .is("deletedat", null);
-  }
+    const role = session.role;
+    const userId = session.user_id;
 
-  /* ================= PRIVILEGED ================= */
-  if (isPrivilegedRole(role)) {
-    return query;
-  }
+    /* ================= USER ================= */
+    if (role === "user") {
+      return query
+        .eq("ownerid", userId)
+        .is("deletedat", null);
+    }
 
-  /* ================= UNKNOWN ROLE ================= */
-  return query.eq("id", "__NO_MATCH__");
+    /* ================= POLICE ================= */
+    if (role === "police") {
+      const station = await getPoliceStation(supabase, userId);
+
+      if (!station) {
+        // Instead of throwing, return empty result set safely
+        return query.eq("id", "__NO_MATCH__");
+      }
+
+      return query
+        .not("reportedstolenat", "is", null)
+        .eq("location", station)
+        .is("deletedat", null);
+    }
+
+    /* ================= PRIVILEGED ================= */
+    if (isPrivilegedRole(role)) {
+      return query;
+    }
+
+    /* ================= UNKNOWN ROLE ================= */
+    return query.eq("id", "__NO_MATCH__");
+    
+  } catch (err) {
+    console.error("ACCESS CONTROL ERROR:", err);
+    return query.eq("id", "_NO_MATCH_");
+  }
 }
