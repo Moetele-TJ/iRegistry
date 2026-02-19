@@ -7,36 +7,43 @@ export async function applyItemAccessControl(
   query: any,
   session: any
 ) {
-  // 🌍 PUBLIC MODE
-  if (!session) {
+  /* ================= PUBLIC ================= */
+  if (!session || !session.role) {
     return query
       .not("reportedstolenat", "is", null)
       .is("deletedat", null);
   }
 
-  // 👤 NORMAL USER → only own items
-  if (session.role === "user") {
-    return query.eq("ownerid", session.user_id);
+  const role = session.role;
+  const userId = session.user_id;
+
+  /* ================= USER ================= */
+  if (role === "user") {
+    return query
+      .eq("ownerid", userId)
+      .is("deletedat", null);
   }
 
-  // 🚔 POLICE → stolen items in their station
-  if (session.role === "police") {
-    const station = await getPoliceStation(supabase, session.user_id);
+  /* ================= POLICE ================= */
+  if (role === "police") {
+    const station = await getPoliceStation(supabase, userId);
 
     if (!station) {
-      throw new Error("Police station not configured");
+      // Instead of throwing, return empty result set safely
+      return query.eq("id", "__NO_MATCH__");
     }
 
     return query
       .not("reportedstolenat", "is", null)
-      .eq("location", station);
+      .eq("location", station)
+      .is("deletedat", null);
   }
 
-  // 👑 PRIVILEGED ROLES (admin, cashier, etc.)
-  if (isPrivilegedRole(session.role)) {
+  /* ================= PRIVILEGED ================= */
+  if (isPrivilegedRole(role)) {
     return query;
   }
 
-  // ❌ Everything else blocked
-  throw new Error("Insufficient privileges");
+  /* ================= UNKNOWN ROLE ================= */
+  return query.eq("id", "__NO_MATCH__");
 }

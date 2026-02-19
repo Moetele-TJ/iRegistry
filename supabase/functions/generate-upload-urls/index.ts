@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { isPrivilegedRole} from "../shared/roles.ts";
+import { validateSession } from "../shared/validateSession.ts"
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -22,65 +23,28 @@ serve(async (req) => {
   }
 
   try {
-    const auth = req.headers.get("authorization");
-    if (!auth) {
+    /* ================= AUTH ================= */
+
+    const auth =
+      req.headers.get("authorization") ||
+      req.headers.get("Authorization");
+
+    const session = await validateSession(supabase, auth);
+
+    if (!session) {
       return respond(
-        { 
+        {
           success: false,
-          diag: "GEN-URLS-001",
-          message: "You do not have sufficient privileges to perform this task.",
+          diag: "GEN-URLS-AUTH-001",
+          message: "Unauthorized",
         },
         corsHeaders,
         401
       );
     }
 
-    const { data: authData } = await supabase.auth.getUser(
-      auth.replace("Bearer ", "")
-    );
-
-    if (!authData?.user) {
-      return respond(
-        { 
-          success: false,
-          diag: "GEN-URLS-002",
-          message: "You need to be logged in as a user to perform this task.",
-        },
-        corsHeaders,
-        401
-      );
-    }
-
-    // Fetch user profile
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", authData.user.id)
-      .single();
-
-    if (userError) {
-      return respond(
-        {
-          success: false,
-          diag: "GEN-URLS-USER-001",
-          message: "Check your network connection or contact your Administrator.",
-        },
-        corsHeaders,
-        500
-      );
-    }
-
-    if (!userRow) {
-      return respond(
-        {
-          success: false,
-          diag: "GEN-URLS-USER-002",
-          message: "User profile not found.",
-        },
-        corsHeaders,
-        403
-      );
-    }
+    const actorUserId = session.user_id;
+    const actorRole = session.role;
 
     const { itemId, files } = await req.json();
 
@@ -137,8 +101,8 @@ serve(async (req) => {
       );
     }
 
-    const isOwner = item.ownerid === userRow.id;
-    const isPrivileged = isPrivilegedRole(userRow.role);
+    const isOwner = item.ownerid === actorUserId;
+    const isPrivileged = isPrivilegedRole(actorRole);
 
     if (!isOwner && !isPrivileged) {
       return respond(

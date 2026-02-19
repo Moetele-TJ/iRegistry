@@ -184,7 +184,7 @@ serve(async (req) => {
       );
     }
 
-    if (existingItem) {
+    if (duplicate) {
       return respond(
         {
           success: false,

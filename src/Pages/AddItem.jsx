@@ -16,6 +16,7 @@ export default function AddItem() {
   const [currentUpload, setCurrentUpload] = useState(0);
   const [totalUploads, setTotalUploads] = useState(0);
   const activeXhrs = useRef([]);
+  const uploadCancelledRef = useRef(false);
 
   const [form, setForm] = useState({
     category: "",
@@ -126,6 +127,8 @@ export default function AddItem() {
   const isFormInvalid = loading || !!serialError || requiredFields.some(f => !form[f]?.trim());
 
   function cancelUpload() {
+    uploadCancelledRef.current = true;
+
     activeXhrs.current.forEach(xhr => xhr.abort());
     activeXhrs.current = [];
 
@@ -144,6 +147,8 @@ export default function AddItem() {
         message: "Please resolve the serial number conflict before continuing.",
         variant: "error",
       });
+
+      document.querySelector('input[name="serial1"]')?.focus();
       return;
     }
 
@@ -202,6 +207,7 @@ export default function AddItem() {
       return;
     }
     
+    let itemId;
 
     try {
       const payload = Object.fromEntries(
@@ -215,7 +221,7 @@ export default function AddItem() {
         payload.estimatedValue = Number(payload.estimatedValue);
       }
 
-      const itemId = await addItem(payload);
+      itemId = await addItem(payload);
 
       // If no photos selected, just redirect
       if (photoPreviews.length === 0) {
@@ -235,18 +241,27 @@ export default function AddItem() {
             })),
           },
       });
-
+      
       if (uploadError || !uploadInit?.success) {
-        throw new Error(
-          uploadInit?.message || "Failed to initialize photo upload."
-        );
+        await alert({
+          title: "Item Created",
+          message:
+            "The item was saved successfully, but photo upload failed. You can add photos later.",
+          variant: "warning",
+          mode: "alert",
+        });
+
+        navigate(`/items/${itemId}`);
+        return;
       }
 
       // 2️⃣ Upload files to signed URLs
+      uploadCancelledRef.current = false;
       setIsUploading(true);
       setUploadProgress(0);
       setCurrentUpload(0);
       setTotalUploads(uploadInit.uploads.length);
+
       try {
         for (let i = 0; i < uploadInit.uploads.length; i++) {
           setCurrentUpload(i+1);
@@ -326,12 +341,23 @@ export default function AddItem() {
       
     }     
     catch (err) {
+
+      if (uploadCancelledRef.current) {
+        await alert({
+          title: "Upload Cancelled",
+          message: "Photo upload was cancelled by the user.",
+          variant: "warning",
+        });
+
+        navigate(`/items/${itemId}`);
+        return;
+      }
+
       await alert({
         title: "Failed to Add Item",
         message: err.message || "Something went wrong while processing this item.",
         variant: "error",
       });
-
     }
   }
 
