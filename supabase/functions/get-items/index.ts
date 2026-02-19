@@ -8,7 +8,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getPagination } from "../shared/pagination.ts";
 import { applyItemFilters } from "../shared/itemFilters.ts";
-import { applyItemAccessControl } from "../shared/accessContolQuery.ts";
+import { applyItemAccessControl } from "../shared/accessControlQuery.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,

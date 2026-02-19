@@ -1,4 +1,5 @@
-// supabase/functions/shared/accessControlQuery.ts
+// 📁 supabase/functions/shared/accessControlQuery.ts
+
 import { getPoliceStation } from "./getPoliceStation.ts";
 import { isPrivilegedRole } from "./roles.ts";
 
@@ -7,8 +8,14 @@ export async function applyItemAccessControl(
   query: any,
   session: any
 ) {
+  /* ================= SAFETY CHECK ================= */
+
+  // If query builder is somehow undefined, return early
+  if (!query) return query;
+
   try {
     /* ================= PUBLIC ================= */
+
     if (!session || !session.role) {
       return query
         .not("reportedstolenat", "is", null)
@@ -19,6 +26,7 @@ export async function applyItemAccessControl(
     const userId = session.user_id;
 
     /* ================= USER ================= */
+
     if (role === "user") {
       return query
         .eq("ownerid", userId)
@@ -26,11 +34,12 @@ export async function applyItemAccessControl(
     }
 
     /* ================= POLICE ================= */
+
     if (role === "police") {
       const station = await getPoliceStation(supabase, userId);
 
       if (!station) {
-        // Instead of throwing, return empty result set safely
+        // Return empty safe result instead of throwing
         return query.eq("id", "__NO_MATCH__");
       }
 
@@ -41,15 +50,19 @@ export async function applyItemAccessControl(
     }
 
     /* ================= PRIVILEGED ================= */
+
     if (isPrivilegedRole(role)) {
       return query;
     }
 
     /* ================= UNKNOWN ROLE ================= */
+
     return query.eq("id", "__NO_MATCH__");
-    
+
   } catch (err) {
     console.error("ACCESS CONTROL ERROR:", err);
-    return query.eq("id", "_NO_MATCH_");
+
+    // Always return a valid query builder even on error
+    return query.eq("id", "__NO_MATCH__");
   }
 }

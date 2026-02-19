@@ -1,4 +1,5 @@
 //  📁 supabase/functions/shared/itemFilters.ts
+
 export function applyItemFilters(query: any, filters: any) {
   const {
     includeDeleted,
@@ -12,9 +13,13 @@ export function applyItemFilters(query: any, filters: any) {
     search,
   } = filters;
 
+  /* ================= DELETED ================= */
+
   if (!includeDeleted) {
-    query = query.is("deletedat", null);
+    query = query.eq("deletedat", null);
   }
+
+  /* ================= BASIC FILTERS ================= */
 
   if (category) {
     query = query.eq("category", category);
@@ -28,6 +33,8 @@ export function applyItemFilters(query: any, filters: any) {
     query = query.eq("model", model);
   }
 
+  /* ================= STATUS ================= */
+
   if (reportedStolen === true) {
     query = query.not("reportedstolenat", "is", null);
   }
@@ -36,6 +43,8 @@ export function applyItemFilters(query: any, filters: any) {
     query = query.not("photos", "is", null);
   }
 
+  /* ================= DATE RANGE ================= */
+
   if (createdFrom) {
     query = query.gte("createdon", createdFrom);
   }
@@ -43,6 +52,8 @@ export function applyItemFilters(query: any, filters: any) {
   if (createdTo) {
     query = query.lte("createdon", createdTo);
   }
+
+  /* ================= SEARCH ================= */
 
   if (search) {
     const safeSearch = search.replace(/,/g, "");
