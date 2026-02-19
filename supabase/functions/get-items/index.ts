@@ -1,14 +1,14 @@
 // supabase/functions/get-items/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getPagination } from "../shared/pagination.ts";
 import { applyItemFilters } from "../shared/itemFilters.ts";
-import { applyItemAccessControl } from "../shared/accessControlQuery.ts";
+import { getAccessConditions } from "../shared/accessConditions.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -56,23 +56,31 @@ serve(async (req) => {
     let query = supabase
       .from("items")
       .select("*", { count: "exact" })
-      .order("createdon", { ascending: false })
-      .range(from, to);
+      .order("createdon", { ascending: false });
 
     /* ================= ACCESS CONTROL ================= */
 
-    const accessQuery = await applyItemAccessControl(
-      supabase,
-      query,
-      session
-    );
+    const access = await getAccessConditions(supabase, session);
 
-    if (!accessQuery || typeof (accessQuery as any).eq !== "function") {
-      console.error("Access control returned invalid query");
-      throw new Error("Access control failure");
+    if (access.forceEmpty) {
+      query = query.eq("id", "__NO_MATCH__");
     }
 
-    query = accessQuery;
+    if ("ownerid" in access) {
+      query = query.eq("ownerid", access.ownerid);
+    }
+
+    if ("location" in access) {
+      query = query.eq("location", access.location);
+    }
+
+    if ("deletedat" in access && access.deletedat === null) {
+      query = query.is("deletedat", null);
+    }
+
+    if (access.reportedstolenat === "NOT_NULL") {
+      query = query.not("reportedstolenat", "is", null);
+    }
 
     console.log("QUERY TYPE:", typeof query);
     console.log("HAS EQ:", typeof (query as any)?.eq);
@@ -92,9 +100,12 @@ serve(async (req) => {
       search,
     });
 
+    console.log("createdFrom:", createdFrom);
+    console.log("createdTo:", createdTo);
+
     /* ================= EXECUTE ================= */
 
-    const { data, error, count } = await query;
+    const { data, error, count } = await query.range(from,to);
 
     if (error) throw error;
 

@@ -43,20 +43,32 @@ export function applyItemFilters(query: any, filters: any) {
     query = query.not("photos", "is", null);
   }
 
-  /* ================= DATE RANGE ================= */
+  /* ================= DATE FILTERS ================= */
 
-  if (createdFrom) {
-    query = query.gte("createdon", createdFrom);
+  if (typeof createdFrom === "string") {
+    const trimmed = createdFrom.trim();
+    if (trimmed && trimmed !== "null") {
+      const parsed = Date.parse(trimmed);
+      if (!isNaN(parsed)) {
+        query = query.gte("createdon", new Date(parsed).toISOString());
+      }
+    }
   }
 
-  if (createdTo) {
-    query = query.lte("createdon", createdTo);
+  if (typeof createdTo === "string") {
+    const trimmed = createdTo.trim();
+    if (trimmed && trimmed !== "null") {
+      const parsed = Date.parse(trimmed);
+      if (!isNaN(parsed)) {
+        query = query.lte("createdon", new Date(parsed).toISOString());
+      }
+    }
   }
 
   /* ================= SEARCH ================= */
 
-  if (search) {
-    const safeSearch = search.replace(/,/g, "");
+  if (search && typeof search === "string") {
+    const safeSearch = search.replace(/[%_,]/g, "");
     query = query.or(
       `name.ilike.%${safeSearch}%,serial1.ilike.%${safeSearch}%`
     );
