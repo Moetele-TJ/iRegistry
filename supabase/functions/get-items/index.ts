@@ -61,11 +61,22 @@ serve(async (req) => {
 
     /* ================= ACCESS CONTROL ================= */
 
-    query = await applyItemAccessControl(
+    const accessQuery = await applyItemAccessControl(
       supabase,
       query,
       session
     );
+
+    if (!accessQuery || typeof (accessQuery as any).eq !== "function") {
+      console.error("Access control returned invalid query");
+      throw new Error("Access control failure");
+    }
+
+    query = accessQuery;
+
+    console.log("QUERY TYPE:", typeof query);
+    console.log("HAS EQ:", typeof (query as any)?.eq);
+    console.log("HAS IS:", typeof (query as any)?.is);
 
     /* ================= FILTERS ================= */
 
