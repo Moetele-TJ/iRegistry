@@ -16,7 +16,7 @@ export function applyItemFilters(query: any, filters: any) {
   /* ================= DELETED ================= */
 
   if (!includeDeleted) {
-    query = query.eq("deletedat", null);
+    query = query.is("deletedat", null);
   }
 
   /* ================= BASIC FILTERS ================= */

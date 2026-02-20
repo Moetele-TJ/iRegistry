@@ -117,7 +117,7 @@ export default function ItemDetails() {
               <div className="flex items-start justify-between">
                 <div>
                   <h1 className="text-2xl font-extrabold text-iregistrygreen">{item.name || "Untitled"}</h1>
-                  <div className="text-sm text-gray-500 mt-1">{item.id}</div>
+                  <div className="text-sm text-gray-500">Serial: {item.serial1 || "—"}</div>
                 </div>
 
                 <div className="flex gap-3 mt-1">
