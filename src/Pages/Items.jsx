@@ -436,7 +436,7 @@ export default function Items() {
                   return (
                     <tr
                       key={item.id}
-                      className="border-t border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                      className="border-t border-gray-100 hover:bg-gray-50 hover:shadow-sm transition-all duration-150"
                     >
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
@@ -495,9 +495,14 @@ export default function Items() {
                           </RippleButton>
 
                           <RippleButton
-                            className={"px-3 py-1 rounded-md text-xs " + statusClass}
+                            className={`px-3 py-1 rounded-md text-xs ${
+                              item.status === "Stolen"
+                                ? "bg-emerald-600 text-white"
+                                : "bg-red-600 text-white"
+                            }`}
                             onClick={() => confirmToggleStatus(item.id)}
                           >
+                            {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
                           </RippleButton>
 
                           <RippleButton
@@ -530,7 +535,9 @@ export default function Items() {
         {/* ===== Mobile Cards ===== */}
         <div className="sm:hidden space-y-4">
           {pageItems.map((item) => {
-          
+
+            const isStolen = item.status === "Stolen";
+
             return (
               <div
                 key={item.id}
@@ -616,13 +623,13 @@ export default function Items() {
 
                   <RippleButton
                     className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                      isStolen
-                        ? "bg-emerald-600 text-white"
-                        : "bg-red-600 text-white"
+                      item.status === "Stolen"
+                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                        : "bg-red-600 text-white hover:bg-red-700"
                     }`}
                     onClick={() => confirmToggleStatus(item.id)}
                   >
-                    {isStolen ? "Mark Active" : "Mark Stolen"}
+                    {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
                   </RippleButton>
                 </div>
               </div>
