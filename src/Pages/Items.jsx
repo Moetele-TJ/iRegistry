@@ -432,14 +432,7 @@ export default function Items() {
               {/* ================= DATA ROWS ================= */}
               {!loading &&
                 pageItems.map((item) => {
-                  const statusClass =
-                    item.status === "Stolen"
-                      ? "bg-red-600 text-white"
-                      : "bg-iregistrygreen text-white";
-
-                  const toggleLabel =
-                    item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
-
+                  
                   return (
                     <tr
                       key={item.id}
@@ -476,11 +469,11 @@ export default function Items() {
                       <td className="py-4 px-5">
                         <span
                           className={
-                            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border " +
+                            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
                             statusBadge(item.status)
                           }
                         >
-                          {item.status}
+                          {item.status || "—"}
                         </span>
                       </td>
                       <td className="py-4 px-5 text-gray-600">
@@ -505,7 +498,6 @@ export default function Items() {
                             className={"px-3 py-1 rounded-md text-xs " + statusClass}
                             onClick={() => confirmToggleStatus(item.id)}
                           >
-                            {toggleLabel}
                           </RippleButton>
 
                           <RippleButton
