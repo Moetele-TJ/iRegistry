@@ -53,6 +53,7 @@ function normalizeFromDB(row) {
 
     serial1: row.serial1,
     serial2: row.serial2,
+    slug: row.slug,
 
     location: row.location,
     lastSeen: row.lastseen,
