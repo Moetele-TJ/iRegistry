@@ -536,7 +536,6 @@ export default function Items() {
         <div className="sm:hidden space-y-4">
           {pageItems.map((item) => {
             
-            console.log("MOBILE STATUS:", item.status);
             return (
               <div
                 key={item.id}

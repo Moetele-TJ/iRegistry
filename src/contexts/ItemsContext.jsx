@@ -57,6 +57,7 @@ function normalizeFromDB(row) {
 
     location: row.location,
     lastSeen: row.lastseen,
+    status: row.status,
     reportedStolenAt: row.reportedstolenat,
 
     photos: row.photos || [],
