@@ -296,43 +296,37 @@ export default function Items() {
       />
 
       <div className="p-4 sm:p-6 max-w-6xl mx-auto">
-        {/* top row: title + actions */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-iregistrygreen">My Items</h1>
-            <p className="text-sm text-gray-500">View and manage your registered items</p>
-          </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="text-xs text-gray-500 mr-2">Sort by</div>
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  setPage(1);
-                }}
-                className="border rounded-lg px-3 py-2"
-              >
-                <option value="name">Name</option>
-                <option value="lastSeen">Last Seen</option>
-                <option value="status">Status</option>
-              </select>
+        {/* ===== Page Header ===== */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            
+            {/* Left: Title + description */}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                My Items
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Manage and monitor your registered assets
+              </p>
             </div>
 
-            <RippleButton
-              className="py-2 px-3 rounded-lg bg-iregistrygreen text-white text-sm"
-              onClick={() => navigate("/items/add")}
-            >
-              + Add Item
-            </RippleButton>
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3">
+              <RippleButton
+                className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:shadow-md transition"
+                onClick={() => navigate("/items/add")}
+              >
+                + Add Item
+              </RippleButton>
 
-            <RippleButton
-              className="py-2 px-3 rounded-lg bg-gray-100 text-gray-800 text-sm"
-              onClick={handleExportCSV}
-            >
-              Export CSV
-            </RippleButton>
+              <RippleButton
+                className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
+                onClick={handleExportCSV}
+              >
+                Export CSV
+              </RippleButton>
+            </div>
+
           </div>
         </div>
 
@@ -392,9 +386,9 @@ export default function Items() {
         </div>
 
         {/* table (desktop) */}
-        <div className="hidden sm:block bg-white rounded-2xl shadow-sm overflow-auto">
+        <div className="hidden sm:block bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="text-gray-500 text-xs uppercase">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
               <tr>
                 <th className="text-left py-3 px-4">Item</th>
                 <th className="text-left py-3 px-4">Category</th>
@@ -447,11 +441,14 @@ export default function Items() {
                     item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
 
                   return (
-                    <tr key={item.id} className="border-t hover:bg-gray-50">
-                      <td className="py-3 px-4">
+                    <tr
+                      key={item.id}
+                      className="border-t border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
                           {/* Thumbnail */}
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-xs text-gray-400 overflow-hidden">
+                          <div className="w-11 h-11 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center text-xs text-gray-400 overflow-hidden">
                             {item.photos?.[0] ? (
                               <img
                                 src={item.photos[0]}
@@ -465,7 +462,7 @@ export default function Items() {
 
                           {/* Name + Serial */}
                           <div>
-                            <div className="font-semibold text-gray-900 hover:text-iregistrygreen cursor-pointer"
+                            <div className="font-semibold text-gray-900 hover:text-iregistrygreen transition cursor-pointer"
                                 onClick={() => navigate("/items/" + item.slug)}>
                               {item.name}
                             </div>
@@ -475,8 +472,8 @@ export default function Items() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{item.category}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-4 px-5 text-gray-600">{item.category}</td>
+                      <td className="py-4 px-5">
                         <span
                           className={
                             "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border " +
@@ -486,16 +483,16 @@ export default function Items() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-4 px-5 text-gray-600">
                         {item.lastSeen || "-"}
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-4 px-5 text-gray-600">
                         {item.location || "-"}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium text-gray-700">
+                      <td className="py-4 px-5 text-right font-medium text-gray-700">
                         {formatCurrency(item.estimatedValue)}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <RippleButton
                             className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
@@ -538,60 +535,114 @@ export default function Items() {
           </table>
         </div>
 
-        {/* mobile cards */}
-        <div className="sm:hidden space-y-3">
+        {/* ===== Mobile Cards ===== */}
+        <div className="sm:hidden space-y-4">
           {pageItems.map((item) => {
-            const statusClass =
-              item.status === "Stolen" ? "bg-red-600 text-white" : "bg-iregistrygreen text-white";
-            const toggleLabel = item.status === "Stolen" ? "Mark Active" : "Mark Stolen";
+            const isStolen = item.status === "Stolen";
 
             return (
-              <div key={item.id} className="bg-white border rounded-xl px-3 py-3 shadow-sm">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-gray-900">{item.name}</p>
-                    <p className="text-xs text-gray-500">ID: {item.id}</p>
-                    <p className="text-xs text-gray-500">Category: {item.category}</p>
-                    {item.estimatedValue != null && (
-                    <p className="text-xs text-gray-500">
-                      Value: <span className="font-medium text-gray-700">
-                        {formatCurrency(item.estimatedValue)}
-                      </span>
-                    </p>
-                  )}
+              <div
+                key={item.id}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.99] transition"
+              >
+                {/* Top: Image + Name + Status */}
+                <div className="flex gap-3">
+                  {/* Thumbnail */}
+                  <div className="w-16 h-16 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-gray-400 text-xs">
+                    {item.photos?.[0] ? (
+                      <img
+                        src={item.photos[0]}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      "No Image"
+                    )}
                   </div>
 
-                  <div className="text-right">
+                  {/* Title Section */}
+                  <div className="flex-1 min-w-0">
+                    <div
+                      onClick={() => navigate("/items/" + item.slug)}
+                      className="font-semibold text-gray-900 truncate hover:text-iregistrygreen transition cursor-pointer"
+                    >
+                      {item.name}
+                    </div>
+
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.category}
+                    </div>
+
+                    <div className="text-xs text-gray-400 mt-1">
+                      Serial: {item.serial1 || "—"}
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <div>
                     <span
-                      className={
-                        "inline-flex px-2 py-1 rounded-full text-xs font-medium " + statusBadge(item.status)
-                      }
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        isStolen
+                          ? "bg-red-100 text-red-700 border-red-200"
+                          : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                      }`}
                     >
                       {item.status}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-3 flex gap-2">
+                {/* Divider */}
+                <div className="my-4 border-t border-gray-100" />
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-400">Location</div>
+                    <div className="text-gray-700">{item.location || "—"}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-gray-400">Last Seen</div>
+                    <div className="text-gray-700">{item.lastSeen || "—"}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-gray-400">Estimated Value</div>
+                    <div className="text-gray-900 font-medium">
+                      {formatCurrency(item.estimatedValue)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 flex gap-2">
                   <RippleButton
-                    className="flex-1 py-2 rounded-lg bg-gray-100 text-sm text-gray-800"
+                    className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
                     onClick={() => navigate("/items/" + item.slug)}
                   >
                     View
                   </RippleButton>
 
                   <RippleButton
-                    className={"flex-1 py-2 rounded-lg text-sm " + statusClass}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium ${
+                      isStolen
+                        ? "bg-emerald-600 text-white"
+                        : "bg-red-600 text-white"
+                    }`}
                     onClick={() => confirmToggleStatus(item.id)}
                   >
-                    {toggleLabel}
+                    {isStolen ? "Mark Active" : "Mark Stolen"}
                   </RippleButton>
                 </div>
               </div>
             );
           })}
+
           {pageItems.length === 0 && (
-            <div className="text-center py-6 px-4 text-gray-500 bg-white rounded-lg shadow-sm">No items found.</div>
+            <div className="text-center py-10 text-gray-500">
+              No items found.
+            </div>
           )}
         </div>
 

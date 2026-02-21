@@ -340,14 +340,23 @@ serve(async (req) => {
       },
     });
 
+    // get latest slug after update
+    const { data: updatedItem } = await supabase
+      .from("items")
+      .select("slug")
+      .eq("id", id)
+      .single();
+
     return respond(
       {
         success: true,
         updated_fields: Object.keys(diff),
+        slug: updatedItem?.slug,
       },
       corsHeaders,
       200
     );
+
   } catch (err) {
     console.error("update-item crash:", err);
 
