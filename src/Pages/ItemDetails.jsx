@@ -16,7 +16,7 @@ function fmtDate(iso) {
 }
 
 export default function ItemDetails() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { items, deleteItem } = useItems();
 
@@ -28,9 +28,9 @@ export default function ItemDetails() {
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
 
   useEffect(() => {
-    const found = (items || []).find((it) => String(it.id) === String(id));
+    const found = (items || []).find((it) => String(it.slug) === String(slug));
     setItem(found || null);
-  }, [id, items]);
+  }, [slug, items]);
 
   function openDeleteModal() {
     setConfirmOpen(true);

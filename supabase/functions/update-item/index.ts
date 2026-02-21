@@ -8,6 +8,7 @@ import { logItemAudit } from "../shared/logItemAudit.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { slugify, generateUniqueSlug } from "../shared/slug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -265,6 +266,28 @@ serve(async (req) => {
 
     cleanUpdates.name = `${newMake} ${newModel}`.trim();
 
+    /* ---------------- SLUG UPDATE CHECK ---------------- */
+
+    if (
+      cleanUpdates.serial1 ||
+      cleanUpdates.make ||
+      cleanUpdates.model
+    ) {
+      const newSerial = cleanUpdates.serial1 ?? existing.serial1;
+      const newMake = cleanUpdates.make ?? existing.make;
+      const newModel = cleanUpdates.model ?? existing.model;
+
+      const baseSlug = slugify(`${newSerial}-${newMake}-${newModel}`);
+
+      const newSlug = await generateUniqueSlug({
+        supabase,
+        baseSlug,
+        excludeId: id,
+      });
+
+      cleanUpdates.slug = newSlug;
+    }
+    
     /* ---------------- DIFF ---------------- */
 
     const rawDiff = computeDiff(existing, cleanUpdates);

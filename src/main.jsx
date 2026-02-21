@@ -114,7 +114,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
-                    path="/items/:id"
+                    path="/items/:slug"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
                         <ItemDetails />

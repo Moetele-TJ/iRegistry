@@ -8,6 +8,7 @@ import { logItemAudit } from "../shared/logItemAudit.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { slugify, generateUniqueSlug } from "../shared/slug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -210,6 +211,15 @@ serve(async (req) => {
       );
     }
 
+    /* ================= BASE SLUG ================= */
+
+    const baseSlug = slugify(`${serial1}-${make}-${model}`);
+
+    const slug = await generateUniqueSlug({
+      supabase,
+      baseSlug,
+    });
+
     if (!location) {
       return respond(
         {
@@ -261,6 +271,7 @@ serve(async (req) => {
         serial1: serial1.trim(),
         serial1_normalized: serial1Normalized,
         serial2_normalized: serial2Normalized,
+        slug,
         location: location.trim(),
         photos,
         purchasedate: purchaseDate || null,
@@ -273,7 +284,7 @@ serve(async (req) => {
         shop: typeof shop === "string" ? shop.trim() || null : null,
         notes: typeof notes === "string" ? notes.trim() || null : null,
       })
-      .select("id")
+      .select("id, slug")
       .single();
 
     if (error) {
@@ -305,6 +316,7 @@ serve(async (req) => {
       {
         success: true,
         item_id: data.id,
+        slug: data.slug,
       },
       corsHeaders,
       201
