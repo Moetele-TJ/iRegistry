@@ -535,9 +535,8 @@ export default function Items() {
         {/* ===== Mobile Cards ===== */}
         <div className="sm:hidden space-y-4">
           {pageItems.map((item) => {
-
-            const isStolen = item.status === "Stolen";
-
+            
+            console.log("MOBILE STATUS:", item.status);
             return (
               <div
                 key={item.id}
