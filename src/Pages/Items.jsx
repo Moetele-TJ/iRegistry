@@ -530,8 +530,7 @@ export default function Items() {
         {/* ===== Mobile Cards ===== */}
         <div className="sm:hidden space-y-4">
           {pageItems.map((item) => {
-            const isStolen = item.status === "Stolen";
-
+          
             return (
               <div
                 key={item.id}
@@ -571,15 +570,14 @@ export default function Items() {
                   </div>
 
                   {/* Status Badge */}
-                  <div>
+                  <div className="mt-1">
                     <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        isStolen
-                          ? "bg-red-100 text-red-700 border-red-200"
-                          : "bg-emerald-100 text-emerald-700 border-emerald-200"
-                      }`}
+                      className={
+                        "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border " +
+                        statusBadge(item.status)
+                      }
                     >
-                      {item.status}
+                      {item.status || "—"}
                     </span>
                   </div>
                 </div>
