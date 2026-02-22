@@ -3,7 +3,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
-
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,9 +24,15 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { stats, loading } = usePublicStats();
 
+  const totals = stats?.totals || {};
+  const timeline = stats?.timeline || [];
+  const active = totals.activeItems ?? 0;
+  const stolen = totals.stolenItems ?? 0;
+  const total = totals.totalItems ?? 0;
+
   const pieData = [
-    { name: "Active", value: stats?.active || 0 },
-    { name: "Stolen", value: stats?.stolen || 0 },
+    { name: "Active", value: active },
+    { name: "Stolen", value: stolen },
   ];
 
   return (
@@ -67,17 +72,17 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <StatCard
             title="Total Registered"
-            value={stats?.total}
+            value={total}
             loading={loading}
           />
           <StatCard
             title="Active Items"
-            value={stats?.active}
+            value={active}
             loading={loading}
           />
           <StatCard
             title="Reported Stolen"
-            value={stats?.stolen}
+            value={stolen}
             loading={loading}
             red
           />
@@ -93,26 +98,41 @@ export default function HomePage() {
             </div>
 
             <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats?.timeline || []}>
-                  <defs>
-                    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.4} />
-                      <stop offset="100%" stopColor={IREG_GREEN} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" />
-                  <YAxis allowDecimals={false} />
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <Tooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke={IREG_GREEN}
-                    fill="url(#g)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timeline}>
+                    <defs>
+                      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.4} />
+                        <stop offset="100%" stopColor={IREG_GREEN} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(value) =>
+                        new Date(value).toLocaleDateString("en-BW", {
+                          day: "2-digit",
+                          month: "short",
+                        })
+                      }
+                    />
+
+                    <YAxis allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <Tooltip />
+
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke={IREG_GREEN}
+                      fill="url(#g)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
@@ -123,22 +143,26 @@ export default function HomePage() {
             </div>
 
             <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={4}
-                  >
-                    <Cell fill={IREG_GREEN} />
-                    <Cell fill={IREG_RED} />
-                  </Pie>
-                  <Legend />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={4}
+                    >
+                      <Cell fill={IREG_GREEN} />
+                      <Cell fill={IREG_RED} />
+                    </Pie>
+                    <Legend />
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 

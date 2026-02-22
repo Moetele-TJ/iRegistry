@@ -7,26 +7,30 @@ export function usePublicStats() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data, error } =
-          await supabase.functions.invoke("get-public-stats");
+  async function fetchStats() {
+    try {
+      setLoading(true);
+      setError(null);
 
-        if (error || !data?.success) {
-          throw new Error("Failed to fetch stats");
-        }
+      const { data, error } =
+        await supabase.functions.invoke("get-public-stats");
 
-        setStats(data.stats);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      if (error || !data?.success) {
+        throw new Error("Failed to fetch stats");
       }
-    }
 
-    load();
+      setStats(data.stats);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchStats();
   }, []);
 
-  return { stats, loading, error };
+  return { stats, loading, error, refresh: fetchStats };
 }
