@@ -3,6 +3,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
+import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
+import { useState } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -71,29 +73,53 @@ export default function HomePage() {
 
         {/* STAT CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          
+
           <StatCard
             title="Total Users"
             value={totalUsers}
             loading={loading}
-          />
+            icon={<Users size={22} />}
+          >
+            <div>Registered citizens & institutions.</div>
+          </StatCard>
 
           <StatCard
             title="Total Registered"
             value={total}
             loading={loading}
-          />
+            icon={<Package size={22} />}
+          >
+            <div>Total assets recorded in registry.</div>
+            <div className="mt-2">
+              Active ratio: {total ? Math.round((active / total) * 100) : 0}%
+            </div>
+          </StatCard>
+
           <StatCard
             title="Active Items"
             value={active}
             loading={loading}
-          />
+            icon={<ShieldCheck size={22} />}
+          >
+            <div>Currently protected assets.</div>
+            <div className="mt-2">
+              Secure items not reported stolen.
+            </div>
+          </StatCard>
+
           <StatCard
             title="Reported Stolen"
             value={stolen}
             loading={loading}
             red
-          />
+            icon={<AlertTriangle size={22} />}
+          >
+            <div>Assets flagged as stolen.</div>
+            <div className="mt-2">
+              Risk level: {stolen > 0 ? "Monitoring Active" : "Stable"}
+            </div>
+          </StatCard>
+
         </div>
 
         {/* CHARTS */}
@@ -188,21 +214,64 @@ export default function HomePage() {
   );
 }
 
-function StatCard({ title, value, red, loading }) {
-  return (
-    <div className="bg-white rounded-3xl p-6 shadow-sm">
-      <div className="text-xs text-gray-500">{title}</div>
+function StatCard({
+  title,
+  value,
+  red,
+  loading,
+  icon,
+  children,
+}) {
+  const [open, setOpen] = useState(false);
 
-      {loading ? (
-        <div className="h-8 bg-gray-200 rounded mt-2 animate-pulse" />
-      ) : (
+  return (
+    <div
+      onClick={() => setOpen(!open)}
+      className="
+        bg-white rounded-3xl p-6 
+        shadow-md hover:shadow-xl 
+        transition-all duration-300 
+        cursor-pointer
+        hover:-translate-y-1
+        border border-gray-100
+      "
+    >
+      {/* Top Row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-gray-500">{title}</div>
+
+          {loading ? (
+            <div className="h-8 bg-gray-200 rounded mt-2 animate-pulse w-20" />
+          ) : (
+            <div
+              className={
+                "text-4xl font-extrabold mt-2 " +
+                (red ? "text-red-600" : "text-gray-900")
+              }
+            >
+              {value ?? 0}
+            </div>
+          )}
+        </div>
+
+        {/* Icon */}
         <div
           className={
-            "text-4xl font-extrabold mt-2 " +
-            (red ? "text-red-600" : "text-gray-900")
+            "p-3 rounded-2xl " +
+            (red
+              ? "bg-red-100 text-red-600"
+              : "bg-emerald-100 text-iregistrygreen")
           }
         >
-          {value ?? 0}
+          {icon}
+        </div>
+      </div>
+
+      {/* Expandable Section */}
+      {open && !loading && (
+        <div className="mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600 animate-fadeIn">
+          {children}
         </div>
       )}
     </div>
