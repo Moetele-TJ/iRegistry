@@ -29,6 +29,7 @@ export default function HomePage() {
   const active = totals.activeItems ?? 0;
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
+  const totalUsers = totals.totalUsers ?? 0;
 
   const pieData = [
     { name: "Active", value: active },
@@ -69,7 +70,14 @@ export default function HomePage() {
         </div>
 
         {/* STAT CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          
+          <StatCard
+            title="Total Users"
+            value={totalUsers}
+            loading={loading}
+          />
+
           <StatCard
             title="Total Registered"
             value={total}
@@ -122,7 +130,15 @@ export default function HomePage() {
 
                     <YAxis allowDecimals={false} />
                     <CartesianGrid strokeDasharray="3 3" />
-                    <Tooltip />
+                    <Tooltip
+                      labelFormatter={(value) =>
+                        new Date(value).toLocaleDateString("en-BW", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      }
+                    />
 
                     <Area
                       type="monotone"
