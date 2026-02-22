@@ -284,7 +284,7 @@ serve(async (req) => {
         shop: typeof shop === "string" ? shop.trim() || null : null,
         notes: typeof notes === "string" ? notes.trim() || null : null,
       })
-      .select("id, slug")
+      .select("*")
       .single();
 
     if (error) {
@@ -315,8 +315,7 @@ serve(async (req) => {
     return respond(
       {
         success: true,
-        item_id: data.id,
-        slug: data.slug,
+        item: data
       },
       corsHeaders,
       201

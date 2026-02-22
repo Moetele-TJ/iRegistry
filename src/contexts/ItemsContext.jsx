@@ -32,6 +32,30 @@ function itemsReducer(state, action) {
     case "SET_ITEMS":
       return { ...state, items: action.payload || [] };
 
+    case "ADD_ITEM":
+      return {
+        ...state,
+        items: [action.payload, ...state.items],
+      };
+
+    case "REMOVE_ITEM":
+      return {
+        ...state,
+        items: state.items.filter(
+          (item) => item.id !== action.payload
+        ),
+      };
+
+    case "REPLACE_ITEM":
+      return {
+        ...state,
+        items: state.items.map((item) =>
+          item.id === action.payload.id
+            ? action.payload
+            : item
+        ),
+      };
+
     default:
       return state;
   }
@@ -91,9 +115,7 @@ export function ItemsProvider({ children }) {
   /* ---------------- FETCH ITEMS ---------------- */
   
   async function refreshItems(filters = {}) {
-
-    //Only block when there's no user and not explicitly allowed
-    if (!user && !filters.allowUnauthenticated) {
+    if (!user?.id) {
       dispatch({ type: "SET_ITEMS", payload: [] });
       return;
     }
@@ -102,27 +124,20 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { data, error } = user
-        ? await invokeWithAuth("get-items", {
-            body: {
-              ownerId: filters.ownerId,
-              includeDeleted: filters.includeDeleted,
-              category: filters.category,
-              make: filters.make,
-              model: filters.model,
-              reportedStolen: filters.reportedStolen,
-              hasPhotos: filters.hasPhotos,
-              createdFrom: filters.createdFrom,
-              createdTo: filters.createdTo,
-              search: filters.search,
-            },
-          })
-        : await supabase.functions.invoke("get-items", {
-            body: {
-              includeDeleted: false,
-              reportedStolen: true,
-            },
-        });
+      const { data, error } = await invokeWithAuth("get-items", {
+        body: {
+          ownerId: filters.ownerId ?? user.id,
+          includeDeleted: filters.includeDeleted,
+          category: filters.category,
+          make: filters.make,
+          model: filters.model,
+          reportedStolen: filters.reportedStolen,
+          hasPhotos: filters.hasPhotos,
+          createdFrom: filters.createdFrom,
+          createdTo: filters.createdTo,
+          search: filters.search,
+        },
+      });
 
       if (error || !data?.success) {
         throw new Error(data?.message || "Failed to load items");
@@ -173,8 +188,13 @@ export function ItemsProvider({ children }) {
         throw new Error(data?.message || "Failed to create item");
       }
       
-      await refreshItems();
-      return data.item_id;
+      const newItem = normalizeFromDB(data.item);
+      dispatch({
+        type: "ADD_ITEM",
+        payload: newItem,
+      });
+
+      return newItem.id;
 
     }catch (err) {
       dispatch({ type: "SET_ERROR", payload: err.message });
@@ -191,16 +211,26 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { error } = await invokeWithAuth(
-        "update-item",
-        { body: { id, updates } }
-      );
+      const { data, error } = await invokeWithAuth(
+      "update-item",
+      { body: { id, updates } }
+    );
 
-      if (error) {
-        throw new Error("Failed to update item");
-      }
+    if (error) {
+      throw new Error(error.message || "Network error");
+    }
 
-      await refreshItems();
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to update item");
+    }
+
+    const updatedItem = normalizeFromDB(data.item);
+
+    dispatch({
+      type: "REPLACE_ITEM",
+      payload: updatedItem,
+    });
+
     }catch (err) {
       dispatch({ type: "SET_ERROR", payload: err.message });
       throw err; // optional, for caller handling
@@ -217,14 +247,23 @@ export function ItemsProvider({ children }) {
   dispatch({ type: "SET_ERROR", payload: null });
 
   try {
-    const { error } = await invokeWithAuth(
+    const { data, error } = await invokeWithAuth(
       "delete-item",
       { body: { id } }
     );
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message || "Network error");
+    }
 
-    await refreshItems(); // ✅ always trust server
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to delete item");
+    }
+
+    dispatch({
+      type: "REMOVE_ITEM",
+      payload: id,
+    });
 
   } catch (err) {
     dispatch({ type: "SET_ERROR", payload: err.message });

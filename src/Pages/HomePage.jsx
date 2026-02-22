@@ -1,11 +1,9 @@
 // src/Pages/HomePage.jsx
-import React, { useMemo } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-
 import RippleButton from "../components/RippleButton.jsx";
-import { useItems } from "../contexts/ItemsContext.jsx";
+import { usePublicStats } from "../hooks/usePublicStats";
 
-// charts
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,69 +23,39 @@ const IREG_RED = "#E53E3E";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { items = [] } = useItems();
-
-  // high-level stats (safe for public view)
-  const stats = useMemo(() => {
-    const total = items.length;
-    const stolen = items.filter((i) => i.status === "Stolen").length;
-    const active = total - stolen;
-    return { total, active, stolen };
-  }, [items]);
-
-  // timeline (last 14 days)
-  const timelineData = useMemo(() => {
-    const days = 14;
-    const buckets = {};
-
-    function key(d) {
-      return d.toISOString().slice(5, 10);
-    }
-
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      buckets[key(d)] = 0;
-    }
-
-    items.forEach((it) => {
-      const d = new Date(it.createdOn || it.updatedOn);
-      const k = key(d);
-      if (k in buckets) buckets[k] += 1;
-    });
-
-    return Object.entries(buckets).map(([date, count]) => ({ date, count }));
-  }, [items]);
+  const { stats, loading } = usePublicStats();
 
   const pieData = [
-    { name: "Active", value: stats.active },
-    { name: "Stolen", value: stats.stolen },
+    { name: "Active", value: stats?.active || 0 },
+    { name: "Stolen", value: stats?.stolen || 0 },
   ];
 
   return (
     <div className="min-h-screen bg-gray-100">
 
       <div className="p-6 max-w-6xl mx-auto">
-        {/* Hero */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
-          <h1 className="text-3xl font-extrabold text-iregistrygreen">
+
+        {/* HERO */}
+        <div className="bg-gradient-to-br from-iregistrygreen to-emerald-600 rounded-3xl p-8 text-white shadow-xl mb-8">
+          <h1 className="text-4xl font-extrabold tracking-tight">
             iRegistry
           </h1>
-          <p className="text-gray-600 mt-2 max-w-2xl">
-            A centralized registry for personal and institutional assets —
-            designed to support citizens, administrators, and law enforcement.
+
+          <p className="mt-3 max-w-2xl text-white/90">
+            Botswana’s centralized asset registry platform —
+            connecting citizens, institutions, and law enforcement.
           </p>
 
-          <div className="mt-4 flex gap-3">
+          <div className="mt-6 flex gap-3">
             <RippleButton
-              className="px-5 py-2 rounded-lg bg-iregistrygreen text-white"
+              className="px-6 py-2 rounded-xl bg-white text-iregistrygreen font-semibold"
               onClick={() => navigate("/login")}
             >
               Login
             </RippleButton>
 
             <RippleButton
-              className="px-5 py-2 rounded-lg bg-gray-100 text-gray-800"
+              className="px-6 py-2 rounded-xl bg-white/20 backdrop-blur text-white border border-white/30"
               onClick={() => navigate("/signup")}
             >
               Create Account
@@ -95,26 +63,41 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <StatCard title="Total registered items" value={stats.total} />
-          <StatCard title="Active items" value={stats.active} />
-          <StatCard title="Reported stolen" value={stats.stolen} red />
+        {/* STAT CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <StatCard
+            title="Total Registered"
+            value={stats?.total}
+            loading={loading}
+          />
+          <StatCard
+            title="Active Items"
+            value={stats?.active}
+            loading={loading}
+          />
+          <StatCard
+            title="Reported Stolen"
+            value={stats?.stolen}
+            loading={loading}
+            red
+          />
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* CHARTS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
           {/* Timeline */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="text-sm font-medium mb-2">
-              Items added (last 14 days)
+          <div className="bg-white rounded-3xl p-6 shadow-sm">
+            <div className="text-sm font-semibold text-gray-700 mb-4">
+              Items Added (Last 14 Days)
             </div>
-            <div style={{ height: 200 }}>
+
+            <div style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timelineData}>
+                <AreaChart data={stats?.timeline || []}>
                   <defs>
                     <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.3} />
+                      <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.4} />
                       <stop offset="100%" stopColor={IREG_GREEN} stopOpacity={0} />
                     </linearGradient>
                   </defs>
@@ -133,20 +116,21 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Status pie */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="text-sm font-medium mb-2">
-              Status distribution
+          {/* Status Pie */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm">
+            <div className="text-sm font-semibold text-gray-700 mb-4">
+              Status Distribution
             </div>
-            <div style={{ height: 200 }}>
+
+            <div style={{ height: 220 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieData}
                     dataKey="value"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={3}
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={4}
                   >
                     <Cell fill={IREG_GREEN} />
                     <Cell fill={IREG_RED} />
@@ -157,25 +141,30 @@ export default function HomePage() {
               </ResponsiveContainer>
             </div>
           </div>
+
         </div>
       </div>
     </div>
   );
 }
 
-// small stat card
-function StatCard({ title, value, red }) {
+function StatCard({ title, value, red, loading }) {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm">
+    <div className="bg-white rounded-3xl p-6 shadow-sm">
       <div className="text-xs text-gray-500">{title}</div>
-      <div
-        className={
-          "text-3xl font-extrabold mt-1 " +
-          (red ? "text-red-600" : "text-gray-900")
-        }
-      >
-        {value}
-      </div>
+
+      {loading ? (
+        <div className="h-8 bg-gray-200 rounded mt-2 animate-pulse" />
+      ) : (
+        <div
+          className={
+            "text-4xl font-extrabold mt-2 " +
+            (red ? "text-red-600" : "text-gray-900")
+          }
+        >
+          {value ?? 0}
+        </div>
+      )}
     </div>
   );
 }

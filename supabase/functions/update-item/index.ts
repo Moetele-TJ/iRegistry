@@ -311,12 +311,14 @@ serve(async (req) => {
 
     /* ---------------- UPDATE ---------------- */
 
-    const { error: updateError } = await supabase
+    const { data: updatedItem, error: updateError } = await supabase
       .from("items")
       .update(cleanUpdates)
-      .eq("id", id);
+      .eq("id", id)
+      .select("*")
+      .single();
 
-    if (updateError) {
+    if (updateError || !updatedItem) {
       return respond(
         {
           success: false,
@@ -340,18 +342,10 @@ serve(async (req) => {
       },
     });
 
-    // get latest slug after update
-    const { data: updatedItem } = await supabase
-      .from("items")
-      .select("slug")
-      .eq("id", id)
-      .single();
-
     return respond(
       {
         success: true,
-        updated_fields: Object.keys(diff),
-        slug: updatedItem?.slug,
+        item: updatedItem
       },
       corsHeaders,
       200
