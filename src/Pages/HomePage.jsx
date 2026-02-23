@@ -72,7 +72,7 @@ export default function HomePage() {
         </div>
 
         {/* STAT CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
 
           <StatCard
             id = "users"
@@ -264,7 +264,10 @@ function StatCard({
   return (
     <div
       onClick={onToggle}
-      className="bg-white rounded-3xl p-6 shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100"
+      className={`bg-white rounded-3xl p-6 shadow-md hover:shadow-xl 
+      transition-all duration-300 cursor-pointer border border-gray-100
+      ${expanded ? "ring-2 ring-emerald-500" : ""}
+      `}
     >
       <div className="flex items-center justify-between">
         <div>
