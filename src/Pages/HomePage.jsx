@@ -26,11 +26,29 @@ export default function HomePage() {
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
 
 
-  const timeline = Object.entries(stats?.dailyTrend || {})
+  const timeline = Object.entries(stats?.dailyItemTrend || {})
   .map(([date, count]) => ({ date, count }))
   .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const miniTrend = timeline.slice(-7); // last 7 days
+  const itemTrend = Object.entries(stats?.dailyItemTrend || {})
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-7);
+
+  const userTrend = Object.entries(stats?.dailyUserTrend || {})
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-7);
+
+  const stolenTrend = Object.entries(stats?.dailyStolenTrend || {})
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-7);
+
+  const activeTrend = Object.entries(stats?.dailyActiveTrend || {})
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-7);
 
   const stolenCategoryData = Object.entries(
     stats?.stolenCategoryBreakdown || {}
@@ -110,7 +128,7 @@ export default function HomePage() {
             initialLoading={initialLoading}
             refreshing={refreshing}
             icon={<Users size={22} />}
-            miniTrend = {miniTrend}
+            miniTrend = {userTrend}
             expanded={expandedCard === "users"}
             onToggle={() =>
               setExpandedCard(expandedCard === "users" ? null : "users")
@@ -126,7 +144,7 @@ export default function HomePage() {
             initialLoading={initialLoading}
             refreshing={refreshing}
             icon={<Package size={22} />}
-            miniTrend = {miniTrend}
+            miniTrend = {itemTrend}
             expanded={expandedCard === "total"}
             onToggle={() =>
               setExpandedCard(expandedCard === "total" ? null : "total")
@@ -161,7 +179,7 @@ export default function HomePage() {
             initialLoading={initialLoading}
             refreshing={refreshing}
             icon={<ShieldCheck size={22} />}
-            miniTrend = {miniTrend}
+            miniTrend = {activeTrend}
             expanded={expandedCard === "active"}
             onToggle={() =>
               setExpandedCard(expandedCard === "active" ? null : "active")
@@ -181,7 +199,7 @@ export default function HomePage() {
             refreshing={refreshing}
             red
             icon={<AlertTriangle size={22} />}
-            miniTrend = {miniTrend}
+            miniTrend = {stolenTrend}
             expanded={expandedCard === "stolen"}
             onToggle={() =>
               setExpandedCard(expandedCard === "stolen" ? null : "stolen")
