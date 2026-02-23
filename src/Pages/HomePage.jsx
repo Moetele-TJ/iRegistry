@@ -1,10 +1,9 @@
 // src/Pages/HomePage.jsx
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
 import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
-import { useState } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -32,6 +31,7 @@ export default function HomePage() {
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
   const totalUsers = totals.totalUsers ?? 0;
+  const [expandedCard, setExpandedCard] = useState(null);
 
   const pieData = [
     { name: "Active", value: active },
@@ -75,19 +75,29 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
           <StatCard
+            id = "users"
             title="Total Users"
             value={totalUsers}
             loading={loading}
             icon={<Users size={22} />}
+            expanded={expandedCard === "users"}
+            onToggle={() =>
+              setExpandedCard(expandedCard === "users" ? null : "users")
+            }
           >
             <div>Registered citizens & institutions.</div>
           </StatCard>
 
           <StatCard
+            id = "total"
             title="Total Items"
             value={total}
             loading={loading}
             icon={<Package size={22} />}
+            expanded={expandedCard === "total"}
+            onToggle={() =>
+              setExpandedCard(expandedCard === "total" ? null : "total")
+            }
           >
             <div>Total items recorded in registry.</div>
 
@@ -112,10 +122,15 @@ export default function HomePage() {
           </StatCard>
 
           <StatCard
+            id = "active"
             title="Active Items"
             value={active}
             loading={loading}
             icon={<ShieldCheck size={22} />}
+            expanded={expandedCard === "active"}
+            onToggle={() =>
+              setExpandedCard(expandedCard === "active" ? null : "active")
+            }
           >
             <div>Currently protected assets.</div>
             <div className="mt-2">
@@ -124,11 +139,16 @@ export default function HomePage() {
           </StatCard>
 
           <StatCard
+            id = "stolen"
             title="Stolen Items"
             value={stolen}
             loading={loading}
             red
             icon={<AlertTriangle size={22} />}
+            expanded={expandedCard === "stolen"}
+            onToggle={() =>
+              setExpandedCard(expandedCard === "stolen" ? null : "stolen")
+            }
           >
             <div>Assets flagged as stolen.</div>
             <div className="mt-2">
@@ -231,28 +251,21 @@ export default function HomePage() {
 }
 
 function StatCard({
+  id,
   title,
   value,
   red,
   loading,
   icon,
+  expanded,
+  onToggle,
   children,
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
     <div
-      onClick={() => setOpen(!open)}
-      className="
-        bg-white rounded-3xl p-6 
-        shadow-md hover:shadow-xl 
-        transition-all duration-300 
-        cursor-pointer
-        hover:-translate-y-1
-        border border-gray-100
-      "
+      onClick={onToggle}
+      className="bg-white rounded-3xl p-6 shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100"
     >
-      {/* Top Row */}
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs text-gray-500">{title}</div>
@@ -271,25 +284,26 @@ function StatCard({
           )}
         </div>
 
-        {/* Icon */}
         <div
           className={
             "p-3 rounded-2xl " +
-            (red
-              ? "bg-red-100 text-red-600"
-              : "bg-emerald-100 text-iregistrygreen")
+            (red ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600")
           }
         >
           {icon}
         </div>
       </div>
 
-      {/*Expandable Section*/}
-      {open && !loading && (
-        <div className="mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600 animate-fadeIn">
+      {/* Smooth Expand Section */}
+      <div
+        className={`transition-all duration-500 ease-in-out overflow-hidden ${
+          expanded ? "max-h-[500px] mt-4 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="text-sm text-gray-600 space-y-2 border-t pt-4">
           {children}
         </div>
-      )}
+      </div>
     </div>
   );
 }
