@@ -1,8 +1,10 @@
 // src/Pages/HomePage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
+import { useItemVerification } from "../hooks/useItemVerification";
+import { useNotifyOwner } from "../hooks/useNotifyOwner";
 import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
 import CountUp from "react-countup";
 import {
@@ -24,7 +26,34 @@ const IREG_RED = "#E53E3E";
 export default function HomePage() {
   const navigate = useNavigate();
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
+  const [serial, setSerial] = useState("");
+  const {
+    result: verificationResult,
+    verifying,
+    error: verificationError,
+    verify,
+    reset,
+  } = useItemVerification();
 
+  const [showNotifyForm, setShowNotifyForm] = useState(false);
+  const [message, setMessage] = useState("");
+  const [contact, setContact] = useState("");
+
+  const {
+    notify,
+    loading: notifying,
+    success: notifySuccess,
+    error: notifyError,
+  } = useNotifyOwner();
+
+  useEffect(() => {
+    if (notifySuccess) {
+      setMessage("");
+      setContact("");
+      setShowNotifyForm(false);
+      reset();
+    }
+  }, [notifySuccess]);
 
   const timeline = Object.entries(stats?.dailyItemTrend || {})
   .map(([date, count]) => ({ date, count }))
@@ -69,6 +98,10 @@ export default function HomePage() {
   const chartKey = stats?.totals?.totalItems || 0;
 
   const [expandedCard, setExpandedCard] = useState(null);
+
+  function handleVerify() {
+    verify(serial);
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -116,6 +149,119 @@ export default function HomePage() {
               </div>
             )}
 
+        </div>
+
+        {/* ITEM VERIFICATION */}
+        <div className="bg-white rounded-3xl p-6 shadow-md mb-8">
+          <div className="text-lg font-semibold text-gray-800 mb-4">
+            Verify Item
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="Enter Serial Number"
+              value={serial}
+              onChange={(e) => setSerial(e.target.value)}
+              className="flex-1 px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+
+            <RippleButton
+              className="px-6 py-2 rounded-xl bg-emerald-600 text-white"
+              onClick={handleVerify}
+              disabled={verifying}
+            >
+              {verifying ? "Checking..." : "Verify"}
+            </RippleButton>
+          </div>
+
+          {/* RESULT */}
+          {verificationResult && (
+            <div className="mt-6">
+
+              {verificationResult.state === "NOT_FOUND" && (
+                <div className="text-gray-600">
+                  This item is not registered in iRegistry.
+                </div>
+              )}
+
+              {verificationResult.state === "STOLEN" && (
+                <div className="text-red-600 font-semibold">
+                  ⚠ This item has been reported stolen.
+                </div>
+              )}
+
+              {verificationResult.state === "REGISTERED" && (
+                <div className="space-y-4">
+
+                  <div className="text-gray-700">
+                    ✅ This item is registered in iRegistry.
+                  </div>
+
+                  <div className="flex gap-3 flex-wrap">
+                    <RippleButton
+                      className="px-5 py-2 rounded-xl bg-emerald-600 text-white"
+                      onClick={() => setShowNotifyForm(!showNotifyForm)}
+                    >
+                      🔔 Notify Registered Owner
+                    </RippleButton>
+
+                    <RippleButton
+                      className="px-5 py-2 rounded-xl bg-gray-100 text-gray-800"
+                      onClick={() => navigate("/login")}
+                    >
+                      🔁 Request Ownership Transfer
+                    </RippleButton>
+                  </div>
+
+                  {/* NOTIFY FORM */}
+                  {showNotifyForm && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-2xl border">
+
+                      <textarea
+                        placeholder="Write your message..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        className="w-full p-3 border rounded-xl mb-3"
+                      />
+
+                      <input
+                        type="text"
+                        placeholder="Your contact (optional)"
+                        value={contact}
+                        onChange={(e) => setContact(e.target.value)}
+                        className="w-full p-3 border rounded-xl mb-3"
+                      />
+
+                      <RippleButton
+                        className="px-6 py-2 rounded-xl bg-emerald-600 text-white"
+                        onClick={() =>
+                          notify({ serial: serial, message, contact })
+                        }
+                      >
+                        {notifying ? "Sending..." : "Send Notification"}
+                      </RippleButton>
+
+                      {notifySuccess && (
+                        <div className="text-green-600 mt-3">
+                          ✅ Owner has been notified.
+                        </div>
+                      )}
+
+                      {notifyError && (
+                        <div className="text-red-600 mt-3">
+                          {notifyError}
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </div>
+          )}
         </div>
 
         {/* STAT CARDS */}
