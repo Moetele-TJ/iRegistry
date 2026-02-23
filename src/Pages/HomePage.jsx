@@ -13,9 +13,8 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
   Legend,
 } from "recharts";
 
@@ -26,23 +25,32 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
 
+
+  const timeline = Object.entries(stats?.dailyTrend || {})
+  .map(([date, count]) => ({ date, count }))
+  .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const miniTrend = timeline.slice(-7); // last 7 days
+
+  const stolenCategoryData = Object.entries(
+    stats?.stolenCategoryBreakdown || {}
+  )
+    .map(([category, count]) => ({
+      category,
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
   const totals = stats?.totals || {};
-  const timeline = Object.entries(stats?.dailyTrend || {}).map(
-  ([date, count]) => ({
-    date,
-    count,
-  })
-);
+
   const active = totals.activeItems ?? 0;
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
   const totalUsers = totals.totalUsers ?? 0;
-  const [expandedCard, setExpandedCard] = useState(null);
+  const chartKey = stats?.totals?.totalItems || 0;
 
-  const pieData = [
-    { name: "Active", value: active },
-    { name: "Stolen", value: stolen },
-  ];
+  const [expandedCard, setExpandedCard] = useState(null);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -74,8 +82,9 @@ export default function HomePage() {
             >
               Create Account
             </RippleButton>
+          </div>
 
-            {lastUpdated && (
+          {lastUpdated && (
               <div className="mt-4 text-xs text-white/80">
                 Last updated:{" "}
                 {lastUpdated.toLocaleTimeString("en-BW", {
@@ -89,7 +98,6 @@ export default function HomePage() {
               </div>
             )}
 
-          </div>
         </div>
 
         {/* STAT CARDS */}
@@ -99,8 +107,10 @@ export default function HomePage() {
             id = "users"
             title="Total Users"
             value={totalUsers}
-            loading={initialLoading}
+            initialLoading={initialLoading}
+            refreshing={refreshing}
             icon={<Users size={22} />}
+            miniTrend = {miniTrend}
             expanded={expandedCard === "users"}
             onToggle={() =>
               setExpandedCard(expandedCard === "users" ? null : "users")
@@ -113,8 +123,10 @@ export default function HomePage() {
             id = "total"
             title="Total Items"
             value={total}
-            loading={initialLoading}
+            initialLoading={initialLoading}
+            refreshing={refreshing}
             icon={<Package size={22} />}
+            miniTrend = {miniTrend}
             expanded={expandedCard === "total"}
             onToggle={() =>
               setExpandedCard(expandedCard === "total" ? null : "total")
@@ -146,8 +158,10 @@ export default function HomePage() {
             id = "active"
             title="Active Items"
             value={active}
-            loading={initialLoading}
+            initialLoading={initialLoading}
+            refreshing={refreshing}
             icon={<ShieldCheck size={22} />}
+            miniTrend = {miniTrend}
             expanded={expandedCard === "active"}
             onToggle={() =>
               setExpandedCard(expandedCard === "active" ? null : "active")
@@ -163,9 +177,11 @@ export default function HomePage() {
             id = "stolen"
             title="Stolen Items"
             value={stolen}
-            loading={initialLoading}
+            initialLoading={initialLoading}
+            refreshing={refreshing}
             red
             icon={<AlertTriangle size={22} />}
+            miniTrend = {miniTrend}
             expanded={expandedCard === "stolen"}
             onToggle={() =>
               setExpandedCard(expandedCard === "stolen" ? null : "stolen")
@@ -189,11 +205,11 @@ export default function HomePage() {
             </div>
 
             <div style={{ height: 220 }}>
-              {loading ? (
+              {initialLoading ? (
                 <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={timeline}>
+                  <AreaChart key={chartKey} data={timeline}>
                     <defs>
                       <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.4} />
@@ -235,31 +251,41 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Status Pie */}
+          {/* Stolen Category Breakdown */}
           <div className="bg-white rounded-3xl p-6 shadow-sm">
             <div className="text-sm font-semibold text-gray-700 mb-4">
-              Status Distribution
+              Stolen Items by Category
             </div>
 
-            <div style={{ height: 220 }}>
-              {loading ? (
+            <div style={{ height: 240 }}>
+              {initialLoading ? (
                 <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={4}
-                    >
-                      <Cell fill={IREG_GREEN} />
-                      <Cell fill={IREG_RED} />
-                    </Pie>
-                    <Legend />
+                  <BarChart key={chartKey}
+                    data={stolenCategoryData}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="category"
+                      width={100}
+                    />
+
                     <Tooltip />
-                  </PieChart>
+
+                    <Legend />
+
+                    <Bar
+                      dataKey="count"
+                      fill={IREG_RED}
+                      radius={[0, 6, 6, 0]}
+                      animationDuration={800}
+                    />
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
@@ -276,15 +302,17 @@ function StatCard({
   title,
   value,
   red,
-  loading,
+  initialLoading,
+  refreshing,
   icon,
+  miniTrend = [],
   expanded,
   onToggle,
   children,
 }) {
   return (
     <div
-      onClick={onToggle}
+       onClick={onToggle}
       className={`bg-white rounded-3xl p-6 shadow-md hover:shadow-xl 
       transition-all duration-300 cursor-pointer border border-gray-100
       ${expanded ? "ring-2 ring-emerald-500" : ""}
@@ -294,24 +322,57 @@ function StatCard({
         <div>
           <div className="text-sm font-semibold text-iregistrygreen tracking-wide">{title}</div>
 
-          {loading ? (
+          {initialLoading ? (
             <div className="h-8 bg-gray-200 rounded mt-2 animate-pulse w-20" />
           ) : (
             <div
               className={
-                "text-4xl font-extrabold mt-2 " +
+                "text-4xl font-extrabold mt-2 transition-all duration-500 " +
                 (red ? "text-red-600" : "text-gray-900")
               }
             >
-              {!loading && (
-                <CountUp
-                  end={value ?? 0}
-                  duration={1.2}
-                  separator=","
-                />
-              )}
+              <CountUp
+                key={value}   // 🔥 forces animation when value changes
+                end={value ?? 0}
+                duration={1.2}
+                separator=","
+              />
             </div>
           )}
+
+          {/* MINI SPARKLINE */}
+          {!initialLoading && miniTrend.length > 0 && (
+            <div className="mt-3 h-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={miniTrend}>
+                  <defs>
+                    <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="0%"
+                        stopColor={red ? IREG_RED : IREG_GREEN}
+                        stopOpacity={0.4}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={red ? IREG_RED : IREG_GREEN}
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke={red ? IREG_RED : IREG_GREEN}
+                    strokeWidth={2}
+                    fill={`url(#spark-${id})`}
+                    dot={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
         </div>
 
         <div
