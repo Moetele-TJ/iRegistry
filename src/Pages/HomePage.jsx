@@ -84,13 +84,29 @@ export default function HomePage() {
           </StatCard>
 
           <StatCard
-            title="Total Registered"
+            title="Total Items"
             value={total}
             loading={loading}
             icon={<Package size={22} />}
           >
-            <div>Total assets recorded in registry.</div>
-            <div className="mt-2">
+            <div>Total items recorded in registry.</div>
+
+            <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">
+              Top Categories
+            </div>
+
+            <div className="mt-2 space-y-1">
+              {Object.entries(stats?.categoryBreakdown || {})
+                .slice(0, 4)
+                .map(([cat, count]) => (
+                  <div key={cat} className="flex justify-between">
+                    <span>{cat}</span>
+                    <span className="font-medium">{count}</span>
+                  </div>
+                ))}
+            </div>
+
+            <div className="mt-3 text-xs text-gray-500">
               Active ratio: {total ? Math.round((active / total) * 100) : 0}%
             </div>
           </StatCard>
@@ -108,7 +124,7 @@ export default function HomePage() {
           </StatCard>
 
           <StatCard
-            title="Reported Stolen"
+            title="Stolen Items"
             value={stolen}
             loading={loading}
             red
@@ -268,7 +284,7 @@ function StatCard({
         </div>
       </div>
 
-      {/* Expandable Section */}
+      {/*Expandable Section*/}
       {open && !loading && (
         <div className="mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600 animate-fadeIn">
           {children}
