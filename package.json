@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.87.1",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
+    "react-countup": "^6.5.3",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
     "recharts": "^3.5.1"

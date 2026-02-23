@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
 import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
+import CountUp from "react-countup";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -23,10 +24,15 @@ const IREG_RED = "#E53E3E";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { stats, loading } = usePublicStats();
+  const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
 
   const totals = stats?.totals || {};
-  const timeline = stats?.timeline || [];
+  const timeline = Object.entries(stats?.dailyTrend || {}).map(
+  ([date, count]) => ({
+    date,
+    count,
+  })
+);
   const active = totals.activeItems ?? 0;
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
@@ -68,6 +74,21 @@ export default function HomePage() {
             >
               Create Account
             </RippleButton>
+
+            {lastUpdated && (
+              <div className="mt-4 text-xs text-white/80">
+                Last updated:{" "}
+                {lastUpdated.toLocaleTimeString("en-BW", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+                {refreshing && (
+                  <span className="ml-2 animate-pulse">• Updating...</span>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -78,7 +99,7 @@ export default function HomePage() {
             id = "users"
             title="Total Users"
             value={totalUsers}
-            loading={loading}
+            loading={initialLoading}
             icon={<Users size={22} />}
             expanded={expandedCard === "users"}
             onToggle={() =>
@@ -92,7 +113,7 @@ export default function HomePage() {
             id = "total"
             title="Total Items"
             value={total}
-            loading={loading}
+            loading={initialLoading}
             icon={<Package size={22} />}
             expanded={expandedCard === "total"}
             onToggle={() =>
@@ -125,7 +146,7 @@ export default function HomePage() {
             id = "active"
             title="Active Items"
             value={active}
-            loading={loading}
+            loading={initialLoading}
             icon={<ShieldCheck size={22} />}
             expanded={expandedCard === "active"}
             onToggle={() =>
@@ -142,7 +163,7 @@ export default function HomePage() {
             id = "stolen"
             title="Stolen Items"
             value={stolen}
-            loading={loading}
+            loading={initialLoading}
             red
             icon={<AlertTriangle size={22} />}
             expanded={expandedCard === "stolen"}
@@ -282,7 +303,13 @@ function StatCard({
                 (red ? "text-red-600" : "text-gray-900")
               }
             >
-              {value ?? 0}
+              {!loading && (
+                <CountUp
+                  end={value ?? 0}
+                  duration={1.2}
+                  separator=","
+                />
+              )}
             </div>
           )}
         </div>

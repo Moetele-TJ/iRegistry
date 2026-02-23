@@ -1,16 +1,25 @@
 //  src/hooks/usePublicStats.js
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 
 export function usePublicStats() {
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  async function fetchStats() {
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const intervalRef = useRef(null);
+
+  async function fetchStats({ silent = false } = {}) {
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setInitialLoading(true);
+      } else {
+        setRefreshing(true);
+      }
 
       const { data, error } =
         await supabase.functions.invoke("get-public-stats");
@@ -20,17 +29,38 @@ export function usePublicStats() {
       }
 
       setStats(data.stats);
+      setLastUpdated(new Date());
 
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      setRefreshing(false);
     }
   }
 
   useEffect(() => {
+    // First load
     fetchStats();
+
+    // Auto refresh every 60 seconds (silent)
+    intervalRef.current = setInterval(() => {
+      fetchStats({ silent: true });
+    }, 60000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, []);
 
-  return { stats, loading, error, refresh: fetchStats };
+  return {
+    stats,
+    initialLoading,
+    refreshing,
+    error,
+    lastUpdated,
+    refresh: () => fetchStats({ silent: true }),
+  };
 }
