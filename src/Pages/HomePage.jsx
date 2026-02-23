@@ -271,7 +271,7 @@ function StatCard({
     >
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs text-gray-500">{title}</div>
+          <div className="text-sm font-semibold text-iregistrygreen tracking-wide">{title}</div>
 
           {loading ? (
             <div className="h-8 bg-gray-200 rounded mt-2 animate-pulse w-20" />
