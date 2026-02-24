@@ -27,6 +27,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
   const [serial, setSerial] = useState("");
+  const [action, setAction] = useState(null);
   const {
     result: verificationResult,
     verifying,
@@ -35,7 +36,6 @@ export default function HomePage() {
     reset,
   } = useItemVerification();
 
-  const [showNotifyForm, setShowNotifyForm] = useState(false);
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
 
@@ -50,8 +50,9 @@ export default function HomePage() {
     if (notifySuccess) {
       setMessage("");
       setContact("");
-      setShowNotifyForm(false);
+      setAction(null);
       reset();
+      setSerial("");
     }
   }, [notifySuccess]);
 
@@ -154,11 +155,27 @@ export default function HomePage() {
             />
 
             <RippleButton
-              className="px-6 py-2 rounded-xl bg-emerald-600 text-white"
-              onClick={handleVerify}
-              disabled={verifying}
+              className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 ${
+                verificationResult
+                  ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700"
+              }`}
+              onClick={() => {
+                if (verificationResult) {
+                  reset();
+                  setSerial("");
+                  setAction(null);
+                } else {
+                  handleVerify();
+                }
+              }}
+              disabled={!verificationResult && (verifying || !serial.trim())}
             >
-              {verifying ? "Checking..." : "Verify"}
+              {verificationResult
+                ? "Cancel & Search Again"
+                : verifying
+                ? "Checking..."
+                : "Verify"}
             </RippleButton>
           </div>
 
@@ -185,25 +202,67 @@ export default function HomePage() {
                     ✅ This item is registered in iRegistry.
                   </div>
 
-                  <div className="flex gap-3 flex-wrap">
-                    <RippleButton
-                      className="px-5 py-2 rounded-xl bg-emerald-600 text-white"
-                      onClick={() => setShowNotifyForm(!showNotifyForm)}
-                    >
-                      🔔 Notify Registered Owner
-                    </RippleButton>
+                  <div className="mt-4 space-y-3">
 
-                    <RippleButton
-                      className="px-5 py-2 rounded-xl bg-gray-100 text-gray-800"
-                      onClick={() => navigate("/login")}
-                    >
-                      🔁 Request Ownership Transfer
-                    </RippleButton>
+                    <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
+                      <input
+                        type="radio"
+                        name="action"
+                        value="notify"
+                        checked={action === "notify"}
+                        onChange={() => setAction("notify")}
+                        className="accent-emerald-600 w-5 h-5"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-800">
+                          Notify Registered Owner
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Send a message to the current owner
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
+                      <input
+                        type="radio"
+                        name="action"
+                        value="transfer"
+                        checked={action === "transfer"}
+                        onChange={() => setAction("transfer")}
+                        className="accent-emerald-600 w-5 h-5"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-800">
+                          Request Ownership Transfer
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Login to initiate transfer process
+                        </div>
+                      </div>
+                    </label>
+
                   </div>
 
+                  {action === "transfer" && (
+                    <RippleButton
+                      className="mt-4 px-6 py-3 rounded-2xl bg-emerald-600 text-white font-semibold shadow-md hover:shadow-xl transition-all"
+                      onClick={() => navigate("/login")}
+                    >
+                      Continue to Login
+                    </RippleButton>
+                  )}
+
                   {/* NOTIFY FORM */}
-                  {showNotifyForm && (
-                    <div className="mt-6 p-6 bg-white rounded-3xl shadow-lg border border-gray-200 transition-all duration-300">
+                  <div
+                    className={`
+                      transition-all duration-500 ease-in-out overflow-hidden
+                      ${action === "notify"
+                        ? "max-h-[600px] opacity-100 translate-y-0 mt-6"
+                        : "max-h-0 opacity-0 -translate-y-2"}
+                    `}
+                  >
+                    <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
 
                       <textarea
                         placeholder="Write your message..."
@@ -211,7 +270,7 @@ export default function HomePage() {
                         onChange={(e) => setMessage(e.target.value)}
                         className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
                         focus:bg-white focus:ring-2 focus:ring-emerald-500 
-                        focus:border-emerald-500 transition-all duration-200 shadow-sm"
+                        focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
                       />
 
                       <input
@@ -221,35 +280,36 @@ export default function HomePage() {
                         onChange={(e) => setContact(e.target.value)}
                         className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
                         focus:bg-white focus:ring-2 focus:ring-emerald-500 
-                        focus:border-emerald-500 transition-all duration-200 shadow-sm"
+                        focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
                       />
 
                       <RippleButton
-                        className="w-full mt-3 px-6 py-3 rounded-2xl 
+                        className="w-full px-6 py-3 rounded-2xl 
                         bg-emerald-600 text-white font-semibold 
                         shadow-md hover:shadow-xl hover:bg-emerald-700 
                         transition-all duration-300"
                         onClick={() =>
                           notify({ serial: serial, message, contact })
                         }
+                        disabled={notifying || !message.trim()}
                       >
                         {notifying ? "Sending..." : "Send Notification"}
                       </RippleButton>
 
                       {notifySuccess && (
-                        <div className="text-green-600 mt-3">
+                        <div className="text-green-600 mt-3 text-sm">
                           ✅ Owner has been notified.
                         </div>
                       )}
 
                       {notifyError && (
-                        <div className="text-red-600 mt-3">
+                        <div className="text-red-600 mt-3 text-sm">
                           {notifyError}
                         </div>
                       )}
 
                     </div>
-                  )}
+                  </div>
 
                 </div>
               )}
