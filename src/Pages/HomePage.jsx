@@ -304,74 +304,73 @@ export default function HomePage() {
                       Continue to Login
                     </RippleButton>
                   )}
+                </div>
+              )}
 
-                  {/* NOTIFY FORM */}
-                  <div
-                    className={`
-                      transition-all duration-500 ease-in-out overflow-hidden
-                      ${action === "notify"
-                        ? "max-h-[600px] opacity-100 translate-y-0 mt-6"
-                        : "max-h-0 opacity-0 -translate-y-2"}
-                    `}
-                  >
-                    <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
+              {/* NOTIFY FORM - Shared */}
+              {action === "notify" && (
+                <div
+                  className={`
+                    transition-all duration-500 ease-in-out overflow-hidden
+                    max-h-[600px] opacity-100 translate-y-0 mt-6
+                  `}
+                >
+                  <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
 
-                      <textarea
-                        placeholder="Write your message..."
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
-                        focus:bg-white focus:ring-2 focus:ring-emerald-500 
-                        focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
-                      />
+                    <textarea
+                      placeholder="Write your message..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
+                      focus:bg-white focus:ring-2 focus:ring-emerald-500 
+                      focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
+                    />
 
-                      <input
-                        type="text"
-                        placeholder="Your contact (phone or email)"
-                        value={contact}
-                        onChange={(e) => setContact(e.target.value)}
-                        className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
-                        focus:bg-white focus:ring-2 focus:ring-emerald-500 
-                        focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
-                      />
+                    <input
+                      type="text"
+                      placeholder="Your contact (phone or email)"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
+                      focus:bg-white focus:ring-2 focus:ring-emerald-500 
+                      focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
+                    />
 
-                      <RippleButton
-                        className="w-full px-6 py-3 rounded-2xl 
-                        bg-emerald-600 text-white font-semibold 
-                        shadow-md hover:shadow-xl hover:bg-emerald-700 
-                        transition-all duration-300 disabled:opacity-50"
-                        onClick={() =>
-                          notify({
-                            serial,
-                            message,
-                            contact,
-                            notifyPolice,
-                          })
-                        }
-                        disabled={
-                          notifying ||
-                          !message.trim() ||
-                          !contact.trim()
-                        }
-                      >
-                        {notifying ? "Sending..." : "Send Notification"}
-                      </RippleButton>
+                    <RippleButton
+                      className="w-full px-6 py-3 rounded-2xl 
+                      bg-emerald-600 text-white font-semibold 
+                      shadow-md hover:shadow-xl hover:bg-emerald-700 
+                      transition-all duration-300 disabled:opacity-50"
+                      onClick={() =>
+                        notify({
+                          serial,
+                          message,
+                          contact,
+                          notifyPolice,
+                        })
+                      }
+                      disabled={
+                        notifying ||
+                        !message.trim() ||
+                        !contact.trim()
+                      }
+                    >
+                      {notifying ? "Sending..." : "Send Notification"}
+                    </RippleButton>
 
-                      {notifySuccess && (
-                        <div className="text-green-600 mt-3 text-sm">
-                          ✅ Owner has been notified.
-                        </div>
-                      )}
+                    {notifySuccess && (
+                      <div className="text-green-600 mt-3 text-sm">
+                        ✅ Notification sent successfully.
+                      </div>
+                    )}
 
-                      {notifyError && (
-                        <div className="text-red-600 mt-3 text-sm">
-                          {notifyError}
-                        </div>
-                      )}
+                    {notifyError && (
+                      <div className="text-red-600 mt-3 text-sm">
+                        {notifyError}
+                      </div>
+                    )}
 
-                    </div>
                   </div>
-
                 </div>
               )}
 

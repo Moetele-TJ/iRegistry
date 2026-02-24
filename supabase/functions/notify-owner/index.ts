@@ -30,7 +30,7 @@ serve(async (req) => {
       );
     }
 
-    if (!userMessage.trim()) {
+    if (!userMessage?.trim()) {
       return respond(
         { success: false, message: "A message is required, please enter it before you continue." },
         corsHeaders,
@@ -38,7 +38,7 @@ serve(async (req) => {
       );
     }
 
-    if (!contact.trim()) {
+    if (!contact?.trim()) {
       return respond(
         { success: false, message: "A contact is required, please enter your phone number or emaill address." },
         corsHeaders,
