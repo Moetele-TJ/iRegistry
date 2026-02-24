@@ -165,7 +165,6 @@ export default function HomePage() {
               onClick={() => {
                 if (verificationResult) {
                   reset();
-                  setSerial("");
                   setAction(null);
                   setNotifyPolice(false);
                 } else {
