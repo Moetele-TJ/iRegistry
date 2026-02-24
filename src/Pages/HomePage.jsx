@@ -55,29 +55,12 @@ export default function HomePage() {
     }
   }, [notifySuccess]);
 
-  const timeline = Object.entries(stats?.dailyItemTrend || {})
-  .map(([date, count]) => ({ date, count }))
-  .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const timeline = stats?.dailyItemTrend || [];
 
-  const itemTrend = Object.entries(stats?.dailyItemTrend || {})
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(-7);
-
-  const userTrend = Object.entries(stats?.dailyUserTrend || {})
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(-7);
-
-  const stolenTrend = Object.entries(stats?.dailyStolenTrend || {})
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(-7);
-
-  const activeTrend = Object.entries(stats?.dailyActiveTrend || {})
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(-7);
+  const itemTrend = (stats?.dailyItemTrend || []).slice(-7);
+  const userTrend = (stats?.dailyUserTrend || []).slice(-7);
+  const stolenTrend = (stats?.dailyStolenTrend || []).slice(-7);
+  const activeTrend = (stats?.dailyActiveTrend || []).slice(-7);
 
   const stolenCategoryData = Object.entries(
     stats?.stolenCategoryBreakdown || {}
@@ -383,12 +366,15 @@ export default function HomePage() {
 
                     <XAxis
                       dataKey="date"
-                      tickFormatter={(value) =>
-                        new Date(value).toLocaleDateString("en-BW", {
+                      tickFormatter={(value) => {
+                        if (!value) return "";
+                        const date = new Date(value);
+                        if (isNaN(date)) return "";
+                        return date.toLocaleDateString("en-BW", {
                           day: "2-digit",
                           month: "short",
-                        })
-                      }
+                        });
+                      }}
                     />
 
                     <YAxis allowDecimals={false} />
