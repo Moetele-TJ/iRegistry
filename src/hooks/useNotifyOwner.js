@@ -7,7 +7,7 @@ export function useNotifyOwner() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
 
-  async function notify({ serial, message, contact }) {
+  async function notify({ serial, message, contact, notifyPolice }) {
     try {
       setLoading(true);
       setError(null);
@@ -15,7 +15,7 @@ export function useNotifyOwner() {
 
       const { data, error } =
         await supabase.functions.invoke("notify-owner", {
-          body: { serial, message, contact },
+          body: { serial, message, contact, notifyPolice },
         });
 
       if (error || !data?.success) {

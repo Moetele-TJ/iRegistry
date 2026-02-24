@@ -38,6 +38,7 @@ export default function HomePage() {
 
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
+  const [notifyPolice, setNotifyPolice] = useState(false);
 
   const {
     notify,
@@ -53,6 +54,7 @@ export default function HomePage() {
       setAction(null);
       reset();
       setSerial("");
+      setNotifyPolice(false);
     }
   }, [notifySuccess]);
 
@@ -138,7 +140,7 @@ export default function HomePage() {
         {/* ITEM VERIFICATION */}
         <div className="bg-white rounded-3xl p-6 shadow-md mb-8">
           <div className="text-lg font-semibold text-gray-800 mb-4">
-            Verify Item
+            Item Verification
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -165,6 +167,7 @@ export default function HomePage() {
                   reset();
                   setSerial("");
                   setAction(null);
+                  setNotifyPolice(false);
                 } else {
                   handleVerify();
                 }
@@ -180,7 +183,20 @@ export default function HomePage() {
           </div>
 
           {/* RESULT */}
-          {verificationResult && (
+
+          {verifying && (
+            <div className="mt-6 space-y-3 animate-pulse">
+
+              <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+
+              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+
+            </div>
+          )}
+
+          {!verifying && verificationResult && (
             <div className="mt-6">
 
               {verificationResult.state === "NOT_FOUND" && (
@@ -190,9 +206,45 @@ export default function HomePage() {
               )}
 
               {verificationResult.state === "STOLEN" && (
-                <div className="text-red-600 font-semibold">
-                  ⚠ This item has been reported stolen.
-                </div>
+                <>
+                  <div className="text-red-600 font-semibold">
+                    ⚠ This item has been reported stolen.
+                  </div>
+
+                  {/* Notify Owner Checkbox */}
+                  <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={action === "notify"}
+                      onChange={(e) =>
+                        setAction(e.target.checked ? "notify" : null)
+                      }
+                      className="accent-emerald-600 w-5 h-5"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-800">
+                        Notify Registered Owner
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Send message to the owner
+                      </div>
+                    </div>
+                  </label>
+
+                  {action === "notify" && (
+                    <label className="flex items-center gap-3 ml-8 p-3 border rounded-xl bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+                      <input
+                        type="checkbox"
+                        checked={notifyPolice}
+                        onChange={(e) => setNotifyPolice(e.target.checked)}
+                        className="accent-red-600 w-4 h-4"
+                      />
+                      <div className="text-sm text-gray-700">
+                        Also inform law enforcement
+                      </div>
+                    </label>
+                  )}
+                </>
               )}
 
               {verificationResult.state === "REGISTERED" && (
@@ -275,7 +327,7 @@ export default function HomePage() {
 
                       <input
                         type="text"
-                        placeholder="Your contact (optional)"
+                        placeholder="Your contact (phone or email)"
                         value={contact}
                         onChange={(e) => setContact(e.target.value)}
                         className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
@@ -287,11 +339,20 @@ export default function HomePage() {
                         className="w-full px-6 py-3 rounded-2xl 
                         bg-emerald-600 text-white font-semibold 
                         shadow-md hover:shadow-xl hover:bg-emerald-700 
-                        transition-all duration-300"
+                        transition-all duration-300 disabled:opacity-50"
                         onClick={() =>
-                          notify({ serial: serial, message, contact })
+                          notify({
+                            serial,
+                            message,
+                            contact,
+                            notifyPolice,
+                          })
                         }
-                        disabled={notifying || !message.trim()}
+                        disabled={
+                          notifying ||
+                          !message.trim() ||
+                          !contact.trim()
+                        }
                       >
                         {notifying ? "Sending..." : "Send Notification"}
                       </RippleButton>

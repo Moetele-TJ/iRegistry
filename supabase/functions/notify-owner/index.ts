@@ -20,11 +20,27 @@ serve(async (req) => {
   }
 
   try {
-    const { serial, message, contact } = await req.json();
+    const { serial, message: userMessage, contact, notifyPolice } = await req.json();
 
-    if (!serial || !message) {
+    if (!serial) {
       return respond(
-        { success: false, message: "Serial and message required" },
+        { success: false, message: "A Serial number is required, please enter it before you continue." },
+        corsHeaders,
+        400
+      );
+    }
+
+    if (!userMessage.trim()) {
+      return respond(
+        { success: false, message: "A message is required, please enter it before you continue." },
+        corsHeaders,
+        400
+      );
+    }
+
+    if (!contact.trim()) {
+      return respond(
+        { success: false, message: "A contact is required, please enter your phone number or emaill address." },
         corsHeaders,
         400
       );
@@ -50,15 +66,31 @@ serve(async (req) => {
       );
     }
 
-    // Store notification
-    const { error: insertError } = await supabase
-      .from("item_notifications")
-      .insert({
+    // Always notify owner
+    const inserts = [
+      {
         itemid: item.id,
         ownerid: item.ownerid,
-        message,
+        recipient_type: "owner",
+        message: userMessage,
+        contact: contact ?? null,
+      },
+    ];
+
+    // If police checkbox selected
+    if (notifyPolice === true) {
+      inserts.push({
+        itemid: item.id,
+        ownerid: item.ownerid,
+        recipient_type: "police",
+        message: userMessage,
         contact: contact ?? null,
       });
+    }
+
+    const { error: insertError } = await supabase
+      .from("item_notifications")
+      .insert(inserts);
 
     if (insertError) throw insertError;
 

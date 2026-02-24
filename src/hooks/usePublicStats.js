@@ -46,7 +46,7 @@ export function usePublicStats() {
     // Auto refresh every 60 seconds (silent)
     intervalRef.current = setInterval(() => {
       fetchStats({ silent: true });
-    }, 60000);
+    }, 30000);
 
     return () => {
       if (intervalRef.current) {
