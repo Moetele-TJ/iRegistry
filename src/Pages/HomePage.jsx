@@ -205,45 +205,83 @@ export default function HomePage() {
               )}
 
               {verificationResult.state === "STOLEN" && (
-                <>
-                  <div className="text-red-600 font-semibold">
+                <div className={`
+                  border rounded-2xl overflow-hidden
+                  transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+                  ${action === "notify"
+                    ? "scale-[1.01] border-emerald-300 bg-emerald-50/40 shadow-md"
+                    : "scale-100 border-gray-200 bg-white"}
+                `}
+                >
+
+                  <div className="text-red-600 font-semibold mb-4">
                     ⚠ This item has been reported stolen.
                   </div>
 
-                  {/* Notify Owner Checkbox */}
-                  <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
-                    <input
-                      type="checkbox"
-                      checked={action === "notify"}
-                      onChange={(e) =>
-                        setAction(e.target.checked ? "notify" : null)
-                      }
-                      className="accent-emerald-600 w-5 h-5"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-800">
-                        Notify Registered Owner
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Send message to the owner
-                      </div>
-                    </div>
-                  </label>
+                  {/* Notify Owner Container */}
+                  <div className={`
+                      border rounded-2xl overflow-hidden transition-all duration-300
+                      ${action === "notify"
+                        ? "border-emerald-300 bg-emerald-50/40"
+                        : "border-gray-200"}
+                    `}
+                    >
 
-                  {action === "notify" && (
-                    <label className="flex items-center gap-3 ml-8 p-3 border rounded-xl bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+                    {/* Main checkbox row */}
+                    <label className={`
+                        flex items-center gap-3 p-4 cursor-pointer transition-all duration-300
+                        ${action === "notify"
+                          ? "border-l-4 border-emerald-500 bg-white"
+                          : "border-l-4 border-transparent hover:bg-gray-50"}
+                      `}
+                      >
                       <input
                         type="checkbox"
-                        checked={notifyPolice}
-                        onChange={(e) => setNotifyPolice(e.target.checked)}
-                        className="accent-red-600 w-4 h-4"
+                        checked={action === "notify"}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAction("notify");
+                          } else {
+                            setAction(null);
+                            setNotifyPolice(false); // reset child state
+                          }
+                        }}
+                        className="accent-emerald-600 w-5 h-5"
                       />
-                      <div className="text-sm text-gray-700">
-                        Also inform law enforcement
+                      <div>
+                        <div className="font-medium text-gray-800">
+                          Notify Registered Owner
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Send message to the owner
+                        </div>
                       </div>
                     </label>
-                  )}
-                </>
+
+                    {/* Sliding Sub-option */}
+                    <div
+                      className={`
+                        transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
+                        ${action === "notify"
+                          ? "max-h-20 opacity-100"
+                          : "max-h-0 opacity-0"}
+                      `}
+                    >
+                      <label className="flex items-center gap-3 pl-12 pr-4 pb-4 cursor-pointer hover:bg-gray-50 transition">
+                        <input
+                          type="checkbox"
+                          checked={notifyPolice}
+                          onChange={(e) => setNotifyPolice(e.target.checked)}
+                          className="accent-red-600 w-4 h-4"
+                        />
+                        <div className="text-sm text-gray-700">
+                          Also inform law enforcement
+                        </div>
+                      </label>
+                    </div>
+
+                  </div>
+                </div>
               )}
 
               {verificationResult.state === "REGISTERED" && (
@@ -310,7 +348,7 @@ export default function HomePage() {
               {action === "notify" && (
                 <div
                   className={`
-                    transition-all duration-500 ease-in-out overflow-hidden
+                    transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
                     max-h-[600px] opacity-100 translate-y-0 mt-6
                   `}
                 >
@@ -667,7 +705,7 @@ function StatCard({
 
       {/* Smooth Expand Section */}
       <div
-        className={`transition-all duration-500 ease-in-out overflow-hidden ${
+        className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
           expanded ? "max-h-[500px] mt-4 opacity-100" : "max-h-0 opacity-0"
         }`}
       >
