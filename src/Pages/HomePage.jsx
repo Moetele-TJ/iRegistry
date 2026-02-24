@@ -146,7 +146,11 @@ export default function HomePage() {
               placeholder="Enter Serial Number"
               value={serial}
               onChange={(e) => setSerial(e.target.value)}
-              className="flex-1 px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              disabled={!!verificationResult}   // 🔒 LOCK
+              className={`flex-1 px-4 py-3 border rounded-2xl 
+              focus:outline-none focus:ring-2 focus:ring-emerald-500
+              ${verificationResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
+              `}
             />
 
             <RippleButton
@@ -164,7 +168,7 @@ export default function HomePage() {
 
               {verificationResult.state === "NOT_FOUND" && (
                 <div className="text-gray-600">
-                  This item is not registered in iRegistry.
+                  This item can not be found in iRegistry.
                 </div>
               )}
 
@@ -199,13 +203,15 @@ export default function HomePage() {
 
                   {/* NOTIFY FORM */}
                   {showNotifyForm && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-2xl border">
+                    <div className="mt-6 p-6 bg-white rounded-3xl shadow-lg border border-gray-200 transition-all duration-300">
 
                       <textarea
                         placeholder="Write your message..."
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        className="w-full p-3 border rounded-xl mb-3"
+                        className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
+                        focus:bg-white focus:ring-2 focus:ring-emerald-500 
+                        focus:border-emerald-500 transition-all duration-200 shadow-sm"
                       />
 
                       <input
@@ -213,11 +219,16 @@ export default function HomePage() {
                         placeholder="Your contact (optional)"
                         value={contact}
                         onChange={(e) => setContact(e.target.value)}
-                        className="w-full p-3 border rounded-xl mb-3"
+                        className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
+                        focus:bg-white focus:ring-2 focus:ring-emerald-500 
+                        focus:border-emerald-500 transition-all duration-200 shadow-sm"
                       />
 
                       <RippleButton
-                        className="px-6 py-2 rounded-xl bg-emerald-600 text-white"
+                        className="w-full mt-3 px-6 py-3 rounded-2xl 
+                        bg-emerald-600 text-white font-semibold 
+                        shadow-md hover:shadow-xl hover:bg-emerald-700 
+                        transition-all duration-300"
                         onClick={() =>
                           notify({ serial: serial, message, contact })
                         }
