@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
+import Tooltip from "../components/Tooltip.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
 import { useItemVerification } from "../hooks/useItemVerification";
 import { useNotifyOwner } from "../hooks/useNotifyOwner";
-import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Users, Package, ShieldCheck, AlertTriangle, ShieldAlert, Info } from "lucide-react";
 import CountUp from "react-countup";
 import {
   ResponsiveContainer,
@@ -39,7 +40,7 @@ export default function HomePage() {
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
   const [notifyPolice, setNotifyPolice] = useState(false);
-
+  
   const {
     notify,
     loading: notifying,
@@ -205,68 +206,61 @@ export default function HomePage() {
               )}
 
               {verificationResult.state === "STOLEN" && (
-                <div className={`
-                  border rounded-2xl overflow-hidden
-                  transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-                  ${action === "notify"
-                    ? "scale-[1.01] border-emerald-300 bg-emerald-50/40 shadow-md"
-                    : "scale-100 border-gray-200 bg-white"}
-                `}
-                >
-
+                <>
                   <div className="text-red-600 font-semibold mb-4">
-                    ⚠ This item has been reported stolen.
-                  </div>
+                      ⚠ This item has been reported stolen.
+                    </div>
 
-                  {/* Notify Owner Container */}
                   <div className={`
-                      border rounded-2xl overflow-hidden transition-all duration-300
-                      ${action === "notify"
-                        ? "border-emerald-300 bg-emerald-50/40"
-                        : "border-gray-200"}
+                    border rounded-2xl overflow-hidden
+                    transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+                    ${action === "notify"
+                      ? "scale-[1.01] border-emerald-300 bg-emerald-50/40 shadow-[0_0_0_2px_rgba(16,185,129,0.2)] animate-[fadeIn_0.3s_ease]"
+                      : "scale-100 border-gray-200 bg-white"}
                     `}
                     >
 
-                    {/* Main checkbox row */}
-                    <label className={`
-                        flex items-center gap-3 p-4 cursor-pointer transition-all duration-300
+                    {/* Notify Owner Container */}
+                    <div className={`
+                        border rounded-2xl overflow-hidden transition-all duration-300
                         ${action === "notify"
-                          ? "border-l-4 border-emerald-500 bg-white"
-                          : "border-l-4 border-transparent hover:bg-gray-50"}
+                          ? "border-emerald-300 bg-emerald-50/40"
+                          : "border-gray-200"}
                       `}
                       >
-                      <input
-                        type="checkbox"
-                        checked={action === "notify"}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setAction("notify");
-                          } else {
-                            setAction(null);
-                            setNotifyPolice(false); // reset child state
-                          }
-                        }}
-                        className="accent-emerald-600 w-5 h-5"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-800">
-                          Notify Registered Owner
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Send message to the owner
-                        </div>
-                      </div>
-                    </label>
 
-                    {/* Sliding Sub-option */}
-                    <div
-                      className={`
-                        transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
-                        ${action === "notify"
-                          ? "max-h-20 opacity-100"
-                          : "max-h-0 opacity-0"}
-                      `}
-                    >
+                      {/* Main checkbox row */}
+                      <label className={`
+                          flex items-center gap-3 p-4 cursor-pointer transition-all duration-300
+                          ${action === "notify"
+                            ? "border-l-4 border-emerald-500 bg-white"
+                            : "border-l-4 border-transparent hover:bg-gray-50"}
+                        `}
+                        >
+                        <input
+                          type="checkbox"
+                          checked={action === "notify"}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAction("notify");
+                            } else {
+                              setAction(null);
+                              setNotifyPolice(false); // reset child state
+                            }
+                          }}
+                          className="accent-emerald-600 w-5 h-5"
+                        />
+                        <div>
+                          <div className="font-medium text-gray-800">
+                            Notify Registered Owner
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Send message to the owner
+                          </div>
+                        </div>
+                      </label>
+
+                      {/* Sliding Sub-option */}
                       <label className="flex items-center gap-3 pl-12 pr-4 pb-4 cursor-pointer hover:bg-gray-50 transition">
                         <input
                           type="checkbox"
@@ -274,14 +268,34 @@ export default function HomePage() {
                           onChange={(e) => setNotifyPolice(e.target.checked)}
                           className="accent-red-600 w-4 h-4"
                         />
-                        <div className="text-sm text-gray-700">
-                          Also inform law enforcement
+
+                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                          <span>Also inform law enforcement</span>
+
+                          {/* Small Badge */}
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-medium hover:bg-red-200 transition">
+                            <ShieldAlert size={14} />
+                            Police
+                          </span>
+
+                          {/* Info Icon */}
+                          <Tooltip
+                            content={
+                              <>
+                                This will log the report for law enforcement visibility.
+                                Your contact details may be used if authorities require follow-up.
+                              </>
+                            }
+                            >
+                            <Info size={14} className="text-gray-400 hover:text-gray-600 transition" />
+                          </Tooltip>
+
                         </div>
                       </label>
-                    </div>
 
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
               {verificationResult.state === "REGISTERED" && (
