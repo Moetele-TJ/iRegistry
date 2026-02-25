@@ -121,20 +121,36 @@ export default function Tooltip({ children, content }) {
   return (
     <div
       ref={containerRef}
-      className="relative inline-flex items-center"
+      className="relative inline-flex items-center overflow-visible"
     >
       {/* Trigger */}
-      <div
+        <div
         tabIndex={0}
-        onClick={() => setOpen((prev) => !prev)}
+        onMouseEnter={() => {
+            if (window.matchMedia("(hover: hover)").matches) {
+            setOpen(true);
+            }
+        }}
+        onMouseLeave={() => {
+            if (window.matchMedia("(hover: hover)").matches) {
+            setOpen(false);
+            }
+        }}
+        onClick={(e) => {
+            e.stopPropagation(); // 🔥 prevents checkbox toggle
+            if (!window.matchMedia("(hover: hover)").matches) {
+            setOpen((prev) => !prev); // mobile tap
+            }
+        }}
+        onMouseDown={(e) => e.stopPropagation()} // 🔥 prevents label activation
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         aria-expanded={open}
         aria-describedby={open ? tooltipIdRef.current : undefined}
         className="cursor-pointer outline-none"
-      >
+        >
         {children}
-      </div>
+        </div>
 
       {/* Tooltip */}
       <div
@@ -142,7 +158,7 @@ export default function Tooltip({ children, content }) {
         id={tooltipIdRef.current}
         role="tooltip"
         className={`
-          absolute z-50 w-64
+          absolute z-[9999] w-64
           bg-gray-900 text-white text-xs rounded-xl p-3 shadow-xl
           transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
           ${verticalClass}

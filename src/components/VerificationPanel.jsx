@@ -1,5 +1,5 @@
 //  ✅ src/components/VerificationPanel.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import RippleButton from "./RippleButton.jsx";
 import Tooltip from "./Tooltip.jsx";
 import { useItemVerification } from "../hooks/useItemVerification";
@@ -12,6 +12,8 @@ export default function VerificationPanel() {
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
   const [notifyPolice, setNotifyPolice] = useState(false);
+
+  const resultRef = useRef(null);
 
   const {
     result: verificationResult,
@@ -41,6 +43,15 @@ export default function VerificationPanel() {
       reset();
     }
   }, [notifySuccess, reset]);
+
+  useEffect(() => {
+    if (verificationResult && resultRef.current) {
+        resultRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start", // or "center"
+        });
+    }
+    }, [verificationResult]);
 
   function handleVerify() {
     verify(serial);
@@ -112,7 +123,10 @@ export default function VerificationPanel() {
           VERIFICATION RESULT
       ========================================================= */}
       {!verifying && verificationResult && (
-        <div className="mt-6">
+        <div 
+            ref={resultRef} 
+            className="mt-6 space-y-4"
+            >
 
           {/* =========================================================
               NOT FOUND STATE
@@ -136,7 +150,7 @@ export default function VerificationPanel() {
               {/* Notify Owner Container */}
               <div
                 className={`
-                  border rounded-2xl overflow-hidden
+                  border rounded-2xl
                   transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
                   ${action === "notify"
                     ? "scale-[1.01] border-emerald-300 bg-emerald-50/40 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]"
