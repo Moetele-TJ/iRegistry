@@ -1,11 +1,12 @@
 // src/Pages/HomePage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
-import { usePublicStats } from "../hooks/usePublicStats";
+import { usePublicStats } from "../hooks/usePublicStats.js";
 import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
 import CountUp from "react-countup";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -52,6 +53,31 @@ export default function HomePage() {
   const chartKey = stats?.totals?.totalItems || 0;
 
   const [expandedCard, setExpandedCard] = useState(null);
+  const { user, logout } = useAuth();
+  const [openMenu, setOpenMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(false);
+      }
+    }
+
+    function handleEsc(e) {
+      if (e.key === "Escape") {
+        setOpenMenu(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -61,28 +87,98 @@ export default function HomePage() {
         {/* HERO */}
         <div className="bg-gradient-to-br from-iregistrygreen to-emerald-600 rounded-3xl p-8 text-white shadow-xl mb-8">
           <h1 className="text-4xl font-extrabold tracking-tight">
-            iRegistry
+            The Smart Way to Protect Your Assets.
           </h1>
 
-          <p className="mt-3 max-w-2xl text-white/90">
-            Botswana’s centralized asset registry platform —
-            connecting citizens, institutions, and law enforcement.
+          <p className="mt-4 max-w-2xl text-white/90 text-lg">
+            iRegistry is Botswana’s trusted digital asset registry —
+            built to protect your devices,
+            secure ownership, and fight theft through smart verification. 
+            Real-time verification. Theft reporting.
+            Ownership protection — all in one secure ecosystem.
           </p>
 
-          <div className="mt-6 flex gap-3">
-            <RippleButton
-              className="px-6 py-2 rounded-xl bg-white text-iregistrygreen font-semibold"
-              onClick={() => navigate("/login")}
-            >
-              Login
-            </RippleButton>
+          <div className="mt-6 flex items-center justify-between">
+  
+            {/* LEFT SIDE */}
+            {!user ? (
+              <div className="flex gap-3">
+                <RippleButton
+                  className="px-6 py-2 rounded-xl bg-white text-iregistrygreen font-semibold"
+                  onClick={() => navigate("/login")}
+                >
+                  Login
+                </RippleButton>
 
-            <RippleButton
-              className="px-6 py-2 rounded-xl bg-white/20 backdrop-blur text-white border border-white/30"
-              onClick={() => navigate("/signup")}
-            >
-              Create Account
-            </RippleButton>
+                <RippleButton
+                  className="px-6 py-2 rounded-xl bg-white/20 backdrop-blur text-white border border-white/30"
+                  onClick={() => navigate("/signup")}
+                >
+                  Create Account
+                </RippleButton>
+              </div>
+            ) : (
+              <div className="text-white/90 text-sm">
+                Welcome back 👋
+              </div>
+            )}
+
+            {/* RIGHT SIDE */}
+            {user && (
+            <div className="relative" ref={menuRef}>
+              <div
+                onClick={() => setOpenMenu((prev) => !prev)}
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="text-white font-medium hidden sm:block">
+                  {user.last_name || user.email}
+                </div>
+
+                <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur 
+                  flex items-center justify-center text-white font-semibold
+                  group-hover:scale-105 transition">
+                  {user.last_name
+                    ? user.last_name.charAt(0).toUpperCase()
+                    : user.email.charAt(0).toUpperCase()}
+                </div>
+              </div>
+
+              {/* DROPDOWN */}
+              <div
+                className={`
+                  absolute right-0 mt-3 w-44 bg-white rounded-2xl shadow-xl border border-gray-100
+                  transition-all duration-200 origin-top-right
+                  ${openMenu ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}
+                `}
+              >
+                <button
+                  onClick={() => {
+                    navigate("/profile");
+                    setOpenMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 
+                    hover:bg-gray-50 transition rounded-t-2xl"
+                >
+                  Profile
+                </button>
+
+                <div className="border-t border-gray-100" />
+
+                <button
+                  onClick={() => {
+                    // replace with your logout method
+                    logout();
+                    setOpenMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-red-600 
+                    hover:bg-red-50 transition rounded-b-2xl"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+
           </div>
 
           {lastUpdated && (

@@ -47,11 +47,62 @@ serve(async (req) => {
       );
     }
 
+    // Fetch user profile from public.users
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        role,
+        status,
+        identity_verified,
+        is_minor,
+        police_station,
+        last_login_at
+      `)
+      .eq("id", session.user_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (userError || !user) {
+      return respond(
+        {
+          success: false,
+          diag: "VAL-SESS-003",
+          message: "User not found",
+        },
+        corsHeaders,
+        404
+      );
+    }
+
+    // ----------------------------------
+    //  Enforce account status
+    // ----------------------------------
+    if (user.status !== "active") {
+      // revoke session immediately
+      await supabase
+        .from("sessions")
+        .update({ revoked: true })
+        .eq("id", session.id);
+
+      return respond(
+        {
+          success: false,
+          diag: "VAL-SESS-004",
+          message: "Account is not active",
+        },
+        corsHeaders,
+        403
+      );
+    }
+
     return respond(
       {
         success: true,
-        user_id: session.user_id,
-        role: session.role,
+        user,
       },
       corsHeaders,
       200

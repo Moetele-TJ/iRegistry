@@ -44,10 +44,7 @@ export function AuthProvider({ children }) {
       if (error || !data?.success) {
         await logout({silent:true});
       } else {
-        setUser({
-          id: data.user_id,
-          role: data.role,
-        });
+        setUser(data.user);
       }
     } catch (err) {
       console.error("Session validation failed:", err);
@@ -60,15 +57,10 @@ export function AuthProvider({ children }) {
   /* ----------------------------------
    * Login after OTP verification
    * ---------------------------------- */
-  function loginWithToken(token, role, userId = null) {
+  async function loginWithToken(token) {
     localStorage.setItem("session", token);
 
-    setUser({
-      id: userId,
-      role,
-    });
-
-    setLoading(false);
+    await validateSession(token);
   }
 
   /* ----------------------------------
