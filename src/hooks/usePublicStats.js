@@ -43,10 +43,10 @@ export function usePublicStats() {
     // First load
     fetchStats();
 
-    // Auto refresh every 60 seconds (silent)
+    // Auto refresh every 5 minutes (silent)
     intervalRef.current = setInterval(() => {
       fetchStats({ silent: true });
-    }, 30000);
+    }, 300000);
 
     return () => {
       if (intervalRef.current) {
