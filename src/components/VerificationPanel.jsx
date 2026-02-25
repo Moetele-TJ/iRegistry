@@ -1,4 +1,4 @@
-// src/components/VerificationPanel.jsx
+//  ✅ src/components/VerificationPanel.jsx
 import React, { useState, useEffect } from "react";
 import RippleButton from "./RippleButton.jsx";
 import Tooltip from "./Tooltip.jsx";
@@ -28,6 +28,9 @@ export default function VerificationPanel() {
     error: notifyError,
   } = useNotifyOwner();
 
+  /* =========================================================
+     RESET AFTER SUCCESS
+  ========================================================= */
   useEffect(() => {
     if (notifySuccess) {
       setMessage("");
@@ -45,11 +48,17 @@ export default function VerificationPanel() {
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-md mb-8">
+      
+      {/* =========================================================
+          VERIFICATION HEADER
+      ========================================================= */}
       <div className="text-lg font-semibold text-gray-800 mb-4">
         Item Verification
       </div>
 
-      {/* INPUT */}
+      {/* =========================================================
+          VERIFICATION INPUT
+      ========================================================= */}
       <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="text"
@@ -88,7 +97,9 @@ export default function VerificationPanel() {
         </RippleButton>
       </div>
 
-      {/* LOADING */}
+      {/* =========================================================
+          SHIMMER LOADING STATE
+      ========================================================= */}
       {verifying && (
         <div className="mt-6 space-y-3 animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/2"></div>
@@ -97,61 +108,94 @@ export default function VerificationPanel() {
         </div>
       )}
 
-      {/* RESULT */}
+      {/* =========================================================
+          VERIFICATION RESULT
+      ========================================================= */}
       {!verifying && verificationResult && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6">
 
+          {/* =========================================================
+              NOT FOUND STATE
+          ========================================================= */}
           {verificationResult.state === "NOT_FOUND" && (
             <div className="text-gray-600">
               This item can not be found in iRegistry.
             </div>
           )}
 
+          {/* =========================================================
+              STOLEN STATE
+          ========================================================= */}
           {verificationResult.state === "STOLEN" && (
             <>
-              <div className="text-red-600 font-semibold">
+              {/* Stolen Warning Message */}
+              <div className="text-red-600 font-semibold mb-4">
                 ⚠ This item has been reported stolen.
               </div>
 
-              <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
-                <input
-                  type="checkbox"
-                  checked={action === "notify"}
-                  onChange={(e) => {
-                    if (e.target.checked) setAction("notify");
-                    else {
-                      setAction(null);
-                      setNotifyPolice(false);
-                    }
-                  }}
-                  className="accent-emerald-600 w-5 h-5"
-                />
-                <div>
-                  <div className="font-medium text-gray-800">
-                    Notify Registered Owner
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Send message to the owner
-                  </div>
-                </div>
-              </label>
+              {/* Notify Owner Container */}
+              <div
+                className={`
+                  border rounded-2xl overflow-hidden
+                  transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+                  ${action === "notify"
+                    ? "scale-[1.01] border-emerald-300 bg-emerald-50/40 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]"
+                    : "scale-100 border-gray-200 bg-white"}
+                `}
+              >
 
-              {action === "notify" && (
-                <>
-                  <label className="flex items-center gap-3 pl-8 cursor-pointer">
+                {/* Main Checkbox Row */}
+                <label
+                  className={`
+                    flex items-center gap-3 p-4 cursor-pointer transition-all duration-300
+                    ${action === "notify"
+                      ? "border-l-4 border-emerald-500 bg-white"
+                      : "border-l-4 border-transparent hover:bg-gray-50"}
+                  `}
+                >
+                  <input
+                    type="checkbox"
+                    checked={action === "notify"}
+                    onChange={(e) => {
+                      if (e.target.checked) setAction("notify");
+                      else {
+                        setAction(null);
+                        setNotifyPolice(false);
+                      }
+                    }}
+                    className="accent-emerald-600 w-5 h-5"
+                  />
+
+                  <div>
+                    <div className="font-medium text-gray-800">
+                      Notify Registered Owner
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Send message to the owner
+                    </div>
+                  </div>
+                </label>
+
+                {/* Sliding Sub-option: Inform Law Enforcement */}
+                {action === "notify" && (
+                  <label className="flex items-center gap-3 pl-12 pr-4 pb-4 cursor-pointer hover:bg-gray-50 transition">
                     <input
                       type="checkbox"
                       checked={notifyPolice}
                       onChange={(e) => setNotifyPolice(e.target.checked)}
                       className="accent-red-600 w-4 h-4"
                     />
+
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                       <span>Also inform law enforcement</span>
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs">
+
+                      {/* Police Badge */}
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-medium">
                         <ShieldAlert size={14} />
                         Police
                       </span>
 
+                      {/* Info Tooltip */}
                       <Tooltip
                         content={
                           <>
@@ -164,65 +208,86 @@ export default function VerificationPanel() {
                       </Tooltip>
                     </div>
                   </label>
-                </>
-              )}
+                )}
+              </div>
             </>
           )}
 
+          {/* =========================================================
+              ERROR STATE
+          ========================================================= */}
           {verificationError && (
-            <div className="text-red-600 text-sm">
+            <div className="text-red-600 mt-4 text-sm">
               {verificationError}
             </div>
           )}
 
-          {/* NOTIFY FORM */}
+          {/* =========================================================
+              ANIMATED NOTIFY FORM
+          ========================================================= */}
           {action === "notify" && (
-            <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
-              <textarea
-                placeholder="Write your message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 mb-4"
-              />
+            <div
+              className={`
+                transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
+                max-h-[600px] opacity-100 translate-y-0 mt-6
+              `}
+            >
+              <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
 
-              <input
-                type="text"
-                placeholder="Your contact (phone or email)"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 mb-4"
-              />
+                <textarea
+                  placeholder="Write your message..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
+                  focus:bg-white focus:ring-2 focus:ring-emerald-500 
+                  focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
+                />
 
-              <RippleButton
-                className="w-full px-6 py-3 rounded-2xl bg-emerald-600 text-white font-semibold"
-                onClick={() =>
-                  notify({
-                    serial,
-                    message,
-                    contact,
-                    notifyPolice,
-                  })
-                }
-                disabled={
-                  notifying ||
-                  !message.trim() ||
-                  !contact.trim()
-                }
-              >
-                {notifying ? "Sending..." : "Send Notification"}
-              </RippleButton>
+                <input
+                  type="text"
+                  placeholder="Your contact (phone or email)"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
+                  focus:bg-white focus:ring-2 focus:ring-emerald-500 
+                  focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
+                />
 
-              {notifySuccess && (
-                <div className="text-green-600 mt-3 text-sm">
-                  ✅ Notification sent successfully.
-                </div>
-              )}
+                <RippleButton
+                  className="w-full px-6 py-3 rounded-2xl 
+                  bg-emerald-600 text-white font-semibold 
+                  shadow-md hover:shadow-xl hover:bg-emerald-700 
+                  transition-all duration-300 disabled:opacity-50"
+                  onClick={() =>
+                    notify({
+                      serial,
+                      message,
+                      contact,
+                      notifyPolice,
+                    })
+                  }
+                  disabled={
+                    notifying ||
+                    !message.trim() ||
+                    !contact.trim()
+                  }
+                >
+                  {notifying ? "Sending..." : "Send Notification"}
+                </RippleButton>
 
-              {notifyError && (
-                <div className="text-red-600 mt-3 text-sm">
-                  {notifyError}
-                </div>
-              )}
+                {/* Success / Error Feedback */}
+                {notifySuccess && (
+                  <div className="text-green-600 mt-3 text-sm">
+                    ✅ Notification sent successfully.
+                  </div>
+                )}
+
+                {notifyError && (
+                  <div className="text-red-600 mt-3 text-sm">
+                    {notifyError}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
