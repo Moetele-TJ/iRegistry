@@ -1,12 +1,10 @@
 // src/Pages/HomePage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
-import Tooltip from "../components/Tooltip.jsx";
+import VerificationPanel from "../components/VerificationPanel.jsx";
 import { usePublicStats } from "../hooks/usePublicStats";
-import { useItemVerification } from "../hooks/useItemVerification";
-import { useNotifyOwner } from "../hooks/useNotifyOwner";
-import { Users, Package, ShieldCheck, AlertTriangle, ShieldAlert, Info } from "lucide-react";
+import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
 import CountUp from "react-countup";
 import {
   ResponsiveContainer,
@@ -14,7 +12,7 @@ import {
   Area,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   CartesianGrid,
   BarChart,
   Bar,
@@ -27,37 +25,6 @@ const IREG_RED = "#E53E3E";
 export default function HomePage() {
   const navigate = useNavigate();
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
-  const [serial, setSerial] = useState("");
-  const [action, setAction] = useState(null);
-  const {
-    result: verificationResult,
-    verifying,
-    error: verificationError,
-    verify,
-    reset,
-  } = useItemVerification();
-
-  const [message, setMessage] = useState("");
-  const [contact, setContact] = useState("");
-  const [notifyPolice, setNotifyPolice] = useState(false);
-  
-  const {
-    notify,
-    loading: notifying,
-    success: notifySuccess,
-    error: notifyError,
-  } = useNotifyOwner();
-
-  useEffect(() => {
-    if (notifySuccess) {
-      setMessage("");
-      setContact("");
-      setAction(null);
-      reset();
-      setSerial("");
-      setNotifyPolice(false);
-    }
-  }, [notifySuccess]);
 
   const timeline = stats?.dailyItemTrend || [];
 
@@ -85,10 +52,6 @@ export default function HomePage() {
   const chartKey = stats?.totals?.totalItems || 0;
 
   const [expandedCard, setExpandedCard] = useState(null);
-
-  function handleVerify() {
-    verify(serial);
-  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -138,296 +101,7 @@ export default function HomePage() {
 
         </div>
 
-        {/* ITEM VERIFICATION */}
-        <div className="bg-white rounded-3xl p-6 shadow-md mb-8">
-          <div className="text-lg font-semibold text-gray-800 mb-4">
-            Item Verification
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="Enter Serial Number"
-              value={serial}
-              onChange={(e) => setSerial(e.target.value)}
-              disabled={!!verificationResult}   // 🔒 LOCK
-              className={`flex-1 px-4 py-3 border rounded-2xl 
-              focus:outline-none focus:ring-2 focus:ring-emerald-500
-              ${verificationResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
-              `}
-            />
-
-            <RippleButton
-              className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 ${
-                verificationResult
-                  ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  : "bg-emerald-600 text-white hover:bg-emerald-700"
-              }`}
-              onClick={() => {
-                if (verificationResult) {
-                  reset();
-                  setAction(null);
-                  setNotifyPolice(false);
-                } else {
-                  handleVerify();
-                }
-              }}
-              disabled={!verificationResult && (verifying || !serial.trim())}
-            >
-              {verificationResult
-                ? "Cancel & Search Again"
-                : verifying
-                ? "Checking..."
-                : "Verify"}
-            </RippleButton>
-          </div>
-
-          {/* RESULT */}
-
-          {verifying && (
-            <div className="mt-6 space-y-3 animate-pulse">
-
-              <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-
-              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-
-            </div>
-          )}
-
-          {!verifying && verificationResult && (
-            <div className="mt-6">
-
-              {verificationResult.state === "NOT_FOUND" && (
-                <div className="text-gray-600">
-                  This item can not be found in iRegistry.
-                </div>
-              )}
-
-              {verificationResult.state === "STOLEN" && (
-                <>
-                  <div className="text-red-600 font-semibold mb-4">
-                      ⚠ This item has been reported stolen.
-                    </div>
-
-                  <div className={`
-                    border rounded-2xl overflow-hidden
-                    transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-                    ${action === "notify"
-                      ? "scale-[1.01] border-emerald-300 bg-emerald-50/40 shadow-[0_0_0_2px_rgba(16,185,129,0.2)] animate-[fadeIn_0.3s_ease]"
-                      : "scale-100 border-gray-200 bg-white"}
-                    `}
-                    >
-
-                    {/* Notify Owner Container */}
-                    <div className={`
-                        border rounded-2xl overflow-hidden transition-all duration-300
-                        ${action === "notify"
-                          ? "border-emerald-300 bg-emerald-50/40"
-                          : "border-gray-200"}
-                      `}
-                      >
-
-                      {/* Main checkbox row */}
-                      <label className={`
-                          flex items-center gap-3 p-4 cursor-pointer transition-all duration-300
-                          ${action === "notify"
-                            ? "border-l-4 border-emerald-500 bg-white"
-                            : "border-l-4 border-transparent hover:bg-gray-50"}
-                        `}
-                        >
-                        <input
-                          type="checkbox"
-                          checked={action === "notify"}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setAction("notify");
-                            } else {
-                              setAction(null);
-                              setNotifyPolice(false); // reset child state
-                            }
-                          }}
-                          className="accent-emerald-600 w-5 h-5"
-                        />
-                        <div>
-                          <div className="font-medium text-gray-800">
-                            Notify Registered Owner
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Send message to the owner
-                          </div>
-                        </div>
-                      </label>
-
-                      {/* Sliding Sub-option */}
-                      <label className="flex items-center gap-3 pl-12 pr-4 pb-4 cursor-pointer hover:bg-gray-50 transition">
-                        <input
-                          type="checkbox"
-                          checked={notifyPolice}
-                          onChange={(e) => setNotifyPolice(e.target.checked)}
-                          className="accent-red-600 w-4 h-4"
-                        />
-
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <span>Also inform law enforcement</span>
-
-                          {/* Small Badge */}
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-medium hover:bg-red-200 transition">
-                            <ShieldAlert size={14} />
-                            Police
-                          </span>
-
-                          {/* Info Icon */}
-                          <Tooltip
-                            content={
-                              <>
-                                This will log the report for law enforcement visibility.
-                                Your contact details may be used if authorities require follow-up.
-                              </>
-                            }
-                            >
-                            <Info size={14} className="text-gray-400 hover:text-gray-600 transition" />
-                          </Tooltip>
-
-                        </div>
-                      </label>
-
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {verificationResult.state === "REGISTERED" && (
-                <div className="space-y-4">
-
-                  <div className="text-gray-700">
-                    ✅ This item is registered in iRegistry.
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-
-                    <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
-                      <input
-                        type="radio"
-                        name="action"
-                        value="notify"
-                        checked={action === "notify"}
-                        onChange={() => setAction("notify")}
-                        className="accent-emerald-600 w-5 h-5"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-800">
-                          Notify Registered Owner
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Send a message to the current owner
-                        </div>
-                      </div>
-                    </label>
-
-                    <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50 transition">
-                      <input
-                        type="radio"
-                        name="action"
-                        value="transfer"
-                        checked={action === "transfer"}
-                        onChange={() => setAction("transfer")}
-                        className="accent-emerald-600 w-5 h-5"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-800">
-                          Request Ownership Transfer
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Login to initiate transfer process
-                        </div>
-                      </div>
-                    </label>
-
-                  </div>
-
-                  {action === "transfer" && (
-                    <RippleButton
-                      className="mt-4 px-6 py-3 rounded-2xl bg-emerald-600 text-white font-semibold shadow-md hover:shadow-xl transition-all"
-                      onClick={() => navigate("/login")}
-                    >
-                      Continue to Login
-                    </RippleButton>
-                  )}
-                </div>
-              )}
-
-              {/* NOTIFY FORM - Shared */}
-              {action === "notify" && (
-                <div
-                  className={`
-                    transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
-                    max-h-[600px] opacity-100 translate-y-0 mt-6
-                  `}
-                >
-                  <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
-
-                    <textarea
-                      placeholder="Write your message..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
-                      focus:bg-white focus:ring-2 focus:ring-emerald-500 
-                      focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
-                    />
-
-                    <input
-                      type="text"
-                      placeholder="Your contact (phone or email)"
-                      value={contact}
-                      onChange={(e) => setContact(e.target.value)}
-                      className="w-full p-4 rounded-2xl border border-gray-300 bg-gray-50 
-                      focus:bg-white focus:ring-2 focus:ring-emerald-500 
-                      focus:border-emerald-500 transition-all duration-200 shadow-sm mb-4"
-                    />
-
-                    <RippleButton
-                      className="w-full px-6 py-3 rounded-2xl 
-                      bg-emerald-600 text-white font-semibold 
-                      shadow-md hover:shadow-xl hover:bg-emerald-700 
-                      transition-all duration-300 disabled:opacity-50"
-                      onClick={() =>
-                        notify({
-                          serial,
-                          message,
-                          contact,
-                          notifyPolice,
-                        })
-                      }
-                      disabled={
-                        notifying ||
-                        !message.trim() ||
-                        !contact.trim()
-                      }
-                    >
-                      {notifying ? "Sending..." : "Send Notification"}
-                    </RippleButton>
-
-                    {notifySuccess && (
-                      <div className="text-green-600 mt-3 text-sm">
-                        ✅ Notification sent successfully.
-                      </div>
-                    )}
-
-                    {notifyError && (
-                      <div className="text-red-600 mt-3 text-sm">
-                        {notifyError}
-                      </div>
-                    )}
-
-                  </div>
-                </div>
-              )}
-
-            </div>
-          )}
-        </div>
+        <VerificationPanel/>
 
         {/* STAT CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
@@ -561,7 +235,7 @@ export default function HomePage() {
 
                     <YAxis allowDecimals={false} />
                     <CartesianGrid strokeDasharray="3 3" />
-                    <Tooltip
+                    <RechartsTooltip
                       labelFormatter={(value) =>
                         new Date(value).toLocaleDateString("en-BW", {
                           day: "2-digit",
@@ -607,7 +281,7 @@ export default function HomePage() {
                       width={100}
                     />
 
-                    <Tooltip />
+                    <RechartsTooltip />
 
                     <Legend />
 
