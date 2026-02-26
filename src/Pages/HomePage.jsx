@@ -94,7 +94,7 @@ export default function HomePage() {
             iRegistry is Botswana’s trusted digital asset registry — built to protect your devices,secure ownership, and fight theft through smart verification. Real-time verification. Theft reporting. Ownership protection — all in one secure ecosystem.
           </p>
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex items-center">
   
             {/* LEFT SIDE */}
             {!user && (
@@ -118,7 +118,7 @@ export default function HomePage() {
             {/* RIGHT SIDE */}
             {user && (
               <div className="flex items-center gap-3 ml-auto">
-                <div className="text-white text-lg font-medium text-right">
+                <div className="text-white text-lg shadow-xl font-medium text-right">
                   Welcome back,{" "}
                   <span className="font-semibold">
                     {user.last_name}
