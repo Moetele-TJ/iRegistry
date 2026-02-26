@@ -125,7 +125,7 @@ export default function HomePage() {
                 <div className="text-white text-lg font-medium text-right">
                   Welcome back,{" "}
                   <span className="font-semibold">
-                    {user.first_name || user.last_name}
+                    {user.last_name}
                   </span>{" "}
                   👋
                 </div>
