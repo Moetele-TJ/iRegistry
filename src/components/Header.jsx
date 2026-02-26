@@ -36,7 +36,7 @@ export default function Header() {
   function dashboardPath() {
     if (role === "admin") return "/admin";
     if (role === "police") return "/police";
-    if (role === "user") return "/user";
+    if (role === "user") return "/userdashboard";
     return "/";
   }
 

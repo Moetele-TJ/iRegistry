@@ -63,7 +63,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
                   {/* Dashboards */}
                   <Route
-                    path="/user"
+                    path="/userdashboard"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
                         <UserDashboard />
