@@ -48,7 +48,7 @@ export default function VerificationPanel() {
     if (verificationResult && resultRef.current) {
         resultRef.current.scrollIntoView({
         behavior: "smooth",
-        block: "start", // or "center"
+        block: "center", // or "center"
         });
     }
     }, [verificationResult]);

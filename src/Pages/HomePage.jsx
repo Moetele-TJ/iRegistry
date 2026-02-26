@@ -118,66 +118,30 @@ export default function HomePage() {
                 </RippleButton>
               </div>
             ) : (
-              <div className="text-white/90 text-sm">
-                Welcome back 👋
-              </div>
+              <div />   {/* keep layout spacing */}
             )}
 
             {/* RIGHT SIDE */}
             {user && (
-            <div className="relative" ref={menuRef}>
-              <div
-                onClick={() => setOpenMenu((prev) => !prev)}
-                className="flex items-center gap-3 cursor-pointer group"
-              >
-                <div className="text-white font-medium hidden sm:block">
-                  {user.last_name || user.email}
+              <div className="flex items-center gap-3 ml-auto">
+                <div className="text-white text-lg font-medium text-right">
+                  Welcome back,{" "}
+                  <span className="font-semibold">
+                    {user.first_name || user.last_name}
+                  </span>{" "}
+                  👋
                 </div>
 
-                <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur 
-                  flex items-center justify-center text-white font-semibold
-                  group-hover:scale-105 transition">
-                  {user.last_name
-                    ? user.last_name.charAt(0).toUpperCase()
-                    : user.email.charAt(0).toUpperCase()}
+                <div
+                  className="w-10 h-10 rounded-full bg-white/20 backdrop-blur 
+                  flex items-center justify-center text-white font-semibold"
+                >
+                  {(user.first_name || user.last_name || user.email)
+                    ?.charAt(0)
+                    .toUpperCase()}
                 </div>
               </div>
-
-              {/* DROPDOWN */}
-              <div
-                className={`
-                  absolute right-0 mt-3 w-44 bg-white rounded-2xl shadow-xl border border-gray-100
-                  transition-all duration-200 origin-top-right
-                  ${openMenu ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}
-                `}
-              >
-                <button
-                  onClick={() => {
-                    navigate("/profile");
-                    setOpenMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-700 
-                    hover:bg-gray-50 transition rounded-t-2xl"
-                >
-                  Profile
-                </button>
-
-                <div className="border-t border-gray-100" />
-
-                <button
-                  onClick={() => {
-                    // replace with your logout method
-                    logout();
-                    setOpenMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-3 text-sm text-red-600 
-                    hover:bg-red-50 transition rounded-b-2xl"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          )}
+            )}
 
           </div>
 
