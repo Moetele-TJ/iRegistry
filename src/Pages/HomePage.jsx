@@ -118,7 +118,7 @@ export default function HomePage() {
             {/* RIGHT SIDE */}
             {user && (
               <div className="flex items-center gap-3 ml-auto">
-                <div className="text-white text-lg shadow-xl font-medium text-right">
+                <div className="text-white text-lg font-medium text-right">
                   Welcome back,{" "}
                   <span className="font-semibold">
                     {user.last_name}
@@ -130,7 +130,7 @@ export default function HomePage() {
                   className="w-10 h-10 rounded-full bg-white/20 backdrop-blur 
                   flex items-center justify-center text-white font-semibold"
                 >
-                  {(user.first_name || user.last_name || user.email)
+                  {(user.last_name || user.email)
                     ?.charAt(0)
                     .toUpperCase()}
                 </div>

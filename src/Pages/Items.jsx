@@ -332,56 +332,116 @@ export default function Items() {
 
         {/* filters row */}
         <div className="bg-white p-5 rounded-2xl shadow-sm mb-6 border border-gray-100">
-          <div className="flex flex-col sm:flex-row gap-3 items-center">
-            <div className="flex-1">
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search by name, id, make, model or serial..."
-                className="w-full border rounded-lg px-4 py-2"
-              />
-            </div>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
-            <div className="flex gap-3 items-center">
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="border rounded-lg px-3 py-2"
-              >
-                <option value="All">All statuses</option>
-                <option value="Active">Active</option>
-                <option value="Stolen">Stolen</option>
-              </select>
+            {/* LEFT SIDE */}
+            <div className="flex flex-col gap-3 w-full lg:w-auto">
 
-              <select
-                value={categoryFilter}
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="border rounded-lg px-3 py-2"
-              >
-                <option value="All">All categories</option>
-                {categories.map((c) => (
-                  <option value={c} key={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              {/* Search */}
+              <div>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search by name, id, make, model or serial..."
+                  className="w-full lg:w-96 border rounded-xl px-4 py-2.5"
+                />
+              </div>
 
-              <div className="text-sm text-gray-600">
-                <strong>{stats.totalItems}</strong> total ·{" "}
-                <span className="text-iregistrygreen font-semibold">{stats.activeItems}</span> active ·{" "}
-                <span className="text-red-600 font-semibold">{stats.stolenItems}</span> stolen
+              {/* 📱 MOBILE TOTALS (authoritative card) */}
+              <div className="lg:hidden bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
+                <div className="flex justify-between text-sm font-medium">
+
+                  <div className="text-center flex-1">
+                    <div className="text-xs text-gray-400 uppercase tracking-wide">
+                      Total
+                    </div>
+                    <div className="text-xl font-bold text-gray-900">
+                      {stats.totalItems}
+                    </div>
+                  </div>
+
+                  <div className="text-center flex-1">
+                    <div className="text-xs text-gray-400 uppercase tracking-wide">
+                      Active
+                    </div>
+                    <div className="text-xl font-bold text-emerald-600">
+                      {stats.activeItems}
+                    </div>
+                  </div>
+
+                  <div className="text-center flex-1">
+                    <div className="text-xs text-gray-400 uppercase tracking-wide">
+                      Stolen
+                    </div>
+                    <div className="text-xl font-bold text-red-600">
+                      {stats.stolenItems}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex gap-3 flex-wrap">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border rounded-xl px-3 py-2"
+                >
+                  <option value="All">All statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Stolen">Stolen</option>
+                </select>
+
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border rounded-xl px-3 py-2"
+                >
+                  <option value="All">All categories</option>
+                  {categories.map((c) => (
+                    <option value={c} key={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            {/* 💻 DESKTOP TOTALS */}
+            <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
+              <div className="text-gray-700">
+                <span className="text-2xl font-bold text-gray-900">
+                  {stats.totalItems}
+                </span>{" "}
+                total
+              </div>
+
+              <div className="text-emerald-600">
+                <span className="text-2xl font-bold">
+                  {stats.activeItems}
+                </span>{" "}
+                active
+              </div>
+
+              <div className="text-red-600">
+                <span className="text-2xl font-bold">
+                  {stats.stolenItems}
+                </span>{" "}
+                stolen
+              </div>
+            </div>
+
           </div>
         </div>
 
