@@ -101,7 +101,7 @@ export default function HomePage() {
           <div className="mt-6 flex items-center justify-between">
   
             {/* LEFT SIDE */}
-            {!user ? (
+            {!user && (
               <div className="flex gap-3">
                 <RippleButton
                   className="px-6 py-2 rounded-xl bg-white text-iregistrygreen font-semibold"
@@ -117,8 +117,6 @@ export default function HomePage() {
                   Create Account
                 </RippleButton>
               </div>
-            ) : (
-              <div />   {/* keep layout spacing */}
             )}
 
             {/* RIGHT SIDE */}
