@@ -52,9 +52,8 @@ serve(async (req) => {
       .from("items")
       .select("id, ownerid")
       .or(
-        `serial1_normalized.eq.${normalized},
-         serial2_normalized.eq.${normalized}`
-      )
+          `serial1_normalized.eq.${normalized},serial2_normalized.eq.${normalized}`
+        )
       .is("deletedat", null)
       .maybeSingle();
 
