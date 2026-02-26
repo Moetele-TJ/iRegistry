@@ -595,108 +595,137 @@ export default function Items() {
         {/* ===== Mobile Cards ===== */}
         <div className="sm:hidden space-y-4">
           {pageItems.map((item) => {
-            
+            const isStolen = item.status === "Stolen";
+            const isSelected = statusFilter !== "All";
+
             return (
               <div
                 key={item.id}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.99] transition"
+                className={`
+                  relative bg-white rounded-2xl border transition-all duration-200
+                  ${isStolen
+                    ? "border-red-100 shadow-md hover:shadow-lg"
+                    : "border-gray-100 shadow-sm hover:shadow-md"}
+                  ${isSelected ? "scale-[1.01]" : ""}
+                `}
               >
-                {/* Top: Image + Name + Status */}
-                <div className="flex gap-3">
-                  {/* Thumbnail */}
-                  <div className="w-16 h-16 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-gray-400 text-xs">
-                    {item.photos?.[0] ? (
-                      <img
-                        src={item.photos[0]}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      "No Image"
-                    )}
+                {/* Left Status Indicator */}
+                <div
+                  className={`
+                    absolute left-0 top-0 h-full w-1.5 rounded-l-2xl
+                    ${isStolen ? "bg-red-500" : "bg-emerald-500"}
+                  `}
+                />
+
+                <div className="p-4">
+
+                  {/* Top Section */}
+                  <div className="flex gap-3">
+                    
+                    {/* Thumbnail */}
+                    <div className={`
+                      w-16 h-16 rounded-xl overflow-hidden flex-shrink-0
+                      ${isStolen
+                        ? "ring-2 ring-red-200 bg-red-50"
+                        : "ring-1 ring-gray-200 bg-gray-50"}
+                    `}>
+                      {item.photos?.[0] ? (
+                        <img
+                          src={item.photos[0]}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                          No Image
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Title + Meta */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        onClick={() => navigate("/items/" + item.slug)}
+                        className="font-semibold text-gray-900 truncate cursor-pointer hover:text-iregistrygreen transition"
+                      >
+                        {item.name}
+                      </div>
+
+                      <div className="text-xs text-gray-500 mt-1">
+                        {item.category}
+                      </div>
+
+                      <div className="text-xs text-gray-400 mt-1">
+                        Serial: {item.serial1 || "—"}
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div>
+                      <span
+                        className={`
+                          inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border
+                          ${isStolen
+                            ? "bg-red-100 text-red-700 border-red-200"
+                            : "bg-emerald-100 text-emerald-700 border-emerald-200"}
+                        `}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Title Section */}
-                  <div className="flex-1 min-w-0">
-                    <div
+                  {/* Divider */}
+                  <div className="my-4 border-t border-gray-100" />
+
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 gap-y-3 text-sm">
+                    <div>
+                      <div className="text-xs text-gray-400">Location</div>
+                      <div className="text-gray-700 font-medium">
+                        {item.location || "—"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-gray-400">Value</div>
+                      <div className="text-gray-900 font-semibold">
+                        {formatCurrency(item.estimatedValue)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-4 flex gap-2">
+                    <RippleButton
+                      className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
                       onClick={() => navigate("/items/" + item.slug)}
-                      className="font-semibold text-gray-900 truncate hover:text-iregistrygreen transition cursor-pointer"
                     >
-                      {item.name}
-                    </div>
+                      View
+                    </RippleButton>
 
-                    <div className="text-xs text-gray-500 mt-1">
-                      {item.category}
-                    </div>
-
-                    <div className="text-xs text-gray-400 mt-1">
-                      Serial: {item.serial1 || "—"}
-                    </div>
-                  </div>
-
-                  {/* Status Badge */}
-                  <div className="mt-1">
-                    <span
-                      className={
-                        "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border " +
-                        statusBadge(item.status)
-                      }
+                    <RippleButton
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium ${
+                        isStolen
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "bg-red-600 text-white hover:bg-red-700"
+                      }`}
+                      onClick={() => confirmToggleStatus(item.id)}
                     >
-                      {item.status || "—"}
-                    </span>
+                      {isStolen ? "Mark Active" : "Mark Stolen"}
+                    </RippleButton>
                   </div>
-                </div>
-
-                {/* Divider */}
-                <div className="my-4 border-t border-gray-100" />
-
-                {/* Info Grid */}
-                <div className="grid grid-cols-2 gap-y-3 text-sm">
-                  <div>
-                    <div className="text-xs text-gray-400">Location</div>
-                    <div className="text-gray-700">{item.location || "—"}</div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs text-gray-400">Last Seen</div>
-                    <div className="text-gray-700">{item.lastSeen || "—"}</div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs text-gray-400">Estimated Value</div>
-                    <div className="text-gray-900 font-medium">
-                      {formatCurrency(item.estimatedValue)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-4 flex gap-2">
-                  <RippleButton
-                    className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                    onClick={() => navigate("/items/" + item.slug)}
-                  >
-                    View
-                  </RippleButton>
-
-                  <RippleButton
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                      item.status === "Stolen"
-                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                        : "bg-red-600 text-white hover:bg-red-700"
-                    }`}
-                    onClick={() => confirmToggleStatus(item.id)}
-                  >
-                    {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
-                  </RippleButton>
                 </div>
               </div>
             );
           })}
 
-          {pageItems.length === 0 && (
-            <div className="text-center py-10 text-gray-500">
-              No items found.
+          {!loading && pageItems.length === 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+              <div className="text-4xl mb-3">📦</div>
+              <div className="text-lg font-semibold text-gray-800">
+                No items found
+              </div>
             </div>
           )}
         </div>
