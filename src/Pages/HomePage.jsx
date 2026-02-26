@@ -91,11 +91,7 @@ export default function HomePage() {
           </h1>
 
           <p className="mt-4 max-w-2xl text-white/90 text-lg">
-            iRegistry is Botswana’s trusted digital asset registry —
-            built to protect your devices,
-            secure ownership, and fight theft through smart verification. 
-            Real-time verification. Theft reporting.
-            Ownership protection — all in one secure ecosystem.
+            iRegistry is Botswana’s trusted digital asset registry — built to protect your devices,secure ownership, and fight theft through smart verification. Real-time verification. Theft reporting. Ownership protection — all in one secure ecosystem.
           </p>
 
           <div className="mt-6 flex items-center justify-between">
