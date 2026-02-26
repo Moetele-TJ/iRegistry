@@ -593,7 +593,7 @@ export default function Items() {
         </div>
 
         {/* ===== Mobile Cards ===== */}
-        <div className="sm:hidden space-y-4">
+        <div className="sm:hidden space-y-4 active:scale-[0.99] active:shadow-inner">
           {pageItems.map((item) => {
             const isStolen = item.status === "Stolen";
             const isSelected = statusFilter !== "All";
@@ -604,8 +604,8 @@ export default function Items() {
                 className={`
                   relative bg-white rounded-2xl border transition-all duration-200
                   ${isStolen
-                    ? "border-red-100 shadow-md hover:shadow-lg"
-                    : "border-gray-100 shadow-sm hover:shadow-md"}
+                    ? "border-red-100 shadow-md hover:shadow-lg bg-red-50/30"
+                    : "border-emerald-100 shadow-sd hover:shadow-lg bg-emerald-50/30"}
                   ${isSelected ? "scale-[1.01]" : ""}
                 `}
               >
@@ -626,8 +626,8 @@ export default function Items() {
                     <div className={`
                       w-16 h-16 rounded-xl overflow-hidden flex-shrink-0
                       ${isStolen
-                        ? "ring-2 ring-red-200 bg-red-50"
-                        : "ring-1 ring-gray-200 bg-gray-50"}
+                        ? "ring-1 ring-red-200 bg-red-50"
+                        : "ring-1 ring-emerald-200 bg-emerald-50"}
                     `}>
                       {item.photos?.[0] ? (
                         <img
@@ -655,7 +655,7 @@ export default function Items() {
                         {item.category}
                       </div>
 
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="text-xs text-gray-400 mt-1 tracking-wide">
                         Serial: {item.serial1 || "—"}
                       </div>
                     </div>
@@ -664,7 +664,7 @@ export default function Items() {
                     <div>
                       <span
                         className={`
-                          inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border
+                          inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors duration-300
                           ${isStolen
                             ? "bg-red-100 text-red-700 border-red-200"
                             : "bg-emerald-100 text-emerald-700 border-emerald-200"}
@@ -679,20 +679,45 @@ export default function Items() {
                   <div className="my-4 border-t border-gray-100" />
 
                   {/* Info Grid */}
-                  <div className="grid grid-cols-2 gap-y-3 text-sm">
-                    <div>
-                      <div className="text-xs text-gray-400">Location</div>
-                      <div className="text-gray-700 font-medium">
-                        {item.location || "—"}
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm">
 
+                    {/* Estimated Value */}
                     <div>
-                      <div className="text-xs text-gray-400">Value</div>
+                      <div className="text-[11px] text-gray-400 uppercase tracking-wide">
+                        Value
+                      </div>
                       <div className="text-gray-900 font-semibold">
                         {formatCurrency(item.estimatedValue)}
                       </div>
                     </div>
+
+                    {/* Location */}
+                    <div>
+                      <div className="text-[11px] text-gray-400 uppercase tracking-wide">
+                        Location
+                      </div>
+                      <div className="text-gray-700 font-medium truncate">
+                        {item.location || "—"}
+                      </div>
+                    </div>
+
+                    {/* Last Seen */}
+                    <div>
+                      <div className="text-[11px] text-gray-400 uppercase tracking-wide">
+                        Last Seen
+                      </div>
+                      <div className="text-gray-700 truncate">
+                        {item.lastSeen
+                          ? new Date(item.lastSeen).toLocaleDateString("en-BW", {
+                              day: "2-digit",
+                              month: "short",
+                            })
+                          : item.status === "Stolen"
+                            ? "Never"
+                            : "—"}
+                      </div>
+                    </div>
+
                   </div>
 
                   {/* Actions */}
@@ -722,10 +747,25 @@ export default function Items() {
 
           {!loading && pageItems.length === 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+              
               <div className="text-4xl mb-3">📦</div>
+
               <div className="text-lg font-semibold text-gray-800">
                 No items found
               </div>
+
+              <p className="text-sm text-gray-500 mt-2">
+                Try adjusting your search or filters.
+              </p>
+
+              {items.length === 0 && (
+                <RippleButton
+                  className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium"
+                  onClick={() => navigate("/items/add")}
+                >
+                  + Add Your First Item
+                </RippleButton>
+              )}
             </div>
           )}
         </div>
