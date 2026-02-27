@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { logItemAudit } from "../shared/logItemAudit.ts";
+import { logActivity } from "../shared/logActivity.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { validateSession } from "../shared/validateSession.ts";
@@ -300,17 +300,18 @@ serve(async (req) => {
       );
     }
 
-    await logItemAudit({
-      supabase,
-      itemId: data.id,
-      actorId: actorUserId,
-      action: "ITEM_CREATED",
-      details: {
-        metadata: {
-          ownerId: resolvedOwnerId,
-        },
-      },
-    });
+    await logActivity(supabase, {
+    actorId: actorUserId,
+    actorRole,
+    entityType: "item",
+    entityId: data.id,
+    entityName: data.name,
+    action: "ITEM_CREATED",
+    message: `${data.name} registered`,
+    metadata: {
+      ownerId: resolvedOwnerId,
+    },
+  });
 
     return respond(
       {

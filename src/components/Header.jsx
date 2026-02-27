@@ -34,8 +34,8 @@ export default function Header() {
   const role = user?.role;
 
   function dashboardPath() {
-    if (role === "admin") return "/admin";
-    if (role === "police") return "/police";
+    if (role === "admin") return "/admindashboard";
+    if (role === "police") return "/policedashboard";
     if (role === "user") return "/userdashboard";
     return "/";
   }
@@ -151,7 +151,7 @@ export default function Header() {
                     icon="📊"
                     label="Dashboard"
                     onClick={() => go(dashboardPath())}
-                    active={location.pathname==="/"}
+                    active={location.pathname.startsWith({role})}
                   />
                   <MenuItem
                     icon="📦"

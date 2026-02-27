@@ -20,12 +20,12 @@ export default function RoleRedirect() {
   // Logged in → route by role
   switch (user.role) {
     case "admin":
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/admindashboard" replace />;
 
     case "police":
-      return <Navigate to="/police" replace />;
+      return <Navigate to="/policedashboard" replace />;
 
     default:
-      return <Navigate to="/user" replace />;
+      return <Navigate to="/userdashboard" replace />;
   }
 }

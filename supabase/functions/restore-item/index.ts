@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { logItemAudit } from "../shared/logItemAudit.ts";
+import { logActivity } from "../shared/logActivity.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { validateSession } from "../shared/validateSession.ts";
 
@@ -63,7 +63,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchError } = await supabase
       .from("items")
-      .select("id,ownerid,deletedat")
+      .select("id, ownerid, name, deletedat")
       .eq("id", id)
       .maybeSingle();
 
@@ -129,17 +129,18 @@ serve(async (req) => {
       );
     }
 
-    /* ---------------- AUDIT LOG ---------------- */
+    /* ---------------- ACTIVITY ---------------- */
 
-    await logItemAudit({
-      supabase,
-      itemId: id,
+    await logActivity(supabase, {
       actorId: actorUserId,
+      actorRole,
+      entityType: "item",
+      entityId: id,
+      entityName: existing.name ?? null,
       action: "ITEM_RESTORED",
-      details: {
-        metadata: {
-          restoredAt: new Date().toISOString(),
-        },
+      message: `${existing.name} was restored`,
+      metadata: {
+        restoredAt: new Date().toISOString(),
       },
     });
 

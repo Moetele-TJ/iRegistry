@@ -72,7 +72,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
-                    path="/admin"
+                    path="/admindashboard"
                     element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminLayout />
@@ -86,7 +86,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   </Route>
 
                   <Route
-                    path="/police"
+                    path="/policedashboard"
                     element={
                       <ProtectedRoute allowedRoles={["police", "admin"]}>
                         <PoliceDashboard />
