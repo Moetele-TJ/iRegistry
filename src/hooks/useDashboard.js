@@ -13,6 +13,8 @@ export function useDashboard({ page = 1, limit = 5 } = {}) {
   const fetchDashboard = useCallback(async () => {
     if (!user) return;
 
+    console.log("USER:", user);
+
     try {
       setLoading(true);
       setError(null);
