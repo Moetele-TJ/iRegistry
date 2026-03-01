@@ -192,25 +192,46 @@ export default function VerificationPanel() {
                 </label>
 
                 {/* Request Transfer Option */}
-                <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50">
+                <label
+                  className={`
+                    flex items-center gap-3 p-4 border rounded-2xl transition
+                    ${user
+                      ? "cursor-pointer hover:bg-gray-50"
+                      : "cursor-not-allowed bg-gray-50 opacity-60"}
+                  `}
+                >
                   <input
                     type="checkbox"
                     checked={action === "transfer"}
+                    disabled={!user}
                     onChange={(e) =>
                       setAction(e.target.checked ? "transfer" : null)
                     }
                     className="accent-blue-600 w-5 h-5"
                   />
+
                   <div>
                     <div className="font-medium text-gray-800">
                       Request Ownership Transfer
                     </div>
+
                     <div className="text-sm text-gray-500">
-                      Ask the registered owner to transfer this item to you
+                      {user
+                        ? "Ask the registered owner to transfer this item to you"
+                        : "Login required to request transfer"}
                     </div>
+
+                    {!user && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/login?redirect=/verify&serial=${serial}`)}
+                        className="text-xs text-blue-600 hover:underline mt-1"
+                      >
+                        Click here to login
+                      </button>
+                    )}
                   </div>
                 </label>
-
               </div>
             </>
           )}
