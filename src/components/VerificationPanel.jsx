@@ -1,10 +1,12 @@
 //  ✅ src/components/VerificationPanel.jsx
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import RippleButton from "./RippleButton.jsx";
 import Tooltip from "./Tooltip.jsx";
 import { useItemVerification } from "../hooks/useItemVerification";
 import { useNotifyOwner } from "../hooks/useNotifyOwner";
 import { ShieldAlert, Info } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function VerificationPanel() {
   const [serial, setSerial] = useState("");
@@ -14,6 +16,8 @@ export default function VerificationPanel() {
   const [notifyPolice, setNotifyPolice] = useState(false);
 
   const resultRef = useRef(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const {
     result: verificationResult,
@@ -55,6 +59,28 @@ export default function VerificationPanel() {
 
   function handleVerify() {
     verify(serial);
+  }
+
+  function handleSubmit() {
+    if (action === "notify") {
+      notify({
+        serial,
+        message,
+        contact,
+        notifyPolice,
+      });
+      return;
+    }
+
+    if (action === "transfer") {
+      if (!user) {
+        navigate(`/login?redirect=/verify&serial=${serial}`);
+        return;
+      }
+
+      // TODO: call transfer request function here
+      console.log("Transfer request initiated");
+    }
   }
 
   return (
@@ -135,6 +161,58 @@ export default function VerificationPanel() {
             <div className="text-gray-600">
               This item can not be found in iRegistry.
             </div>
+          )}
+
+          {verificationResult.state === "Active" && (
+            <>
+              <div className="text-emerald-600 font-semibold mb-4">
+                ✅ This item is registered and currently Active.
+              </div>
+
+              <div className="space-y-4">
+
+                {/* Notify Owner Option */}
+                <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={action === "notify"}
+                    onChange={(e) =>
+                      setAction(e.target.checked ? "notify" : null)
+                    }
+                    className="accent-emerald-600 w-5 h-5"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-800">
+                      Notify Registered Owner
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Send them a direct message
+                    </div>
+                  </div>
+                </label>
+
+                {/* Request Transfer Option */}
+                <label className="flex items-center gap-3 p-4 border rounded-2xl cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={action === "transfer"}
+                    onChange={(e) =>
+                      setAction(e.target.checked ? "transfer" : null)
+                    }
+                    className="accent-blue-600 w-5 h-5"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-800">
+                      Request Ownership Transfer
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Ask the registered owner to transfer this item to you
+                    </div>
+                  </div>
+                </label>
+
+              </div>
+            </>
           )}
 
           {/* =========================================================
@@ -272,21 +350,14 @@ export default function VerificationPanel() {
                   bg-emerald-600 text-white font-semibold 
                   shadow-md hover:shadow-xl hover:bg-emerald-700 
                   transition-all duration-300 disabled:opacity-50"
-                  onClick={() =>
-                    notify({
-                      serial,
-                      message,
-                      contact,
-                      notifyPolice,
-                    })
-                  }
+                  onClick={handleSubmit}
                   disabled={
                     notifying ||
                     !message.trim() ||
                     !contact.trim()
                   }
                 >
-                  {notifying ? "Sending..." : "Send Notification"}
+                  {notifying ? "Sending..." : "Submit"}
                 </RippleButton>
 
                 {/* Success / Error Feedback */}
