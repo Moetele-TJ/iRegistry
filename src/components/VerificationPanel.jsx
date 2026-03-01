@@ -163,7 +163,7 @@ export default function VerificationPanel() {
             </div>
           )}
 
-          {verificationResult.state === "Active" && (
+          {verificationResult.state === "REGISTERED" && (
             <>
               <div className="text-emerald-600 font-semibold mb-4">
                 ✅ This item is registered and currently Active.
@@ -359,6 +359,25 @@ export default function VerificationPanel() {
                 >
                   {notifying ? "Sending..." : "Submit"}
                 </RippleButton>
+
+                {action === "transfer" && (
+                  <div className="mt-6 p-6 bg-white rounded-3xl shadow-lg border border-gray-200">
+
+                    <p className="text-sm text-gray-600 mb-4">
+                      You are requesting the registered owner to transfer this item to you.
+                      You must be logged in to proceed.
+                    </p>
+
+                    <RippleButton
+                      className="w-full px-6 py-3 rounded-2xl 
+                      bg-blue-600 text-white font-semibold 
+                      hover:bg-blue-700 transition-all duration-300"
+                      onClick={handleSubmit}
+                    >
+                      Request Ownership Transfer
+                    </RippleButton>
+                  </div>
+                )}
 
                 {/* Success / Error Feedback */}
                 {notifySuccess && (
