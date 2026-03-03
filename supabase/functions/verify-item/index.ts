@@ -34,7 +34,7 @@ serve(async (req) => {
 
     const { data: item, error } = await supabase
       .from("items")
-      .select("status")
+      .select("id, status")
       .or(
         `serial1_normalized.eq.${cleaned},serial2_normalized.eq.${cleaned}`
       )
@@ -59,7 +59,10 @@ serve(async (req) => {
       return respond(
         {
           success: true,
-          result: { state: "STOLEN" },
+          result: { 
+            state: "STOLEN",
+            itemId: item.id
+          },
         },
         corsHeaders,
         200
@@ -69,7 +72,10 @@ serve(async (req) => {
     return respond(
       {
         success: true,
-        result: { state: "REGISTERED" },
+        result: { 
+          state: "REGISTERED",
+          itemId: item.id
+        },
       },
       corsHeaders,
       200

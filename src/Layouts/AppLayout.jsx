@@ -1,18 +1,23 @@
 // src/layouts/AppLayout.jsx
+
 import Header from "../components/Header";
-import Footer from "../components/Footer"
+import Footer from "../components/Footer";
 import { Outlet } from "react-router-dom";
+import { TransferProvider } from "../contexts/TransferContext";
+import { NotificationProvider } from "../contexts/NotificationContext";
 
 export default function AppLayout() {
   return (
-    <>
-      <Header />
-      {/* THIS is where routed pages render */}
-      <main>
-        <Outlet />
-      </main>
+    <TransferProvider>
+      <NotificationProvider>
+        <Header />
 
-      <Footer/>
-    </>
+        <main>
+          <Outlet />
+        </main>
+
+        <Footer />
+      </NotificationProvider>
+    </TransferProvider>
   );
 }

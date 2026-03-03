@@ -580,3 +580,47 @@ entrypoint = "./functions/get-dashboard-data/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/get-dashboard-data/*.html" ]
+
+[functions.create-transfer-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-transfer-request/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-transfer-request/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-transfer-request/*.html" ]
+
+[functions.review-transfer-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/review-transfer-request/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/review-transfer-request/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/review-transfer-request/*.html" ]
+
+[functions.cancel-transfer-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cancel-transfer-request/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/cancel-transfer-request/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/cancel-transfer-request/*.html" ]
+
+[functions.get-pending-transfer-requests]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-pending-transfer-requests/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/get-pending-transfer-requests/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/get-pending-transfer-requests/*.html" ]

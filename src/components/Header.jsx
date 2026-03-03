@@ -1,14 +1,19 @@
 // src/components/Header.jsx
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, NavLink } from "react-router-dom";
 import logo from "../assets/iregistry-logo.png";
-import { useAuth } from "../contexts/AuthContext.jsx";
+import { useAuth } from "../contexts/AuthContext";
+import { useTransfers } from "../contexts/TransferContext";
+import { useNotificationCenter } from "../contexts/NotificationContext";
+import { Repeat, Bell } from "lucide-react";
 import ConfirmModal from "./ConfirmModal.jsx";
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { count } = useTransfers();
+  const { unread, loading } = useNotificationCenter();
 
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -45,12 +50,6 @@ export default function Header() {
     navigate(path);
   }
 
-  function isActive(path) {
-    return location.pathname.startsWith(path)
-      ? "text-iregistrygreen font-semibold"
-      : "";
-  }
-
   /* Close menu when clicking outside */
   useEffect(() => {
     function handleClick(e) {
@@ -73,16 +72,74 @@ export default function Header() {
         <img src={logo} alt="iRegistry" className="h-10 md:h-16" />
       </div>
 
+      {/* Unread Notifications Badge */}
+      {user && !loading && (
+
+        <div
+          className="relative cursor-pointer hover:scale-105 transition-transform duration-200"
+          onClick={() => navigate("/notifications")}
+          >
+          <Bell size={20} className="text-gray-600" />
+
+          <span
+            className={`absolute -top-2 -right-2 text-xs px-2 py-0.5 rounded-full transition-colors duration-300 ${
+              unread > 0
+                ? "bg-red-600 text-white"
+                : "bg-gray-200 text-gray-600"
+            }`}
+          >
+            {unread}
+          </span>
+        </div>
+      )}
+
+      {/* Transfer Badge */}
+      {user && count > 0 && (
+
+        <div
+          className="relative cursor-pointer hover:scale-105 transition-transform duration-200"
+          onClick={() => navigate("/userdashboard?tab=transfers")}
+          >
+          <Repeat size={20} className="text-gray-600" />
+          <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">
+            {count}
+          </span>
+        </div>
+      )}
+
       {/* ===== DESKTOP NAV ===== */}
       <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600">
-        <button onClick={() => go("/")} className={isActive("/")}>
+
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            isActive ? "text-iregistrygreen font-semibold" : ""
+          }
+        >
           Home
-        </button>
+        </NavLink>
 
         {user && (
           <>
-            <button onClick={() => go(dashboardPath())}>Dashboard</button>
-            <button onClick={() => go("/items")}>Items</button>
+            <NavLink
+              to={dashboardPath()}
+              className={({ isActive }) =>
+                isActive ? "text-iregistrygreen font-semibold" : ""
+              }
+            >
+              Dashboard
+            </NavLink>
+
+            <NavLink
+              to="/items"
+              className={({ isActive }) =>
+                isActive ? "text-iregistrygreen font-semibold" : ""
+              }
+            >
+              Items
+            </NavLink>
+
             <button
               onClick={() => setShowLogoutConfirm(true)}
               className="border px-3 py-1 rounded"
@@ -94,13 +151,21 @@ export default function Header() {
 
         {!user && (
           <>
-            <button onClick={() => go("/signup")}>Signup</button>
-            <button
-              onClick={() => go("/login")}
+            <NavLink
+              to="/signup"
+              className={({ isActive }) =>
+                isActive ? "text-iregistrygreen font-semibold" : ""
+              }
+            >
+              Signup
+            </NavLink>
+
+            <NavLink
+              to="/login"
               className="bg-iregistrygreen text-white px-4 py-2 rounded"
             >
               Login
-            </button>
+            </NavLink>
           </>
         )}
       </nav>
@@ -119,59 +184,97 @@ export default function Header() {
           <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border text-sm">
             <div className="flex flex-col py-2">
 
-              <MenuItem 
-                icon="🏠" 
-                label="Home" 
-                onClick={() => go("/")} 
-                active={location.pathname==="/"}
-              />
-              
+              <NavLink
+                to="/"
+                end
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                    isActive
+                      ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`
+                }
+              >
+                🏠 Home
+              </NavLink>
+
               {!user && (
                 <>
-                  <MenuItem 
-                    icon="✍️" 
-                    label="Signup" 
-                    onClick={() => go("/signup")}
-                    active={location.pathname.startsWith("/signup")}
-                  />
-                  
-                  <MenuItem
-                    icon="🔐"
-                    label="Login"
-                    onClick={() => go("/login")}
-                    active={location.pathname.startsWith("/login")}
-                    accent
-                  />
+                  <NavLink
+                    to="/signup"
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                        isActive
+                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    ✍️ Signup
+                  </NavLink>
+
+                  <NavLink
+                    to="/login"
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                        isActive
+                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    🔐 Login
+                  </NavLink>
                 </>
               )}
 
               {user && (
                 <>
-                  <MenuItem
-                    icon="📊"
-                    label="Dashboard"
-                    onClick={() => go(dashboardPath())}
-                    active={location.pathname.startsWith({role})}
-                  />
-                  <MenuItem
-                    icon="📦"
-                    label="Items"
-                    onClick={() => go("/items")}
-                    active={location.pathname.startsWith("/items")}
-                  />
-                  <MenuItem
-                    icon="🚪"
-                    label="Logout"
-                    onClick={()=> {setOpen(false); setShowLogoutConfirm(true)
+                  <NavLink
+                    to={dashboardPath()}
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                        isActive
+                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    📊 Dashboard
+                  </NavLink>
+
+                  <NavLink
+                    to="/items"
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                        isActive
+                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    📦 Items
+                  </NavLink>
+
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      setShowLogoutConfirm(true);
                     }}
-                    danger
-                  />
+                    className="flex items-center gap-3 px-4 py-2 font-medium text-red-600"
+                  >
+                    🚪 Logout
+                  </button>
                 </>
               )}
             </div>
           </div>
         )}
-
       </div>
 
       <ConfirmModal
@@ -184,28 +287,6 @@ export default function Header() {
         cancelLabel="Cancel"
         danger
       />
-
     </header>
-  );
-}
-
-/* ===== Reusable menu item ===== */
-function MenuItem({ icon, label, onClick, danger, accent, active }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-2 text-left font-medium transition
-        ${
-          active
-            ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
-            : danger
-            ? "text-red-600"
-            : "text-gray-700 hover:bg-gray-50"
-        }
-      `}
-    >
-      <span className="text-base">{icon}</span>
-      <span>{label}</span>
-    </button>
   );
 }

@@ -7,6 +7,8 @@ import { useItemVerification } from "../hooks/useItemVerification";
 import { useNotifyOwner } from "../hooks/useNotifyOwner";
 import { ShieldAlert, Info } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { invokeWithAuth } from "../lib/invokeWithAuth";
+import ConfirmModal from "./ConfirmModal.jsx";
 
 export default function VerificationPanel() {
   const [serial, setSerial] = useState("");
@@ -14,6 +16,10 @@ export default function VerificationPanel() {
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
   const [notifyPolice, setNotifyPolice] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState(false);
+  const [transferError, setTransferError] = useState(null);
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
 
   const resultRef = useRef(null);
   const { user } = useAuth();
@@ -50,18 +56,24 @@ export default function VerificationPanel() {
 
   useEffect(() => {
     if (verificationResult && resultRef.current) {
-        resultRef.current.scrollIntoView({
+      resultRef.current.scrollIntoView({
         behavior: "smooth",
-        block: "center", // or "center"
-        });
+        block: "center",
+      });
     }
-    }, [verificationResult]);
+  }, [verificationResult]);
+
+  useEffect(() => {
+    if (verificationResult) {
+      setAction(null);
+    }
+  }, [verificationResult]);
 
   function handleVerify() {
     verify(serial);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (action === "notify") {
       notify({
         serial,
@@ -77,9 +89,37 @@ export default function VerificationPanel() {
         navigate(`/login?redirect=/verify&serial=${serial}`);
         return;
       }
+    }
+  }
 
-      // TODO: call transfer request function here
-      console.log("Transfer request initiated");
+  async function executeTransfer(){
+
+    if (!verificationResult?.itemId) {
+      setTransferError("Invalid item reference");
+      return;
+    }
+
+    setTransferLoading(true);
+    setTransferError(null);
+    setTransferSuccess(false);
+
+    try {
+      const res = await invokeWithAuth("create-transfer-request", {
+        item_id: verificationResult?.itemId,
+        message: null,
+      });
+
+      if (!res?.success) {
+        throw new Error(res?.message || "Transfer request failed");
+      }
+
+      setTransferSuccess(true);
+      setAction(null);
+
+    } catch (err) {
+      setTransferError(err.message);
+    } finally {
+      setTransferLoading(false);
     }
   }
 
@@ -408,16 +448,43 @@ export default function VerificationPanel() {
               <RippleButton
                 className="w-full px-6 py-3 rounded-2xl 
                 bg-blue-600 text-white font-semibold 
-                hover:bg-blue-700 transition-all duration-300"
-                onClick={handleSubmit}
-              >
-                Request Ownership Transfer
+                hover:bg-blue-700 transition-all duration-300 disabled:opacity-50"
+                onClick={() => setShowTransferConfirm(true)}
+                disabled={transferLoading}
+                >
+                {transferLoading ? "Submitting..." : "Request Ownership Transfer"}
               </RippleButton>
+
+              {transferSuccess && (
+                <div className="text-green-600 mt-3 text-sm">
+                  ✅ Transfer request submitted successfully.
+                </div>
+              )}
+
+              {transferError && (
+                <div className="text-red-600 mt-3 text-sm">
+                  {transferError}
+                </div>
+              )}
             </div>
           )}
 
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showTransferConfirm}
+        onClose={() => setShowTransferConfirm(false)}
+        onConfirm={async () => {
+          setShowTransferConfirm(false);
+          await executeTransfer();
+        }}
+        title="Confirm Transfer Request"
+        message="Are you sure you want to request ownership transfer for this item?"
+        confirmLabel="Yes, Request Transfer"
+        cancelLabel="Cancel"
+      />
+
     </div>
   );
 }
