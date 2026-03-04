@@ -40,6 +40,8 @@ serve(async (req) => {
     const userId = session.user_id;
     const role = session.role;
 
+    console.log("Dashboard session userId:", userId);
+
     const body = await req.json().catch(() => ({}));
 
     const {

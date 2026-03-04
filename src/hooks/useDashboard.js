@@ -18,8 +18,10 @@ export function useDashboard({ page = 1, limit = 5 } = {}) {
       setError(null);
 
       const res = await invokeWithAuth("get-dashboard-data", {
-        page,
-        limit,
+        body:{
+          page,
+          limit
+        },
       });
 
       if (!res?.success) {
