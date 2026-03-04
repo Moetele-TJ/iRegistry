@@ -91,12 +91,6 @@ export default function Items() {
   // derived items (from context)
   const items = ctxItems || [];
 
-  useEffect(() => {
-    if (items.length > 0) {
-      console.log("ITEM SAMPLE:", items[0]);
-    }
-  }, [items]);
-
   const categories = useMemo(() => {
     const s = new Set(items.map((i) => i.category).filter(Boolean));
     return Array.from(s).sort();

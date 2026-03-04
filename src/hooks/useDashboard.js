@@ -17,18 +17,16 @@ export function useDashboard({ page = 1, limit = 5 } = {}) {
       setLoading(true);
       setError(null);
 
-      const res = await invokeWithAuth("get-dashboard-data", {
-        body:{
-          page,
-          limit
-        },
+      const { data: res, error } = await invokeWithAuth("get-dashboard-data", {
+        body: { page, limit },
       });
 
-      if (!res?.success) {
+      if (error || !res?.success) {
         throw new Error(res?.message || "Failed to fetch dashboard");
       }
 
       setData(res);
+      
     } catch (err) {
       setError(err.message);
     } finally {
