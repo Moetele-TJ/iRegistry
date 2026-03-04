@@ -1,6 +1,6 @@
 // src/Pages/Login.jsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -14,6 +14,7 @@ export default function Login() {
   const [idNumber, setIdNumber] = useState("");
   const [userId, setUserId] = useState("");
   const [otp, setOtp] = useState("");
+  const otpRefs = useRef([]);
 
   const [maskedPhone, setMaskedPhone] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -31,11 +32,11 @@ export default function Login() {
   const { loginWithToken } = useAuth();
 
   // 🔥 AUTO VERIFY WHEN 6 DIGITS ENTERED
-  //useEffect(() => {
-    //if (otp.length === 6 && !verifyingOtp) {
-      //handleVerifyOtp();
-    //}
-  //}, [otp, verifyingOtp]);
+  useEffect(() => {
+    if (otp.length === 6 && !verifyingOtp) {
+      handleVerifyOtp();
+    }
+  }, [otp]);
 
   // ⏱ Cooldown timer
   useEffect(() => {
@@ -72,6 +73,12 @@ export default function Login() {
     }, 1000);
 
     return () => clearInterval(timer);
+  }, [step]);
+
+  useEffect(() => {
+    if (step === "otp" && otpRefs.current[0]) {
+      otpRefs.current[0].focus();
+    }
   }, [step]);
 
   // ----------------------------
@@ -267,6 +274,31 @@ export default function Login() {
     }
   }
 
+  function handleOtpPaste(e) {
+    e.preventDefault();
+
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+
+    if (!pasted) return;
+
+    // Fill OTP state
+    setOtp(pasted);
+
+    // Focus last filled box
+    const lastIndex = pasted.length - 1;
+    if (otpRefs.current[lastIndex]) {
+      otpRefs.current[lastIndex].focus();
+    }
+
+    // Auto verify when 6 digits pasted
+    //if (pasted.length === 6) {
+    //  setTimeout(() => handleVerifyOtp(), 100);
+    //}
+  }
+
   function CountdownCircle({ seconds }) {
     const total = 300;
     const radius = 40;
@@ -323,6 +355,23 @@ export default function Login() {
     );
   }
 
+  function handleOtpClick(index) {
+    const firstEmptyIndex = otp.length;
+
+    // If user tries to click ahead of first empty box
+    if (index > firstEmptyIndex) {
+      if (otpRefs.current[firstEmptyIndex]) {
+        otpRefs.current[firstEmptyIndex].focus();
+      }
+      return;
+    }
+
+    // Otherwise allow normal focus
+    if (otpRefs.current[index]) {
+      otpRefs.current[index].focus();
+    }
+  }
+
   return (
     <>
 
@@ -331,7 +380,7 @@ export default function Login() {
           <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center animate-scale-in">
             <div className="text-green-600 text-4xl mb-2">✅</div>
             <div className="text-lg font-semibold text-gray-800">
-              Verified successfully
+              You logged in successfully
             </div>
           </div>
         </div>
@@ -375,10 +424,21 @@ export default function Login() {
                 ID / Passport number
               </label>
               <input
-                className="w-full border rounded-lg px-4 py-2 mb-6"
+                className="w-full border rounded-lg px-4 py-2 mb-3"
                 value={idNumber}
                 onChange={(e) => setIdNumber(e.target.value.trim())}
               />
+
+              <div className="text-sm text-center mb-6">
+                Don’t have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/signup")}
+                  className="text-iregistrygreen font-semibold hover:underline"
+                >
+                  Create one here
+                </button>
+              </div>
 
               <button
                 onClick={handleIdentifyUser}
@@ -431,10 +491,15 @@ export default function Login() {
                   {[0,1,2,3,4,5].map((i) => (
                     <input
                       key={i}
-                      className="w-12 h-12 text-center text-xl border rounded-lg"
+                      ref={(el) => (otpRefs.current[i] = el)}
+                      className="w-12 h-12 text-center text-xl border rounded-lg transition-all duration-150
+                      focus:ring-2 focus:ring-iregistrygreen focus:border-iregistrygreen focus:scale-105"
                       maxLength={1}
+                      inputMode="numeric"
                       value={otp[i] || ""}
                       disabled={verifyingOtp}
+                      onPaste={handleOtpPaste}
+                      onClick={() => handleOtpClick(i)}
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, "");
                         const newOtp = otp.split("");
@@ -442,14 +507,26 @@ export default function Login() {
                         setOtp(newOtp.join(""));
 
                         // auto move cursor
-                        if (val && e.target.nextSibling) {
-                          e.target.nextSibling.focus();
+                        if (val && otpRefs.current[i + 1]) {
+                          otpRefs.current[i + 1].focus();
                         }
                       }}
 
                       onKeyDown={(e) => {
-                        if (e.key === "Backspace" && !otp[i] && e.target.previousSibling) {
-                          e.target.previousSibling.focus();
+                        if (e.key === "Backspace") {
+                          e.preventDefault();
+
+                          const newOtp = otp.split("");
+                          
+                          // Always clear current box
+                          newOtp[i] = "";
+                          setOtp(newOtp.join(""));
+
+                          // Move to previous box if exists
+                          if (otpRefs.current[i - 1]) {
+                            otpRefs.current[i - 1].focus();
+                            otpRefs.current[i - 1].select(); // highlight previous value
+                          }
                         }
                       }}
                     />
@@ -490,6 +567,20 @@ export default function Login() {
               >
                 {verifyingOtp ? "Verifying..." : "Verify"}
               </button>
+
+              <div className="text-center mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtp("");
+                    setError("");
+                    setStep("channel");
+                  }}
+                  className="text-sm text-gray-500 hover:text-iregistrygreen hover:underline transition-colors"
+                >
+                  Change delivery method
+                </button>
+              </div>
 
               <div className="text-center mt-4 text-sm text-gray-500">
                 {cooldown > 0 ? (

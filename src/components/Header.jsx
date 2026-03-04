@@ -17,6 +17,7 @@ export default function Header() {
 
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [hasShownNotificationBadge, setHasShownNotificationBadge] = useState(false);
   const menuRef = useRef(null);
 
   /* Close logout modal on route change */
@@ -29,6 +30,12 @@ export default function Header() {
       setOpen(false);
     }
   }, [showLogoutConfirm]);
+
+  useEffect(() => {
+  if (!loading && unread > 0) {
+    setHasShownNotificationBadge(true);
+  }
+}, [loading, unread]);
 
   async function handleLogout() {
     await logout();
@@ -73,7 +80,7 @@ export default function Header() {
       </div>
 
       {/* Unread Notifications Badge */}
-      {user && !loading && (
+      {user && !loading && (unread > 0 || hasShownNotificationBadge) && (
 
         <div
           className="relative cursor-pointer hover:scale-105 transition-transform duration-200"

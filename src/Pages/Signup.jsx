@@ -1,11 +1,12 @@
 // src/Pages/Signup.jsx
-
+import { useNavigate } from "react-router-dom";
 import { useState,useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import Header from "../components/Header";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 
 export default function Signup() {
+
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -41,12 +42,12 @@ export default function Signup() {
     useEffect(() => {
     if (modal.type === "success") {
       const t = setTimeout(() => {
-        window.location.href = "/login";
+        navigate("/login", { replace: true });
       }, 3000);
 
       return () => clearTimeout(t);
     }
-  }, [modal.type]);
+  }, [modal.type, navigate]);
 
   // ----------------------------
   // STEP 1 VALIDATION (STRICT)
@@ -138,6 +139,9 @@ export default function Signup() {
   // FINAL SUBMIT
   // ----------------------------
   async function handleSubmit() {
+
+    if (loading) return;
+
     setLoading(true);
 
     try {
@@ -250,6 +254,17 @@ export default function Signup() {
                 }
               />
 
+              <div className="text-sm text-center mt-2">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="text-iregistrygreen font-semibold hover:underline"
+                >
+                  Continue to login
+                </button>
+              </div>
+
               <button
                 onClick={checkStep1Details}
                 disabled={loading}
@@ -300,6 +315,18 @@ export default function Signup() {
                   {loading ? "Creating..." : "Create account"}
                 </button>
               </div>
+
+              <div className="text-sm text-center mt-2">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="text-iregistrygreen font-semibold hover:underline"
+                >
+                  Continue to login
+                </button>
+              </div>
+
             </>
           )}
         </div>
