@@ -147,7 +147,7 @@ export default function VerificationPanel() {
           value={serial}
           onChange={(e) => setSerial(e.target.value)}
           disabled={!!verificationResult}
-          className={`flex-1 px-4 py-3 border rounded-2xl 
+          className={`flex-1 px-4 py-3 border rounded-2xl bg-emerald-200
           focus:outline-none focus:ring-2 focus:ring-emerald-500
           ${verificationResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
           `}
@@ -345,7 +345,7 @@ export default function VerificationPanel() {
                 {/* Main Checkbox Row */}
                 <label
                   className={`
-                    flex items-center rounded-tr-2xl gap-3 p-4 cursor-pointer transition-all duration-300
+                    flex items-center rounded-tr-2xl rounded-tl-2xl gap-3 p-4 cursor-pointer transition-all duration-300
                     ${action === "notify"
                       ? "border-l-4 border-emerald-500 bg-white"
                       : "border-l-4 border-transparent hover:bg-gray-50"}
