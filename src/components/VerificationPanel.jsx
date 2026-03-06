@@ -345,7 +345,7 @@ export default function VerificationPanel() {
                 {/* Main Checkbox Row */}
                 <label
                   className={`
-                    flex items-center gap-3 p-4 cursor-pointer transition-all duration-300
+                    flex items-center rounded-tr-2xl gap-3 p-4 cursor-pointer transition-all duration-300
                     ${action === "notify"
                       ? "border-l-4 border-emerald-500 bg-white"
                       : "border-l-4 border-transparent hover:bg-gray-50"}
