@@ -153,10 +153,6 @@ export default function VerificationPanel() {
           `}
         />
 
-        <div className="text-xs text-gray-500 mt-2">
-          You can usually find the serial number on the device label, packaging, or system settings.
-        </div>
-
         <RippleButton
           className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 ${
             verificationResult
@@ -180,6 +176,10 @@ export default function VerificationPanel() {
             ? "Checking..."
             : "Verify"}
         </RippleButton>
+      </div>
+
+      <div className="text-xs text-gray-500 mt-2">
+        You can usually find the serial number on the device label, packaging, or system settings.
       </div>
 
       {/* =========================================================
