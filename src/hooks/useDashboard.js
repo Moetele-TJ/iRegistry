@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
+import { supabase } from "../lib/supabase";
 
 export function useDashboard({ page = 1, limit = 5 } = {}) {
   const { user } = useAuth();
@@ -36,7 +37,29 @@ export function useDashboard({ page = 1, limit = 5 } = {}) {
 
   useEffect(() => {
     fetchDashboard();
-  }, [fetchDashboard]);
+
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel("dashboard-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "item_notifications",
+          filter: `ownerid=eq.${user.id}`,
+        },
+        () => {
+          fetchDashboard(); // refresh dashboard instantly
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDashboard, user?.id]);
 
   return {
     data,

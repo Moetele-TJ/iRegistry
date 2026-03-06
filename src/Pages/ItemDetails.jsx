@@ -5,6 +5,8 @@ import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
+import ItemActivityTimeline from "../components/ItemActivityTimeline";
+import { useItemActivity } from "../hooks/useItemActivity";
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -21,6 +23,7 @@ export default function ItemDetails() {
   const { items, deleteItem } = useItems();
 
   const [item, setItem] = useState(null);
+  const { activity, loading } = useItemActivity(item?.id);
   const [confirmOpen, setConfirmOpen] = useState(false); // modal state
   const [working, setWorking] = useState(false);
 
@@ -225,6 +228,16 @@ export default function ItemDetails() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+
+        <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-4">
+          Activity Timeline
+        </h2>
+
+        <ItemActivityTimeline events={activity} />
+
       </div>
 
       {/* ConfirmModal (shared component) */}

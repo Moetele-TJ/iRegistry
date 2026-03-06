@@ -78,7 +78,28 @@ serve(async (req) => {
       .from("item_notifications")
       .select("*", { count: "exact", head: true })
       .eq("ownerid", userId)
+      .eq("recipient_type","owner")
       .eq("isread", false);
+
+    /* ================================
+      ALERTS (RECENT NOTIFICATIONS)
+    =================================*/
+
+    const { data: alerts } = await supabase
+      .from("item_notifications")
+      .select(`
+        id,
+        itemid,
+        message,
+        contact,
+        recipient_type,
+        isread,
+        createdon,
+        items(name,slug)
+      `)
+      .eq("ownerid", userId)
+      .order("createdon", { ascending: false })
+      .limit(5);
 
     const { data: personalActivity, count: personalCount } = await supabase
       .from("activity_logs")
@@ -106,6 +127,9 @@ serve(async (req) => {
         notifications: totalNotifications ?? 0,
         unreadNotifications: unreadNotifications ?? 0,
       },
+
+      alerts: alerts ?? [],
+
       activity: {
         data: personalActivity ?? [],
         pagination: {

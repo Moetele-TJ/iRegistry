@@ -1,17 +1,19 @@
 // src/Pages/UserDashboard.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import RecentActivityPanel from "../components/RecentActivityPanel";
 import PendingTransferRequests from "../components/PendingTransferRequests";
 import QuickActionsPanel from "../components/QuickActionsPanel";
 import { useDashboard } from "../hooks/useDashboard";
+import { useNotificationCenter } from "../contexts/NotificationContext";
 
 function useCountUp(target = 0, duration = 800) {
   const [value, setValue] = useState(0);
 
   useEffect(() => {
     let start = 0;
-    const increment = target / (duration / 16);
+    const increment = Math.max(target / (duration / 16), 1);
 
     const timer = setInterval(() => {
       start += increment;
@@ -33,16 +35,18 @@ function useCountUp(target = 0, duration = 800) {
 export default function UserDashboard() {
   
   const [page, setPage] = useState(1);
+  const navigate = useNavigate();
   const { data, loading } = useDashboard({limit: 5, page,});
   const { user } = useAuth();
 
   // ===== Derived Stats =====
   const summary = data?.personal?.summary || {};
+  const alerts = data?.personal?.alerts || [];
 
   const activeCount = summary.activeItems || 0;
   const stolenCount = summary.stolenItems || 0;
-  const notifTotal = summary.notifications || 0;
-  const unread = summary.unreadNotifications || 0;
+  const { total: notifTotal, unread } = useNotificationCenter();
+  const hasItems = activeCount + stolenCount > 0;
 
   const activeAnimated = useCountUp(activeCount);
   const stolenAnimated = useCountUp(stolenCount);
@@ -68,11 +72,34 @@ export default function UserDashboard() {
           </p>
         </div>
 
+        {!loading && !hasItems && (
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 text-center">
+
+            <div className="text-4xl mb-3">📦</div>
+
+            <h2 className="text-lg font-semibold text-gray-800">
+              No items registered yet
+            </h2>
+
+            <p className="text-sm text-gray-500 mt-2">
+              Register your first item to start protecting it and tracking ownership.
+            </p>
+
+            <button
+              onClick={() => navigate("/items/add")}
+              className="mt-5 bg-iregistrygreen text-white px-5 py-2 rounded-xl text-sm font-medium hover:shadow-md transition"
+            >
+              + Add Your First Item
+            </button>
+
+          </div>
+        )}
+
         {/* ===== Summary Cards ===== */}
         <div className="space-y-4">
 
           {/* Active */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition border border-gray-100 relative overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-0.5 border border-gray-100 relative overflow-hidden">
             <div className="absolute left-0 top-0 h-full w-1.5 bg-emerald-500" />
             <div className="flex items-center justify-between px-6 py-5">
               <div>
@@ -84,7 +111,11 @@ export default function UserDashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-emerald-600">
-                {activeAnimated}
+                {loading ? (
+                  <div className="h-8 w-10 bg-gray-200 rounded animate-pulse" />
+                ) : (
+                  activeAnimated
+                )}
               </div>
             </div>
           </div>
@@ -106,13 +137,20 @@ export default function UserDashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-red-600">
-                {stolenAnimated}
+                {loading ? (
+                  <div className="h-8 w-10 bg-gray-200 rounded animate-pulse" />
+                ) : (
+                  stolenAnimated
+                )}
               </div>
             </div>
           </div>
 
           {/* Notifications */}
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition border border-gray-100 relative overflow-hidden">
+          <div className={`bg-white rounded-2xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-0.5 border border-gray-100 relative overflow-hidden ${
+              unread > 0 ? "bg-amber-50/40" : ""
+            }`}
+            >
             <div className="absolute left-0 top-0 h-full w-1.5 bg-amber-700" />
             <div className="flex items-center justify-between px-6 py-5">
               <div>
@@ -126,7 +164,11 @@ export default function UserDashboard() {
                 </div>
               </div>
               <div className="text-3xl font-bold text-amber-600">
-                {notifAnimated}
+                {loading ? (
+                  <div className="h-8 w-10 bg-gray-200 rounded animate-pulse" />
+                ) : (
+                  notifAnimated
+                )}
               </div>
             </div>
           </div>
@@ -137,6 +179,46 @@ export default function UserDashboard() {
 
           {/* Quick Actions */}
           <QuickActionsPanel />
+
+          {/* ===== Recent Alerts ===== */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+
+            <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-4">
+              Recent Alerts
+            </h2>
+
+            {alerts.length === 0 && (
+              <div className="text-sm text-gray-400">
+                No alerts
+              </div>
+            )}
+
+            {alerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={`flex items-start gap-3 py-2 border-b last:border-0 ${
+                !alert.isread ? "bg-red-50" : ""
+               }`}
+               >
+                <div className="relative flex items-center justify-center w-6">
+                  <span className="text-red-500 text-lg">🚨</span>
+
+                  {!alert.isread && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full"></span>
+                  )}
+                </div>
+
+                <div className={`text-sm ${
+                  !alert.isread ? "text-gray-900 font-medium" : "text-gray-600"
+                 }`}>
+                  <span className="font-medium">
+                    {alert.items?.name || "Item"}
+                  </span>{" "}
+                  — {alert.message}
+                </div>
+              </div>
+            ))}
+          </div>
 
           {/* Pending Transfers */}
           <PendingTransferRequests />

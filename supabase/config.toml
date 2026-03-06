@@ -624,3 +624,14 @@ entrypoint = "./functions/get-pending-transfer-requests/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/get-pending-transfer-requests/*.html" ]
+
+[functions.get-item-activity]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-item-activity/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/get-item-activity/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/get-item-activity/*.html" ]

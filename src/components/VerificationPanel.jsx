@@ -129,8 +129,12 @@ export default function VerificationPanel() {
       {/* =========================================================
           VERIFICATION HEADER
       ========================================================= */}
-      <div className="text-lg font-semibold text-gray-800 mb-4">
-        Item Verification
+      <div className="text-lg font-semibold text-gray-800 mb-1">
+        🛒 Buyer Protection Verification
+      </div>
+
+      <div className="text-sm text-gray-500 mb-4">
+        🔎 Quick Safety Check - Check the item's serial number before buying to ensure it is not stolen.
       </div>
 
       {/* =========================================================
@@ -148,6 +152,10 @@ export default function VerificationPanel() {
           ${verificationResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
           `}
         />
+
+        <div className="text-xs text-gray-500 mt-2">
+          You can usually find the serial number on the device label, packaging, or system settings.
+        </div>
 
         <RippleButton
           className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 ${
@@ -198,15 +206,40 @@ export default function VerificationPanel() {
               NOT FOUND STATE
           ========================================================= */}
           {verificationResult.state === "NOT_FOUND" && (
-            <div className="text-gray-600">
-              This item can not be found in iRegistry.
+            <div className="p-5 rounded-2xl border border-gray-200 bg-gray-50">
+              
+              <div className="font-semibold text-gray-800 mb-2">
+                ❓ Item Not Found in Registry
+              </div>
+
+              <div className="text-sm text-gray-600">
+                This item is not currently registered in iRegistry.
+                This does not necessarily mean the item is safe.
+              </div>
+
+              <div className="text-sm text-gray-600 mt-2">
+                Ask the seller to provide proof of ownership before purchasing.
+              </div>
+
             </div>
           )}
 
           {verificationResult.state === "REGISTERED" && (
             <>
-              <div className="text-emerald-600 font-semibold mb-4">
-                ✅ This item is registered and currently Active.
+              <div className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50">
+  
+                <div className="text-emerald-700 font-semibold mb-1">
+                  ✅ Item Found in Registry
+                </div>
+
+                <div className="text-sm text-emerald-800">
+                  This item is fully registered for another customer.
+                </div>
+
+                <div className="text-sm text-gray-700 mt-1">
+                  Ask the seller to provide proof of ownership before purchasing.
+                </div>
+
               </div>
 
               <div className="space-y-4">
@@ -282,8 +315,20 @@ export default function VerificationPanel() {
           {verificationResult.state === "STOLEN" && (
             <>
               {/* Stolen Warning Message */}
-              <div className="text-red-600 font-semibold mb-4">
-                ⚠ This item has been reported stolen.
+              <div className="p-5 rounded-2xl border border-red-300 bg-red-50">
+
+                <div className="text-red-700 font-semibold mb-2">
+                  ⚠ WARNING: Stolen Item
+                </div>
+
+                <div className="text-sm text-red-800">
+                  This item has been reported stolen by the registered owner.
+                </div>
+
+                <div className="text-sm text-red-800 mt-1 font-medium">
+                  Do NOT purchase this item.
+                </div>
+
               </div>
 
               {/* Notify Owner Container */}
@@ -484,6 +529,12 @@ export default function VerificationPanel() {
         confirmLabel="Yes, Request Transfer"
         cancelLabel="Cancel"
       />
+
+      <hr className="my-6 border-gray-200" />
+
+      <div className="text-xs text-gray-400 text-center">
+        Verifying an item protects you from buying stolen property and helps owners recover lost items.
+      </div>
 
     </div>
   );

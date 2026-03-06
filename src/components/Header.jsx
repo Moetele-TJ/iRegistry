@@ -19,6 +19,7 @@ export default function Header() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [hasShownNotificationBadge, setHasShownNotificationBadge] = useState(false);
   const menuRef = useRef(null);
+  const [animateBell, setAnimateBell] = useState(false);
 
   /* Close logout modal on route change */
   useEffect(() => {
@@ -32,10 +33,16 @@ export default function Header() {
   }, [showLogoutConfirm]);
 
   useEffect(() => {
-  if (!loading && unread > 0) {
-    setHasShownNotificationBadge(true);
-  }
-}, [loading, unread]);
+    if (!loading && unread > 0) {
+      setHasShownNotificationBadge(true);
+
+      setAnimateBell(true);
+
+      setTimeout(() => {
+        setAnimateBell(false);
+      }, 700);
+    }
+  }, [loading, unread]);
 
   async function handleLogout() {
     await logout();
@@ -86,7 +93,10 @@ export default function Header() {
           className="relative cursor-pointer hover:scale-105 transition-transform duration-200"
           onClick={() => navigate("/notifications")}
           >
-          <Bell size={20} className="text-gray-600" />
+          <Bell
+            size={20}
+            className={`text-gray-600 ${animateBell ? "bell-shake" : ""}`}
+          />
 
           <span
             className={`absolute -top-2 -right-2 text-xs px-2 py-0.5 rounded-full transition-colors duration-300 ${
@@ -95,7 +105,7 @@ export default function Header() {
                 : "bg-gray-200 text-gray-600"
             }`}
           >
-            {unread}
+            {unread > 99 ? "99+" : unread}
           </span>
         </div>
       )}
