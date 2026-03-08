@@ -33,7 +33,7 @@ import AdminSettings from "./Pages/admin/AdminSettings.jsx";
 import Login from "./Pages/Login.jsx";
 import Signup from "./Pages/Signup.jsx";
 
-import Notifications from "./Pages/Notifications.jsx";
+import Notifications from "./Pages/NotificationsPage.jsx";
 import Activity from "./Pages/ActivityPage.jsx";
 
 // CONTEXTS
