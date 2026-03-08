@@ -147,7 +147,7 @@ export default function VerificationPanel() {
           value={serial}
           onChange={(e) => setSerial(e.target.value)}
           disabled={!!verificationResult}
-          className={`flex-1 px-4 py-3 border rounded-2xl bg-emerald-100 ring-emerald-300
+          className={`flex-1 px-4 py-3 border rounded-2xl bg-emerald-100 ring-1 ring-emerald-300
           focus:outline-none focus:ring-2 focus:ring-emerald-500
           ${verificationResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
           `}

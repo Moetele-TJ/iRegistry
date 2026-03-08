@@ -28,31 +28,31 @@ serve(async (req) => {
     // INSERT USER (NO CHECKS HERE)
     // ----------------------------
     const { error } = await supabase.from("users").insert({
-      // STEP 1
-      first_name: body.first_name,
-      last_name: body.last_name,
-      id_number: body.id_number,
-      date_of_birth: body.date_of_birth,
-      country: body.country,
-      phone: body.phone,
-      email: body.email,
+    // STEP 1
+    first_name: body.first_name?.trim() || null,
+    last_name: body.last_name?.trim(),
+    id_number: body.id_number?.replace(/\s+/g, "").trim(),
+    date_of_birth: body.date_of_birth || null,
+    country: body.country?.trim() || null,
+    phone: body.phone?.trim() || null,
+    email: body.email?.trim().toLowerCase() || null,
 
-      // STEP 2
-      state: body.state || null,
-      city: body.city || null,
-      postal_code: body.postal_code || null,
-      address_line: body.address_line || null,
-      alt_phone: body.alt_phone || null,
-      landline: body.landline || null,
-      police_station: body.police_station || null,
+    // STEP 2
+    state: body.state?.trim() || null,
+    city: body.city?.trim() || null,
+    postal_code: body.postal_code?.trim() || null,
+    address_line: body.address_line?.trim() || null,
+    alt_phone: body.alt_phone?.trim() || null,
+    landline: body.landline?.trim() || null,
+    police_station: body.police_station?.trim() || null,
 
-      // SYSTEM FIELDS
-      role: "user",
-      status: "active",
-      identity_verified: false,
-      email_verified: false,
-      created_at: new Date().toISOString(),
-    });
+    // SYSTEM
+    role: "user",
+    status: "active",
+    identity_verified: false,
+    email_verified: false,
+    created_at: new Date().toISOString(),
+  });
 
     if (error) {
       return new Response(

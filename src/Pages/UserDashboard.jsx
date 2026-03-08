@@ -2,11 +2,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useNotificationCenter } from "../contexts/NotificationContext";
 import RecentActivityPanel from "../components/RecentActivityPanel";
 import PendingTransferRequests from "../components/PendingTransferRequests";
 import QuickActionsPanel from "../components/QuickActionsPanel";
+import DashboardAlertsPanel from "../components/DashboardAlertsPanel";
 import { useDashboard } from "../hooks/useDashboard";
-import { useNotificationCenter } from "../contexts/NotificationContext";
+import { getAlertIcon } from "../utils/alertIcon";
+import TimeAgo from "../components/TimeAgo";
 
 function useCountUp(target = 0, duration = 800) {
   const [value, setValue] = useState(0);
@@ -42,6 +45,18 @@ export default function UserDashboard() {
   // ===== Derived Stats =====
   const summary = data?.personal?.summary || {};
   const alerts = data?.personal?.alerts || [];
+
+  const groupedAlerts = alerts.reduce((acc, alert) => {
+    const itemName = alert.items?.name || "Item";
+
+    if (!acc[itemName]) {
+      acc[itemName] = [];
+    }
+
+    acc[itemName].push(alert);
+
+    return acc;
+  }, {});
 
   const activeCount = summary.activeItems || 0;
   const stolenCount = summary.stolenItems || 0;
@@ -181,44 +196,7 @@ export default function UserDashboard() {
           <QuickActionsPanel />
 
           {/* ===== Recent Alerts ===== */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-            <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-4">
-              Recent Alerts
-            </h2>
-
-            {alerts.length === 0 && (
-              <div className="text-sm text-gray-400">
-                No alerts
-              </div>
-            )}
-
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`flex items-start gap-3 py-2 border-b last:border-0 ${
-                !alert.isread ? "bg-red-50" : ""
-               }`}
-               >
-                <div className="relative flex items-center justify-center w-6">
-                  <span className="text-red-500 text-lg">🚨</span>
-
-                  {!alert.isread && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full"></span>
-                  )}
-                </div>
-
-                <div className={`text-sm ${
-                  !alert.isread ? "text-gray-900 font-medium" : "text-gray-600"
-                 }`}>
-                  <span className="font-medium">
-                    {alert.items?.name || "Item"}
-                  </span>{" "}
-                  — {alert.message}
-                </div>
-              </div>
-            ))}
-          </div>
+          <DashboardAlertsPanel alerts={alerts} />
 
           {/* Pending Transfers */}
           <PendingTransferRequests />

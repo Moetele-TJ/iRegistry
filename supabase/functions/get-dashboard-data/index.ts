@@ -55,31 +55,28 @@ serve(async (req) => {
        1️⃣ PERSONAL SCOPE (ALWAYS)
     =================================*/
 
-    const { count: activeItems } = await supabase
+    const { data: itemStats } = await supabase
       .from("items")
-      .select("*", { count: "exact", head: true })
+      .select("status")
       .eq("ownerid", userId)
-      .eq("status", "Active")
       .is("deletedat", null);
 
-    const { count: stolenItems } = await supabase
-      .from("items")
-      .select("*", { count: "exact", head: true })
-      .eq("ownerid", userId)
-      .eq("status", "Stolen")
-      .is("deletedat", null);
+    let activeItems = 0;
+    let stolenItems = 0;
 
-    const { count: totalNotifications } = await supabase
-      .from("item_notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("ownerid", userId);
+    (itemStats || []).forEach((item) => {
+      if (item.status === "Active") activeItems++;
+      if (item.status === "Stolen") stolenItems++;
+    });
 
-    const { count: unreadNotifications } = await supabase
+    const { data: notificationStats } = await supabase
       .from("item_notifications")
-      .select("*", { count: "exact", head: true })
+      .select("isread")
       .eq("ownerid", userId)
-      .eq("recipient_type","owner")
-      .eq("isread", false);
+      .eq("recipient_type", "owner");
+
+    let totalNotifications = notificationStats?.length || 0;
+    let unreadNotifications = notificationStats?.filter(n => !n.isread).length || 0;
 
     /* ================================
       ALERTS (RECENT NOTIFICATIONS)
@@ -98,10 +95,19 @@ serve(async (req) => {
         items(name,slug)
       `)
       .eq("ownerid", userId)
+      .eq("recipient_type","owner")
       .order("createdon", { ascending: false })
       .limit(5);
 
-    const { data: personalActivity, count: personalCount } = await supabase
+    const { data: userItems } = await supabase
+      .from("items")
+      .select("id")
+      .eq("ownerid", userId)
+      .is("deletedat", null);
+
+    const itemIds = (userItems || []).map(i => i.id);
+
+    let activityQuery = supabase
       .from("activity_logs")
       .select(
         `
@@ -116,9 +122,18 @@ serve(async (req) => {
         `,
         { count: "exact" }
       )
-      .eq("actor_id", userId)
       .order("created_at", { ascending: false })
       .range(offset, offset + safeLimit - 1);
+
+    if (itemIds.length > 0) {
+      activityQuery = activityQuery.or(
+        `actor_id.eq.${userId},entity_id.in.(${itemIds.join(",")})`
+      );
+    } else {
+      activityQuery = activityQuery.eq("actor_id", userId);
+    }
+
+    const { data: personalActivity, count: personalCount } = await activityQuery;
 
     const personal = {
       summary: {
@@ -189,7 +204,7 @@ serve(async (req) => {
           page: safePage,
           limit: safeLimit,
           total: roleCount ?? 0,
-          totalPages: Math.ceil((roleCount ?? 0) / safeLimit),
+          totalPages: Math.max(1, Math.ceil((roleCount ?? 0) / safeLimit)),
         },
       };
     }
@@ -237,6 +252,7 @@ serve(async (req) => {
     );
 
   } catch (err) {
+    console.error("get-dashboard-data crash:", err);
     return respond(
       { 
         success: false,
