@@ -29,11 +29,12 @@ import AdminUsers from "./Pages/admin/AdminUsers.jsx";
 import AdminAuditLogs from "./Pages/admin/AdminAuditLogs.jsx";
 import AdminSettings from "./Pages/admin/AdminSettings.jsx";
 
-
-
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
 import Signup from "./Pages/Signup.jsx";
+
+import Notifications from "./Pages/Notifications.jsx";
+import Activity from "./Pages/ActivityPage.jsx";
 
 // CONTEXTS
 import { ItemsProvider } from "./contexts/ItemsContext.jsx";
@@ -107,7 +108,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/items/add"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
                         <AddItem />
                       </ProtectedRoute>
                     }
@@ -125,8 +126,26 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/items/:id/edit"
                     element={
-                      <ProtectedRoute allowedRoles={["admin"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
                         <EditItem />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/notifications"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                        <Notifications />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/activity"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                        <Activity />
                       </ProtectedRoute>
                     }
                   />

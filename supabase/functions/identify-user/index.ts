@@ -31,30 +31,38 @@ serve(async (req) => {
       req
     });
 
-    return respond({
-      success: false,
-      message: "Missing credentials" });
+    return respond(
+      {
+        success: false,
+        message: "Missing credentials"
+      },
+      corsHeaders,
+      400
+    );
   }
 
-  const lastName = body.last_name?.trim().toLowerCase();
+  const lastName = body.last_name?.trim();
   const ID = body.id_number?.replace(/\s+/g, "").trim();
 
   const { data: user, error: identityError } = await supabase
     .from("users")
     .select("id, phone, email")
-    .ilike("last_name", lastName)
+    .eq("last_name", lastName)
     .eq("id_number", ID)
     .is("deleted_at",null)
     .maybeSingle();
 
   if (identityError) {
 
-     return respond({
-      success: false,
-      diag: "AUT-ID-003",
-      message: "We can not process your request, please contact your System Administrator",
-    });
-
+     return respond(
+      {
+        success: false,
+        diag: "AUT-ID-003",
+        message: "We can not process your request, please contact your System Administrator",
+      },
+      corsHeaders,
+      500
+    );
   }
 
   if (!user) {
@@ -68,11 +76,15 @@ serve(async (req) => {
       req
     });
 
-    return respond({
-      success: false,
-      diag: "AUT-ID-003",
-      message: "We couldn't verify your identity.",
-    });
+    return respond(
+      {
+        success: false,
+        diag: "AUT-ID-003",
+        message: "We couldn't verify your identity.",
+      },
+      corsHeaders,
+      404
+    );
   }
 
   const channels = [];
@@ -88,15 +100,19 @@ serve(async (req) => {
     req
   });
 
-  return respond({
-    success: true,
-    channels,
-    user_id: user.id,
-    masked_phone: user.phone
-      ? user.phone.slice(0, 4) + "••••" + user.phone.slice(-3)
-      : null,
-    masked_email: user.email
-      ? user.email[0] + "***@" + user.email.split("@")[1]
-      : null,
-  });
+  return respond(
+    {
+      success: true,
+      channels,
+      user_id: user.id,
+      masked_phone: user.phone
+        ? user.phone.slice(0, 4) + "••••" + user.phone.slice(-3)
+        : null,
+      masked_email: user.email
+        ? user.email[0] + "***@" + user.email.split("@")[1]
+        : null,
+    },
+    corsHeaders,
+    200
+  );
 });
