@@ -33,7 +33,7 @@ export default function Login() {
 
   // 🔥 AUTO VERIFY WHEN 6 DIGITS ENTERED
   useEffect(() => {
-    if (otp.length === 6 && !verifyingOtp) {
+    if (otp.length === 6 && !verifyingOtp && step === "otp") {
       handleVerifyOtp();
     }
   }, [otp]);
@@ -79,6 +79,33 @@ export default function Login() {
     if (step === "otp" && otpRefs.current[0]) {
       otpRefs.current[0].focus();
     }
+  }, [step]);
+
+  useEffect(() => {
+
+    if (step !== "otp") return;
+    if (!("OTPCredential" in window)) return;
+
+    const ac = new AbortController();
+
+    navigator.credentials
+      .get({
+        otp: { transport: ["sms"] },
+        signal: ac.signal,
+      })
+      .then((credential) => {
+        if (credential && credential.code) {
+          setOtp(credential.code);
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.log("OTP auto-read failed:", err);
+        }
+      });
+
+    return () => ac.abort();
+
   }, [step]);
 
   // ----------------------------
@@ -209,7 +236,7 @@ export default function Login() {
         //Supabse/network error
       if(verifyError && !data){
         setVerifyingOtp(false);
-        setError("OTP Verification failed. Please check your nework connection.");
+        setError("OTP Verification failed. Please check your network connection.");
         return;
       }
 
@@ -292,11 +319,6 @@ export default function Login() {
     if (otpRefs.current[lastIndex]) {
       otpRefs.current[lastIndex].focus();
     }
-
-    // Auto verify when 6 digits pasted
-    //if (pasted.length === 6) {
-    //  setTimeout(() => handleVerifyOtp(), 100);
-    //}
   }
 
   function CountdownCircle({ seconds }) {
@@ -495,6 +517,7 @@ export default function Login() {
                       className="w-12 h-12 text-center text-xl border rounded-lg transition-all duration-150
                       focus:ring-2 focus:ring-iregistrygreen focus:border-iregistrygreen focus:scale-105"
                       maxLength={1}
+                      autoComplete={i === 0 ? "one-time-code" : "off"}
                       inputMode="numeric"
                       value={otp[i] || ""}
                       disabled={verifyingOtp}

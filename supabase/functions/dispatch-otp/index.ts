@@ -124,27 +124,37 @@ serve(async (req) => {
     );
   }
 
-  // 🔔 SEND OTP
+  // 🔔 SEND OTP (SMS)
   if (body.channel === "sms") {
+
     if (!user.phone) {
-        return respond({
-          success: false,
-          diag: "OTP-SMS-002",
-          message: "No phone number registered for this account",
-        },
-        corsHeaders,
-        400
+      return respond({
+        success: false,
+        diag: "OTP-SMS-002",
+        message: "No phone number registered for this account",
+      },
+      corsHeaders,
+      400
       );
     }
 
     try {
+
+      const domain = new URL(req.headers.get("origin") || "https://iregistrysys.com").hostname;
+
+      const smsMessage =
+        `Your iRegistry login code is ${otp}.
+  Do not share this code with anyone.
+
+@${domain} #${otp}`;
+
       const result = await sendSMS(
         user.phone,
-        `Your iRegistry verification code is ${otp}. It expires in 5 minutes.`
+        smsMessage
       );
 
-      // log sms success
       console.log("SMS sent:", result);
+
       await logAudit({
         supabase,
         event: "OTP_SENT",
@@ -157,7 +167,6 @@ serve(async (req) => {
 
     } catch (err) {
 
-      //log sms failure
       await logAudit({
         supabase,
         event: "SMS_SEND_FAILED",
@@ -169,12 +178,12 @@ serve(async (req) => {
       });
 
       return respond({
-          success: false,
-          diag: "OTP-SMS-001",
-          message: "Failed to send OTP via SMS",
-        },
-        corsHeaders,
-        500
+        success: false,
+        diag: "OTP-SMS-001",
+        message: "Failed to send OTP via SMS",
+      },
+      corsHeaders,
+      500
       );
     }
   }
