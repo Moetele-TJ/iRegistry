@@ -16,14 +16,11 @@ serve(async (req) => {
 
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS")
-    {
-    return new Response(null,
-      {
-        status: 204,
-        headers: corsHeaders 
-      }
-    );
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
@@ -47,12 +44,26 @@ serve(async (req) => {
 
     const userId = session.user_id;
 
-    const { error } = await supabase
+    const body = await req.json().catch(() => ({}));
+    const { ids } = body;
+
+    let query = supabase
       .from("item_notifications")
       .update({ isread: true })
       .eq("ownerid", userId)
-      .eq("recipient_type", "owner")
-      .eq("isread", false);
+      .eq("recipient_type", "owner");
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      query = query.in("id", ids);
+    }
+    else if (itemId) {
+      query = query.eq("itemid", itemId).eq("isread", false);
+    }
+    else {
+      query = query.eq("isread", false);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 
