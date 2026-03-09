@@ -8,7 +8,6 @@ import PendingTransferRequests from "../components/PendingTransferRequests";
 import QuickActionsPanel from "../components/QuickActionsPanel";
 import DashboardAlertsPanel from "../components/DashboardAlertsPanel";
 import { useDashboard } from "../hooks/useDashboard";
-import { getAlertIcon } from "../utils/alertIcon";
 import TimeAgo from "../components/TimeAgo";
 
 function useCountUp(target = 0, duration = 800) {
