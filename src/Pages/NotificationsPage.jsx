@@ -5,7 +5,7 @@ import { invokeWithAuth } from "../lib/invokeWithAuth";
 
 export default function NotificationsPage() {
 
-  const { notifications, refresh } = useNotificationCenter();
+  const { notifications = [], refresh } = useNotificationCenter();
 
   useEffect(() => {
     async function markRead() {
@@ -14,20 +14,20 @@ export default function NotificationsPage() {
     }
 
     markRead();
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="max-w-4xl mx-auto py-8 space-y-4">
 
       <h1 className="text-2xl font-semibold">Notifications</h1>
 
-      {notifications.length === 0 && (
+      {notifications?.length === 0 && (
         <div className="text-gray-400 text-sm">
           No notifications yet.
         </div>
       )}
 
-      {notifications.map((n) => (
+      {notifications?.map((n) => (
         <div
           key={n.id}
           className="bg-white border rounded-xl p-4"
