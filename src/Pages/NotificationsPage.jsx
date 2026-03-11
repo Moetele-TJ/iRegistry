@@ -9,8 +9,15 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     async function markRead() {
-      await invokeWithAuth("mark-notifications-read");
-      refresh();
+      try {
+        await invokeWithAuth("mark-notifications-read", {
+          body: {}
+        });
+
+        refresh();
+      } catch (err) {
+        console.error("Failed to mark notifications read", err);
+      }
     }
 
     markRead();

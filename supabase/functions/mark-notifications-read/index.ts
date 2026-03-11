@@ -45,13 +45,14 @@ serve(async (req) => {
     const userId = session.user_id;
 
     const body = await req.json().catch(() => ({}));
-    const { ids } = body;
+    const { ids,itemId } = body;
 
     let query = supabase
       .from("item_notifications")
       .update({ isread: true })
       .eq("ownerid", userId)
-      .eq("recipient_type", "owner");
+      .eq("recipient_type", "owner")
+      .eq("isread", false)
 
     if (Array.isArray(ids) && ids.length > 0) {
       query = query.in("id", ids);
