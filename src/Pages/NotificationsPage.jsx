@@ -14,7 +14,10 @@ export default function NotificationsPage() {
           body: {}
         });
 
-        refresh();
+        if (typeof refresh === "function") {
+          refresh();
+        }
+        
       } catch (err) {
         console.error("Failed to mark notifications read", err);
       }

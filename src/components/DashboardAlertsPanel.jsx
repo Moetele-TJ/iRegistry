@@ -114,7 +114,9 @@ export default function DashboardAlertsPanel({ alerts }) {
                   key={alert.id}
                   onClick={async () => {
 
-                    markItemAlertsRead(alert.itemid);
+                    if (!alert.isread) {
+                      await markItemAlertsRead(alert.itemid);
+                    }
 
                     if (alert.items?.slug) {
                       navigate(`/items/${alert.items.slug}`);
