@@ -17,8 +17,8 @@ export default function Header() {
 
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [hasShownNotificationBadge, setHasShownNotificationBadge] = useState(false);
   const menuRef = useRef(null);
+  const previousUnread = useRef(0);
   const [animateBell, setAnimateBell] = useState(false);
 
   /* Close logout modal on route change */
@@ -33,15 +33,19 @@ export default function Header() {
   }, [showLogoutConfirm]);
 
   useEffect(() => {
-    if (!loading && unread > 0) {
-      setHasShownNotificationBadge(true);
+
+    if (!loading && unread > previousUnread.current) {
 
       setAnimateBell(true);
 
       setTimeout(() => {
         setAnimateBell(false);
       }, 700);
+
     }
+
+    previousUnread.current = unread;
+
   }, [loading, unread]);
 
   async function handleLogout() {
@@ -86,41 +90,40 @@ export default function Header() {
         <img src={logo} alt="iRegistry" className="h-10 md:h-16" />
       </div>
 
-      {/* Unread Notifications Badge */}
-      {user && !loading && (unread > 0 || hasShownNotificationBadge) && (
+      {user && (
+        <div className="flex items-center gap-4">
 
-        <div
-          className="relative cursor-pointer hover:scale-105 transition-transform duration-200"
-          onClick={() => navigate("/notifications")}
-          >
-          <Bell
-            size={20}
-            className={`text-gray-600 ${animateBell ? "bell-shake" : ""}`}
-          />
+          {/* Notifications */}
+          {!loading && unread > 0 && (
+            <div
+              className="relative cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => navigate("/notifications")}
+            >
+              <Bell
+                size={20}
+                className={`text-gray-600 ${animateBell ? "bell-shake" : ""}`}
+              />
 
-          <span
-            className={`absolute -top-2 -right-2 text-xs px-2 py-0.5 rounded-full transition-colors duration-300 ${
-              unread > 0
-                ? "bg-red-600 text-white"
-                : "bg-gray-200 text-gray-600"
-            }`}
-          >
-            {unread > 99 ? "99+" : unread}
-          </span>
-        </div>
-      )}
+              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            </div>
+          )}
 
-      {/* Transfer Badge */}
-      {user && count > 0 && (
+          {/* Transfers */}
+          {count > 0 && (
+            <div
+              className="relative cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => navigate("/userdashboard?tab=transfers")}
+            >
+              <Repeat size={20} className="text-gray-600" />
 
-        <div
-          className="relative cursor-pointer hover:scale-105 transition-transform duration-200"
-          onClick={() => navigate("/userdashboard?tab=transfers")}
-          >
-          <Repeat size={20} className="text-gray-600" />
-          <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">
-            {count}
-          </span>
+              <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">
+                {count}
+              </span>
+            </div>
+          )}
+
         </div>
       )}
 

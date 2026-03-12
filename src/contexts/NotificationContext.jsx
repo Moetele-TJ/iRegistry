@@ -1,10 +1,14 @@
 // src/contexts/NotificationContext.jsx
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 import { useUserNotifications } from "../hooks/useUserNotifications";
+import { useAuth } from "./AuthContext";
 
 const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
+
+  const { user } = useAuth();
 
   const {
     total,
@@ -12,6 +16,32 @@ export function NotificationProvider({ children }) {
     loading,
     refreshNotifications,
   } = useUserNotifications();
+
+  useEffect(() => {
+
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "item_notifications",
+          filter: `ownerid=eq.${user.id}`,
+        },
+        () => {
+          refreshNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+
+  }, [user?.id]);
 
   const value = {
     total,

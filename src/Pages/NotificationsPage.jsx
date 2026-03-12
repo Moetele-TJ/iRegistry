@@ -14,7 +14,10 @@ export default function NotificationsPage() {
   const { confirm } = useModal();
 
   const grouped = groupNotificationsByDate(notifications);
-  const unreadCount = notifications.filter(n => !n.isread).length;
+  const unreadCount = notifications.reduce(
+    (count, n) => count + (!n.isread ? 1 : 0),
+    0
+  );
 
   async function markNotificationRead(id) {
     try {
@@ -105,7 +108,20 @@ export default function NotificationsPage() {
 
           <div className="space-y-3">
 
-            {items.map((n) => {
+            {items
+              .slice()
+              .sort((a, b) => {
+
+                // unread first
+                if (a.isread !== b.isread) {
+                  return a.isread ? 1 : -1;
+                }
+
+                // newest first
+                return new Date(b.createdon) - new Date(a.createdon);
+
+              })
+              .map((n) => {
 
               const Icon = getIcon(n);
 
@@ -122,16 +138,23 @@ export default function NotificationsPage() {
 
                     <div className="flex items-start gap-3">
 
-                      {Icon && (
-                        <Icon
-                          size={18}
-                          className="text-gray-500 mt-0.5"
-                        />
-                      )}
+                      <div className="relative">
+
+                        {Icon && (
+                          <Icon size={18} className="text-gray-500 mt-0.5" />
+                        )}
+
+                        {!n.isread && (
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full"></span>
+                        )}
+
+                      </div>
 
                       <div>
 
-                        <div className="text-sm text-gray-800">
+                        <div className={`text-sm ${
+                          !n.isread ? "font-medium text-gray-900" : "text-gray-600"
+                        }`}>
                           {n.message}
                         </div>
 
