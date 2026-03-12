@@ -103,6 +103,7 @@ serve(async (req) => {
       {
         success: true,
         user,
+        session_token: session.new_token ?? null
       },
       corsHeaders,
       200

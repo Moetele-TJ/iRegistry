@@ -17,15 +17,18 @@ export async function invokeWithAuth(name, options = {}) {
   /* SESSION EXPIRED */
   if (error?.context?.status === 401) {
 
-    // Clear stored session token
     localStorage.removeItem("session");
 
-    // Force redirect to login
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
 
     return { data: null, error };
+  }
+
+  /* 🔄 TOKEN REFRESH */
+  if (data?.session_token) {
+    localStorage.setItem("session", data.session_token);
   }
 
   return response;
