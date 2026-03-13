@@ -1,8 +1,4 @@
 // 📁 src/hooks/useUserNotifications.js
-import { useEffect, useState } from "react";
-import { invokeWithAuth } from "../lib/invokeWithAuth";
-import { useAuth } from "../contexts/AuthContext.jsx";
-
 export function useUserNotifications() {
 
   const { user } = useAuth();
@@ -13,8 +9,6 @@ export function useUserNotifications() {
   const [notifications, setNotifications] = useState([]);
 
   async function fetchNotifications() {
-
-    if (!user?.id) return;
 
     setLoading(true);
 
@@ -41,7 +35,11 @@ export function useUserNotifications() {
   }
 
   useEffect(() => {
+
+    if (!user?.id) return;
+
     fetchNotifications();
+
   }, [user?.id]);
 
   return {
