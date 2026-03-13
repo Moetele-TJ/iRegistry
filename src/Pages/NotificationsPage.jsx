@@ -152,11 +152,23 @@ export default function NotificationsPage() {
 
                       <div>
 
+                        {n.items?.name && (
+                          <div className="text-sm text-gray-500 mb-1">
+                            Item: {n.items.name}
+                          </div>
+                        )}
+
                         <div className={`text-sm ${
                           !n.isread ? "font-medium text-gray-900" : "text-gray-600"
                         }`}>
                           {n.message}
                         </div>
+
+                        {n.contact && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Contact: {n.contact}
+                          </div>
+                        )}
 
                         <div className="text-xs text-gray-400 mt-1">
                           <TimeAgo date={n.createdon} />
