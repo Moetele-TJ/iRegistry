@@ -50,7 +50,9 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        validateSession(token);
+        if (!loading) {
+          validateSession(token);
+        }
       }
     }
 

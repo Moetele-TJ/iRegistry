@@ -11,6 +11,7 @@ export function NotificationProvider({ children }) {
   const { user } = useAuth();
 
   const {
+    notifications,
     total,
     unread,
     loading,
@@ -44,10 +45,11 @@ export function NotificationProvider({ children }) {
   }, [user?.id]);
 
   const value = {
+    notifications,
     total,
     unread,
     loading,
-    refreshNotifications,
+    refresh: refreshNotifications,
   };
 
   return (

@@ -10,6 +10,7 @@ export function useUserNotifications() {
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
 
   async function fetchNotifications() {
 
@@ -18,15 +19,22 @@ export function useUserNotifications() {
     setLoading(true);
 
     const { data: res, error } = await invokeWithAuth(
-      "get-dashboard-data"
+      "get-notifications",
+      {
+        body: {
+          limit: 50,
+          page: 1
+        }
+      }
     );
 
     if (!error && res?.success) {
 
-      const summary = res.personal?.summary || {};
+      const list = res.notifications || [];
 
-      setTotal(summary.notifications ?? 0);
-      setUnread(summary.unreadNotifications ?? 0);
+      setNotifications(list);
+      setTotal(list.length);
+      setUnread(list.filter(n => !n.isread).length);
     }
 
     setLoading(false);
@@ -37,6 +45,7 @@ export function useUserNotifications() {
   }, [user?.id]);
 
   return {
+    notifications,
     total,
     unread,
     loading,
