@@ -164,13 +164,26 @@ export default function Items() {
     return { totalItems, activeItems, stolenItems };
   }, [items]);
 
-  // context-backed actions (wrappers)
-  function doToggleStatus(id) {
+  // ----------Mark Stolen/Active............................
+  async function doToggleStatus(id) {
+
     const it = items.find((x) => x.id === id);
     if (!it) return;
+
     const next = it.status === "Stolen" ? "Active" : "Stolen";
-    updateItem(id, { status: next });
-    // Note: toast shown via afterConfirmMessage handled by modal -> handleAfterConfirm
+
+    const updates =
+      next === "Stolen"
+        ? {
+            status: "Stolen",
+            reportedStolenAt: new Date().toISOString(),
+          }
+        : {
+            status: "Active",
+            reportedStolenAt: null,
+          };
+
+    await updateItem(id, updates);
   }
 
   async function doDelete(id) {
@@ -542,14 +555,24 @@ export default function Items() {
                       </td>
                       <td className="py-4 px-5 text-gray-600">{item.category}</td>
                       <td className="py-4 px-5">
-                        <span
-                          className={
-                            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
-                            statusBadge(item.status)
-                          }
-                        >
-                          {item.status || "—"}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+
+                          <span
+                            className={
+                              "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
+                              statusBadge(item.status)
+                            }
+                          >
+                            {item.status || "—"}
+                          </span>
+
+                          {item.status === "Stolen" && item.reportedStolenAt && (
+                            <div className="text-xs text-red-500">
+                              Reported {new Date(item.reportedStolenAt).toLocaleDateString("en-BW")}
+                            </div>
+                          )}
+
+                        </div>
                       </td>
                       <td className="py-4 px-5 text-gray-600">
                         {item.lastSeen || "-"}
@@ -677,16 +700,26 @@ export default function Items() {
 
                     {/* Status Badge */}
                     <div>
-                      <span
-                        className={`
-                          inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors duration-300
-                          ${isStolen
-                            ? "bg-red-100 text-red-700 border-red-200"
-                            : "bg-emerald-100 text-emerald-700 border-emerald-200"}
-                        `}
-                      >
-                        {item.status}
-                      </span>
+                      <div className="flex flex-col items-end">
+
+                        <span
+                          className={`
+                            inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border
+                            ${isStolen
+                              ? "bg-red-100 text-red-700 border-red-200"
+                              : "bg-emerald-100 text-emerald-700 border-emerald-200"}
+                          `}
+                        >
+                          {item.status}
+                        </span>
+
+                        {item.status === "Stolen" && item.reportedStolenAt && (
+                          <div className="text-[11px] text-red-500 mt-1">
+                            Reported {new Date(item.reportedStolenAt).toLocaleDateString("en-BW")}
+                          </div>
+                        )}
+
+                      </div>
                     </div>
                   </div>
 

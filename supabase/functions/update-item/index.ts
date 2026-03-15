@@ -145,6 +145,7 @@ serve(async (req) => {
       "shop",
       "warrantyExpiry",
       "notes",
+      "status"
     ];
 
     const cleanUpdates: Record<string, any> = {};
@@ -157,6 +158,34 @@ serve(async (req) => {
 
       cleanUpdates[dbField] =
         typeof value === "string" ? value.trim() : value;
+    }
+
+    /* ---------------- STATUS HANDLING ---------------- */
+
+    if ("status" in cleanUpdates) {
+
+      const newStatus = cleanUpdates.status;
+
+      if (!["Active", "Stolen"].includes(newStatus)) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-STATUS-001",
+            message: "Invalid status value",
+          },
+          corsHeaders,
+          400
+        );
+      }
+
+      if (newStatus === "Stolen") {
+        cleanUpdates.reportedstolenat = new Date().toISOString();
+      }
+
+      if (newStatus === "Active") {
+        cleanUpdates.reportedstolenat = null;
+      }
+
     }
 
     if (Object.keys(cleanUpdates).length === 0) {
@@ -332,14 +361,31 @@ serve(async (req) => {
 
     /* ---------------- ACTIVITY LOG ---------------- */
 
+    let action = "ITEM_UPDATED";
+    let message = `Updated item ${updatedItem.name}`;
+
+    if ("status" in cleanUpdates) {
+
+      if (cleanUpdates.status === "Stolen") {
+        action = "ITEM_REPORTED_STOLEN";
+        message = `${updatedItem.name} was reported stolen`;
+      }
+
+      if (cleanUpdates.status === "Active") {
+        action = "ITEM_MARKED_ACTIVE";
+        message = `${updatedItem.name} was marked active`;
+      }
+
+    }
+
     await logActivity(supabase, {
       actorId: actorUserId,
       actorRole,
       entityType: "item",
       entityId: id,
       entityName: updatedItem.name,
-      action: "ITEM_UPDATED",
-      message: `Updated item ${updatedItem.name}`,
+      action,
+      message,
       metadata: {
         changes: diff,
       },

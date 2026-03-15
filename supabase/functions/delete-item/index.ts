@@ -127,7 +127,7 @@ serve(async (req) => {
 
     const { error: deleteError } = await supabase
       .from("items")
-      .update({ deletedat: deletedAt })
+      .update({ deletedat: deletedAt})
       .eq("id", id);
 
     if (deleteError) {
