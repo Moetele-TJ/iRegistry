@@ -79,12 +79,20 @@ export default function Items() {
     });
   }
 
-  function handleAfterConfirm() {
-    // called by modal via afterConfirm prop
+  function handleAfterConfirm(success) {
+
+    if (!success) return;
+
     if (confirm.afterConfirmMessage) {
-      setToast({ message: confirm.afterConfirmMessage, type: "success", visible: true });
-      // hide toast after a short delay
-      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
+      setToast({
+        message: confirm.afterConfirmMessage,
+        type: "success",
+        visible: true,
+      });
+
+      setTimeout(() => {
+        setToast((t) => ({ ...t, visible: false }));
+      }, 2500);
     }
   }
 
@@ -165,9 +173,22 @@ export default function Items() {
     // Note: toast shown via afterConfirmMessage handled by modal -> handleAfterConfirm
   }
 
-  function doDelete(id) {
-    deleteItem(id);
-    // Note: toast shown via afterConfirmMessage handled by modal -> handleAfterConfirm
+  async function doDelete(id) {
+    try {
+      await deleteItem(id);
+    } catch (err) {
+      setToast({
+        message: err.message || "Failed to delete item",
+        type: "error",
+        visible: true,
+      });
+
+      setTimeout(() => {
+        setToast((t) => ({ ...t, visible: false }));
+      }, 3000);
+
+      throw err; // prevent success toast
+    }
   }
 
   // wrappers that open the confirm modal with action + message
@@ -194,7 +215,7 @@ export default function Items() {
 
     openConfirm({
       title: "Delete item",
-      message: `Delete "${it.name || it.id}"? This action cannot be undone.`,
+      message: `Delete "${it.name || it.id}" permanently?\n\nThis action cannot be undone.`,
       confirmLabel: "Delete",
       cancelLabel: "Cancel",
       danger: true,
@@ -273,7 +294,7 @@ export default function Items() {
         onClose={() => closeConfirm()}
         action={confirm.action}
         actionArg={confirm.arg}
-        afterConfirm={() => handleAfterConfirm()}
+        afterConfirm={(success) => handleAfterConfirm(success)}
         title={confirm.title}
         message={confirm.message}
         confirmLabel={confirm.confirmLabel}

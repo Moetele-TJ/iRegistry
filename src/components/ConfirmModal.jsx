@@ -80,12 +80,19 @@ export default function ConfirmModal({
       }
 
       if (typeof afterConfirm === "function") {
-        await afterConfirm();
+        await afterConfirm(true); // success
       }
 
       onClose?.();
+
     } catch (err) {
+
       console.error("confirm action error", err);
+
+      if (typeof afterConfirm === "function") {
+        await afterConfirm(false); // failure
+      }
+
     } finally {
       setLoading(false);
     }
