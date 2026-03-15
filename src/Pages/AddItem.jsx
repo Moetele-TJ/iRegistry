@@ -207,7 +207,10 @@ export default function AddItem() {
       return;
     }
     
-    let itemId;
+    let created = await addItem(payload);
+
+    const itemId = created.id;
+    const itemSlug = created.slug;
 
     try {
       const payload = Object.fromEntries(
@@ -221,11 +224,11 @@ export default function AddItem() {
         payload.estimatedValue = Number(payload.estimatedValue);
       }
 
-      itemId = await addItem(payload);
+      itemSlug = await addItem(payload);
 
       // If no photos selected, just redirect
       if (photoPreviews.length === 0) {
-        navigate(`/items/${itemId}`);
+        navigate(`/items/${itemSlug}`);
         return;
       }
 
@@ -251,7 +254,7 @@ export default function AddItem() {
           mode: "alert",
         });
 
-        navigate(`/items/${itemId}`);
+        navigate(`/items/${itemSlug}`);
         return;
       }
 
@@ -334,7 +337,7 @@ export default function AddItem() {
         mode: "alert",
       });
 
-      navigate(`/items/${itemId}`);
+      navigate(`/items/${itemSlug}`);
 
       setCurrentUpload(0);
       setTotalUploads(0);
@@ -349,7 +352,7 @@ export default function AddItem() {
           variant: "warning",
         });
 
-        navigate(`/items/${itemId}`);
+        navigate(`/items/${itemSlug}`);
         return;
       }
 

@@ -194,7 +194,10 @@ export function ItemsProvider({ children }) {
         payload: newItem,
       });
 
-      return newItem.id;
+      return {
+        id: newItem.id,
+        slug: newItem.slug
+      };
 
     }catch (err) {
       dispatch({ type: "SET_ERROR", payload: err.message });
