@@ -92,21 +92,30 @@ export default function VerificationPanel() {
   }
 
   async function openCamera() {
+
+    setCameraOpen(true);
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+      });
 
       if (videoRef.current) {
+
         videoRef.current.srcObject = stream;
 
         videoRef.current.onloadedmetadata = () => {
           startAutoCapture();
         };
+
       }
 
-      setCameraOpen(true);
-
     } catch (err) {
+
       console.error("Camera access denied", err);
+      setCameraOpen(false);
+
     }
   }
 
