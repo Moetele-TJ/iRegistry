@@ -5,7 +5,8 @@ import RippleButton from "./RippleButton.jsx";
 import Tooltip from "./Tooltip.jsx";
 import { useItemVerification } from "../hooks/useItemVerification";
 import { useNotifyOwner } from "../hooks/useNotifyOwner";
-import { ShieldAlert, Info } from "lucide-react";
+import { usePhotoVerification } from "../hooks/usePhotoVerification";
+import { ShieldAlert, Info, Camera } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import ConfirmModal from "./ConfirmModal.jsx";
@@ -20,8 +21,13 @@ export default function VerificationPanel() {
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [transferError, setTransferError] = useState(null);
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const videoRef = useRef(null);
 
   const resultRef = useRef(null);
+  const frameRef = useRef(null);
+  const autoCaptureRef = useRef(null);
+  const lastFrameRef = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -40,6 +46,17 @@ export default function VerificationPanel() {
     error: notifyError,
   } = useNotifyOwner();
 
+  const {
+    result: photoResult,
+    verifying: verifyingPhoto,
+    error: photoError,
+    verifyPhoto,
+    reset: resetPhoto
+  } = usePhotoVerification();
+
+  const finalResult = photoResult || verificationResult;
+  const verifyingAny = verifying || verifyingPhoto;
+
   /* =========================================================
      RESET AFTER SUCCESS
   ========================================================= */
@@ -51,26 +68,138 @@ export default function VerificationPanel() {
       setSerial("");
       setNotifyPolice(false);
       reset();
+      resetPhoto();
     }
   }, [notifySuccess, reset]);
 
   useEffect(() => {
-    if (verificationResult && resultRef.current) {
+    if (finalResult && resultRef.current) {
       resultRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     }
-  }, [verificationResult]);
+  }, [finalResult]);
 
   useEffect(() => {
-    if (verificationResult) {
+    if (finalResult) {
       setAction(null);
     }
-  }, [verificationResult]);
+  }, [finalResult]);
 
   function handleVerify() {
     verify(serial);
+  }
+
+  async function openCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+
+        videoRef.current.onloadedmetadata = () => {
+          startAutoCapture();
+        };
+      }
+
+      setCameraOpen(true);
+
+    } catch (err) {
+      console.error("Camera access denied", err);
+    }
+  }
+
+  function startAutoCapture() {
+
+    const video = videoRef.current;
+
+    autoCaptureRef.current = setInterval(() => {
+
+      if (!video || video.videoWidth === 0) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      if (!lastFrameRef.current) {
+        lastFrameRef.current = frame;
+        return;
+      }
+
+      let diff = 0;
+
+      for (let i = 0; i < frame.length; i += 50) {
+        diff += Math.abs(frame[i] - lastFrameRef.current[i]);
+      }
+
+      lastFrameRef.current = frame;
+
+      /* ---- frame stable threshold ---- */
+
+      if (diff < 50000) {
+
+        clearInterval(autoCaptureRef.current);
+
+        capturePhoto();
+      }
+
+    }, 800);
+  }
+
+  async function capturePhoto() {
+
+    if (!videoRef.current || !cameraOpen) return;
+
+    const video = videoRef.current;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    const image = canvas.toDataURL("image/jpeg", 0.9);
+
+    /* ---- stop camera stream ---- */
+
+    const stream = video.srcObject;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    clearInterval(autoCaptureRef.current);
+    lastFrameRef.current = null;
+
+    setCameraOpen(false);
+
+    try {
+
+      await verifyPhoto(image);
+
+    } catch (err) {
+      console.error("Photo verification failed", err);
+    }
+  }
+
+  function closeCamera() {
+
+    const video = videoRef.current;
+
+    if (video?.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    clearInterval(autoCaptureRef.current);
+    lastFrameRef.current = null;
+
+    setCameraOpen(false);
   }
 
   async function handleSubmit() {
@@ -94,7 +223,7 @@ export default function VerificationPanel() {
 
   async function executeTransfer(){
 
-    if (!verificationResult?.itemId) {
+    if (!finalResult?.itemId) {
       setTransferError("Invalid item reference");
       return;
     }
@@ -105,7 +234,7 @@ export default function VerificationPanel() {
 
     try {
       const res = await invokeWithAuth("create-transfer-request", {
-        item_id: verificationResult?.itemId,
+        item_id: finalResult?.itemId,
         message: null,
       });
 
@@ -124,7 +253,7 @@ export default function VerificationPanel() {
   }
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-md mb-8">
+    <div className="relative bg-white rounded-3xl p-6 shadow-md mb-8">
       
       {/* =========================================================
           VERIFICATION HEADER
@@ -141,26 +270,42 @@ export default function VerificationPanel() {
           VERIFICATION INPUT
       ========================================================= */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <input
-          type="text"
-          placeholder="Enter Serial Number"
-          value={serial}
-          onChange={(e) => setSerial(e.target.value)}
-          disabled={!!verificationResult}
-          className={`flex-1 px-4 py-3 border rounded-2xl bg-emerald-100 ring-1 ring-emerald-300
-          focus:outline-none focus:ring-2 focus:ring-emerald-500
-          ${verificationResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
-          `}
-        />
+        <div className="relative flex-1">
+
+          <input
+            type="text"
+            placeholder="Enter Serial Number or take a photo"
+            value={serial}
+            onChange={(e) => setSerial(e.target.value)}
+            disabled={!!finalResult}
+            className={`w-full px-4 py-3 pr-12 border rounded-2xl bg-emerald-100 ring-1 ring-emerald-300
+            focus:outline-none focus:ring-2 focus:ring-emerald-500
+            ${finalResult ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
+            `}
+          />
+
+          <button
+            type="button"
+            onClick={openCamera}
+            disabled={verifyPhoto}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-emerald-600 transition"
+          >
+            <Camera
+              size={20}
+              strokeWidth={2.2}
+              className={verifyingPhoto ? "animate-pulse text-emerald-600" : ""}
+            />
+          </button>
+        </div>
 
         <RippleButton
           className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 ${
-            verificationResult
+            finalResult
               ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
               : "bg-emerald-600 text-white hover:bg-emerald-700"
           }`}
           onClick={() => {
-            if (verificationResult) {
+            if (finalResult) {
               reset();
               setAction(null);
               setNotifyPolice(false);
@@ -168,11 +313,11 @@ export default function VerificationPanel() {
               handleVerify();
             }
           }}
-          disabled={!verificationResult && (verifying || !serial.trim())}
+          disabled={!finalResult && (verifyingAny || !serial.trim())}
         >
-          {verificationResult
+          {finalResult
             ? "Cancel & Search Again"
-            : verifying
+            : verifyingAny
             ? "Checking..."
             : "Verify"}
         </RippleButton>
@@ -185,7 +330,7 @@ export default function VerificationPanel() {
       {/* =========================================================
           SHIMMER LOADING STATE
       ========================================================= */}
-      {verifying && (
+      {verifyingAny && (
         <div className="mt-6 space-y-3 animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/2"></div>
           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -196,7 +341,7 @@ export default function VerificationPanel() {
       {/* =========================================================
           VERIFICATION RESULT
       ========================================================= */}
-      {!verifying && verificationResult && (
+      {!verifyingAny && finalResult && (
         <div 
             ref={resultRef} 
             className="mt-6 space-y-4"
@@ -205,7 +350,7 @@ export default function VerificationPanel() {
           {/* =========================================================
               NOT FOUND STATE
           ========================================================= */}
-          {verificationResult.state === "NOT_FOUND" && (
+          {finalResult.state === "NOT_FOUND" && (
             <div className="p-5 rounded-2xl border border-gray-200 bg-gray-50">
               
               <div className="font-semibold text-gray-800 mb-2">
@@ -224,7 +369,7 @@ export default function VerificationPanel() {
             </div>
           )}
 
-          {verificationResult.state === "REGISTERED" && (
+          {finalResult.state === "REGISTERED" && (
             <>
               <div className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50">
   
@@ -312,7 +457,7 @@ export default function VerificationPanel() {
           {/* =========================================================
               STOLEN STATE
           ========================================================= */}
-          {verificationResult.state === "STOLEN" && (
+          {finalResult.state === "STOLEN" && (
             <>
               {/* Stolen Warning Message */}
               <div className="p-5 rounded-2xl border border-red-300 bg-red-50">
@@ -414,9 +559,9 @@ export default function VerificationPanel() {
           {/* =========================================================
               ERROR STATE
           ========================================================= */}
-          {verificationError && (
+          {(verificationError || photoError) && (
             <div className="text-red-600 mt-4 text-sm">
-              {verificationError}
+              {verificationError || photoError}
             </div>
           )}
 
@@ -529,6 +674,76 @@ export default function VerificationPanel() {
         confirmLabel="Yes, Request Transfer"
         cancelLabel="Cancel"
       />
+
+      {cameraOpen && (
+        <div className="absolute inset-0 z-40 bg-black/80 flex flex-col items-center justify-center rounded-3xl">
+
+          <div className="relative w-[90%] max-w-md">
+
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full rounded-xl border border-white shadow-lg"
+            />
+
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+
+              <div className="w-[70%] h-[55%] border-2 border-emerald-400 rounded-lg relative">
+
+                {/* Corner markers */}
+                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-400"></div>
+                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-400"></div>
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-emerald-400"></div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-400"></div>
+
+                {/* Scanning line */}
+                <div className="absolute left-0 w-full h-[2px] bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-scan"></div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div className="text-white text-sm mt-4">
+            Center the item — Photo will be captured automatically or tap "Capture".
+          </div>
+
+          <div className="flex gap-4 mt-6">
+            <RippleButton
+              className="px-6 py-3 bg-emerald-600 text-white rounded-xl"
+              onClick={capturePhoto}
+            >
+              Capture
+            </RippleButton>
+
+            <RippleButton
+              className="px-6 py-3 bg-gray-300 text-gray-800 rounded-xl"
+              onClick={closeCamera}
+            >
+              Cancel
+            </RippleButton>
+          </div>
+
+        </div>
+      )}
+
+      {verifyingPhoto && !cameraOpen && (
+        <div className="absolute inset-0 z-30 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl">
+
+          <div className="animate-spin w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full mb-4"></div>
+
+          <div className="text-gray-700 font-medium">
+            Analyzing photo...
+          </div>
+
+          <div className="text-xs text-gray-500 mt-1">
+            Searching registry for matching items
+          </div>
+
+        </div>
+      )}
 
       <hr className="my-6 border-gray-200" />
 

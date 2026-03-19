@@ -359,6 +359,19 @@ serve(async (req) => {
       );
     }
 
+    /* ---------------- SYNC EMBEDDING STATUS ---------------- */
+
+    if ("reportedstolenat" in cleanUpdates || "status" in cleanUpdates) {
+
+      const isStolen = updatedItem.reportedstolenat !== null;
+
+      await supabase
+        .from("image_embeddings")
+        .update({ is_stolen: isStolen })
+        .eq("item_id", id);
+
+    }
+
     /* ---------------- ACTIVITY LOG ---------------- */
 
     let action = "ITEM_UPDATED";

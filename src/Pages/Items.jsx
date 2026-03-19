@@ -5,6 +5,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatCurrency(value) {
   if (value == null) return "-";
@@ -532,10 +533,9 @@ export default function Items() {
                           <div className="w-11 h-11 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center text-xs text-gray-400 overflow-hidden">
                             {item.photos?.[0] ? (
                               <img
-                                src={item.photos[0]}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
+                              src={`${SUPABASE_URL}/storage/v1/object/public/item-photos/${item.photos?.[0]?.thumb}`}
+                              className="w-full h-full object-cover"
+                            />
                             ) : (
                               "—"
                             )}
@@ -669,7 +669,7 @@ export default function Items() {
                     `}>
                       {item.photos?.[0] ? (
                         <img
-                          src={item.photos[0]}
+                          src={`${SUPABASE_URL}/storage/v1/object/public/item-photos/${item.photos?.[0]?.thumb}`}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />

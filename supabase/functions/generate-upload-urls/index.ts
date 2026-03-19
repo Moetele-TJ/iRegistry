@@ -160,16 +160,20 @@ serve(async (req) => {
       }
 
       const extension = file.type.split("/")[1];
-      const filePath = `items/${itemId}/${crypto.randomUUID()}.${extension}`;
+      const fileName = `${crypto.randomUUID()}.${extension}`;
+
+      const originalPath = `items/originals/${itemId}/${fileName}`;
+      const thumbPath = `items/thumbs/${itemId}/${fileName}`;
 
       const { data, error } = await supabase.storage
         .from("item-photos")
-        .createSignedUploadUrl(filePath);
+        .createSignedUploadUrl(originalPath);
 
       if (error) throw error;
 
       uploads.push({
-        path: filePath,
+        path: originalPath,
+        thumbPath,
         signedUrl: data.signedUrl,
       });
     }

@@ -5,6 +5,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { compressImage } from "../utils/imageCompression.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export default function AddItem() {
   const [totalUploads, setTotalUploads] = useState(0);
   const activeXhrs = useRef([]);
   const uploadCancelledRef = useRef(false);
+  const [dragActive, setDragActive] = useState(false);
 
   const [form, setForm] = useState({
     category: "",
@@ -104,18 +106,73 @@ export default function AddItem() {
     updateField("estimatedValue", raw);
   }
 
-  function handlePhotos(e) {
-    const files = Array.from(e.target.files).slice(0, 5);
+  async function processFiles(files) {
+    const selected = Array.from(files).slice(0, 5);
 
-    // Clean previous previews
     photoPreviews.forEach(p => URL.revokeObjectURL(p.url));
-    
-    const previews = files.map(file => ({
-      file,
-      url: URL.createObjectURL(file),
-    }));
+
+    const previews = await Promise.all(
+      selected.map(async (file) => {
+
+        const compressed = await compressImage(file);
+
+        return {
+          file: compressed,
+          url: URL.createObjectURL(compressed),
+        };
+
+      })
+    );
 
     setPhotoPreviews(previews);
+  }
+
+  async function handlePhotos(e) {
+    processFiles(e.target.files);
+  }
+
+  function handleDrag(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  }
+
+  function movePhoto(fromIndex, toIndex) {
+
+    const updated = [...photoPreviews];
+
+    const [moved] = updated.splice(fromIndex, 1);
+
+    updated.splice(toIndex, 0, moved);
+
+    setPhotoPreviews(updated);
+  }
+
+  function removePhoto(index) {
+
+    const updated = [...photoPreviews];
+
+    URL.revokeObjectURL(updated[index].url);
+
+    updated.splice(index, 1);
+
+    setPhotoPreviews(updated);
   }
 
   const requiredFields = ["category", "make", "model", "serial1", "location"];
@@ -207,12 +264,11 @@ export default function AddItem() {
       return;
     }
     
-    let created = await addItem(payload);
-
-    const itemId = created.id;
-    const itemSlug = created.slug;
+    let itemId;
+    let itemSlug;
 
     try {
+
       const payload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [
           k,
@@ -224,11 +280,14 @@ export default function AddItem() {
         payload.estimatedValue = Number(payload.estimatedValue);
       }
 
-      itemSlug = await addItem(payload);
+      const created = await addItem(payload);
+
+      itemId = created.id;
+      itemSlug = created.slug;
 
       // If no photos selected, just redirect
       if (photoPreviews.length === 0) {
-        navigate(`/items/${itemSlug}`);
+        if (itemSlug) navigate(`/items/${itemSlug}`);
         return;
       }
 
@@ -254,7 +313,7 @@ export default function AddItem() {
           mode: "alert",
         });
 
-        navigate(`/items/${itemSlug}`);
+        if (itemSlug) navigate(`/items/${itemSlug}`);
         return;
       }
 
@@ -266,51 +325,78 @@ export default function AddItem() {
       setTotalUploads(uploadInit.uploads.length);
 
       try {
-        for (let i = 0; i < uploadInit.uploads.length; i++) {
-          setCurrentUpload(i+1);
+        const total = Math.min(uploadInit.uploads.length, photoPreviews.length);
+        let completed = 0;
+        const totalBytes = photoPreviews.reduce((sum, p) => sum + p.file.size, 0);
+        let uploadedBytes = 0;
 
-          const upload = uploadInit.uploads[i];
-          const file = photoPreviews[i].file;
+        await Promise.all(
+          uploadInit.uploads.map((upload, i) => {
+            const file = photoPreviews[i]?.file;
 
-          await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            activeXhrs.current.push(xhr);
+            if (!file) {
+              throw new Error("Photo upload mismatch.");
+            }
 
-            xhr.open("PUT", upload.signedUrl);
-            xhr.setRequestHeader("Content-Type", file.type);
+            return new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              activeXhrs.current.push(xhr);
 
-            xhr.upload.onprogress = (event) => {
-              if (event.lengthComputable) {
-                const percent = Math.round(
-                  ((i + event.loaded / event.total) / uploadInit.uploads.length) * 100
-                );
-                setUploadProgress(percent);
-              }
-            };
+              xhr.open("PUT", upload.signedUrl);
+              xhr.setRequestHeader("Content-Type", file.type);
 
-            xhr.onload = () => {
-              activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
+              xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                  const previous = xhr._lastLoaded || 0;
+                  const delta = event.loaded - previous;
+                  xhr._lastLoaded = event.loaded;
 
-              if (xhr.status >= 200 && xhr.status < 300) {
-                resolve();
-              } else {
-                reject(new Error("Failed to upload one of the photos."));
-              }
-            };
+                  uploadedBytes += delta;
 
-            xhr.onerror = () => {
-              activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
-              reject(new Error("Upload failed."));
-            };
+                  const percent = Math.round((uploadedBytes / totalBytes) * 100);
+                  setUploadProgress(Math.min(percent, 100));
+                }
+              };
 
-            xhr.send(file);
-          });
-        }
+              xhr.onload = () => {
+                activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  completed++;
+                  setCurrentUpload(completed);
+                  resolve();
+                } else {
+                  reject(new Error("Failed to upload one of the photos."));
+                }
+              };
+
+              xhr.onerror = () => {
+                activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
+                reject(new Error("Upload failed."));
+              };
+
+              xhr.send(file);
+            });
+          })
+        );
       }finally{
         setIsUploading(false);
       }
 
       setUploadProgress(100);
+
+      /* ---------- Generate thumbnails ---------- */
+
+      await Promise.all(
+        uploadInit.uploads.map(u =>
+          invokeWithAuth("generate-thumbnail", {
+            body: {
+              originalPath: u.path,
+              thumbPath: u.thumbPath
+            }
+          })
+        )
+      );
 
       // 3️⃣ Save photo paths in DB
       
@@ -319,7 +405,10 @@ export default function AddItem() {
           body: {
             id: itemId,
             updates: {
-              photos: uploadInit.uploads.map(u => u.path),
+              photos: uploadInit.uploads.map(u => ({
+                original: u.path,
+                thumb: u.thumbPath
+              }))
             },
           },
         });
@@ -330,6 +419,20 @@ export default function AddItem() {
         );
       }
 
+      /* ---------- Queue AI embedding ---------- */
+
+      await Promise.all(
+        uploadInit.uploads.map(u =>
+          invokeWithAuth("create-embedding-job", {
+            body: {
+              itemId,
+              photoPath: u.path,
+              thumbPath: u.thumbPath
+            }
+          })
+        )
+      );
+
       await alert({
         title: "Item Created",
         message: "Your item has been successfully registered.",
@@ -337,10 +440,11 @@ export default function AddItem() {
         mode: "alert",
       });
 
-      navigate(`/items/${itemSlug}`);
+      if (itemSlug) navigate(`/items/${itemSlug}`);
 
       setCurrentUpload(0);
       setTotalUploads(0);
+      setUploadProgress(0);
       
     }     
     catch (err) {
@@ -352,7 +456,7 @@ export default function AddItem() {
           variant: "warning",
         });
 
-        navigate(`/items/${itemSlug}`);
+        if (itemSlug) navigate(`/items/${itemSlug}`);
         return;
       }
 
@@ -498,26 +602,92 @@ export default function AddItem() {
             </Field>
 
             <Field label="Photos (max 5)">
-              <input
-                name="photos"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotos}
-                className="input"
-              />
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition
+                  ${dragActive
+                    ? "border-iregistrygreen bg-emerald-50"
+                    : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
+                `}
+              >
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotos}
+                  className="hidden"
+                  id="photo-upload"
+                />
+
+                <label htmlFor="photo-upload" className="cursor-pointer block">
+
+                  <div className="text-sm text-gray-600">
+                    Drag photos here or
+                    <span className="text-iregistrygreen font-medium"> click to browse</span>
+                  </div>
+
+                  <div className="text-xs text-gray-400 mt-1">
+                    Maximum 5 images
+                  </div>
+
+                </label>
+
+              </div>
 
               {photoPreviews.length > 0 && (
+
                 <div className="grid grid-cols-3 gap-3 mt-3">
+
                   {photoPreviews.map((p, i) => (
-                    <img
+
+                    <div
                       key={i}
-                      src={p.url}
-                      alt="preview"
-                      className="rounded-lg h-24 w-full object-cover border"
-                    />
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("photoIndex", i);
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        const from = Number(e.dataTransfer.getData("photoIndex"));
+                        movePhoto(from, i);
+                      }}
+                      className="relative group cursor-move"
+                    >
+
+                      <img
+                        src={p.url}
+                        alt="preview"
+                        className="rounded-lg h-24 w-full object-cover border"
+                      />
+
+                      {/* Thumbnail badge */}
+
+                      {i === 0 && (
+                        <div className="absolute top-1 left-1 text-[10px] bg-black/70 text-white px-1 rounded">
+                          Thumbnail
+                        </div>
+                      )}
+
+                      {/* Delete button */}
+
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition"
+                      >
+                        ✕
+                      </button>
+
+                    </div>
+
                   ))}
+
                 </div>
+
               )}
             </Field>
           </div>
