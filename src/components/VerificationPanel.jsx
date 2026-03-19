@@ -287,7 +287,7 @@ export default function VerificationPanel() {
           <button
             type="button"
             onClick={openCamera}
-            disabled={verifyPhoto}
+            disabled={verifyingPhoto}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-emerald-600 transition"
           >
             <Camera
