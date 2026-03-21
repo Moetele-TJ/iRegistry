@@ -104,12 +104,12 @@ serve(async (req) => {
 
   } catch (err) {
 
-    console.error(err)
+    console.error("PHOTO SEARCH ERROR:", err)
 
     return respond(
       {
         success: false,
-        message: "Search failed"
+        message: err?.message || "Embedding generation failed"
       },
       corsHeaders,
       500
