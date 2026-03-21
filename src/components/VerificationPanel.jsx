@@ -685,15 +685,15 @@ export default function VerificationPanel() {
       />
 
       {cameraOpen && (
-        <div className="absolute inset-0 z-40 bg-black/80 flex flex-col items-center justify-center rounded-3xl">
+        <div className="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center">
 
-          <div className="relative w-[90%] max-w-md">
+          <div className="relative w-full h-full flex items-center justify-center">
 
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              className="w-full rounded-xl border border-white shadow-lg"
+              className="w-full h-full object-cover"
             />
 
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
