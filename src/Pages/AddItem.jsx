@@ -11,6 +11,7 @@ export default function AddItem() {
   const navigate = useNavigate();
   const { addItem, loading } = useItems();
   const [serialError, setSerialError] = useState(null);
+  const [serialCheckWarning, setSerialCheckWarning] = useState(null);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -34,25 +35,37 @@ export default function AddItem() {
     notes: "",
   });
 
+  const latestSerial1Ref = useRef("");
+  latestSerial1Ref.current = form.serial1;
+
   const { alert } = useModal();
 
   useEffect(() => {
-    if (!form.serial1.trim()) return;
+    if (!form.serial1.trim()) {
+      setSerialError(null);
+      setSerialCheckWarning(null);
+      return;
+    }
+
+    const checked = form.serial1.trim();
 
     const timer = setTimeout(async () => {
       try {
-
         const { data, error } = await invokeWithAuth("check-serial", {
-          body: 
-            { 
-              serial1: form.serial1 
-            },
+          body: { serial1: checked },
         });
+
+        if (latestSerial1Ref.current.trim() !== checked) return;
 
         if (error) {
           setSerialError(null);
+          setSerialCheckWarning(
+            "Could not verify this serial number. You can still submit; duplicate serials will be rejected by the registry."
+          );
           return;
         }
+
+        setSerialCheckWarning(null);
 
         if (data?.exists) {
           setSerialError("This serial number already exists.");
@@ -60,7 +73,11 @@ export default function AddItem() {
           setSerialError(null);
         }
       } catch {
+        if (latestSerial1Ref.current.trim() !== checked) return;
         setSerialError(null);
+        setSerialCheckWarning(
+          "Could not verify this serial number. You can still submit; duplicate serials will be rejected by the registry."
+        );
       }
     }, 1000);
 
@@ -128,7 +145,20 @@ export default function AddItem() {
   }
 
   async function handlePhotos(e) {
-    processFiles(e.target.files);
+    const input = e.target;
+    const files = input.files;
+    if (!files?.length) return;
+    try {
+      await processFiles(files);
+    } catch (err) {
+      await alert({
+        title: "Photos",
+        message: err.message || "Could not process one or more images.",
+        variant: "error",
+      });
+    } finally {
+      input.value = "";
+    }
   }
 
   function handleDrag(e) {
@@ -142,14 +172,22 @@ export default function AddItem() {
     }
   }
 
-  function handleDrop(e) {
+  async function handleDrop(e) {
     e.preventDefault();
     e.stopPropagation();
 
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
+      try {
+        await processFiles(e.dataTransfer.files);
+      } catch (err) {
+        await alert({
+          title: "Photos",
+          message: err.message || "Could not process one or more images.",
+          variant: "error",
+        });
+      }
     }
   }
 
@@ -193,6 +231,11 @@ export default function AddItem() {
     setUploadProgress(0);
     setCurrentUpload(0);
     setTotalUploads(0);
+  }
+
+  function goToCreatedItem(slug) {
+    if (slug) navigate(`/items/${slug}`);
+    else navigate("/items");
   }
 
   async function handleSubmit(e) {
@@ -287,7 +330,7 @@ export default function AddItem() {
 
       // If no photos selected, just redirect
       if (photoPreviews.length === 0) {
-        if (itemSlug) navigate(`/items/${itemSlug}`);
+        goToCreatedItem(itemSlug);
         return;
       }
 
@@ -313,7 +356,7 @@ export default function AddItem() {
           mode: "alert",
         });
 
-        if (itemSlug) navigate(`/items/${itemSlug}`);
+        goToCreatedItem(itemSlug);
         return;
       }
 
@@ -440,7 +483,7 @@ export default function AddItem() {
         mode: "alert",
       });
 
-      if (itemSlug) navigate(`/items/${itemSlug}`);
+      goToCreatedItem(itemSlug);
 
       setCurrentUpload(0);
       setTotalUploads(0);
@@ -456,7 +499,7 @@ export default function AddItem() {
           variant: "warning",
         });
 
-        if (itemSlug) navigate(`/items/${itemSlug}`);
+        goToCreatedItem(itemSlug);
         return;
       }
 
@@ -532,6 +575,9 @@ export default function AddItem() {
               {serialError && (
                 <p className="text-xs text-red-600 mt-1">{serialError}</p>
               )}
+              {serialCheckWarning && !serialError && (
+                <p className="text-xs text-amber-700 mt-1">{serialCheckWarning}</p>
+              )}
             </Field>
 
             <Field label="Secondary serial">
@@ -552,6 +598,16 @@ export default function AddItem() {
               onChange={(e) => updateField("location", e.target.value)}
               className={`input ${isFieldInvalid("location") ? "border-red-500 ring-red-500" : ""}`}
               placeholder="Nearest Police Station..."
+            />
+          </Field>
+
+          <Field label="Shop / retailer">
+            <input
+              name="shop"
+              value={form.shop}
+              onChange={(e) => updateField("shop", e.target.value)}
+              className="input"
+              placeholder="Store name (optional)"
             />
           </Field>
 
