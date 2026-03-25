@@ -1,6 +1,7 @@
 // src/lib/invokeWithAuth.js
 import { supabase } from "./supabase";
 import { getAuthHeaders } from "./authHeaders";
+import { emitSessionTokenRefreshed } from "./sessionEvents";
 
 export async function invokeWithAuth(name, options = {}) {
 
@@ -29,6 +30,7 @@ export async function invokeWithAuth(name, options = {}) {
   /* 🔄 TOKEN REFRESH */
   if (data?.session_token) {
     localStorage.setItem("session", data.session_token);
+    emitSessionTokenRefreshed(data.session_token);
   }
 
   return response;

@@ -16,15 +16,13 @@ export function usePhotoVerification() {
 
         try {
 
-        const data = await invokeWithAuth(
+        const { data, error } = await invokeWithAuth(
             "public-photo-search",
-            {
-                imageUrl: image
-            }
+            { body: { imageUrl: image } }
         );
 
-        if (!data?.success) {
-            throw new Error(data?.message || "Photo verification failed");
+        if (error || !data?.success) {
+            throw new Error(data?.message || error?.message || "Photo verification failed");
         }
 
         if (!data.found) {

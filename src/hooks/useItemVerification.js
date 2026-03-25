@@ -21,7 +21,7 @@ export function useItemVerification() {
         });
 
       if (error || !data?.success) {
-        throw new Error("Verification failed");
+        throw new Error(data?.message || error?.message || "Verification failed");
       }
 
       setResult(data.result);

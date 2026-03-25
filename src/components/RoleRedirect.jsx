@@ -15,7 +15,7 @@ export default function RoleRedirect() {
   }
 
   // NOT logged in → go to login
-  if (!user) return null;
+  if (!user) return <Navigate to="/login" replace />;
 
   // Logged in → route by role
   switch (user.role) {

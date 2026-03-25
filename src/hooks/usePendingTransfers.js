@@ -13,10 +13,10 @@ export function usePendingTransfers() {
     if (!user) return;
 
     setLoading(true);
-    const res = await invokeWithAuth("get-pending-transfer-requests");
+    const { data, error } = await invokeWithAuth("get-pending-transfer-requests");
 
-    if (res?.success) {
-      setData(res.data || []);
+    if (!error && data?.success) {
+      setData(data.data || []);
     }
     setLoading(false);
   }
@@ -26,6 +26,7 @@ export function usePendingTransfers() {
       fetchTransfers();
     } else {
       setData([]);
+      setLoading(false);
     }
   }, [user]);
 

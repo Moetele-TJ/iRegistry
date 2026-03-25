@@ -24,7 +24,22 @@ serve(async (req) => {
 
   try {
 
-    const { imageUrl } = await req.json()
+    let body;
+
+    try {
+      body = await req.json();
+    } catch {
+      return respond(
+        {
+          success: false,
+          message: "Invalid request body"
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+    const { imageUrl } = body || {};
 
     if (!imageUrl) {
       return respond(

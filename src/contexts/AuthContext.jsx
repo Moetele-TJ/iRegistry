@@ -1,148 +1,27 @@
 // src/contexts/AuthContext.jsx
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { supabase } from "../lib/supabase";
+import { getJwtExpiryMs } from "../lib/jwtExpiry";
+import {
+  SESSION_TOKEN_REFRESHED,
+  emitSessionTokenRefreshed,
+} from "../lib/sessionEvents";
 
 const AuthContext = createContext(null);
-
-function getJwtExpiry(token) {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000; // convert to ms
-  } catch {
-    return null;
-  }
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { id, role }
   const [loading, setLoading] = useState(true);
-  const logoutTimer = React.useRef(null);
+  const logoutTimerRef = useRef(null);
 
-  /* ----------------------------------
-   * Validate session on app start
-   * ---------------------------------- */
-  useEffect(() => {
-    const token = localStorage.getItem("session");
-    
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    validateSession(token);
-  }, []);
-
-  useEffect(() => {
-
-    function handleStorageChange(e) {
-
-      if (e.key === "session") {
-
-        const token = e.newValue;
-
-        if (!token) {
-          setUser(null);
-          return;
-        }
-
-        if (!loading) {
-          validateSession(token);
-        }
-      }
-    }
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-
-  }, []);
-
-  function scheduleAutoLogout(token) {
-
-    const expiry = getJwtExpiry(token);
-
-    if (!expiry) return;
-
-    const remaining = expiry - Date.now();
-
-    if (remaining <= 0) {
-      logout({ silent: true });
-      return;
-    }
-
-    if (logoutTimer.current) {
-      clearTimeout(logoutTimer.current);
-    }
-
-    logoutTimer.current = setTimeout(() => {
-      logout({ silent: true });
-
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
-
-    }, remaining);
-  }
-
-  /* ----------------------------------
-   * Validate session (DB-backed)
-   * ---------------------------------- */
-  async function validateSession(token) {
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "validate-session",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
-        }
-      );
-
-      if (error || !data?.success) {
-        await logout({silent:true});
-      } else {
-        
-        setUser(data.user);
-
-        const tokenToUse = data.session_token || token;
-
-        scheduleAutoLogout(tokenToUse);
-
-        if (data.session_token) {
-          localStorage.setItem("session", data.session_token);
-        }
-
-      }
-    } catch (err) {
-      console.error("Session validation failed:", err);
-      await logout({silent:true});
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /* ----------------------------------
-   * Login after OTP verification
-   * ---------------------------------- */
-  async function loginWithToken(token) {
-
-    localStorage.setItem("session", token);
-    scheduleAutoLogout(token);
-    await validateSession(token);
-
-  }
-
-  /* ----------------------------------
-   * Logout (local + optional server)
-   * ---------------------------------- */
-  async function logout({silent=false} ={}) {
+  const logout = useCallback(async ({ silent = false } = {}) => {
     const token = localStorage.getItem("session");
 
     try {
@@ -153,17 +32,153 @@ export function AuthProvider({ children }) {
           },
         });
       }
-    } catch (err) {
-      // Ignore network errors — logout should always succeed locally
+    } catch {
       console.warn("Logout request failed, clearing local session anyway");
     } finally {
-      if (logoutTimer.current) {
-        clearTimeout(logoutTimer.current);
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+        logoutTimerRef.current = null;
       }
       localStorage.removeItem("session");
       setUser(null);
     }
-  }
+  }, []);
+
+  const scheduleAutoLogout = useCallback(
+    (token) => {
+      const expiry = getJwtExpiryMs(token);
+      if (!expiry) return;
+
+      const remaining = expiry - Date.now();
+
+      if (remaining <= 0) {
+        void logout({ silent: true });
+        return;
+      }
+
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+      }
+
+      logoutTimerRef.current = setTimeout(() => {
+        void logout({ silent: true });
+
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }, remaining);
+    },
+    [logout]
+  );
+
+  const validateSession = useCallback(
+    async (token) => {
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "validate-session",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (error || !data?.success) {
+          await logout({ silent: true });
+        } else {
+          setUser(data.user);
+
+          const tokenToUse = data.session_token || token;
+          scheduleAutoLogout(tokenToUse);
+
+          if (data.session_token) {
+            localStorage.setItem("session", data.session_token);
+            emitSessionTokenRefreshed(data.session_token);
+          }
+        }
+      } catch (err) {
+        console.error("Session validation failed:", err);
+        await logout({ silent: true });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [logout, scheduleAutoLogout]
+  );
+
+  const validateSessionRef = useRef(validateSession);
+  validateSessionRef.current = validateSession;
+
+  /* ----------------------------------
+   * Validate session on app start
+   * ---------------------------------- */
+  useEffect(() => {
+    const token = localStorage.getItem("session");
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    void validateSessionRef.current(token);
+  }, []);
+
+  /* ----------------------------------
+   * Other tabs: session cleared or rotated
+   * ---------------------------------- */
+  useEffect(() => {
+    function handleStorageChange(e) {
+      if (e.key !== "session") return;
+
+      const token = e.newValue;
+
+      if (!token) {
+        if (logoutTimerRef.current) {
+          clearTimeout(logoutTimerRef.current);
+          logoutTimerRef.current = null;
+        }
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      void validateSessionRef.current(token);
+    }
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  /* ----------------------------------
+   * Same tab: token refreshed via invokeWithAuth
+   * ---------------------------------- */
+  useEffect(() => {
+    function handleSessionTokenRefreshed(ev) {
+      const t = ev.detail?.token;
+      if (t) scheduleAutoLogout(t);
+    }
+
+    window.addEventListener(SESSION_TOKEN_REFRESHED, handleSessionTokenRefreshed);
+
+    return () => {
+      window.removeEventListener(
+        SESSION_TOKEN_REFRESHED,
+        handleSessionTokenRefreshed
+      );
+    };
+  }, [scheduleAutoLogout]);
+
+  const loginWithToken = useCallback(
+    async (token) => {
+      localStorage.setItem("session", token);
+      scheduleAutoLogout(token);
+      await validateSession(token);
+    },
+    [scheduleAutoLogout, validateSession]
+  );
 
   const value = {
     user,
@@ -173,9 +188,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 

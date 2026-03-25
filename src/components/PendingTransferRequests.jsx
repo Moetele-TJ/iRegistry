@@ -18,8 +18,7 @@ export default function PendingTransferRequests() {
 
   async function handleDecision(id, decision) {
     await invokeWithAuth("review-transfer-request", {
-      request_id: id,
-      decision,
+      body: { request_id: id, decision },
     });
     refresh();
   }
