@@ -1,25 +1,19 @@
-// src/Pages/admin/AdminLayout.jsx
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import SidebarItem from "../../components/SidebarItem";
 import {
   LayoutDashboard,
-  Users,
-  FileText,
-  Settings,
   Package,
   Bell,
   Activity,
 } from "lucide-react";
 
-export default function AdminLayout() {
+export default function UserLayout() {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-100">
-
       <div className="flex self-start rounded-b-3xl">
-        {/* Sidebar */}
         <aside
           className={`
             bg-iregistrygreen text-white
@@ -35,46 +29,25 @@ export default function AdminLayout() {
         >
           <nav className="py-4 space-y-2 px-2">
             <SidebarItem
-              to="/admindashboard"
+              to="/userdashboard"
               icon={<LayoutDashboard size={20} />}
-              label="Dashboard"
-              expanded={expanded}
-            />
-
-            <SidebarItem
-              to="/admindashboard/users"
-              icon={<Users size={20} />}
-              label="Users"
-              expanded={expanded}
-            />
-
-            <SidebarItem
-              to="/admindashboard/audit-logs"
-              icon={<FileText size={20} />}
-              label="Audit Logs"
-              expanded={expanded}
-            />
-
-            <SidebarItem
-              to="/admindashboard/settings"
-              icon={<Settings size={20} />}
-              label="Settings"
+              label="Overview"
               expanded={expanded}
             />
             <SidebarItem
-              to="/admindashboard/items"
+              to="/userdashboard/items"
               icon={<Package size={20} />}
               label="Items"
               expanded={expanded}
             />
             <SidebarItem
-              to="/admindashboard/notifications"
+              to="/userdashboard/notifications"
               icon={<Bell size={20} />}
               label="Notifications"
               expanded={expanded}
             />
             <SidebarItem
-              to="/admindashboard/activity"
+              to="/userdashboard/activity"
               icon={<Activity size={20} />}
               label="Activity"
               expanded={expanded}
@@ -82,7 +55,6 @@ export default function AdminLayout() {
           </nav>
         </aside>
 
-        {/* Main content */}
         <main className="flex-1 p-6">
           <Outlet />
         </main>

@@ -22,12 +22,23 @@ import AppLayout from "./Layouts/AppLayout.jsx";
 
 // DASHBOARDS
 import UserDashboard from "./Pages/UserDashboard.jsx";
+import UserLayout from "./Pages/user/UserLayout.jsx";
+import UserItemsPage from "./Pages/user/UserItemsPage.jsx";
+import UserNotificationsPage from "./Pages/user/UserNotificationsPage.jsx";
+import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
-import PoliceDashboard from "./Pages/PoliceDashboard.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
 import AdminAuditLogs from "./Pages/admin/AdminAuditLogs.jsx";
 import AdminSettings from "./Pages/admin/AdminSettings.jsx";
+import AdminItemsPage from "./Pages/admin/AdminItemsPage.jsx";
+import AdminNotificationsPage from "./Pages/admin/AdminNotificationsPage.jsx";
+import AdminActivityPage from "./Pages/admin/AdminActivityPage.jsx";
+import PoliceLayout from "./Pages/police/PoliceLayout.jsx";
+import PoliceHome from "./Pages/police/PoliceHome.jsx";
+import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
+import PoliceNotificationsPage from "./Pages/police/PoliceNotificationsPage.jsx";
+import PoliceActivityPage from "./Pages/police/PoliceActivityPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -67,10 +78,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     path="/userdashboard"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
-                        <UserDashboard />
+                        <UserLayout />
                       </ProtectedRoute>
                     }
-                  />
+                  >
+                    <Route index element={<UserDashboard />} />
+                    <Route path="items" element={<UserItemsPage />} />
+                    <Route path="notifications" element={<UserNotificationsPage />} />
+                    <Route path="activity" element={<UserActivityPage />} />
+                  </Route>
 
                   <Route
                     path="/admindashboard"
@@ -84,16 +100,24 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
                     <Route path="settings" element={<AdminSettings />} />
+                    <Route path="items" element={<AdminItemsPage />} />
+                    <Route path="notifications" element={<AdminNotificationsPage />} />
+                    <Route path="activity" element={<AdminActivityPage />} />
                   </Route>
 
                   <Route
                     path="/policedashboard"
                     element={
                       <ProtectedRoute allowedRoles={["police", "admin"]}>
-                        <PoliceDashboard />
+                        <PoliceLayout />
                       </ProtectedRoute>
                     }
-                  />
+                  >
+                    <Route index element={<PoliceHome />} />
+                    <Route path="items" element={<PoliceItemsPage />} />
+                    <Route path="notifications" element={<PoliceNotificationsPage />} />
+                    <Route path="activity" element={<PoliceActivityPage />} />
+                  </Route>
 
                   {/* Items */}
                   <Route
