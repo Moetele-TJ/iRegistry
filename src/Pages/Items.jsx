@@ -1,10 +1,12 @@
 // src/Pages/Items.jsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatCurrency(value) {
@@ -15,7 +17,30 @@ function formatCurrency(value) {
     currency: "BWP",
     currencyDisplay: "symbol", // shows P
   }).format(value);
-  
+}
+
+function formatPoliceCaseStatus(status) {
+  if (!status) return "—";
+  const map = {
+    Open: "Open",
+    InCustody: "In custody",
+    ClearedForReturn: "Cleared for return",
+    ReturnedToOwner: "Returned to owner",
+  };
+  return map[status] || status;
+}
+
+function policeCaseStatusBadgeClass(status) {
+  switch (status) {
+    case "Open":
+      return "bg-amber-50 text-amber-800 border border-amber-200";
+    case "InCustody":
+      return "bg-sky-50 text-sky-800 border border-sky-200";
+    case "ClearedForReturn":
+      return "bg-violet-50 text-violet-800 border border-violet-200";
+    default:
+      return "bg-gray-50 text-gray-600 border border-gray-200";
+  }
 }
 
 export default function Items() {
@@ -26,7 +51,11 @@ export default function Items() {
     error,
     updateItem,
     deleteItem,
+    refreshItems,
   } = useItems();
+
+  const { user } = useAuth();
+  const role = user?.role;
 
   // UI state
   const [query, setQuery] = useState("");
@@ -35,6 +64,50 @@ export default function Items() {
   const [sortBy, setSortBy] = useState("name"); // name | lastSeen | status
   const [page, setPage] = useState(1);
   const perPage = 8;
+
+  // Role-specific scope controls:
+  // - police: can toggle viewing items "reported stolen at my station"
+  // - privileged (admin/cashier): can choose which user's items to view
+  const [policeShowStolenAtStation, setPoliceShowStolenAtStation] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedOwnerId, setSelectedOwnerId] = useState(user?.id || "");
+
+  const isPrivileged = role === "admin" || role === "cashier";
+
+  useEffect(() => {
+    // Reset scope defaults when switching sessions/roles.
+    setPoliceShowStolenAtStation(false);
+    setSelectedOwnerId(user?.id || "");
+  }, [user?.id, role]);
+
+  useEffect(() => {
+    if (!isPrivileged) return;
+    let cancelled = false;
+
+    async function loadUsers() {
+      setUsersLoading(true);
+      try {
+        const { data, error } = await invokeWithAuth("list-users");
+        if (cancelled) return;
+
+        if (error || !data?.success) {
+          setUsersList([]);
+          return;
+        }
+
+        setUsersList(data.users || []);
+      } finally {
+        if (!cancelled) setUsersLoading(false);
+      }
+    }
+
+    void loadUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPrivileged]);
 
   // Confirm modal state (new pattern: action + arg passed into modal)
   const [confirm, setConfirm] = useState({
@@ -47,7 +120,10 @@ export default function Items() {
     action: null, // function to call on confirm (modal will call it)
     arg: undefined,
     afterConfirmMessage: null,
+    children: null,
   });
+
+  const stolenStationInputRef = useRef(null);
 
   // Toast state (keeps Toast component usage compatible)
   const [toast, setToast] = useState({ message: "", type: "info", visible: false });
@@ -63,6 +139,7 @@ export default function Items() {
       action: typeof opts.action === "function" ? opts.action : null,
       arg: opts.arg,
       afterConfirmMessage: opts.afterConfirmMessage || null,
+      children: opts.children ?? null,
     });
   }
 
@@ -77,6 +154,7 @@ export default function Items() {
       action: null,
       arg: undefined,
       afterConfirmMessage: null,
+      children: null,
     });
   }
 
@@ -99,6 +177,22 @@ export default function Items() {
 
   // derived items (from context)
   const items = ctxItems || [];
+
+  async function handlePoliceStolenToggle(nextValue) {
+    setPoliceShowStolenAtStation(nextValue);
+    await refreshItems({
+      policeStationStolenView: nextValue,
+    });
+    setStatusFilter(nextValue ? "Stolen" : "All");
+    setPage(1);
+  }
+
+  async function handlePrivilegedOwnerChange(nextOwnerId) {
+    setSelectedOwnerId(nextOwnerId);
+    await refreshItems({ ownerId: nextOwnerId });
+    setStatusFilter("All");
+    setPage(1);
+  }
 
   const categories = useMemo(() => {
     const s = new Set(items.map((i) => i.category).filter(Boolean));
@@ -166,25 +260,42 @@ export default function Items() {
   }, [items]);
 
   // ----------Mark Stolen/Active............................
-  async function doToggleStatus(id) {
-
+  async function doToggleStatus(id, getPoliceStation) {
     const it = items.find((x) => x.id === id);
     if (!it) return;
 
     const next = it.status === "Stolen" ? "Active" : "Stolen";
 
-    const updates =
-      next === "Stolen"
-        ? {
+    try {
+      if (next === "Stolen") {
+        const raw =
+          typeof getPoliceStation === "function" ? getPoliceStation() : "";
+        const trimmed = String(raw ?? "").trim();
+        await updateItem(
+          id,
+          {
             status: "Stolen",
             reportedStolenAt: new Date().toISOString(),
-          }
-        : {
-            status: "Active",
-            reportedStolenAt: null,
-          };
-
-    await updateItem(id, updates);
+          },
+          trimmed ? { policeStation: trimmed } : {}
+        );
+      } else {
+        await updateItem(id, {
+          status: "Active",
+          reportedStolenAt: null,
+        });
+      }
+    } catch (err) {
+      setToast({
+        message: err.message || "Failed to update item",
+        type: "error",
+        visible: true,
+      });
+      setTimeout(() => {
+        setToast((t) => ({ ...t, visible: false }));
+      }, 5000);
+      throw err;
+    }
   }
 
   async function doDelete(id) {
@@ -211,15 +322,50 @@ export default function Items() {
     if (!it) return;
     const next = it.status === "Stolen" ? "Active" : "Stolen";
 
+    if (next === "Stolen") {
+      openConfirm({
+        title: "Report stolen",
+        message: `Report "${it.name || it.id}" as stolen? A police case is opened for the station below.`,
+        confirmLabel: "Mark Stolen",
+        cancelLabel: "Cancel",
+        danger: true,
+        action: () =>
+          doToggleStatus(id, () => stolenStationInputRef.current?.value ?? ""),
+        afterConfirmMessage: `${it.name || it.id} reported stolen`,
+        children: (
+          <div className="text-left space-y-1.5">
+            <label
+              htmlFor="stolen-police-station"
+              className="block text-xs font-medium text-gray-700"
+            >
+              Police station (optional)
+            </label>
+            <input
+              id="stolen-police-station"
+              ref={stolenStationInputRef}
+              key={id}
+              type="text"
+              defaultValue={it.location || ""}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
+              placeholder="Leave blank to use item location"
+            />
+            <p className="text-xs text-gray-500">
+              If you leave this blank, your item&apos;s current location is used as the reporting station when the case opens.
+            </p>
+          </div>
+        ),
+      });
+      return;
+    }
+
     openConfirm({
       title: "Change status",
-      message: `Are you sure you want to mark "${it.name || it.id}" as ${next}?`,
-      confirmLabel: next === "Stolen" ? "Mark Stolen" : "Mark Active",
+      message: `Are you sure you want to mark "${it.name || it.id}" as Active?`,
+      confirmLabel: "Mark Active",
       cancelLabel: "Cancel",
-      danger: next === "Stolen",
-      action: doToggleStatus,
-      arg: id,
-      afterConfirmMessage: `${it.name || it.id} marked ${next}`,
+      danger: false,
+      action: () => doToggleStatus(id),
+      afterConfirmMessage: `${it.name || it.id} marked Active`,
     });
   }
 
@@ -299,6 +445,12 @@ export default function Items() {
   const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
   const endIndex = Math.min(page * perPage, total);
 
+  const showStationQueue = role === "police" && policeShowStolenAtStation;
+  const queueRowReadOnly = (item) =>
+    showStationQueue && item.ownerId !== user?.id;
+
+  const tableColCount = showStationQueue ? 8 : 7;
+
   return (
     <div className="min-h-screen bg-gray-100">
 
@@ -314,6 +466,7 @@ export default function Items() {
         confirmLabel={confirm.confirmLabel}
         cancelLabel={confirm.cancelLabel}
         danger={confirm.danger}
+        children={confirm.children}
       />
 
       {/* Toast */}
@@ -332,10 +485,12 @@ export default function Items() {
             {/* Left: Title + description */}
             <div>
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-                My Items
+                {showStationQueue ? "Station stolen queue" : "My Items"}
               </h1>
               <p className="text-sm text-gray-500 mt-1">
-                Manage and monitor your registered assets
+                {showStationQueue
+                  ? "Open cases reported to your station (matched on the case record). Item status and case pipeline are shown below."
+                  : "Manage and monitor your registered assets"}
               </p>
             </div>
 
@@ -444,6 +599,50 @@ export default function Items() {
                     </option>
                   ))}
                 </select>
+
+                {role === "police" && (
+                  <label
+                    className="flex items-center gap-2 text-sm text-gray-700 px-2 py-2 rounded-xl border bg-white"
+                    title="List open police cases whose reporting station matches your police station profile"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={policeShowStolenAtStation}
+                      onChange={(e) =>
+                        void handlePoliceStolenToggle(e.target.checked)
+                      }
+                    />
+                    Station stolen queue
+                  </label>
+                )}
+
+                {isPrivileged && (
+                  <div className="flex items-center gap-2 px-2 py-2 rounded-xl border bg-white">
+                    <div className="text-xs text-gray-500 whitespace-nowrap">
+                      View as user
+                    </div>
+                    <select
+                      value={selectedOwnerId}
+                      onChange={(e) => {
+                        void handlePrivilegedOwnerChange(e.target.value);
+                      }}
+                      disabled={usersLoading || usersList.length === 0}
+                      className="border rounded-lg px-2 py-1 text-sm"
+                    >
+                      {(usersList || []).map((u) => {
+                        const label =
+                          [u.first_name, u.last_name].filter(Boolean).join(" ") ||
+                          u.email ||
+                          u.id;
+                        return (
+                          <option key={u.id} value={u.id}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -482,6 +681,9 @@ export default function Items() {
                 <th className="text-left py-3 px-4">Item</th>
                 <th className="text-left py-3 px-4">Category</th>
                 <th className="text-left py-3 px-4">Status</th>
+                {showStationQueue ? (
+                  <th className="text-left py-3 px-4">Case</th>
+                ) : null}
                 <th className="text-left py-3 px-4">Last Seen</th>
                 <th className="text-left py-3 px-4">Location</th>
                 <th className="text-right py-3 px-4">Est.Value</th>
@@ -503,8 +705,13 @@ export default function Items() {
                     <td className="py-3 px-4">
                       <div className="h-4 bg-gray-200 rounded w-24" />
                     </td>
+                    {showStationQueue ? (
+                      <td className="py-3 px-4">
+                        <div className="h-6 bg-gray-200 rounded-full w-24" />
+                      </td>
+                    ) : null}
                     <td className="py-3 px-4">
-                      <div className="h-6 bg-gray-200 rounded-full w-20" />
+                      <div className="h-4 bg-gray-200 rounded w-28" />
                     </td>
                     <td className="py-3 px-4">
                       <div className="h-4 bg-gray-200 rounded w-28" />
@@ -574,6 +781,30 @@ export default function Items() {
 
                         </div>
                       </td>
+                      {showStationQueue ? (
+                        <td className="py-4 px-5">
+                          {item.policeCase ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              <span
+                                className={
+                                  "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
+                                  policeCaseStatusBadgeClass(item.policeCase.status)
+                                }
+                              >
+                                {formatPoliceCaseStatus(item.policeCase.status)}
+                              </span>
+                              {item.policeCase.openedAt && (
+                                <span className="text-xs text-gray-500">
+                                  Opened{" "}
+                                  {new Date(item.policeCase.openedAt).toLocaleDateString("en-BW")}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                      ) : null}
                       <td className="py-4 px-5 text-gray-600">
                         {item.lastSeen || "-"}
                       </td>
@@ -592,23 +823,29 @@ export default function Items() {
                             View
                           </RippleButton>
 
-                          <RippleButton
-                            className={`px-3 py-1 rounded-md text-xs ${
-                              item.status === "Stolen"
-                                ? "bg-emerald-600 text-white"
-                                : "bg-red-600 text-white"
-                            }`}
-                            onClick={() => confirmToggleStatus(item.id)}
-                          >
-                            {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
-                          </RippleButton>
+                          {!queueRowReadOnly(item) ? (
+                            <>
+                              <RippleButton
+                                className={`px-3 py-1 rounded-md text-xs ${
+                                  item.status === "Stolen"
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-red-600 text-white"
+                                }`}
+                                onClick={() => confirmToggleStatus(item.id)}
+                              >
+                                {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
+                              </RippleButton>
 
-                          <RippleButton
-                            className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
-                            onClick={() => confirmDelete(item.id)}
-                          >
-                            Delete
-                          </RippleButton>
+                              <RippleButton
+                                className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
+                                onClick={() => confirmDelete(item.id)}
+                              >
+                                Delete
+                              </RippleButton>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400">View only</span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -619,7 +856,7 @@ export default function Items() {
               {!loading && pageItems.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={tableColCount}
                     className="py-6 px-4 text-center text-gray-500"
                   >
                     No items found.
@@ -768,6 +1005,28 @@ export default function Items() {
 
                   </div>
 
+                  {showStationQueue && item.policeCase ? (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">
+                        Case status
+                      </div>
+                      <span
+                        className={
+                          "inline-flex px-2.5 py-1 rounded-full text-xs font-medium " +
+                          policeCaseStatusBadgeClass(item.policeCase.status)
+                        }
+                      >
+                        {formatPoliceCaseStatus(item.policeCase.status)}
+                      </span>
+                      {item.policeCase.openedAt && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Opened{" "}
+                          {new Date(item.policeCase.openedAt).toLocaleDateString("en-BW")}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
                     <RippleButton
@@ -777,16 +1036,22 @@ export default function Items() {
                       View
                     </RippleButton>
 
-                    <RippleButton
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                        isStolen
-                          ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                          : "bg-red-600 text-white hover:bg-red-700"
-                      }`}
-                      onClick={() => confirmToggleStatus(item.id)}
-                    >
-                      {isStolen ? "Mark Active" : "Mark Stolen"}
-                    </RippleButton>
+                    {!queueRowReadOnly(item) ? (
+                      <RippleButton
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium ${
+                          isStolen
+                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                            : "bg-red-600 text-white hover:bg-red-700"
+                        }`}
+                        onClick={() => confirmToggleStatus(item.id)}
+                      >
+                        {isStolen ? "Mark Active" : "Mark Stolen"}
+                      </RippleButton>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl py-2">
+                        View only
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -9,6 +9,7 @@ import { validateSession } from "../shared/validateSession.ts";
 import { getPagination } from "../shared/pagination.ts";
 import { applyItemFilters } from "../shared/itemFilters.ts";
 import { getAccessConditions } from "../shared/accessConditions.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -28,6 +29,8 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
 
     const {
+      ownerId,
+      policeStationStolenView,
       page,
       pageSize,
       includeDeleted,
@@ -60,7 +63,81 @@ serve(async (req) => {
 
     /* ================= ACCESS CONTROL ================= */
 
-    const access = await getAccessConditions(supabase, session);
+    const access = await getAccessConditions(supabase, session, {
+      policeStationStolenView: policeStationStolenView === true,
+    });
+
+    /* ----- Police station stolen queue: open cases at this station (not item.location) ----- */
+    if (access.policeCaseQueue && access.policeStation) {
+      const station = String(access.policeStation).trim();
+
+      const { data: cases, error: caseErr, count } = await supabase
+        .from("item_police_cases")
+        .select(
+          "id, item_id, status, station, station_source, opened_at, cleared_at, returned_at, notes",
+          { count: "exact" },
+        )
+        .eq("station", station)
+        .neq("status", "ReturnedToOwner")
+        .order("opened_at", { ascending: false })
+        .range(from, to);
+
+      if (caseErr) throw caseErr;
+
+      const caseRows = cases || [];
+      const ids = caseRows.map((c) => c.item_id);
+      const caseByItemId = new Map(caseRows.map((c) => [c.item_id, c]));
+
+      if (ids.length === 0) {
+        return respond(
+          {
+            success: true,
+            items: [],
+            pagination: {
+              page: safePage,
+              pageSize: safePageSize,
+              total: count ?? 0,
+              totalPages: Math.ceil((count ?? 0) / safePageSize) || 0,
+            },
+          },
+          corsHeaders,
+          200,
+        );
+      }
+
+      const { data: itemRows, error: itemErr } = await supabase
+        .from("items")
+        .select("*")
+        .in("id", ids)
+        .is("deletedat", null);
+
+      if (itemErr) throw itemErr;
+
+      const itemMap = new Map((itemRows || []).map((r) => [r.id, r]));
+      const ordered = ids
+        .map((id) => {
+          const row = itemMap.get(id);
+          if (!row) return null;
+          const pc = caseByItemId.get(id);
+          return { ...row, police_case: pc };
+        })
+        .filter(Boolean);
+
+      return respond(
+        {
+          success: true,
+          items: ordered,
+          pagination: {
+            page: safePage,
+            pageSize: safePageSize,
+            total: count ?? 0,
+            totalPages: Math.ceil((count ?? 0) / safePageSize) || 0,
+          },
+        },
+        corsHeaders,
+        200,
+      );
+    }
 
     if (access.forceEmpty) {
       query = query.eq("id", "__NO_MATCH__");
@@ -68,10 +145,6 @@ serve(async (req) => {
 
     if ("ownerid" in access) {
       query = query.eq("ownerid", access.ownerid);
-    }
-
-    if ("location" in access) {
-      query = query.eq("location", access.location);
     }
 
     if ("deletedat" in access && access.deletedat === null) {
@@ -82,9 +155,13 @@ serve(async (req) => {
       query = query.not("reportedstolenat", "is", null);
     }
 
-    console.log("QUERY TYPE:", typeof query);
-    console.log("HAS EQ:", typeof (query as any)?.eq);
-    console.log("HAS IS:", typeof (query as any)?.is);
+    /* ================= PRIVILEGED OWNER FILTER =================
+     * Admin/cashier users can choose which user's items to view.
+     * We only apply this when the session role is privileged.
+     */
+    if (isPrivilegedRole(session?.role) && ownerId) {
+      query = query.eq("ownerid", ownerId);
+    }
 
     /* ================= FILTERS ================= */
 

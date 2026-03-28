@@ -65,6 +65,21 @@ function itemsReducer(state, action) {
 /* =============== DB → UI NORMALIZER ================== */
 /* ===================================================== */
 
+function normalizePoliceCase(pc) {
+  if (!pc || typeof pc !== "object") return null;
+  return {
+    id: pc.id,
+    itemId: pc.item_id,
+    status: pc.status,
+    station: pc.station,
+    stationSource: pc.station_source,
+    openedAt: pc.opened_at,
+    clearedAt: pc.cleared_at,
+    returnedAt: pc.returned_at,
+    notes: pc.notes,
+  };
+}
+
 function normalizeFromDB(row) {
   return {
     id: row.id,
@@ -95,6 +110,8 @@ function normalizeFromDB(row) {
     createdOn: row.createdon,
     updatedOn: row.updatedon,
     deletedAt: row.deletedat,
+
+    policeCase: normalizePoliceCase(row.police_case),
   };
 }
 
@@ -127,6 +144,7 @@ export function ItemsProvider({ children }) {
       const { data, error } = await invokeWithAuth("get-items", {
         body: {
           ownerId: filters.ownerId ?? user.id,
+          policeStationStolenView: filters.policeStationStolenView,
           includeDeleted: filters.includeDeleted,
           category: filters.category,
           make: filters.make,
@@ -209,22 +227,20 @@ export function ItemsProvider({ children }) {
 
   /* ---------------- UPDATE ITEM ---------------- */
   
-  async function updateItem(id, updates) {
+  async function updateItem(id, updates, extra = {}) {
     dispatch({ type: "SET_LOADING", payload: true });
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
       const { data, error } = await invokeWithAuth(
       "update-item",
-      { body: { id, updates } }
+      { body: { id, updates, ...extra } }
     );
 
-    if (error) {
-      throw new Error(error.message || "Network error");
-    }
-
-    if (!data?.success) {
-      throw new Error(data?.message || "Failed to update item");
+    if (error || !data?.success) {
+      throw new Error(
+        data?.message || error?.message || "Failed to update item"
+      );
     }
 
     const updatedItem = normalizeFromDB(data.item);

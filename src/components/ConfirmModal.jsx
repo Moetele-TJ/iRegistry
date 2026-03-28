@@ -16,6 +16,7 @@ export default function ConfirmModal({
   danger = false,
   mode = "confirm",
   variant = "default",
+  children,
 }) {
   const confirmRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -143,6 +144,8 @@ export default function ConfirmModal({
         <div className="text-sm text-gray-600 mb-4">
           {message}
         </div>
+
+        {children ? <div className="mb-4">{children}</div> : null}
 
         <div className="flex justify-end gap-3">
           {/* Cancel button (confirm mode only) */}

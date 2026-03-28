@@ -59,7 +59,7 @@ serve(async (req) => {
       );
     }
 
-    const { id, updates } = body ?? {};
+    const { id, updates, policeStation } = body ?? {};
 
     if (!id || !updates || typeof updates !== "object") {
       return respond(
@@ -338,6 +338,63 @@ serve(async (req) => {
       );
     }
 
+    /* ---------------- POLICE CASE RULES (before update) ---------------- */
+
+    const becomingStolen = "status" in cleanUpdates && cleanUpdates.status === "Stolen";
+    const becomingActive = "status" in cleanUpdates && cleanUpdates.status === "Active";
+
+    if (becomingStolen) {
+      const { data: openCase } = await supabase
+        .from("item_police_cases")
+        .select("id")
+        .eq("item_id", id)
+        .neq("status", "ReturnedToOwner")
+        .maybeSingle();
+
+      if (openCase) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-CASE-001",
+            message:
+              "This item already has an active police case. It must be returned to the owner (closed) before a new theft can be reported.",
+          },
+          corsHeaders,
+          409
+        );
+      }
+    }
+
+    let custodyCase: { id: string; status: string } | null = null;
+
+    if (becomingActive) {
+      const { data: activeCase } = await supabase
+        .from("item_police_cases")
+        .select("id, status")
+        .eq("item_id", id)
+        .neq("status", "ReturnedToOwner")
+        .maybeSingle();
+
+      custodyCase = activeCase;
+
+      if (
+        activeCase &&
+        (activeCase.status === "InCustody" ||
+          activeCase.status === "ClearedForReturn")
+      ) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-CASE-002",
+            message:
+              "This item is in police custody or cleared for return. Contact the station to complete return; you cannot mark it active on your own.",
+          },
+          corsHeaders,
+          403
+        );
+      }
+    }
+
     /* ---------------- UPDATE ---------------- */
 
     const { data: updatedItem, error: updateError } = await supabase
@@ -403,6 +460,67 @@ serve(async (req) => {
         changes: diff,
       },
     });
+
+    /* ---------------- POLICE CASE ROWS (after stolen / active) ---------------- */
+
+    if (becomingStolen) {
+      const ps =
+        typeof policeStation === "string" ? policeStation.trim() : "";
+      const mirroredLocation = String(updatedItem.location ?? "").trim();
+      const station = (ps.length > 0 ? ps : mirroredLocation) || "Unknown";
+      const station_source = ps.length > 0
+        ? "user_selected"
+        : "mirrored_from_location";
+
+      const { error: caseErr } = await supabase.from("item_police_cases").insert({
+        item_id: id,
+        station,
+        station_source,
+        status: "Open",
+        created_by: actorUserId,
+        updated_by: actorUserId,
+      });
+
+      if (caseErr) {
+        console.error("item_police_cases insert:", caseErr);
+        await supabase
+          .from("items")
+          .update({
+            status: existing.status,
+            reportedstolenat: existing.reportedstolenat,
+          })
+          .eq("id", id);
+        await supabase
+          .from("image_embeddings")
+          .update({ is_stolen: existing.reportedstolenat !== null })
+          .eq("item_id", id);
+
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-CASE-INSERT",
+            message:
+              caseErr.code === "23505"
+                ? "A police case for this item is already open."
+                : "Could not open police case for this report.",
+          },
+          corsHeaders,
+          409
+        );
+      }
+    }
+
+    if (becomingActive && custodyCase?.status === "Open") {
+      await supabase
+        .from("item_police_cases")
+        .update({
+          status: "ReturnedToOwner",
+          returned_at: new Date().toISOString(),
+          notes: "Owner marked item active while case was still open (recovered without police custody).",
+          updated_by: actorUserId,
+        })
+        .eq("id", custodyCase.id);
+    }
 
     return respond(
       {

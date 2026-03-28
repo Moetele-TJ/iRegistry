@@ -39,6 +39,11 @@ export function applyItemFilters(query: any, filters: any) {
     query = query.not("reportedstolenat", "is", null);
   }
 
+  if (reportedStolen === false) {
+    // When explicitly false, return only non-stolen (not reported) items.
+    query = query.is("reportedstolenat", null);
+  }
+
   if (hasPhotos === true) {
     query = query.not("photos", "is", null);
   }

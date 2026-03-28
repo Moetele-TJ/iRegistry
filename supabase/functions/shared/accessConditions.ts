@@ -5,7 +5,8 @@ import { isPrivilegedRole } from "./roles.ts";
 
 export async function getAccessConditions(
   supabase: any,
-  session: any
+  session: any,
+  opts?: { policeStationStolenView?: boolean },
 ) {
   /* ================= PUBLIC ================= */
 
@@ -31,6 +32,15 @@ export async function getAccessConditions(
   /* ================= POLICE ================= */
 
   if (role === "police") {
+    // Default: same as a normal user — their own registered items.
+    if (!opts?.policeStationStolenView) {
+      return {
+        ownerid: userId,
+        deletedat: null,
+      };
+    }
+
+    // Stolen queue: open item_police_cases whose station matches this officer's profile.
     const station = await getPoliceStation(supabase, userId);
 
     if (!station) {
@@ -40,8 +50,8 @@ export async function getAccessConditions(
     }
 
     return {
-      reportedstolenat: "NOT_NULL",
-      location: station,
+      policeCaseQueue: true,
+      policeStation: String(station).trim(),
       deletedat: null,
     };
   }
