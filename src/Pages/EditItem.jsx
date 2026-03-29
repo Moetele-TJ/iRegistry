@@ -1,241 +1,568 @@
 // src/Pages/EditItem.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-//import AddItemStep1 from "./AddItemStep1.jsx";
-//import AddItemStep2 from "./AddItemStep2.jsx";
 import RippleButton from "../components/RippleButton.jsx";
+import { useModal } from "../contexts/ModalContext.jsx";
+import { useItems } from "../contexts/ItemsContext.jsx";
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { compressImage } from "../utils/imageCompression.js";
 
-import { useItems } from "../contexts/ItemsContext.jsx"; // optional - used if provider is mounted
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-const STORAGE_KEY = "ireg_items_v1";
-
-function loadItemsFallback() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+function toDateInputValue(v) {
+  if (v == null || v === "") return "";
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 }
 
-function saveItemsFallback(items) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    window.dispatchEvent(new Event("ireg:items-updated"));
-  } catch (e) {
-    console.error("Failed to save items (fallback)", e);
-  }
+/** Normalize DB photos to { original, thumb } for UI + API. */
+function normalizePhotos(photos) {
+  if (!Array.isArray(photos)) return [];
+  return photos
+    .map((p) => {
+      if (typeof p === "string") {
+        const s = p.trim();
+        if (!s) return null;
+        return { original: s, thumb: s };
+      }
+      if (p && typeof p === "object") {
+        const o = String(p.original || "").trim();
+        const t = String(p.thumb || "").trim();
+        if (o && t) return { original: o, thumb: t };
+        if (o) return { original: o, thumb: o };
+        if (t) return { original: t, thumb: t };
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+function photoThumbUrl(entry) {
+  if (!entry) return null;
+  const path =
+    typeof entry === "string"
+      ? entry.trim()
+      : (entry.thumb || entry.original || "").trim();
+  if (!path || !SUPABASE_URL) return null;
+  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
 }
 
 export default function EditItem() {
-  const { id } = useParams();
+  const { id: routeParam } = useParams();
   const navigate = useNavigate();
+  const { alert } = useModal();
 
-  // Try to access context (guarded)
-  let ctx = null;
-  try {
-    ctx = useItems();
-  } catch (e) {
-    ctx = null;
-  }
-  const updateItemCtx = ctx ? ctx.updateItem : null;
-  const deleteItemCtx = ctx ? ctx.deleteItem : null;
-  const itemsCtx = ctx ? ctx.items : null;
+  const {
+    items,
+    loading: itemsLoading,
+    updateItem,
+    deleteItem,
+  } = useItems();
 
   const [storedItem, setStoredItem] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({
+    category: "",
+    make: "",
+    model: "",
+    serial1: "",
+    serial2: "",
+    location: "",
+    purchaseDate: "",
+    estimatedValue: "",
+    shop: "",
+    warrantyExpiry: "",
+    notes: "",
+    status: "Active",
+  });
+  const [policeStation, setPoliceStation] = useState("");
 
-  const [step, setStep] = useState(1);
-  const [step1Data, setStep1Data] = useState({});
-  const [step2Data, setStep2Data] = useState({});
+  const [existingPhotos, setExistingPhotos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [serialError, setSerialError] = useState(null);
+  const [serialCheckWarning, setSerialCheckWarning] = useState(null);
 
-  // load item from context if available otherwise fallback to localStorage
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState(0);
+  const [totalUploads, setTotalUploads] = useState(0);
+
+  const activeXhrs = useRef([]);
+  const uploadCancelledRef = useRef(false);
+  const latestSerial1Ref = useRef("");
+  latestSerial1Ref.current = form.serial1;
+
+  const requiredFields = ["category", "make", "model", "serial1", "location"];
+
   useEffect(() => {
-    setLoading(true);
+    return () => {
+      photoPreviews.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, [photoPreviews]);
+
+  useEffect(() => {
+    if (itemsLoading) return;
 
     const matchParam = (it) =>
-      String(it.id) === String(id) || String(it.slug) === String(id);
+      String(it.id) === String(routeParam) || String(it.slug) === String(routeParam);
 
-    let found = null;
-    if (itemsCtx) {
-      found = (itemsCtx || []).find(matchParam);
-    } else {
-      const all = loadItemsFallback();
-      found = all.find(matchParam);
+    const found = (items || []).find(matchParam) || null;
+    setStoredItem(found);
+
+    if (found) {
+      setForm({
+        category: found.category || "",
+        make: found.make || "",
+        model: found.model || "",
+        serial1: found.serial1 || "",
+        serial2: found.serial2 || "",
+        location: found.location || "",
+        purchaseDate: toDateInputValue(found.purchaseDate || found.lastSeen),
+        estimatedValue:
+          found.estimatedValue != null && found.estimatedValue !== ""
+            ? String(found.estimatedValue)
+            : "",
+        shop: found.shop || "",
+        warrantyExpiry: toDateInputValue(found.warrantyExpiry),
+        notes: found.notes || "",
+        status: found.status === "Stolen" ? "Stolen" : "Active",
+      });
+      setExistingPhotos(normalizePhotos(found.photos));
+      setPhotoPreviews([]);
+      setPoliceStation("");
     }
+  }, [routeParam, items, itemsLoading]);
 
-    if (!found) {
-      setStoredItem(null);
-      setLoading(false);
+  useEffect(() => {
+    if (!form.serial1.trim()) {
+      setSerialError(null);
+      setSerialCheckWarning(null);
       return;
     }
 
-    setStoredItem(found);
+    if (storedItem && form.serial1.trim() === String(storedItem.serial1 || "").trim()) {
+      setSerialError(null);
+      setSerialCheckWarning(null);
+      return;
+    }
 
-    // initialize step data from stored item (safe fallbacks)
-    const s1 = {
-      category: found.category || "",
-      make: found.make || "",
-      model: found.model || "",
-      serial1: found.serial1 || "",
-      serial2: found.serial2 || "",
-      photo: found.photo || null,
-      location: found.location || "",
-      id: found.id,
-      name: found.name || "",
-      ...found,
-    };
+    const checked = form.serial1.trim();
 
-    const s2 = {
-      purchaseDate: found.purchaseDate || found.lastSeen || "",
-      estimatedValue: found.value || found.estimatedValue || "",
-      shop: found.shop || "",
-      warrantyExpiry: found.warrantyExpiry || "",
-      notes: found.notes || found.ownerInfo || "",
-      ownerId: found.ownerId || "",
-      status: found.status || "Active",
-      createdOn: found.createdOn || "",
-      updatedOn: found.updatedOn || "",
-      imageUrl: found.imageUrl || "",
-      description: found.description || "",
-      ...found,
-    };
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await invokeWithAuth("check-serial", {
+          body: { serial1: checked },
+        });
 
-    setStep1Data(s1);
-    setStep2Data(s2);
-    setLoading(false);
-    setStep(1);
-  }, [id, itemsCtx]);
+        if (latestSerial1Ref.current.trim() !== checked) return;
 
-  // next from step1
-  function handleStep1Next(payload) {
-    setStep1Data(payload);
-    setStep(2);
-  }
-
-  // save from step2 - use context if available, otherwise fallback to localStorage
-  async function handleStep2Submit(step2Payload) {
-    const final = { ...step1Data, ...step2Payload };
-
-    const timestamp = new Date().toISOString();
-    const updated = {
-      ...storedItem,
-      ...final,
-      name:
-        final.make && final.model
-          ? `${final.make} ${final.model}`
-          : final.name || storedItem.name || "",
-      lastSeen: final.purchaseDate || storedItem.lastSeen || "",
-      location: final.location || storedItem.location || "",
-      serial1: final.serial1 || storedItem.serial1 || "",
-      serial2: final.serial2 || storedItem.serial2 || "",
-      ownerInfo: final.notes || storedItem.ownerInfo || "",
-      ownerId: final.ownerId || storedItem.ownerId || "",
-      value: final.estimatedValue || storedItem.value || "",
-      shop: final.shop || storedItem.shop || "",
-      warrantyExpiry: final.warrantyExpiry || storedItem.warrantyExpiry || "",
-      imageUrl: final.imageUrl || storedItem.imageUrl || "",
-      photo: final.photo || storedItem.photo || null,
-      description: final.description || storedItem.description || "",
-      createdOn: storedItem.createdOn || timestamp,
-      updatedOn: timestamp,
-    };
-
-    // try context update first
-    try {
-      if (typeof updateItemCtx === "function") {
-        const maybePromise = updateItemCtx(updated.id, updated);
-        if (maybePromise && typeof maybePromise.then === "function") {
-          await maybePromise;
+        if (error) {
+          setSerialError(null);
+          setSerialCheckWarning(
+            "Could not verify this serial number. Duplicate serials will be rejected by the registry."
+          );
+          return;
         }
-        // context persists and broadcasts; navigate to details
-        navigate("/items/" + (updated.slug || updated.id));
-        return;
-      }
-    } catch (e) {
-      console.warn("items context update failed, falling back to local storage", e);
-    }
 
-    // fallback modify localStorage directly
-    try {
-      const all = loadItemsFallback();
-      const next = all.map((it) => (String(it.id) === String(updated.id) ? updated : it));
-      saveItemsFallback(next);
-      navigate("/items/" + (updated.slug || updated.id));
-    } catch (e) {
-      console.error("Failed to save updated item (fallback):", e);
-      // keep user on edit page if save failed
-      alert("Failed to save changes. See console for details.");
-    }
-  }
+        setSerialCheckWarning(null);
 
-  // delete - use context if available otherwise fallback
-  async function handleDelete() {
-    if (!confirm("Delete this item? This action cannot be undone.")) return;
-
-    try {
-      if (typeof deleteItemCtx === "function") {
-        const maybePromise = deleteItemCtx(storedItem.id);
-        if (maybePromise && typeof maybePromise.then === "function") {
-          await maybePromise;
+        if (data?.exists) {
+          setSerialError("This serial number already exists.");
+        } else {
+          setSerialError(null);
         }
-        navigate("/items");
-        return;
+      } catch {
+        if (latestSerial1Ref.current.trim() !== checked) return;
+        setSerialError(null);
+        setSerialCheckWarning(
+          "Could not verify this serial number. Duplicate serials will be rejected by the registry."
+        );
       }
-    } catch (e) {
-      console.warn("items context delete failed, falling back to local storage", e);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [form.serial1, storedItem]);
+
+  function updateField(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function formatCurrency(value) {
+    if (!value) return "";
+    const number = Number(value);
+    if (Number.isNaN(number)) return "";
+    return (
+      "P " +
+      number
+        .toFixed(2)
+        .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    );
+  }
+
+  function handleCurrencyChange(e) {
+    let raw = e.target.value;
+    raw = raw.replace(/[^\d.]/g, "");
+    const parts = raw.split(".");
+    if (parts.length > 2) {
+      raw = parts[0] + "." + parts[1];
+    }
+    updateField("estimatedValue", raw);
+  }
+
+  function isFieldInvalid(field) {
+    return requiredFields.includes(field) && !form[field]?.trim();
+  }
+
+  const isFormInvalid =
+    !!serialError || requiredFields.some((f) => !form[f]?.trim());
+
+  async function processFiles(files) {
+    const max = 5;
+    const room = max - existingPhotos.length - photoPreviews.length;
+    const selected = Array.from(files).slice(0, Math.max(0, room));
+
+    if (selected.length === 0) {
+      await alert({
+        title: "Photos",
+        message: `You can have at most ${max} photos per item.`,
+        variant: "warning",
+      });
+      return;
     }
 
+    const previews = await Promise.all(
+      selected.map(async (file) => {
+        const compressed = await compressImage(file);
+        return {
+          file: compressed,
+          url: URL.createObjectURL(compressed),
+        };
+      })
+    );
+
+    setPhotoPreviews((prev) => [...prev, ...previews]);
+  }
+
+  async function handlePhotos(e) {
+    const input = e.target;
+    const files = input.files;
+    if (!files?.length) return;
     try {
-      const all = loadItemsFallback();
-      const filtered = all.filter((it) => String(it.id) !== String(id));
-      saveItemsFallback(filtered);
-      navigate("/items");
-    } catch (e) {
-      console.error("Failed to delete item (fallback):", e);
-      alert("Failed to delete item. See console for details.");
+      await processFiles(files);
+    } catch (err) {
+      await alert({
+        title: "Photos",
+        message: err.message || "Could not process one or more images.",
+        variant: "error",
+      });
+    } finally {
+      input.value = "";
     }
   }
 
-  // restore step data to storedItem values
-  function handleClearToInitial(whichStep) {
+  function handleDrag(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }
+
+  async function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      try {
+        await processFiles(e.dataTransfer.files);
+      } catch (err) {
+        await alert({
+          title: "Photos",
+          message: err.message || "Could not process one or more images.",
+          variant: "error",
+        });
+      }
+    }
+  }
+
+  function moveExistingPhoto(fromIndex, toIndex) {
+    setExistingPhotos((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function moveNewPhoto(fromIndex, toIndex) {
+    setPhotoPreviews((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function removeExistingPhoto(index) {
+    setExistingPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function removeNewPhoto(index) {
+    setPhotoPreviews((prev) => {
+      const next = [...prev];
+      URL.revokeObjectURL(next[index].url);
+      next.splice(index, 1);
+      return next;
+    });
+  }
+
+  function cancelUpload() {
+    uploadCancelledRef.current = true;
+    activeXhrs.current.forEach((xhr) => xhr.abort());
+    activeXhrs.current = [];
+    setIsUploading(false);
+    setUploadProgress(0);
+    setCurrentUpload(0);
+    setTotalUploads(0);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
     if (!storedItem) return;
-    if (whichStep === 1) {
-      setStep1Data({
-        category: storedItem.category || "",
-        make: storedItem.make || "",
-        model: storedItem.model || "",
-        serial1: storedItem.serial1 || "",
-        serial2: storedItem.serial2 || "",
-        photo: storedItem.photo || null,
-        location: storedItem.location || "",
-        id: storedItem.id,
-        name: storedItem.name || "",
+
+    if (serialError) {
+      await alert({
+        title: "Serial Conflict",
+        message: "Please resolve the serial number conflict before saving.",
+        variant: "error",
       });
-    } else {
-      setStep2Data({
-        purchaseDate: storedItem.purchaseDate || storedItem.lastSeen || "",
-        estimatedValue: storedItem.value || "",
-        shop: storedItem.shop || "",
-        warrantyExpiry: storedItem.warrantyExpiry || "",
-        notes: storedItem.notes || storedItem.ownerInfo || "",
-        ownerId: storedItem.ownerId || "",
-        status: storedItem.status || "Active",
-        createdOn: storedItem.createdOn || "",
-        updatedOn: storedItem.updatedOn || "",
-        imageUrl: storedItem.imageUrl || "",
-        description: storedItem.description || "",
+      return;
+    }
+
+    for (const f of requiredFields) {
+      if (!form[f]?.trim()) {
+        await alert({
+          title: "Missing Information",
+          message: `Please fill in ${f === "serial1" ? "the primary serial number" : f}.`,
+          variant: "warning",
+        });
+        return;
+      }
+    }
+
+    const maxPhotos = 5;
+    if (existingPhotos.length + photoPreviews.length > maxPhotos) {
+      await alert({
+        title: "Photos",
+        message: `At most ${maxPhotos} photos per item.`,
+        variant: "warning",
+      });
+      return;
+    }
+
+    let photosPayload = existingPhotos.map((p) => ({
+      original: p.original,
+      thumb: p.thumb,
+    }));
+
+    try {
+      if (photoPreviews.length > 0) {
+        uploadCancelledRef.current = false;
+        setIsUploading(true);
+        setUploadProgress(0);
+        setCurrentUpload(0);
+        setTotalUploads(photoPreviews.length);
+
+        const { data: uploadInit, error: uploadError } = await invokeWithAuth(
+          "generate-upload-urls",
+          {
+            body: {
+              itemId: storedItem.id,
+              files: photoPreviews.map((p) => ({
+                name: p.file.name,
+                type: p.file.type,
+                size: p.file.size,
+              })),
+            },
+          }
+        );
+
+        if (uploadError || !uploadInit?.success) {
+          throw new Error(
+            uploadInit?.message || "Could not start photo upload."
+          );
+        }
+
+        let completed = 0;
+        const totalBytes = photoPreviews.reduce((sum, p) => sum + p.file.size, 0);
+        let uploadedBytes = 0;
+
+        await Promise.all(
+          uploadInit.uploads.map((upload, i) => {
+            const file = photoPreviews[i]?.file;
+            if (!file) throw new Error("Photo upload mismatch.");
+
+            return new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              activeXhrs.current.push(xhr);
+
+              xhr.open("PUT", upload.signedUrl);
+              xhr.setRequestHeader("Content-Type", file.type);
+
+              xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                  const previous = xhr._lastLoaded || 0;
+                  const delta = event.loaded - previous;
+                  xhr._lastLoaded = event.loaded;
+                  uploadedBytes += delta;
+                  const percent = Math.round((uploadedBytes / totalBytes) * 100);
+                  setUploadProgress(Math.min(percent, 100));
+                }
+              };
+
+              xhr.onload = () => {
+                activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  completed++;
+                  setCurrentUpload(completed);
+                  resolve();
+                } else {
+                  reject(new Error("Failed to upload one of the photos."));
+                }
+              };
+
+              xhr.onerror = () => {
+                activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
+                reject(new Error("Upload failed."));
+              };
+
+              xhr.send(file);
+            });
+          })
+        );
+
+        setUploadProgress(100);
+
+        await Promise.all(
+          uploadInit.uploads.map((u) =>
+            invokeWithAuth("generate-thumbnail", {
+              body: {
+                originalPath: u.path,
+                thumbPath: u.thumbPath,
+              },
+            })
+          )
+        );
+
+        const newEntries = uploadInit.uploads.map((u) => ({
+          original: u.path,
+          thumb: u.thumbPath,
+        }));
+
+        photosPayload = [...photosPayload, ...newEntries];
+
+        await Promise.all(
+          uploadInit.uploads.map((u) =>
+            invokeWithAuth("create-embedding-job", {
+              body: {
+                itemId: storedItem.id,
+                photoPath: u.path,
+                thumbPath: u.thumbPath,
+              },
+            })
+          )
+        );
+      }
+
+      const updates = {
+        category: form.category.trim(),
+        make: form.make.trim(),
+        model: form.model.trim(),
+        serial1: form.serial1.trim(),
+        serial2: form.serial2.trim(),
+        location: form.location.trim(),
+        purchaseDate: form.purchaseDate || undefined,
+        estimatedValue: form.estimatedValue
+          ? Number(form.estimatedValue)
+          : undefined,
+        shop: form.shop.trim(),
+        warrantyExpiry: form.warrantyExpiry || undefined,
+        notes: form.notes.trim(),
+        status: form.status,
+        photos: photosPayload,
+      };
+
+      const extra = {};
+      if (
+        form.status === "Stolen" &&
+        storedItem.status === "Active" &&
+        policeStation.trim()
+      ) {
+        extra.policeStation = policeStation.trim();
+      }
+
+      const updated = await updateItem(storedItem.id, updates, extra);
+
+      photoPreviews.forEach((p) => URL.revokeObjectURL(p.url));
+      setPhotoPreviews([]);
+
+      const slug = updated?.slug || storedItem.slug;
+      await alert({
+        title: "Saved",
+        message: "Your changes were saved.",
+        variant: "success",
+        mode: "alert",
+      });
+      navigate(`/items/${slug}`);
+    } catch (err) {
+      if (uploadCancelledRef.current) {
+        await alert({
+          title: "Upload Cancelled",
+          message: "Photo upload was cancelled.",
+          variant: "warning",
+        });
+        return;
+      }
+      await alert({
+        title: "Could not save",
+        message: err.message || "Something went wrong.",
+        variant: "error",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setCurrentUpload(0);
+      setTotalUploads(0);
+    }
+  }
+
+  async function handleDelete() {
+    if (!storedItem) return;
+    if (!window.confirm("Delete this item? This cannot be undone.")) return;
+
+    try {
+      await deleteItem(storedItem.id);
+      navigate("/items");
+    } catch (err) {
+      await alert({
+        title: "Delete failed",
+        message: err.message || "Could not delete item.",
+        variant: "error",
       });
     }
   }
 
-  if (loading) {
+  if (itemsLoading) {
     return (
       <div className="min-h-screen bg-gray-100">
         <div className="p-6 max-w-3xl mx-auto">
-          <div className="bg-white p-6 rounded-lg shadow-sm text-center">Loading item...</div>
+          <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+            Loading…
+          </div>
         </div>
       </div>
     );
@@ -247,9 +574,14 @@ export default function EditItem() {
         <div className="p-6 max-w-3xl mx-auto">
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">
             <h2 className="text-lg font-semibold">Item not found</h2>
-            <p className="text-sm text-gray-500 mt-2">The requested item does not exist.</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Open this page from your items list, or the item may not be loaded yet.
+            </p>
             <div className="mt-4 flex gap-2 justify-center">
-              <RippleButton className="px-4 py-2 rounded border bg-white" onClick={() => navigate("/items")}>
+              <RippleButton
+                className="px-4 py-2 rounded border bg-white"
+                onClick={() => navigate("/items")}
+              >
                 Back to items
               </RippleButton>
             </div>
@@ -259,30 +591,323 @@ export default function EditItem() {
     );
   }
 
+  const photoRoom = 5 - existingPhotos.length - photoPreviews.length;
+
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-        /*{step === 1 && (
-          <AddItemStep1
-            onNext={handleStep1Next}
-            initial={step1Data}
-            mode="edit"
-            onDelete={handleDelete}
-            onClear={() => handleClearToInitial(1)}
-          />
-        )}*/
+      <div className="max-w-3xl mx-auto p-4 sm:p-6">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-iregistrygreen">Edit item</h1>
+            <p className="text-sm text-gray-500">
+              Update details for {storedItem.name || "this item"}
+            </p>
+          </div>
+          <RippleButton
+            type="button"
+            className="px-4 py-2 rounded-lg border border-red-200 text-red-700 bg-white self-start"
+            onClick={handleDelete}
+          >
+            Delete item
+          </RippleButton>
+        </div>
 
-        /*{step === 2 && (
-          <AddItemStep2
-            onBack={() => setStep(1)}
-            onSubmit={handleStep2Submit}
-            initial={{ ...step2Data }}
-            mode="edit"
-            onDelete={handleDelete}
-            onClear={() => handleClearToInitial(2)}
-          />
-        )}*/
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 space-y-6"
+        >
+          <Field label="Category" required>
+            <input
+              name="category"
+              value={form.category}
+              onChange={(e) => updateField("category", e.target.value)}
+              className={`input ${isFieldInvalid("category") ? "border-red-500 ring-red-500" : ""}`}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Make" required>
+              <input
+                name="make"
+                value={form.make}
+                onChange={(e) => updateField("make", e.target.value)}
+                className={`input ${isFieldInvalid("make") ? "border-red-500 ring-red-500" : ""}`}
+              />
+            </Field>
+            <Field label="Model" required>
+              <input
+                name="model"
+                value={form.model}
+                onChange={(e) => updateField("model", e.target.value)}
+                className={`input ${isFieldInvalid("model") ? "border-red-500 ring-red-500" : ""}`}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Serial number" required>
+              <input
+                name="serial1"
+                value={form.serial1}
+                onChange={(e) => updateField("serial1", e.target.value)}
+                className={`input ${isFieldInvalid("serial1") ? "border-red-500 ring-red-500" : ""}`}
+              />
+              {serialError && (
+                <p className="text-xs text-red-600 mt-1">{serialError}</p>
+              )}
+              {serialCheckWarning && !serialError && (
+                <p className="text-xs text-amber-700 mt-1">{serialCheckWarning}</p>
+              )}
+            </Field>
+            <Field label="Secondary serial">
+              <input
+                name="serial2"
+                value={form.serial2}
+                onChange={(e) => updateField("serial2", e.target.value)}
+                className="input"
+              />
+            </Field>
+          </div>
+
+          <Field label="Location" required>
+            <input
+              name="location"
+              value={form.location}
+              onChange={(e) => updateField("location", e.target.value)}
+              className={`input ${isFieldInvalid("location") ? "border-red-500 ring-red-500" : ""}`}
+            />
+          </Field>
+
+          <Field label="Status">
+            <select
+              value={form.status}
+              onChange={(e) => updateField("status", e.target.value)}
+              className="input"
+            >
+              <option value="Active">Active</option>
+              <option value="Stolen">Stolen</option>
+            </select>
+          </Field>
+
+          {form.status === "Stolen" && storedItem.status === "Active" && (
+            <Field label="Reporting station (optional)">
+              <input
+                value={policeStation}
+                onChange={(e) => setPoliceStation(e.target.value)}
+                className="input"
+                placeholder="Defaults to location if empty"
+              />
+            </Field>
+          )}
+
+          <Field label="Shop / retailer">
+            <input
+              name="shop"
+              value={form.shop}
+              onChange={(e) => updateField("shop", e.target.value)}
+              className="input"
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Purchase date">
+              <input
+                name="purchaseDate"
+                type="date"
+                value={form.purchaseDate}
+                onChange={(e) => updateField("purchaseDate", e.target.value)}
+                className="input"
+              />
+            </Field>
+            <Field label="Warranty expiry">
+              <input
+                name="warrantyExpiry"
+                type="date"
+                value={form.warrantyExpiry}
+                onChange={(e) => updateField("warrantyExpiry", e.target.value)}
+                className="input"
+                min={form.purchaseDate || undefined}
+              />
+            </Field>
+          </div>
+
+          <Field label="Estimated Value (P)">
+            <input
+              name="estimatedValue"
+              value={formatCurrency(form.estimatedValue)}
+              onChange={handleCurrencyChange}
+              className="input"
+              inputMode="decimal"
+            />
+          </Field>
+
+          <Field label="Notes">
+            <textarea
+              value={form.notes}
+              onChange={(e) => updateField("notes", e.target.value)}
+              className="input h-24"
+            />
+          </Field>
+
+          <div className="border-t pt-6 mt-6 space-y-4">
+            <Field label={`Photos (max 5) — ${photoRoom} slot(s) left`}>
+              {existingPhotos.length > 0 && (
+                <p className="text-xs text-gray-500 mb-2">Current photos (drag to reorder)</p>
+              )}
+              {existingPhotos.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {existingPhotos.map((p, i) => (
+                    <div
+                      key={`ex-${p.original}-${i}`}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("exIndex", String(i))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        const from = Number(e.dataTransfer.getData("exIndex"));
+                        moveExistingPhoto(from, i);
+                      }}
+                      className="relative group cursor-move"
+                    >
+                      <img
+                        src={photoThumbUrl(p) || ""}
+                        alt=""
+                        className="rounded-lg h-24 w-full object-cover border"
+                      />
+                      {i === 0 && (
+                        <div className="absolute top-1 left-1 text-[10px] bg-black/70 text-white px-1 rounded">
+                          Thumbnail
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeExistingPhoto(i)}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {photoRoom > 0 && (
+                <div
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition
+                    ${dragActive
+                      ? "border-iregistrygreen bg-emerald-50"
+                      : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
+                  `}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotos}
+                    className="hidden"
+                    id="edit-photo-upload"
+                  />
+                  <label htmlFor="edit-photo-upload" className="cursor-pointer block">
+                    <div className="text-sm text-gray-600">
+                      Add photos — drag here or{" "}
+                      <span className="text-iregistrygreen font-medium">browse</span>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {photoPreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 mt-3">
+                  {photoPreviews.map((p, i) => (
+                    <div
+                      key={p.url}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("newIndex", String(i))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        const from = Number(e.dataTransfer.getData("newIndex"));
+                        moveNewPhoto(from, i);
+                      }}
+                      className="relative group cursor-move"
+                    >
+                      <img
+                        src={p.url}
+                        alt="new"
+                        className="rounded-lg h-24 w-full object-cover border"
+                      />
+                      <div className="absolute bottom-1 left-1 text-[10px] bg-emerald-800/80 text-white px-1 rounded">
+                        New
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeNewPhoto(i)}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Field>
+          </div>
+
+          {isUploading && (
+            <div className="mb-4 space-y-3">
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-iregistrygreen h-2 transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-400 text-right">
+                Uploading {currentUpload} / {totalUploads}…
+              </p>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={cancelUpload}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium"
+                >
+                  Cancel upload
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <RippleButton
+              type="button"
+              className="px-4 py-2 rounded-lg bg-gray-100"
+              onClick={() => navigate(`/items/${storedItem.slug}`)}
+            >
+              Cancel
+            </RippleButton>
+            <RippleButton
+              type="submit"
+              disabled={isFormInvalid || isUploading || itemsLoading}
+              className="px-5 py-2 rounded-lg bg-iregistrygreen text-white"
+            >
+              {isUploading ? `Uploading ${currentUpload}/${totalUploads}` : "Save changes"}
+            </RippleButton>
+          </div>
+        </form>
       </div>
+    </div>
+  );
+}
+
+function Field({ label, required = false, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {required && <span className="text-red-600 ml-1">*</span>}
+      </label>
+      {children}
     </div>
   );
 }

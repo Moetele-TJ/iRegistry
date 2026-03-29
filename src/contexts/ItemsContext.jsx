@@ -244,12 +244,18 @@ export function ItemsProvider({ children }) {
       );
     }
 
-    const updatedItem = normalizeFromDB(data.item);
+    if (data.item) {
+      const updatedItem = normalizeFromDB(data.item);
 
-    dispatch({
-      type: "REPLACE_ITEM",
-      payload: updatedItem,
-    });
+      dispatch({
+        type: "REPLACE_ITEM",
+        payload: updatedItem,
+      });
+
+      return updatedItem;
+    }
+
+    return null;
 
     }catch (err) {
       dispatch({ type: "SET_ERROR", payload: err.message });
