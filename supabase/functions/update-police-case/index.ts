@@ -137,17 +137,40 @@ serve(async (req) => {
       );
     }
 
+    const noteIn = typeof body?.note === "string" ? body.note.trim() : "";
+    const evidenceIn = body?.evidence;
+    const stamp = new Date().toISOString();
+
     const patch: Record<string, unknown> = {
       status: nextStatus,
       updated_by: session.user_id,
     };
 
+    if (noteIn) {
+      const line = `[${stamp}] → ${nextStatus}: ${noteIn}`;
+      patch.notes = row.notes ? `${row.notes}\n\n${line}` : line;
+    }
+
+    if (evidenceIn !== undefined && evidenceIn !== null) {
+      if (typeof evidenceIn === "object" && !Array.isArray(evidenceIn)) {
+        const prev =
+          row.evidence && typeof row.evidence === "object" && !Array.isArray(row.evidence)
+            ? (row.evidence as Record<string, unknown>)
+            : {};
+        patch.evidence = {
+          ...prev,
+          ...(evidenceIn as Record<string, unknown>),
+          _last_update: stamp,
+        };
+      }
+    }
+
     if (nextStatus === "ClearedForReturn") {
-      patch.cleared_at = new Date().toISOString();
+      patch.cleared_at = stamp;
     }
 
     if (nextStatus === "ReturnedToOwner") {
-      patch.returned_at = new Date().toISOString();
+      patch.returned_at = stamp;
     }
 
     const { data: updatedCase, error: caseErr } = await supabase
@@ -173,7 +196,7 @@ serve(async (req) => {
     if (nextStatus === "ReturnedToOwner") {
       const { data: itemRow, error: itemFetchErr } = await supabase
         .from("items")
-        .select("id, name, ownerid")
+        .select("id, name, ownerid, slug")
         .eq("id", row.item_id)
         .maybeSingle();
 
@@ -185,6 +208,8 @@ serve(async (req) => {
             returned_at: row.returned_at,
             cleared_at: row.cleared_at,
             updated_by: row.updated_by,
+            notes: row.notes,
+            evidence: row.evidence,
           })
           .eq("id", caseId);
 
@@ -217,6 +242,8 @@ serve(async (req) => {
             returned_at: row.returned_at,
             cleared_at: row.cleared_at,
             updated_by: row.updated_by,
+            notes: row.notes,
+            evidence: row.evidence,
           })
           .eq("id", caseId);
 
@@ -244,9 +271,19 @@ serve(async (req) => {
         entityName: updatedItem.name,
         action: "ITEM_MARKED_ACTIVE",
         message: `${updatedItem.name} returned to owner (police case closed).`,
-        metadata: { police_case_id: caseId, via: "police_case" },
+        metadata: {
+          police_case_id: caseId,
+          via: "police_case",
+          slug: itemRow.slug,
+        },
       });
     } else if (nextStatus === "InCustody" || nextStatus === "ClearedForReturn") {
+      const { data: slugRow } = await supabase
+        .from("items")
+        .select("slug, name")
+        .eq("id", row.item_id)
+        .maybeSingle();
+
       const logAction = nextStatus === "InCustody"
         ? "POLICE_CASE_IN_CUSTODY"
         : "POLICE_CASE_CLEARED_FOR_RETURN";
@@ -259,13 +296,14 @@ serve(async (req) => {
         actorRole: session.role,
         entityType: "item",
         entityId: row.item_id,
-        entityName: null,
+        entityName: slugRow?.name ?? null,
         action: logAction,
         message: logMessage,
         metadata: {
           police_case_id: caseId,
           from_status: row.status,
           to_status: nextStatus,
+          slug: slugRow?.slug,
         },
       });
     }

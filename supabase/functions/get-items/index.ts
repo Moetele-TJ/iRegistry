@@ -74,7 +74,7 @@ serve(async (req) => {
       const { data: cases, error: caseErr, count } = await supabase
         .from("item_police_cases")
         .select(
-          "id, item_id, status, station, station_source, opened_at, cleared_at, returned_at, notes",
+          "id, item_id, status, station, station_source, opened_at, cleared_at, returned_at, notes, evidence",
           { count: "exact" },
         )
         .eq("station", station)

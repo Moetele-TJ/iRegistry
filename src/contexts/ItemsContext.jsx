@@ -77,6 +77,7 @@ function normalizePoliceCase(pc) {
     clearedAt: pc.cleared_at,
     returnedAt: pc.returned_at,
     notes: pc.notes,
+    evidence: pc.evidence ?? null,
   };
 }
 

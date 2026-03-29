@@ -5,6 +5,8 @@ import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import ItemActivityTimeline from "../components/ItemActivityTimeline";
 import { useItemActivity } from "../hooks/useItemActivity";
 
@@ -17,12 +19,41 @@ function fmtDate(iso) {
   }
 }
 
+function formatPoliceCaseStatusLabel(status) {
+  if (!status) return "—";
+  const map = {
+    Open: "Open",
+    InCustody: "In custody",
+    ClearedForReturn: "Cleared for return",
+    ReturnedToOwner: "Returned to owner",
+  };
+  return map[status] || status;
+}
+
+function normalizePoliceCaseRow(row) {
+  if (!row || typeof row !== "object") return null;
+  return {
+    id: row.id,
+    status: row.status,
+    station: row.station,
+    stationSource: row.station_source,
+    openedAt: row.opened_at,
+    clearedAt: row.cleared_at,
+    returnedAt: row.returned_at,
+    notes: row.notes,
+    evidence: row.evidence,
+  };
+}
+
 export default function ItemDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { items, deleteItem } = useItems();
+  const { user } = useAuth();
 
   const [item, setItem] = useState(null);
+  const [policeCaseDetail, setPoliceCaseDetail] = useState(null);
+  const [policeCaseLoading, setPoliceCaseLoading] = useState(false);
   const { activity, loading } = useItemActivity(item?.id);
   const [confirmOpen, setConfirmOpen] = useState(false); // modal state
   const [working, setWorking] = useState(false);
@@ -34,6 +65,42 @@ export default function ItemDetails() {
     const found = (items || []).find((it) => String(it.slug) === String(slug));
     setItem(found || null);
   }, [slug, items]);
+
+  useEffect(() => {
+    if (!item?.id || item.status !== "Stolen") {
+      setPoliceCaseDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPoliceCaseLoading(true);
+
+    (async () => {
+      try {
+        const { data, error } = await invokeWithAuth("get-item-police-case", {
+          body: { itemId: item.id },
+        });
+        if (cancelled) return;
+        if (error && !data?.message) {
+          setPoliceCaseDetail(null);
+          return;
+        }
+        if (data?.success && data.case) {
+          setPoliceCaseDetail(normalizePoliceCaseRow(data.case));
+        } else {
+          setPoliceCaseDetail(null);
+        }
+      } catch {
+        if (!cancelled) setPoliceCaseDetail(null);
+      } finally {
+        if (!cancelled) setPoliceCaseLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.id, item?.status]);
 
   function openDeleteModal() {
     setConfirmOpen(true);
@@ -159,6 +226,67 @@ export default function ItemDetails() {
                     {item.status || "—"}
                   </div>
                 </div>
+
+                {item.status === "Stolen" && (
+                  <div className="sm:col-span-2">
+                    {policeCaseLoading && (
+                      <p className="text-xs text-gray-400">Loading police case…</p>
+                    )}
+                    {!policeCaseLoading && policeCaseDetail && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4 space-y-2 text-sm">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Police recovery case
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-800">
+                          <div>
+                            <span className="text-gray-500 text-xs">Case status</span>
+                            <div className="font-medium">
+                              {formatPoliceCaseStatusLabel(policeCaseDetail.status)}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 text-xs">Reporting station</span>
+                            <div>{policeCaseDetail.station || "—"}</div>
+                          </div>
+                          {policeCaseDetail.openedAt && (
+                            <div>
+                              <span className="text-gray-500 text-xs">Opened</span>
+                              <div>{fmtDate(policeCaseDetail.openedAt)}</div>
+                            </div>
+                          )}
+                          {policeCaseDetail.clearedAt && (
+                            <div>
+                              <span className="text-gray-500 text-xs">Cleared for return</span>
+                              <div>{fmtDate(policeCaseDetail.clearedAt)}</div>
+                            </div>
+                          )}
+                        </div>
+                        {policeCaseDetail.notes && (
+                          <div>
+                            <div className="text-gray-500 text-xs mb-0.5">Case notes</div>
+                            <div className="text-gray-800 whitespace-pre-wrap text-sm border-t border-slate-200/80 pt-2">
+                              {policeCaseDetail.notes}
+                            </div>
+                          </div>
+                        )}
+                        {policeCaseDetail.evidence &&
+                          typeof policeCaseDetail.evidence === "object" && (
+                            <div>
+                              <div className="text-gray-500 text-xs mb-0.5">Evidence (record)</div>
+                              <pre className="text-xs bg-white/80 border border-slate-100 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap font-mono text-gray-700">
+                                {JSON.stringify(policeCaseDetail.evidence, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                      </div>
+                    )}
+                    {!policeCaseLoading && !policeCaseDetail && user && (
+                      <p className="text-xs text-gray-400">
+                        No open police case on file, or you don&apos;t have access to case details.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <div className="text-xs text-gray-500">Make / Model</div>

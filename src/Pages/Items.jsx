@@ -142,6 +142,9 @@ export default function Items() {
   // Toast state (keeps Toast component usage compatible)
   const [toast, setToast] = useState({ message: "", type: "info", visible: false });
   const [caseWorkingId, setCaseWorkingId] = useState(null);
+  const [policeAdvanceModal, setPoliceAdvanceModal] = useState(null);
+  const [policeAdvanceNote, setPoliceAdvanceNote] = useState("");
+  const [policeAdvanceEvidenceLine, setPoliceAdvanceEvidenceLine] = useState("");
 
   function openConfirm(opts = {}) {
     setConfirm({
@@ -202,17 +205,51 @@ export default function Items() {
     setPage(1);
   }
 
-  async function handleAdvancePoliceCase(item) {
+  function openPoliceAdvanceModal(item) {
     const step = getNextPoliceCaseStep(item.policeCase?.status);
+    if (!step || !item.policeCase?.id) return;
+    setPoliceAdvanceModal({ item, step });
+    setPoliceAdvanceNote("");
+    setPoliceAdvanceEvidenceLine("");
+  }
+
+  function closePoliceAdvanceModal() {
+    setPoliceAdvanceModal(null);
+    setPoliceAdvanceNote("");
+    setPoliceAdvanceEvidenceLine("");
+  }
+
+  async function submitPoliceAdvanceModal() {
+    if (!policeAdvanceModal) return;
+    const { item, step } = policeAdvanceModal;
+    const note = policeAdvanceNote.trim();
+    const evLine = policeAdvanceEvidenceLine.trim();
+    const evidence = evLine ? { summary: evLine } : undefined;
+    try {
+      await executePoliceCaseAdvance(item, step, {
+        note: note || undefined,
+        evidence,
+      });
+      closePoliceAdvanceModal();
+    } catch {
+      /* keep modal open on failure */
+    }
+  }
+
+  async function executePoliceCaseAdvance(item, step, { note, evidence } = {}) {
     if (!step || !item.policeCase?.id) return;
 
     setCaseWorkingId(item.policeCase.id);
     try {
+      const body = {
+        caseId: item.policeCase.id,
+        nextStatus: step.nextStatus,
+      };
+      if (note) body.note = note;
+      if (evidence && Object.keys(evidence).length) body.evidence = evidence;
+
       const { data, error } = await invokeWithAuth("update-police-case", {
-        body: {
-          caseId: item.policeCase.id,
-          nextStatus: step.nextStatus,
-        },
+        body,
       });
 
       if (error && !data?.message) {
@@ -240,6 +277,7 @@ export default function Items() {
       setTimeout(() => {
         setToast((t) => ({ ...t, visible: false }));
       }, 5000);
+      throw err;
     } finally {
       setCaseWorkingId(null);
     }
@@ -526,6 +564,65 @@ export default function Items() {
         danger={confirm.danger}
         children={confirm.children}
       />
+
+      {policeAdvanceModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            onClick={() => !caseWorkingId && closePoliceAdvanceModal()}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative bg-white rounded-xl shadow-lg w-full max-w-md mx-4 p-5 z-10 border border-gray-100"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              {policeAdvanceModal.step.label}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Optional note is appended to the case file. Evidence summary is stored as structured
+              data for tangible property.
+            </p>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Note (optional)</label>
+            <textarea
+              value={policeAdvanceNote}
+              onChange={(e) => setPoliceAdvanceNote(e.target.value)}
+              rows={3}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3"
+              placeholder="e.g. Item tagged at central exhibit room"
+            />
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Evidence summary (optional)
+            </label>
+            <input
+              type="text"
+              value={policeAdvanceEvidenceLine}
+              onChange={(e) => setPoliceAdvanceEvidenceLine(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4"
+              placeholder="Reference ID, exhibit number, or short description"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={!!caseWorkingId}
+                onClick={closePoliceAdvanceModal}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!!caseWorkingId}
+                onClick={() => void submitPoliceAdvanceModal()}
+                className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900 disabled:opacity-50"
+              >
+                {caseWorkingId ? "Saving…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Toast */}
       <Toast
@@ -893,7 +990,7 @@ export default function Items() {
                                 <RippleButton
                                   className="px-3 py-1 rounded-md text-xs border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-60"
                                   disabled={busy}
-                                  onClick={() => handleAdvancePoliceCase(item)}
+                                  onClick={() => openPoliceAdvanceModal(item)}
                                 >
                                   {busy ? "…" : step.label}
                                 </RippleButton>
@@ -1141,7 +1238,7 @@ export default function Items() {
                           <RippleButton
                             className="w-full py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-800"
                             disabled={busy}
-                            onClick={() => handleAdvancePoliceCase(item)}
+                            onClick={() => openPoliceAdvanceModal(item)}
                           >
                             {busy ? "Updating…" : `Case: ${step.label}`}
                           </RippleButton>
