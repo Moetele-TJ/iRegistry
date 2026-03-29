@@ -15,16 +15,15 @@ export async function getPoliceCaseActivity(
   const safePage = Math.max(Number(page) || 1, 1);
   const offset = (safePage - 1) * safeLimit;
 
-  /* 1️⃣ Get stolen items at station */
+  /* 1️⃣ Open police cases at this station (case.station matches; not item.location) */
 
-  const { data: stolenItems } = await supabase
-    .from("items")
-    .select("id")
-    .eq("status", "Stolen")
-    .eq("location", station)
-    .is("deletedat", null);
+  const { data: openCases } = await supabase
+    .from("item_police_cases")
+    .select("item_id")
+    .eq("station", station.trim())
+    .neq("status", "ReturnedToOwner");
 
-  const itemIds = stolenItems?.map(i => i.id) ?? [];
+  const itemIds = openCases?.map((c) => c.item_id) ?? [];
 
   if (itemIds.length === 0) {
     return {
@@ -53,6 +52,9 @@ export async function getPoliceCaseActivity(
       "ITEM_REPORTED_STOLEN",
       "ITEM_RECOVERED",
       "ITEM_IMPOUNDED",
+      "ITEM_MARKED_ACTIVE",
+      "POLICE_CASE_IN_CUSTODY",
+      "POLICE_CASE_CLEARED_FOR_RETURN",
     ])
     .order("created_at", { ascending: false })
     .range(offset, offset + safeLimit - 1);

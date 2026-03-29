@@ -43,6 +43,20 @@ function policeCaseStatusBadgeClass(status) {
   }
 }
 
+/** Next step in Open → In custody → Cleared for return → Returned to owner */
+function getNextPoliceCaseStep(status) {
+  switch (status) {
+    case "Open":
+      return { label: "In custody", nextStatus: "InCustody" };
+    case "InCustody":
+      return { label: "Cleared for return", nextStatus: "ClearedForReturn" };
+    case "ClearedForReturn":
+      return { label: "Returned to owner", nextStatus: "ReturnedToOwner" };
+    default:
+      return null;
+  }
+}
+
 export default function Items() {
   const navigate = useNavigate();
     const {
@@ -127,6 +141,7 @@ export default function Items() {
 
   // Toast state (keeps Toast component usage compatible)
   const [toast, setToast] = useState({ message: "", type: "info", visible: false });
+  const [caseWorkingId, setCaseWorkingId] = useState(null);
 
   function openConfirm(opts = {}) {
     setConfirm({
@@ -185,6 +200,49 @@ export default function Items() {
     });
     setStatusFilter(nextValue ? "Stolen" : "All");
     setPage(1);
+  }
+
+  async function handleAdvancePoliceCase(item) {
+    const step = getNextPoliceCaseStep(item.policeCase?.status);
+    if (!step || !item.policeCase?.id) return;
+
+    setCaseWorkingId(item.policeCase.id);
+    try {
+      const { data, error } = await invokeWithAuth("update-police-case", {
+        body: {
+          caseId: item.policeCase.id,
+          nextStatus: step.nextStatus,
+        },
+      });
+
+      if (error && !data?.message) {
+        throw new Error(error.message || "Could not update case");
+      }
+      if (!data?.success) {
+        throw new Error(data?.message || "Could not update case");
+      }
+
+      await refreshItems({ policeStationStolenView: true });
+      setToast({
+        message: `Case: ${step.label}`,
+        type: "success",
+        visible: true,
+      });
+      setTimeout(() => {
+        setToast((t) => ({ ...t, visible: false }));
+      }, 2500);
+    } catch (err) {
+      setToast({
+        message: err.message || "Case update failed",
+        type: "error",
+        visible: true,
+      });
+      setTimeout(() => {
+        setToast((t) => ({ ...t, visible: false }));
+      }, 5000);
+    } finally {
+      setCaseWorkingId(null);
+    }
   }
 
   async function handlePrivilegedOwnerChange(nextOwnerId) {
@@ -815,13 +873,32 @@ export default function Items() {
                         {formatCurrency(item.estimatedValue)}
                       </td>
                       <td className="py-4 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <RippleButton
                             className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
                             onClick={() => navigate("/items/" + item.slug)}
                           >
                             View
                           </RippleButton>
+
+                          {showStationQueue &&
+                            item.policeCase &&
+                            (() => {
+                              const step = getNextPoliceCaseStep(
+                                item.policeCase.status,
+                              );
+                              if (!step) return null;
+                              const busy = caseWorkingId === item.policeCase.id;
+                              return (
+                                <RippleButton
+                                  className="px-3 py-1 rounded-md text-xs border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                                  disabled={busy}
+                                  onClick={() => handleAdvancePoliceCase(item)}
+                                >
+                                  {busy ? "…" : step.label}
+                                </RippleButton>
+                              );
+                            })()}
 
                           {!queueRowReadOnly(item) ? (
                             <>
@@ -1028,30 +1105,48 @@ export default function Items() {
                   ) : null}
 
                   {/* Actions */}
-                  <div className="mt-4 flex gap-2">
-                    <RippleButton
-                      className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                      onClick={() => navigate("/items/" + item.slug)}
-                    >
-                      View
-                    </RippleButton>
-
-                    {!queueRowReadOnly(item) ? (
+                  <div className="mt-4 flex flex-col gap-2">
+                    <div className="flex gap-2">
                       <RippleButton
-                        className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                          isStolen
-                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                            : "bg-red-600 text-white hover:bg-red-700"
-                        }`}
-                        onClick={() => confirmToggleStatus(item.id)}
+                        className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
+                        onClick={() => navigate("/items/" + item.slug)}
                       >
-                        {isStolen ? "Mark Active" : "Mark Stolen"}
+                        View
                       </RippleButton>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl py-2">
-                        View only
-                      </div>
-                    )}
+
+                      {!queueRowReadOnly(item) ? (
+                        <RippleButton
+                          className={`flex-1 py-2 rounded-xl text-sm font-medium ${
+                            isStolen
+                              ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                              : "bg-red-600 text-white hover:bg-red-700"
+                          }`}
+                          onClick={() => confirmToggleStatus(item.id)}
+                        >
+                          {isStolen ? "Mark Active" : "Mark Stolen"}
+                        </RippleButton>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl py-2">
+                          View only
+                        </div>
+                      )}
+                    </div>
+                    {showStationQueue &&
+                      item.policeCase &&
+                      (() => {
+                        const step = getNextPoliceCaseStep(item.policeCase.status);
+                        if (!step) return null;
+                        const busy = caseWorkingId === item.policeCase.id;
+                        return (
+                          <RippleButton
+                            className="w-full py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-800"
+                            disabled={busy}
+                            onClick={() => handleAdvancePoliceCase(item)}
+                          >
+                            {busy ? "Updating…" : `Case: ${step.label}`}
+                          </RippleButton>
+                        );
+                      })()}
                   </div>
                 </div>
               </div>
