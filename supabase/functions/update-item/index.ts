@@ -276,17 +276,60 @@ serve(async (req) => {
     if ("photos" in cleanUpdates) {
       const p = cleanUpdates.photos;
 
-      if (
-        p &&
-        (!Array.isArray(p) ||
-          p.some((x: any) => typeof x !== "string") ||
-          p.length > 5)
-      ) {
+      if (p === null) {
+        cleanUpdates.photos = null;
+      } else if (!Array.isArray(p)) {
         return respond(
           { success: false, message: "Invalid photos" },
           corsHeaders,
-          400
+          400,
         );
+      } else if (p.length > 5) {
+        return respond(
+          { success: false, message: "Invalid photos" },
+          corsHeaders,
+          400,
+        );
+      } else if (p.length === 0) {
+        cleanUpdates.photos = [];
+      } else {
+        const normalized: { original: string; thumb: string }[] = [];
+        for (const x of p) {
+          if (typeof x === "string") {
+            const s = x.trim();
+            if (!s) {
+              return respond(
+                { success: false, message: "Invalid photos" },
+                corsHeaders,
+                400,
+              );
+            }
+            normalized.push({ original: s, thumb: s });
+          } else if (
+            x &&
+            typeof x === "object" &&
+            typeof (x as { original?: unknown }).original === "string" &&
+            typeof (x as { thumb?: unknown }).thumb === "string"
+          ) {
+            const o = String((x as { original: string }).original).trim();
+            const t = String((x as { thumb: string }).thumb).trim();
+            if (!o || !t) {
+              return respond(
+                { success: false, message: "Invalid photos" },
+                corsHeaders,
+                400,
+              );
+            }
+            normalized.push({ original: o, thumb: t });
+          } else {
+            return respond(
+              { success: false, message: "Invalid photos" },
+              corsHeaders,
+              400,
+            );
+          }
+        }
+        cleanUpdates.photos = normalized;
       }
     }
 

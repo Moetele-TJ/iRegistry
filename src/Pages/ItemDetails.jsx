@@ -10,6 +10,29 @@ import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import ItemActivityTimeline from "../components/ItemActivityTimeline";
 import { useItemActivity } from "../hooks/useItemActivity";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
+/** Public storage URL for a photo entry ({ original, thumb }) or legacy path string. */
+function photoStoragePublicUrl(entry) {
+  if (!entry) return null;
+  const path =
+    typeof entry === "string"
+      ? entry.trim()
+      : typeof entry === "object" && entry
+        ? (entry.thumb || entry.original || "").trim()
+        : "";
+  if (!path || !SUPABASE_URL) return null;
+  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+}
+
+function itemPhotoUrls(item) {
+  const list = item?.photos;
+  if (!Array.isArray(list) || list.length === 0) return [];
+  return list
+    .map((p) => photoStoragePublicUrl(p))
+    .filter(Boolean);
+}
+
 function fmtDate(iso) {
   if (!iso) return "";
   try {
@@ -57,6 +80,7 @@ export default function ItemDetails() {
   const { activity, loading } = useItemActivity(item?.id);
   const [confirmOpen, setConfirmOpen] = useState(false); // modal state
   const [working, setWorking] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   // toast state
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
@@ -64,6 +88,7 @@ export default function ItemDetails() {
   useEffect(() => {
     const found = (items || []).find((it) => String(it.slug) === String(slug));
     setItem(found || null);
+    setPhotoIndex(0);
   }, [slug, items]);
 
   useEffect(() => {
@@ -141,6 +166,13 @@ export default function ItemDetails() {
     void performDelete();
   }
 
+  const photoUrls = item ? itemPhotoUrls(item) : [];
+  const fallbackImage = item?.imageUrl?.trim() || null;
+  const mainPhotoSrc =
+    photoUrls.length > 0
+      ? photoUrls[Math.min(photoIndex, photoUrls.length - 1)]
+      : fallbackImage;
+
   if (!item) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -164,13 +196,13 @@ export default function ItemDetails() {
       <div className="p-6 sm:p-8 max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Left: image / placeholder */}
-            <div className="md:w-1/3 flex items-center justify-center">
-              {item.imageUrl ? (
+            {/* Left: photos (same pipeline as Items list) + legacy imageUrl fallback */}
+            <div className="md:w-1/3 flex flex-col items-center justify-center gap-3">
+              {mainPhotoSrc ? (
                 <img
-                  src={item.imageUrl}
+                  src={mainPhotoSrc}
                   alt={item.name || "Item photo"}
-                  className="w-48 h-48 object-cover rounded-lg border"
+                  className="w-48 h-48 object-cover rounded-lg border border-gray-200"
                   onError={(e) => {
                     e.currentTarget.src = "";
                   }}
@@ -178,6 +210,24 @@ export default function ItemDetails() {
               ) : (
                 <div className="w-48 h-48 bg-gray-50 rounded-lg border flex items-center justify-center text-gray-400">
                   <div className="text-4xl">☁</div>
+                </div>
+              )}
+              {photoUrls.length > 1 && (
+                <div className="flex flex-wrap gap-2 justify-center max-w-[12.5rem]">
+                  {photoUrls.map((url, i) => (
+                    <button
+                      key={url + i}
+                      type="button"
+                      onClick={() => setPhotoIndex(i)}
+                      className={`w-11 h-11 rounded-md overflow-hidden border-2 shrink-0 ${
+                        photoIndex === i
+                          ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
+                          : "border-gray-200 opacity-80 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -200,7 +250,7 @@ export default function ItemDetails() {
 
                   <RippleButton
                     className="px-4 py-2 rounded bg-iregistrygreen text-white text-sm"
-                    onClick={() => navigate(`/items/${item.id}/edit`)}
+                    onClick={() => navigate(`/items/${item.slug}/edit`)}
                   >
                     Edit
                   </RippleButton>

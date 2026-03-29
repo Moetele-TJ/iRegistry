@@ -33,7 +33,7 @@ serve(async (req) => {
 
   await supabase
     .storage
-    .from("items-photos")
+    .from("item-photos")
     .upload(thumbPath, thumb, {
       contentType: "image/jpeg",
       upsert: true

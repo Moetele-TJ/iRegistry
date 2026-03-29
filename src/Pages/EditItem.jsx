@@ -55,12 +55,15 @@ export default function EditItem() {
   useEffect(() => {
     setLoading(true);
 
+    const matchParam = (it) =>
+      String(it.id) === String(id) || String(it.slug) === String(id);
+
     let found = null;
     if (itemsCtx) {
-      found = (itemsCtx || []).find((it) => String(it.id) === String(id));
+      found = (itemsCtx || []).find(matchParam);
     } else {
       const all = loadItemsFallback();
-      found = all.find((it) => String(it.id) === String(id));
+      found = all.find(matchParam);
     }
 
     if (!found) {
@@ -148,7 +151,7 @@ export default function EditItem() {
           await maybePromise;
         }
         // context persists and broadcasts; navigate to details
-        navigate("/items/" + updated.id);
+        navigate("/items/" + (updated.slug || updated.id));
         return;
       }
     } catch (e) {
@@ -160,7 +163,7 @@ export default function EditItem() {
       const all = loadItemsFallback();
       const next = all.map((it) => (String(it.id) === String(updated.id) ? updated : it));
       saveItemsFallback(next);
-      navigate("/items/" + updated.id);
+      navigate("/items/" + (updated.slug || updated.id));
     } catch (e) {
       console.error("Failed to save updated item (fallback):", e);
       // keep user on edit page if save failed
