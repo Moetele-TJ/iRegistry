@@ -57,6 +57,32 @@ function getNextPoliceCaseStep(status) {
   }
 }
 
+function photoStoragePublicUrl(entry, preferThumb = true) {
+  if (!entry) return null;
+  if (!SUPABASE_URL) return null;
+
+  const path =
+    typeof entry === "string"
+      ? entry.trim()
+      : typeof entry === "object" && entry
+        ? preferThumb
+          ? (entry.thumb || entry.original || "").trim()
+          : (entry.original || entry.thumb || "").trim()
+        : "";
+
+  if (!path) return null;
+  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+}
+
+function itemThumbnailSrc(item) {
+  const first = item?.photos?.[0] ?? null;
+  return (
+    photoStoragePublicUrl(first, true) ||
+    item?.imageUrl?.trim() ||
+    null
+  );
+}
+
 export default function Items() {
   const navigate = useNavigate();
     const {
@@ -893,9 +919,9 @@ export default function Items() {
                         <div className="flex items-center gap-3">
                           {/* Thumbnail */}
                           <div className="w-11 h-11 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center text-xs text-gray-400 overflow-hidden">
-                            {item.photos?.[0] ? (
+                            {itemThumbnailSrc(item) ? (
                               <img
-                              src={`${SUPABASE_URL}/storage/v1/object/public/item-photos/${item.photos?.[0]?.thumb}`}
+                              src={itemThumbnailSrc(item)}
                               className="w-full h-full object-cover"
                             />
                             ) : (
@@ -1078,9 +1104,9 @@ export default function Items() {
                         ? "ring-1 ring-red-200 bg-red-50"
                         : "ring-1 ring-emerald-200 bg-emerald-50"}
                     `}>
-                      {item.photos?.[0] ? (
+                      {itemThumbnailSrc(item) ? (
                         <img
-                          src={`${SUPABASE_URL}/storage/v1/object/public/item-photos/${item.photos?.[0]?.thumb}`}
+                          src={itemThumbnailSrc(item)}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />

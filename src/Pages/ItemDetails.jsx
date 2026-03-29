@@ -12,24 +12,29 @@ import { useItemActivity } from "../hooks/useItemActivity";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-/** Public storage URL for a photo entry ({ original, thumb }) or legacy path string. */
-function photoStoragePublicUrl(entry) {
+/**
+ * Public storage URL for a photo entry ({ original, thumb }) or legacy path string.
+ * @param {boolean} preferMain — true: hero uses original first; false: strip uses thumb first
+ */
+function photoStoragePublicUrl(entry, preferMain = false) {
   if (!entry) return null;
-  const path =
-    typeof entry === "string"
-      ? entry.trim()
-      : typeof entry === "object" && entry
-        ? (entry.thumb || entry.original || "").trim()
-        : "";
+  let path = "";
+  if (typeof entry === "string") {
+    path = entry.trim();
+  } else if (typeof entry === "object" && entry) {
+    path = preferMain
+      ? (entry.original || entry.thumb || "").trim()
+      : (entry.thumb || entry.original || "").trim();
+  }
   if (!path || !SUPABASE_URL) return null;
   return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
 }
 
-function itemPhotoUrls(item) {
+function itemPhotoUrls(item, preferMain = false) {
   const list = item?.photos;
   if (!Array.isArray(list) || list.length === 0) return [];
   return list
-    .map((p) => photoStoragePublicUrl(p))
+    .map((p) => photoStoragePublicUrl(p, preferMain))
     .filter(Boolean);
 }
 
@@ -166,11 +171,12 @@ export default function ItemDetails() {
     void performDelete();
   }
 
-  const photoUrls = item ? itemPhotoUrls(item) : [];
+  const mainPhotoUrls = item ? itemPhotoUrls(item, true) : [];
+  const thumbPhotoUrls = item ? itemPhotoUrls(item, false) : [];
   const fallbackImage = item?.imageUrl?.trim() || null;
   const mainPhotoSrc =
-    photoUrls.length > 0
-      ? photoUrls[Math.min(photoIndex, photoUrls.length - 1)]
+    mainPhotoUrls.length > 0
+      ? mainPhotoUrls[Math.min(photoIndex, mainPhotoUrls.length - 1)]
       : fallbackImage;
 
   if (!item) {
@@ -196,7 +202,7 @@ export default function ItemDetails() {
       <div className="p-6 sm:p-8 max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Left: photos (same pipeline as Items list) + legacy imageUrl fallback */}
+            {/* Left: main = original (full-res); strip = thumbs; fallback imageUrl if no photos */}
             <div className="md:w-1/3 flex flex-col items-center justify-center gap-3">
               {mainPhotoSrc ? (
                 <img
@@ -212,9 +218,9 @@ export default function ItemDetails() {
                   <div className="text-4xl">☁</div>
                 </div>
               )}
-              {photoUrls.length > 1 && (
+              {thumbPhotoUrls.length > 1 && (
                 <div className="flex flex-wrap gap-2 justify-center max-w-[12.5rem]">
-                  {photoUrls.map((url, i) => (
+                  {thumbPhotoUrls.map((url, i) => (
                     <button
                       key={url + i}
                       type="button"
