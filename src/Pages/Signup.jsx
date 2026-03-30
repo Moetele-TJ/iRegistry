@@ -1,7 +1,7 @@
 // src/Pages/Signup.jsx
 import { useNavigate } from "react-router-dom";
 import { useState,useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 
 export default function Signup() {
@@ -88,7 +88,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
+      const { data, error } = await invokeFn(
         "check-user-details",
         {
           body: {
@@ -97,7 +97,8 @@ export default function Signup() {
             email: form.email,
             country: form.country,
           },
-        }
+        },
+        { withAuth: false }
       );
 
       if (error) {
@@ -145,9 +146,10 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
+      const { data, error } = await invokeFn(
         "create-user",
-        { body: form }
+        { body: form },
+        { withAuth: false }
       );
 
       if (error || data?.success === false) {

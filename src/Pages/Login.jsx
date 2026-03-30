@@ -1,7 +1,7 @@
 // src/Pages/Login.jsx
 
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "../lib/supabase";
+import { invokeFn } from "../lib/invokeFn";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
@@ -33,7 +33,7 @@ export default function Login() {
   const { loginWithToken } = useAuth();
 
   async function invokePublicFn(name, body) {
-    const res = await supabase.functions.invoke(name, { body });
+    const res = await invokeFn(name, { body }, { withAuth: false });
     const { data, error } = res || {};
     if (error || !data) {
       return { data: null, error: error || new Error("No response") };

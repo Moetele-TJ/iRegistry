@@ -1,6 +1,6 @@
 // src/hooks/useItemVerification.js
 import { useState } from "react";
-import { supabase } from "../lib/supabase";
+import { invokeFn } from "../lib/invokeFn";
 
 export function useItemVerification() {
   const [result, setResult] = useState(null);
@@ -15,10 +15,11 @@ export function useItemVerification() {
       setError(null);
       setResult(null);
 
-      const { data, error } =
-        await supabase.functions.invoke("verify-item", {
-          body: { serial },
-        });
+      const { data, error } = await invokeFn(
+        "verify-item",
+        { body: { serial } },
+        { withAuth: false }
+      );
 
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Verification failed");

@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { supabase } from "../lib/supabase";
+import { invokeFn } from "../lib/invokeFn";
 import { getJwtExpiryMs } from "../lib/jwtExpiry";
 import {
   SESSION_TOKEN_REFRESHED,
@@ -26,11 +27,11 @@ export function AuthProvider({ children }) {
 
     try {
       if (!silent && token) {
-        await supabase.functions.invoke("logout", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        await invokeFn(
+          "logout",
+          { headers: { Authorization: `Bearer ${token}` } },
+          { withAuth: false }
+        );
       }
     } catch {
       console.warn("Logout request failed, clearing local session anyway");
@@ -74,13 +75,10 @@ export function AuthProvider({ children }) {
   const validateSession = useCallback(
     async (token) => {
       try {
-        const { data, error } = await supabase.functions.invoke(
+        const { data, error } = await invokeFn(
           "validate-session",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+          { headers: { Authorization: `Bearer ${token}` } },
+          { withAuth: false }
         );
 
         if (error || !data?.success) {

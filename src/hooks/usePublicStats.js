@@ -1,6 +1,6 @@
 //  src/hooks/usePublicStats.js
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "../lib/supabase";
+import { invokeFn } from "../lib/invokeFn";
 
 export function usePublicStats() {
   const [stats, setStats] = useState(null);
@@ -21,8 +21,11 @@ export function usePublicStats() {
         setRefreshing(true);
       }
 
-      const { data, error } =
-        await supabase.functions.invoke("get-public-stats");
+      const { data, error } = await invokeFn(
+        "get-public-stats",
+        {},
+        { withAuth: false }
+      );
 
       if (error || !data?.success) {
         throw new Error("Failed to fetch stats");

@@ -1,6 +1,6 @@
 //  📁 src/hooks/useNotifyOwner.js
 import { useState } from "react";
-import { supabase } from "../lib/supabase";
+import { invokeFn } from "../lib/invokeFn";
 
 export function useNotifyOwner() {
   const [loading, setLoading] = useState(false);
@@ -13,10 +13,11 @@ export function useNotifyOwner() {
       setError(null);
       setSuccess(false);
 
-      const { data, error } =
-        await supabase.functions.invoke("notify-owner", {
-          body: { serial, message, contact, notifyPolice },
-        });
+      const { data, error } = await invokeFn(
+        "notify-owner",
+        { body: { serial, message, contact, notifyPolice } },
+        { withAuth: false }
+      );
 
       if (error || !data?.success) {
         throw new Error(data?.message || "Failed to notify owner");
