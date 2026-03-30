@@ -32,6 +32,15 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const { loginWithToken } = useAuth();
 
+  async function invokePublicFn(name, body) {
+    const res = await supabase.functions.invoke(name, { body });
+    const { data, error } = res || {};
+    if (error || !data) {
+      return { data: null, error: error || new Error("No response") };
+    }
+    return { data, error: null };
+  }
+
   function getPostLoginTarget() {
     const redirect = searchParams.get("redirect");
     const serial = searchParams.get("serial");
@@ -131,7 +140,10 @@ export default function Login() {
     setError("");
     setErrorCode("");
 
-    if (!lastName || !idNumber) {
+    const ln = String(lastName || "").trim();
+    const idn = String(idNumber || "").trim();
+
+    if (!ln || !idn) {
       setError("Last name and ID number are required");
       return;
     }
@@ -139,17 +151,14 @@ export default function Login() {
     setIdentifyingUser(true);
 
     try {
-      const { data, error : invokeError } = await supabase.functions.invoke("identify-user", {
-        body: {
-          last_name: lastName,
-          id_number: idNumber,
-        },
+      const { data, error: invokeError } = await invokePublicFn("identify-user", {
+        last_name: ln,
+        id_number: idn,
       });
 
       // 🔴 Transport / system error only
-      if (invokeError||!data){
+      if (invokeError || !data) {
         setError("Unable to send OTP. Please check your network connection.");
-        setIdentifyingUser(false);
         return;
       }
 
@@ -157,7 +166,6 @@ export default function Login() {
       if (!data.success) {
         setError(data.message);
         setErrorCode(data.diag);
-        setIdentifyingUser(false);
         return;
       }
 
@@ -185,14 +193,12 @@ export default function Login() {
   setIdentifyingUser(true);
 
   try {
-    const { data, error : ChannelError } = await supabase.functions.invoke("dispatch-otp", {
-      body: { 
-        user_id: userId, 
-        channel,
-      },
+    const { data, error: channelError } = await invokePublicFn("dispatch-otp", {
+      user_id: userId,
+      channel,
     });
 
-    if ( ChannelError || !data ) {
+    if (channelError || !data) {
       setError("Failed to dispatch OTP. Please check your nework connection.");
       return;
     }
@@ -209,7 +215,7 @@ export default function Login() {
     setCooldown(30);
     setExpiry(300);        // ⏱ reset timer
     setOtp("");            // clear old OTP
-    setIdentifyingUser(false);     // ensure loading is off
+    // loading is cleared in finally
 
   } catch (err) {
     console.error(err);
@@ -242,22 +248,18 @@ export default function Login() {
     setVerifyingOtp(true);
 
     try {
-      const { data, error : verifyError } = await supabase.functions.invoke("verify-otp", {
-        body: {
-          user_id: userId,
-          otp,
-        },
+      const { data, error: verifyError } = await invokePublicFn("verify-otp", {
+        user_id: userId,
+        otp,
       });
 
         //Supabse/network error
-      if(verifyError && !data){
-        setVerifyingOtp(false);
+      if (verifyError && !data) {
         setError("OTP Verification failed. Please check your network connection.");
         return;
       }
 
       if(!data){
-        setVerifyingOtp(false);
         setError("No response from server. Please try again");
         return;
 
@@ -269,8 +271,6 @@ export default function Login() {
       if (navigator.vibrate) {
         navigator.vibrate(200);
       }
-
-      setVerifyingOtp(false);
 
       switch (data.code) {
         case "1":
@@ -290,7 +290,17 @@ export default function Login() {
           break;
 
         default:
-          window.location.href = "/login"
+          // Reset to the start of the flow without a hard reload.
+          localStorage.removeItem("session");
+          setStep("identity");
+          setOtp("");
+          setMaskedPhone("");
+          setMaskedEmail("");
+          setChannels([]);
+          setCooldown(0);
+          setExpiry(300);
+          setError(data.message || "Login failed. Please try again.");
+          setErrorCode(data.diag || "");
       
       }
       return;
@@ -460,7 +470,7 @@ export default function Login() {
               <input
                 className="w-full border rounded-lg px-4 py-2 mb-4"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value.trim())}
+                onChange={(e) => setLastName(e.target.value)}
               />
 
               <label className="block text-sm mb-1">
@@ -469,7 +479,7 @@ export default function Login() {
               <input
                 className="w-full border rounded-lg px-4 py-2 mb-3"
                 value={idNumber}
-                onChange={(e) => setIdNumber(e.target.value.trim())}
+                onChange={(e) => setIdNumber(e.target.value)}
               />
 
               <div className="text-sm text-center mb-6">

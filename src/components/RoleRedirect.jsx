@@ -1,9 +1,10 @@
 // src/components/RoleRedirect.jsx
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
 export default function RoleRedirect() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   // Wait until session check finishes
   if (loading) {
@@ -15,7 +16,15 @@ export default function RoleRedirect() {
   }
 
   // NOT logged in → go to login
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    const redirect = `${location.pathname}${location.search}${location.hash}`;
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(redirect)}`}
+        replace
+      />
+    );
+  }
 
   // Logged in → route by role
   switch (user.role) {
