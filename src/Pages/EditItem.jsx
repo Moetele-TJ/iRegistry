@@ -40,13 +40,29 @@ function normalizePhotos(photos) {
 }
 
 function photoThumbUrl(entry) {
-  if (!entry) return null;
-  const path =
+  if (!entry || !SUPABASE_URL) return null;
+
+  const raw =
     typeof entry === "string"
       ? entry.trim()
       : (entry.thumb || entry.original || "").trim();
-  if (!path || !SUPABASE_URL) return null;
-  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  const publicPrefix = `${SUPABASE_URL}/storage/v1/object/public/item-photos/`;
+  if (raw.startsWith(publicPrefix)) return raw;
+
+  const relPrefix = "/storage/v1/object/public/item-photos/";
+  if (raw.startsWith(relPrefix)) return `${SUPABASE_URL}${raw}`;
+
+  const relPrefixNoSlash = "storage/v1/object/public/item-photos/";
+  if (raw.startsWith(relPrefixNoSlash)) return `${SUPABASE_URL}/${raw}`;
+
+  const normalizedPath = raw.replace(/^item-photos\//i, "").replace(/^\/+/, "");
+  if (!normalizedPath) return null;
+
+  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${normalizedPath}`;
 }
 
 export default function EditItem() {

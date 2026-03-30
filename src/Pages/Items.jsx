@@ -58,20 +58,37 @@ function getNextPoliceCaseStep(status) {
 }
 
 function photoStoragePublicUrl(entry, preferThumb = true) {
-  if (!entry) return null;
-  if (!SUPABASE_URL) return null;
+  if (!entry || !SUPABASE_URL) return null;
 
-  const path =
-    typeof entry === "string"
-      ? entry.trim()
-      : typeof entry === "object" && entry
-        ? preferThumb
-          ? (entry.thumb || entry.original || "").trim()
-          : (entry.original || entry.thumb || "").trim()
-        : "";
+  const raw = (() => {
+    if (typeof entry === "string") return entry.trim();
+    if (typeof entry === "object" && entry) {
+      return preferThumb
+        ? (entry.thumb || entry.original || "").trim()
+        : (entry.original || entry.thumb || "").trim();
+    }
+    return "";
+  })();
 
-  if (!path) return null;
-  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+  if (!raw) return null;
+
+  // If it's already a full URL, use it as-is.
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  // If it already includes our public prefix, don't double-prefix.
+  const publicPrefix = `${SUPABASE_URL}/storage/v1/object/public/item-photos/`;
+  if (raw.startsWith(publicPrefix)) return raw;
+
+  const relPrefix = "/storage/v1/object/public/item-photos/";
+  if (raw.startsWith(relPrefix)) return `${SUPABASE_URL}${raw}`;
+
+  const relPrefixNoSlash = "storage/v1/object/public/item-photos/";
+  if (raw.startsWith(relPrefixNoSlash)) return `${SUPABASE_URL}/${raw}`;
+
+  const normalizedPath = raw.replace(/^item-photos\//i, "").replace(/^\/+/, "");
+  if (!normalizedPath) return null;
+
+  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${normalizedPath}`;
 }
 
 function itemThumbnailSrc(item) {
@@ -81,6 +98,18 @@ function itemThumbnailSrc(item) {
     item?.imageUrl?.trim() ||
     null
   );
+}
+
+function photoEntryPath(entry, preferThumb = true) {
+  if (!entry) return null;
+  if (typeof entry === "string") return entry.trim() || null;
+  if (typeof entry === "object") {
+    const raw = preferThumb
+      ? entry.thumb || entry.original || ""
+      : entry.original || entry.thumb || "";
+    return String(raw).trim() || null;
+  }
+  return null;
 }
 
 export default function Items() {
@@ -104,6 +133,9 @@ export default function Items() {
   const [sortBy, setSortBy] = useState("name"); // name | lastSeen | status
   const [page, setPage] = useState(1);
   const perPage = 8;
+
+  // If bucket is private, we need signed URLs for thumbnails.
+  const [signedThumbByItemId, setSignedThumbByItemId] = useState({});
 
   // Role-specific scope controls:
   // - police: can toggle viewing items "reported stolen at my station"
@@ -373,6 +405,56 @@ export default function Items() {
     const start = (page - 1) * perPage;
     return filtered.slice(start, start + perPage);
   }, [filtered, page]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSignedThumbs() {
+      // Only thumbnails for visible rows.
+      const reqs = pageItems
+        .map((it) => {
+          const first = it?.photos?.[0] ?? null;
+          const path = photoEntryPath(first, true);
+          if (!path) return null;
+          return { itemId: it.id, path };
+        })
+        .filter(Boolean);
+
+      if (reqs.length === 0) {
+        if (!cancelled) setSignedThumbByItemId({});
+        return;
+      }
+
+      try {
+        const results = await Promise.all(
+          reqs.map((r) =>
+            invokeWithAuth("get-item-photo-urls", {
+              body: { itemId: r.itemId, paths: [r.path] },
+            })
+          )
+        );
+
+        if (cancelled) return;
+
+        const next = {};
+        for (let i = 0; i < reqs.length; i++) {
+          const res = results[i];
+          const url = res?.data?.success ? res.data.urls?.[0] : null;
+          if (url) next[reqs[i].itemId] = url;
+        }
+
+        setSignedThumbByItemId(next);
+      } catch (e) {
+        // If signing fails, keep showing the public URLs.
+        if (!cancelled) setSignedThumbByItemId({});
+      }
+    }
+
+    void loadSignedThumbs();
+    return () => {
+      cancelled = true;
+    };
+  }, [pageItems]);
 
   const stats = useMemo(() => {
     const totalItems = items.length;
@@ -921,7 +1003,10 @@ export default function Items() {
                           <div className="w-11 h-11 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center text-xs text-gray-400 overflow-hidden">
                             {itemThumbnailSrc(item) ? (
                               <img
-                              src={itemThumbnailSrc(item)}
+                              src={
+                                signedThumbByItemId?.[item.id] ||
+                                itemThumbnailSrc(item)
+                              }
                               className="w-full h-full object-cover"
                             />
                             ) : (
@@ -1106,7 +1191,10 @@ export default function Items() {
                     `}>
                       {itemThumbnailSrc(item) ? (
                         <img
-                          src={itemThumbnailSrc(item)}
+                          src={
+                            signedThumbByItemId?.[item.id] ||
+                            itemThumbnailSrc(item)
+                          }
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />

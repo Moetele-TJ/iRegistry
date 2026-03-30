@@ -1,5 +1,5 @@
 // src/Pages/AddItem.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
@@ -9,7 +9,7 @@ import { compressImage } from "../utils/imageCompression.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
-  const { addItem, loading } = useItems();
+  const { addItem, loading, items = [] } = useItems();
   const [serialError, setSerialError] = useState(null);
   const [serialCheckWarning, setSerialCheckWarning] = useState(null);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -92,6 +92,56 @@ export default function AddItem() {
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  const categoryOptions = useMemo(() => {
+    const s = new Set(
+      (items || []).map((it) => (it?.category || "").trim()).filter(Boolean)
+    );
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const makeOptions = useMemo(() => {
+    const category = (form.category || "").trim();
+    const subset = (items || []).filter((it) => {
+      if (!it) return false;
+      if (!category) return true;
+      return String(it.category || "").trim() === category;
+    });
+    const s = new Set(subset.map((it) => (it?.make || "").trim()).filter(Boolean));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, form.category]);
+
+  const modelOptions = useMemo(() => {
+    const category = (form.category || "").trim();
+    const make = (form.make || "").trim();
+    const subset = (items || []).filter((it) => {
+      if (!it) return false;
+      if (category && String(it.category || "").trim() !== category) return false;
+      if (make && String(it.make || "").trim() !== make) return false;
+      return true;
+    });
+    const s = new Set(subset.map((it) => (it?.model || "").trim()).filter(Boolean));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, form.category, form.make]);
+
+  function handleCategoryChange(next) {
+    const v = String(next ?? "");
+    setForm((f) => ({
+      ...f,
+      category: v,
+      make: "", // reset dependent fields
+      model: "",
+    }));
+  }
+
+  function handleMakeChange(next) {
+    const v = String(next ?? "");
+    setForm((f) => ({
+      ...f,
+      make: v,
+      model: "", // reset dependent field
+    }));
   }
 
   function formatCurrency(value) {
@@ -534,10 +584,16 @@ export default function AddItem() {
             <input
               name="category"
               value={form.category}
-              onChange={(e) => updateField("category", e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className={`input ${isFieldInvalid("category") ? "border-red-500 ring-red-500" : ""}`}
               placeholder="Laptop, Television, Cellphone..."
+              list="category-options"
             />
+            <datalist id="category-options">
+              {categoryOptions.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </Field>
 
           {/* Make / Model */}
@@ -546,10 +602,22 @@ export default function AddItem() {
               <input
                 name="make"
                 value={form.make}
-                onChange={(e) => updateField("make", e.target.value)}
+                onChange={(e) => handleMakeChange(e.target.value)}
                 className={`input ${isFieldInvalid("make") ? "border-red-500 ring-red-500" : ""}`}
                 placeholder="HP, Samsung, Techno..."
+                list="make-options"
+                disabled={!form.category.trim() && categoryOptions.length > 0}
               />
+              <datalist id="make-options">
+                {makeOptions.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              {!form.category.trim() && categoryOptions.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Select a category first to filter makes.
+                </p>
+              )}
             </Field>
 
             <Field label="Model" required>
@@ -559,7 +627,19 @@ export default function AddItem() {
                 onChange={(e) => updateField("model", e.target.value)}
                 className={`input ${isFieldInvalid("model") ? "border-red-500 ring-red-500" : ""}`}
                 placeholder="ProBook, 75 Inch QLED, Spark 4..."
+                list="model-options"
+                disabled={!form.make.trim() && makeOptions.length > 0}
               />
+              <datalist id="model-options">
+                {modelOptions.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              {!form.make.trim() && makeOptions.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Select a make first to filter models.
+                </p>
+              )}
             </Field>
           </div>
 

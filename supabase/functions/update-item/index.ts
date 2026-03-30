@@ -148,7 +148,7 @@ serve(async (req) => {
       "status"
     ];
 
-    const cleanUpdates: Record<string, any> = {};
+    let cleanUpdates: Record<string, any> = {};
 
     for (const key of Object.keys(updates)) {
       if (!allowed.includes(key)) continue;
@@ -162,8 +162,10 @@ serve(async (req) => {
 
     /* ---------------- STATUS HANDLING ---------------- */
 
-    if ("status" in cleanUpdates) {
+    const statusChanged =
+      "status" in cleanUpdates && cleanUpdates.status !== existing.status;
 
+    if ("status" in cleanUpdates) {
       const newStatus = cleanUpdates.status;
 
       if (!["Active", "Stolen"].includes(newStatus)) {
@@ -178,12 +180,16 @@ serve(async (req) => {
         );
       }
 
-      if (newStatus === "Stolen") {
-        cleanUpdates.reportedstolenat = new Date().toISOString();
-      }
+      // Only mutate reportedstolenat when status actually changes.
+      // This prevents "resetting" timestamps and side effects when UI sends the same status again.
+      if (statusChanged) {
+        if (newStatus === "Stolen") {
+          cleanUpdates.reportedstolenat = new Date().toISOString();
+        }
 
-      if (newStatus === "Active") {
-        cleanUpdates.reportedstolenat = null;
+        if (newStatus === "Active") {
+          cleanUpdates.reportedstolenat = null;
+        }
       }
 
     }
@@ -202,7 +208,10 @@ serve(async (req) => {
 
     /* ---------------- SERIAL UPDATE CHECK ---------------- */
 
-    if ("serial1" in cleanUpdates) {
+    if (
+      "serial1" in cleanUpdates &&
+      cleanUpdates.serial1 !== existing.serial1
+    ) {
       const newSerialNormalized = normalizeSerial(cleanUpdates.serial1);
 
       if (!newSerialNormalized) {
@@ -341,9 +350,9 @@ serve(async (req) => {
     /* ---------------- SLUG UPDATE CHECK ---------------- */
 
     if (
-      cleanUpdates.serial1 ||
-      cleanUpdates.make ||
-      cleanUpdates.model
+      ("serial1" in cleanUpdates && cleanUpdates.serial1 !== existing.serial1) ||
+      ("make" in cleanUpdates && cleanUpdates.make !== existing.make) ||
+      ("model" in cleanUpdates && cleanUpdates.model !== existing.model)
     ) {
       const newSerial = cleanUpdates.serial1 ?? existing.serial1;
       const newMake = cleanUpdates.make ?? existing.make;
@@ -359,6 +368,40 @@ serve(async (req) => {
 
       cleanUpdates.slug = newSlug;
     }
+
+    /* ---------------- PRUNE NO-OP FIELDS ----------------
+     * The client may submit fields even when unchanged (e.g. always includes `status`).
+     * To ensure we never write unchanged values (and to keep side effects/activity logs accurate),
+     * remove any update keys whose value is deep-equal to the existing DB value.
+     */
+
+    function stableStringify(v: any): string {
+      if (v === null) return "null";
+      if (v === undefined) return "undefined";
+      const t = typeof v;
+      if (t !== "object") return JSON.stringify(v);
+
+      if (Array.isArray(v)) {
+        return `[${v.map(stableStringify).join(",")}]`;
+      }
+
+      const keys = Object.keys(v).sort();
+      return `{${keys
+        .map((k) => `${JSON.stringify(k)}:${stableStringify(v[k])}`)
+        .join(",")}}`;
+    }
+
+    function deepEqual(a: any, b: any): boolean {
+      return stableStringify(a) === stableStringify(b);
+    }
+
+    const pruned: Record<string, any> = {};
+    for (const [k, v] of Object.entries(cleanUpdates)) {
+      if (typeof v === "undefined") continue;
+      const existingVal = (existing as any)[k];
+      if (!deepEqual(existingVal, v)) pruned[k] = v;
+    }
+    cleanUpdates = pruned;
     
     /* ---------------- DIFF ---------------- */
 
@@ -383,8 +426,8 @@ serve(async (req) => {
 
     /* ---------------- POLICE CASE RULES (before update) ---------------- */
 
-    const becomingStolen = "status" in cleanUpdates && cleanUpdates.status === "Stolen";
-    const becomingActive = "status" in cleanUpdates && cleanUpdates.status === "Active";
+    const becomingStolen = statusChanged && cleanUpdates.status === "Stolen";
+    const becomingActive = statusChanged && cleanUpdates.status === "Active";
 
     if (becomingStolen) {
       const { data: openCase } = await supabase
@@ -461,7 +504,7 @@ serve(async (req) => {
 
     /* ---------------- SYNC EMBEDDING STATUS ---------------- */
 
-    if ("reportedstolenat" in cleanUpdates || "status" in cleanUpdates) {
+    if (statusChanged) {
 
       const isStolen = updatedItem.reportedstolenat !== null;
 
@@ -477,7 +520,7 @@ serve(async (req) => {
     let action = "ITEM_UPDATED";
     let message = `Updated item ${updatedItem.name}`;
 
-    if ("status" in cleanUpdates) {
+    if (statusChanged) {
 
       if (cleanUpdates.status === "Stolen") {
         action = "ITEM_REPORTED_STOLEN";

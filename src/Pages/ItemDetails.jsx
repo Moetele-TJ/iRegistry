@@ -17,17 +17,39 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
  * @param {boolean} preferMain — true: hero uses original first; false: strip uses thumb first
  */
 function photoStoragePublicUrl(entry, preferMain = false) {
-  if (!entry) return null;
-  let path = "";
-  if (typeof entry === "string") {
-    path = entry.trim();
-  } else if (typeof entry === "object" && entry) {
-    path = preferMain
-      ? (entry.original || entry.thumb || "").trim()
-      : (entry.thumb || entry.original || "").trim();
-  }
-  if (!path || !SUPABASE_URL) return null;
-  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+  if (!entry || !SUPABASE_URL) return null;
+
+  const raw = (() => {
+    if (typeof entry === "string") return entry.trim();
+    if (typeof entry === "object" && entry) {
+      return preferMain
+        ? (entry.original || entry.thumb || "").trim()
+        : (entry.thumb || entry.original || "").trim();
+    }
+    return "";
+  })();
+
+  if (!raw) return null;
+
+  // If it's already a full URL, use it as-is.
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  // If it already includes our public prefix, don't double-prefix.
+  const publicPrefix = `${SUPABASE_URL}/storage/v1/object/public/item-photos/`;
+  if (raw.startsWith(publicPrefix)) return raw;
+
+  // Handle raw values that start with "/storage/..." (missing domain)
+  const relPrefix = "/storage/v1/object/public/item-photos/";
+  if (raw.startsWith(relPrefix)) return `${SUPABASE_URL}${raw}`;
+
+  const relPrefixNoSlash = "storage/v1/object/public/item-photos/";
+  if (raw.startsWith(relPrefixNoSlash)) return `${SUPABASE_URL}/${raw}`;
+
+  // Handle values that include the bucket name.
+  const normalizedPath = raw.replace(/^item-photos\//i, "").replace(/^\/+/, "");
+  if (!normalizedPath) return null;
+
+  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${normalizedPath}`;
 }
 
 function itemPhotoUrls(item, preferMain = false) {
@@ -36,6 +58,18 @@ function itemPhotoUrls(item, preferMain = false) {
   return list
     .map((p) => photoStoragePublicUrl(p, preferMain))
     .filter(Boolean);
+}
+
+function photoEntryPath(entry, preferMain = false) {
+  if (!entry) return null;
+  if (typeof entry === "string") return entry.trim() || null;
+  if (typeof entry === "object") {
+    const raw = preferMain
+      ? entry.original || entry.thumb || ""
+      : entry.thumb || entry.original || "";
+    return String(raw).trim() || null;
+  }
+  return null;
 }
 
 function fmtDate(iso) {
@@ -87,6 +121,9 @@ export default function ItemDetails() {
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
 
+  const [signedMainPhotoUrls, setSignedMainPhotoUrls] = useState([]);
+  const [signedThumbPhotoUrls, setSignedThumbPhotoUrls] = useState([]);
+
   // toast state
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
 
@@ -95,6 +132,65 @@ export default function ItemDetails() {
     setItem(found || null);
     setPhotoIndex(0);
   }, [slug, items]);
+
+  // If `item-photos` is not public, we need signed URLs for <img src>.
+  // This keeps the page working regardless of bucket visibility.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSignedUrls() {
+      if (!item?.id) {
+        setSignedMainPhotoUrls([]);
+        setSignedThumbPhotoUrls([]);
+        return;
+      }
+
+      const photosList = Array.isArray(item?.photos) ? item.photos : [];
+      const mainPaths = photosList
+        .map((p) => photoEntryPath(p, true))
+        .filter(Boolean);
+      const thumbPaths = photosList
+        .map((p) => photoEntryPath(p, false))
+        .filter(Boolean);
+
+      if (mainPaths.length === 0 && thumbPaths.length === 0) {
+        setSignedMainPhotoUrls([]);
+        setSignedThumbPhotoUrls([]);
+        return;
+      }
+
+      try {
+        const [mainRes, thumbRes] = await Promise.all([
+          invokeWithAuth("get-item-photo-urls", {
+            body: { itemId: item.id, paths: mainPaths },
+          }),
+          invokeWithAuth("get-item-photo-urls", {
+            body: { itemId: item.id, paths: thumbPaths },
+          }),
+        ]);
+
+        if (cancelled) return;
+
+        const mainUrls = mainRes?.data?.success ? mainRes.data.urls : [];
+        const thumbUrls = thumbRes?.data?.success ? thumbRes.data.urls : [];
+
+        setSignedMainPhotoUrls((mainUrls || []).filter(Boolean));
+        setSignedThumbPhotoUrls((thumbUrls || []).filter(Boolean));
+      } catch (e) {
+        // If signing fails for any reason, fallback to public URLs below.
+        if (!cancelled) {
+          setSignedMainPhotoUrls([]);
+          setSignedThumbPhotoUrls([]);
+        }
+      }
+    }
+
+    void loadSignedUrls();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.id, item?.photos]);
 
   useEffect(() => {
     if (!item?.id || item.status !== "Stolen") {
@@ -171,8 +267,13 @@ export default function ItemDetails() {
     void performDelete();
   }
 
-  const mainPhotoUrls = item ? itemPhotoUrls(item, true) : [];
-  const thumbPhotoUrls = item ? itemPhotoUrls(item, false) : [];
+  const publicMainPhotoUrls = item ? itemPhotoUrls(item, true) : [];
+  const publicThumbPhotoUrls = item ? itemPhotoUrls(item, false) : [];
+
+  const mainPhotoUrls =
+    signedMainPhotoUrls.length > 0 ? signedMainPhotoUrls : publicMainPhotoUrls;
+  const thumbPhotoUrls =
+    signedThumbPhotoUrls.length > 0 ? signedThumbPhotoUrls : publicThumbPhotoUrls;
   const fallbackImage = item?.imageUrl?.trim() || null;
   const mainPhotoSrc =
     mainPhotoUrls.length > 0
