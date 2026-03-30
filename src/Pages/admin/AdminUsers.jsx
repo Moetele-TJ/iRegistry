@@ -1,38 +1,14 @@
 // src/Pages/admin/AdminUsers.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
+import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 
-/**
- * Very small users manager scaffold.
- * - stores users in localStorage at key: ireg_users_v1
- * - fields: id, name, email, role
- * - roles: Police Officer | Admin | User
- */
-
-const STORAGE_KEY = "ireg_users_v1";
-
-function loadUsers() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-function saveUsers(users) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-    window.dispatchEvent(new Event("ireg:users-updated"));
-  } catch (e) {
-    console.error("Failed to save users", e);
-  }
-}
-
-function makeUserId() {
-  const n = Math.floor(Math.random() * 9000) + 1000;
-  return 'USR-${String(n).padStart(4, "0")}';
+function displayName(u) {
+  const first = String(u?.first_name || "").trim();
+  const last = String(u?.last_name || "").trim();
+  const full = `${first} ${last}`.trim();
+  return full || u?.email || u?.id || "—";
 }
 
 export default function AdminUsers() {
@@ -40,51 +16,136 @@ export default function AdminUsers() {
 
   const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(null); // user being edited or null
-  const [form, setForm] = useState({ name: "", email: "", role: "User" });
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    role: "user",
+    police_station: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const isEditing = !!editing;
 
   useEffect(() => {
-    setUsers(loadUsers());
-  }, []);
+    let cancelled = false;
 
-  function startAdd() {
-    setEditing(null);
-    setForm({ name: "", email: "", role: "User" });
-  }
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const { data, error } = await invokeWithAuth("list-users");
+        if (cancelled) return;
+        if (error || !data?.success) {
+          setUsers([]);
+          setError(data?.message || error?.message || "Failed to load users");
+          return;
+        }
+        setUsers(data.users || []);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function startEdit(u) {
     setEditing(u.id);
-    setForm({ name: u.name || "", email: u.email || "", role: u.role || "User" });
+    setForm({
+      first_name: u.first_name || "",
+      last_name: u.last_name || "",
+      email: u.email || "",
+      role: u.role || "user",
+      police_station: u.police_station || "",
+    });
   }
 
   function cancelEdit() {
     setEditing(null);
-    setForm({ name: "", email: "", role: "User" });
+    setForm({
+      first_name: "",
+      last_name: "",
+      email: "",
+      role: "user",
+      police_station: "",
+    });
   }
 
-  function handleSave(e) {
-    e.preventDefault();
-    const all = loadUsers();
-    if (editing) {
-      const next = all.map((x) => (x.id === editing ? { ...x, ...form } : x));
-      saveUsers(next);
-      setUsers(next);
-      setEditing(null);
-    } else {
-      const id = makeUserId();
-      const newUser = { id, ...form };
-      const next = [newUser, ...all];
-      saveUsers(next);
-      setUsers(next);
+  const roleLabel = useMemo(
+    () => ({
+      admin: "Admin",
+      cashier: "Cashier",
+      police: "Police",
+      user: "User",
+    }),
+    []
+  );
+
+  async function refresh() {
+    const { data, error } = await invokeWithAuth("list-users");
+    if (error || !data?.success) {
+      throw new Error(data?.message || error?.message || "Failed to refresh");
     }
-    setForm({ name: "", email: "", role: "User" });
+    setUsers(data.users || []);
   }
 
-  function handleDelete(id) {
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!editing) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      const updates = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        police_station: form.police_station,
+        role: form.role,
+      };
+
+      const { data, error } = await invokeWithAuth("update-user", {
+        body: { id: editing, updates },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to update user");
+      }
+
+      await refresh();
+      cancelEdit();
+    } catch (e) {
+      setError(e.message || "Failed to update user");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id) {
     if (!confirm("Delete this user? This action cannot be undone.")) return;
-    const next = users.filter((u) => u.id !== id);
-    saveUsers(next);
-    setUsers(next);
-    if (editing === id) cancelEdit();
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error } = await invokeWithAuth("delete-user", {
+        body: { id },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to delete user");
+      }
+      await refresh();
+      if (editing === id) cancelEdit();
+    } catch (e) {
+      setError(e.message || "Failed to delete user");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -97,22 +158,39 @@ export default function AdminUsers() {
           </div>
 
           <div className="flex gap-2">
-            <RippleButton className="py-2 px-3 rounded-lg bg-gray-100 text-gray-800" onClick={() => navigate("/dashboard")}>
+            <RippleButton className="py-2 px-3 rounded-lg bg-gray-100 text-gray-800" onClick={() => navigate("/admindashboard")}>
               Back
             </RippleButton>
           </div>
         </div>
 
+        {error ? (
+          <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-3">
+            {error}
+          </div>
+        ) : null}
+
         <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
           <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div>
-              <label className="text-xs text-gray-600">Full name</label>
+              <label className="text-xs text-gray-600">First name</label>
               <input
-                value={form.name}
-                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                value={form.first_name}
+                onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-3 py-2"
-                placeholder="Jane Doe"
-                required
+                placeholder="Jane"
+                disabled={!isEditing || loading}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-600">Last name</label>
+              <input
+                value={form.last_name}
+                onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+                placeholder="Doe"
+                disabled={!isEditing || loading}
               />
             </div>
 
@@ -123,6 +201,7 @@ export default function AdminUsers() {
                 onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-3 py-2"
                 placeholder="jane@example.com"
+                disabled={!isEditing || loading}
               />
             </div>
 
@@ -132,33 +211,42 @@ export default function AdminUsers() {
                 value={form.role}
                 onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-3 py-2"
+                disabled={!isEditing || loading}
               >
-                <option>Police Officer</option>
-                <option>Admin</option>
-                <option>User</option>
+                <option value="user">User</option>
+                <option value="police">Police</option>
+                <option value="cashier">Cashier</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
 
+            <div>
+              <label className="text-xs text-gray-600">Police station</label>
+              <input
+                value={form.police_station}
+                onChange={(e) => setForm((s) => ({ ...s, police_station: e.target.value }))}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+                placeholder="(optional)"
+                disabled={!isEditing || loading}
+              />
+            </div>
+
             <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
-              {editing ? (
-                <>
-                  <RippleButton type="button" className="px-4 py-2 rounded border bg-white" onClick={cancelEdit}>
-                    Cancel
-                  </RippleButton>
-                  <RippleButton type="submit" className="px-4 py-2 rounded bg-iregistrygreen text-white">
-                    Save changes
-                  </RippleButton>
-                </>
-              ) : (
-                <>
-                  <RippleButton type="button" className="px-4 py-2 rounded border bg-white" onClick={() => { setForm({ name: "", email: "", role: "User" }); }}>
-                    Reset
-                  </RippleButton>
-                  <RippleButton type="submit" className="px-4 py-2 rounded bg-iregistrygreen text-white">
-                    Add user
-                  </RippleButton>
-                </>
-              )}
+              <RippleButton
+                type="button"
+                className="px-4 py-2 rounded border bg-white disabled:opacity-60"
+                onClick={cancelEdit}
+                disabled={!isEditing || loading}
+              >
+                Cancel
+              </RippleButton>
+              <RippleButton
+                type="submit"
+                className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
+                disabled={!isEditing || loading}
+              >
+                Save changes
+              </RippleButton>
             </div>
           </form>
         </div>
@@ -166,15 +254,23 @@ export default function AdminUsers() {
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <h2 className="text-lg font-semibold mb-3">Users</h2>
 
-          {users.length === 0 ? (
+          {loading && users.length === 0 ? (
+            <div className="text-gray-500 py-6 text-center">Loading…</div>
+          ) : users.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">No users yet.</div>
           ) : (
             <div className="space-y-2">
               {users.map((u) => (
                 <div key={u.id} className="flex items-center justify-between border rounded-lg p-3">
                   <div>
-                    <div className="font-medium text-gray-900">{u.name} <span className="text-xs text-gray-500 ml-2">{u.email}</span></div>
-                    <div className="text-xs text-gray-500">Role: {u.role || "User"} • ID: {u.id}</div>
+                    <div className="font-medium text-gray-900">
+                      {displayName(u)}{" "}
+                      <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Role: {roleLabel[u.role] || u.role || "—"} • ID: {u.id}
+                      {u.police_station ? ` • Station: ${u.police_station}` : ""}
+                    </div>
                   </div>
 
                   <div className="flex gap-2">

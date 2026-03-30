@@ -79,11 +79,11 @@ serve(async (req) => {
     return respond(
       {
         success: false,
-        diag: "AUT-ID-003",
-        message: "We couldn't verify your identity.",
+        diag: "AUT-ID-NOT-FOUND",
+        message: "No such user found. Please check your last name and ID number.",
       },
       corsHeaders,
-      404
+      200
     );
   }
 
