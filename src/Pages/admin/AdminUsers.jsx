@@ -19,7 +19,9 @@ export default function AdminUsers() {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
+    id_number: "",
     email: "",
+    phone: "",
     role: "user",
     police_station: "",
   });
@@ -27,7 +29,14 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isEditing = !!editing;
+  const [mode, setMode] = useState("idle"); // idle | add | edit
+
+  const [q, setQ] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [stationFilter, setStationFilter] = useState("");
+
+  const isEditing = mode === "edit" && !!editing;
+  const isAdding = mode === "add";
 
   useEffect(() => {
     let cancelled = false;
@@ -57,22 +66,42 @@ export default function AdminUsers() {
   }, []);
 
   function startEdit(u) {
+    setMode("edit");
     setEditing(u.id);
     setForm({
       first_name: u.first_name || "",
       last_name: u.last_name || "",
+      id_number: "",
       email: u.email || "",
+      phone: "",
       role: u.role || "user",
       police_station: u.police_station || "",
     });
   }
 
-  function cancelEdit() {
+  function startAdd() {
+    setMode("add");
     setEditing(null);
     setForm({
       first_name: "",
       last_name: "",
+      id_number: "",
       email: "",
+      phone: "",
+      role: "user",
+      police_station: "",
+    });
+  }
+
+  function closeForm() {
+    setEditing(null);
+    setMode("idle");
+    setForm({
+      first_name: "",
+      last_name: "",
+      id_number: "",
+      email: "",
+      phone: "",
       role: "user",
       police_station: "",
     });
@@ -88,6 +117,34 @@ export default function AdminUsers() {
     []
   );
 
+  const filteredUsers = useMemo(() => {
+    const query = String(q || "").trim().toLowerCase();
+    const stationQ = String(stationFilter || "").trim().toLowerCase();
+    const roleQ = String(roleFilter || "all").trim().toLowerCase();
+
+    return (users || []).filter((u) => {
+      if (!u) return false;
+      if (roleQ !== "all" && String(u.role || "").toLowerCase() !== roleQ) return false;
+
+      if (stationQ) {
+        const st = String(u.police_station || "").toLowerCase();
+        if (!st.includes(stationQ)) return false;
+      }
+
+      if (!query) return true;
+      const hay = [
+        displayName(u),
+        u.email || "",
+        u.id || "",
+        u.police_station || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(query);
+    });
+  }, [users, q, roleFilter, stationFilter]);
+
   async function refresh() {
     const { data, error } = await invokeWithAuth("list-users");
     if (error || !data?.success) {
@@ -98,29 +155,49 @@ export default function AdminUsers() {
 
   async function handleSave(e) {
     e.preventDefault();
-    if (!editing) return;
 
     setLoading(true);
     setError("");
     try {
-      const updates = {
-        first_name: form.first_name,
-        last_name: form.last_name,
-        email: form.email,
-        police_station: form.police_station,
-        role: form.role,
-      };
+      if (isAdding) {
+        const { data, error } = await invokeWithAuth("admin-create-user", {
+          body: {
+            first_name: form.first_name,
+            last_name: form.last_name,
+            id_number: form.id_number,
+            email: form.email,
+            phone: form.phone,
+            role: form.role,
+            police_station: form.police_station,
+          },
+        });
 
-      const { data, error } = await invokeWithAuth("update-user", {
-        body: { id: editing, updates },
-      });
+        if (error || !data?.success) {
+          throw new Error(data?.message || error?.message || "Failed to create user");
+        }
+      } else if (isEditing) {
+        const updates = {
+          first_name: form.first_name,
+          last_name: form.last_name,
+          email: form.email,
+          phone: form.phone,
+          police_station: form.police_station,
+          role: form.role,
+        };
 
-      if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Failed to update user");
+        const { data, error } = await invokeWithAuth("update-user", {
+          body: { id: editing, updates },
+        });
+
+        if (error || !data?.success) {
+          throw new Error(data?.message || error?.message || "Failed to update user");
+        }
+      } else {
+        return;
       }
 
       await refresh();
-      cancelEdit();
+      closeForm();
     } catch (e) {
       setError(e.message || "Failed to update user");
     } finally {
@@ -170,97 +247,199 @@ export default function AdminUsers() {
           </div>
         ) : null}
 
+        {/* Toolbar: Add + filters */}
         <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
-          <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-            <div>
-              <label className="text-xs text-gray-600">First name</label>
-              <input
-                value={form.first_name}
-                onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                placeholder="Jane"
-                disabled={!isEditing || loading}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-600">Last name</label>
-              <input
-                value={form.last_name}
-                onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                placeholder="Doe"
-                disabled={!isEditing || loading}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-600">Email</label>
-              <input
-                value={form.email}
-                onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                placeholder="jane@example.com"
-                disabled={!isEditing || loading}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-600">Role</label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                disabled={!isEditing || loading}
-              >
-                <option value="user">User</option>
-                <option value="police">Police</option>
-                <option value="cashier">Cashier</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-600">Police station</label>
-              <input
-                value={form.police_station}
-                onChange={(e) => setForm((s) => ({ ...s, police_station: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                placeholder="(optional)"
-                disabled={!isEditing || loading}
-              />
-            </div>
-
-            <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-end sm:justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-end flex-1">
+              <div className="flex-1">
+                <label className="text-xs text-gray-600">Search</label>
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="Name, email, ID…"
+                />
+              </div>
+              <div className="sm:w-44">
+                <label className="text-xs text-gray-600">Role</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                >
+                  <option value="all">All</option>
+                  <option value="user">User</option>
+                  <option value="police">Police</option>
+                  <option value="cashier">Cashier</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="sm:w-56">
+                <label className="text-xs text-gray-600">Station</label>
+                <input
+                  value={stationFilter}
+                  onChange={(e) => setStationFilter(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="Gantsi Police…"
+                />
+              </div>
               <RippleButton
                 type="button"
-                className="px-4 py-2 rounded border bg-white disabled:opacity-60"
-                onClick={cancelEdit}
-                disabled={!isEditing || loading}
+                className="px-3 py-2 rounded border bg-white"
+                onClick={() => {
+                  setQ("");
+                  setRoleFilter("all");
+                  setStationFilter("");
+                }}
               >
-                Cancel
-              </RippleButton>
-              <RippleButton
-                type="submit"
-                className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
-                disabled={!isEditing || loading}
-              >
-                Save changes
+                Clear
               </RippleButton>
             </div>
-          </form>
+            <RippleButton
+              type="button"
+              className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
+              onClick={startAdd}
+              disabled={loading}
+            >
+              Add user
+            </RippleButton>
+          </div>
         </div>
+
+        {/* Add/Edit form (shown only when active) */}
+        {mode !== "idle" ? (
+          <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">
+                {isAdding ? "Add user" : "Edit user"}
+              </h2>
+              <button
+                type="button"
+                className="text-sm text-gray-500 hover:text-gray-700"
+                onClick={closeForm}
+                disabled={loading}
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="text-xs text-gray-600">First name</label>
+                <input
+                  value={form.first_name}
+                  onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="Jane"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Last name *</label>
+                <input
+                  value={form.last_name}
+                  onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="Doe"
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              {isAdding ? (
+                <div>
+                  <label className="text-xs text-gray-600">ID / Passport *</label>
+                  <input
+                    value={form.id_number}
+                    onChange={(e) => setForm((s) => ({ ...s, id_number: e.target.value }))}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                    placeholder="123456789"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              ) : null}
+
+              <div>
+                <label className="text-xs text-gray-600">Email</label>
+                <input
+                  value={form.email}
+                  onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="jane@example.com"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Phone</label>
+                <input
+                  value={form.phone}
+                  onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="+267…"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Role</label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  disabled={loading}
+                >
+                  <option value="user">User</option>
+                  <option value="police">Police</option>
+                  <option value="cashier">Cashier</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Police station</label>
+                <input
+                  value={form.police_station}
+                  onChange={(e) => setForm((s) => ({ ...s, police_station: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="(optional)"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
+                <RippleButton
+                  type="button"
+                  className="px-4 py-2 rounded border bg-white disabled:opacity-60"
+                  onClick={closeForm}
+                  disabled={loading}
+                >
+                  Cancel
+                </RippleButton>
+                <RippleButton
+                  type="submit"
+                  className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
+                  disabled={loading}
+                >
+                  {isAdding ? "Create user" : "Save changes"}
+                </RippleButton>
+              </div>
+            </form>
+          </div>
+        ) : null}
 
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <h2 className="text-lg font-semibold mb-3">Users</h2>
 
           {loading && users.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">Loading…</div>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">No users yet.</div>
           ) : (
             <div className="space-y-2">
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <div key={u.id} className="flex items-center justify-between border rounded-lg p-3">
                   <div>
                     <div className="font-medium text-gray-900">
