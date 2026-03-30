@@ -13,6 +13,7 @@ const supabase = createClient(
 );
 
 const ALLOWED_ROLES = ["user", "admin", "police", "cashier"];
+const ALLOWED_STATUS = ["active", "suspended", "disabled"];
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -43,6 +44,8 @@ serve(async (req) => {
       email,
       phone,
       role,
+      status,
+      suspended_reason,
       police_station,
     } = body ?? {};
 
@@ -54,11 +57,14 @@ serve(async (req) => {
     const em = typeof email === "string" ? email.trim().toLowerCase() : "";
     const ph = typeof phone === "string" ? phone.trim() : "";
     const rl = typeof role === "string" ? role.trim().toLowerCase() : "user";
+    const stt = typeof status === "string" ? status.trim().toLowerCase() : "active";
+    const reason =
+      typeof suspended_reason === "string" ? suspended_reason.trim() : "";
     const st = typeof police_station === "string" ? police_station.trim() : "";
 
-    if (!ln || !idn) {
+    if (!ln || !idn || !ph) {
       return respond(
-        { success: false, message: "Last name and ID number are required." },
+        { success: false, message: "Last name, ID number, and phone are required." },
         corsHeaders,
         400,
       );
@@ -66,6 +72,18 @@ serve(async (req) => {
 
     if (!ALLOWED_ROLES.includes(rl)) {
       return respond({ success: false, message: "Invalid role" }, corsHeaders, 400);
+    }
+
+    if (!ALLOWED_STATUS.includes(stt)) {
+      return respond({ success: false, message: "Invalid status" }, corsHeaders, 400);
+    }
+
+    if (stt !== "active" && !reason) {
+      return respond(
+        { success: false, message: "A reason is required to set status to suspended/disabled." },
+        corsHeaders,
+        400,
+      );
     }
 
     // Basic uniqueness checks (best-effort; DB constraints still apply).
@@ -101,7 +119,21 @@ serve(async (req) => {
       }
     }
 
-    const now = new Date().toISOString();
+    // Phone must be unique.
+    const { data: phoneExists } = await supabase
+      .from("users")
+      .select("id")
+      .eq("phone", ph)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (phoneExists) {
+      return respond(
+        { success: false, message: "A user with this phone number already exists." },
+        corsHeaders,
+        409,
+      );
+    }
 
     const { data: created, error: insErr } = await supabase
       .from("users")
@@ -110,13 +142,14 @@ serve(async (req) => {
         last_name: ln,
         id_number: idn,
         email: em || null,
-        phone: ph || null,
+        phone: ph,
         role: rl,
         police_station: st || null,
-        status: "active",
+        status: stt,
+        suspended_reason: stt === "active" ? null : reason,
+        suspended_at: stt === "active" ? null : new Date().toISOString(),
         identity_verified: false,
         email_verified: false,
-        created_at: now,
       })
       .select("id, first_name, last_name, email, role, police_station")
       .single();

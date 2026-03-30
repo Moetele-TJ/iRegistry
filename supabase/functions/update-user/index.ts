@@ -14,7 +14,7 @@ const supabase = createClient(
 );
 
 const ALLOWED_ROLES = ["user", "admin", "police", "cashier"];
-const ALLOWED_STATUS = ["active", "inactive"];
+const ALLOWED_STATUS = ["active", "suspended", "disabled"];
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -45,7 +45,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, role, deleted_at")
+      .select("id, role, status, deleted_at")
       .eq("id", id)
       .maybeSingle();
 
@@ -60,22 +60,30 @@ serve(async (req) => {
 
     const clean: Record<string, unknown> = {};
 
-    const setIfString = (key: string, max = 200) => {
+    const setIfString = (key: string, max = 200, { required = false } = {}) => {
       if (!(key in updates)) return;
       const v = updates[key];
       if (v === null) {
+        if (required) {
+          throw new Error(`${key} is required`);
+        }
         clean[key] = null;
         return;
       }
       if (typeof v !== "string") return;
       const s = v.trim();
-      clean[key] = s ? s.slice(0, max) : null;
+      if (!s) {
+        if (required) throw new Error(`${key} is required`);
+        clean[key] = null;
+        return;
+      }
+      clean[key] = s.slice(0, max);
     };
 
     setIfString("first_name", 100);
-    setIfString("last_name", 100);
+    setIfString("last_name", 100, { required: true });
     setIfString("email", 254);
-    setIfString("phone", 50);
+    setIfString("phone", 50, { required: true });
     setIfString("police_station", 200);
 
     if ("role" in updates) {
@@ -105,7 +113,32 @@ serve(async (req) => {
       if (String(session.user_id) === String(id)) {
         return respond({ success: false, message: "You cannot deactivate your own account" }, corsHeaders, 400);
       }
-      clean.status = next;
+
+      const statusChanged = String(existing.status || "").toLowerCase() !== next;
+      if (statusChanged) {
+        const reason =
+          typeof (updates as { suspended_reason?: unknown }).suspended_reason === "string"
+            ? String((updates as { suspended_reason: string }).suspended_reason).trim()
+            : "";
+
+        if (next !== "active" && !reason) {
+          return respond(
+            { success: false, message: "A reason is required to change status." },
+            corsHeaders,
+            400,
+          );
+        }
+
+        clean.status = next;
+
+        if (next === "active") {
+          clean.suspended_reason = null;
+          clean.suspended_at = null;
+        } else {
+          clean.suspended_reason = reason;
+          clean.suspended_at = new Date().toISOString();
+        }
+      }
     }
 
     // prune no-op / undefined
@@ -118,7 +151,7 @@ serve(async (req) => {
       .from("users")
       .update(clean)
       .eq("id", id)
-      .select("id, first_name, last_name, email, role, police_station")
+      .select("id, first_name, last_name, id_number, phone, email, role, police_station, status")
       .single();
 
     if (upErr || !updated) {
@@ -127,8 +160,18 @@ serve(async (req) => {
 
     return respond({ success: true, user: updated }, corsHeaders, 200);
   } catch (err: any) {
-    console.error("update-user crash:", err);
-    return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);
+    // Treat our explicit validation errors as 400s.
+    const msg = err?.message || "Unexpected server error";
+    const isValidation =
+      typeof msg === "string" &&
+      (msg.includes(" is required") || msg.startsWith("Invalid "));
+
+    if (!isValidation) console.error("update-user crash:", err);
+    return respond(
+      { success: false, message: msg },
+      corsHeaders,
+      isValidation ? 400 : 500,
+    );
   }
 });
 

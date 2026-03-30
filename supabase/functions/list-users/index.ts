@@ -41,7 +41,7 @@ serve(async (req) => {
 
     const { data: users, error } = await supabase
       .from("users")
-      .select("id, first_name, last_name, email, role, police_station")
+      .select("id, first_name, last_name, id_number, phone, email, role, police_station, status")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 

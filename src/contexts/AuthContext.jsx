@@ -164,6 +164,7 @@ export function AuthProvider({ children }) {
     return () => {
       window.removeEventListener(
         SESSION_TOKEN_REFRESHED,
+        
         handleSessionTokenRefreshed
       );
     };

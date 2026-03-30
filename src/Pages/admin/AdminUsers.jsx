@@ -23,6 +23,8 @@ export default function AdminUsers() {
     email: "",
     phone: "",
     role: "user",
+    status: "active",
+    status_reason: "",
     police_station: "",
   });
 
@@ -33,6 +35,7 @@ export default function AdminUsers() {
 
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [stationFilter, setStationFilter] = useState("");
 
   const isEditing = mode === "edit" && !!editing;
@@ -73,8 +76,10 @@ export default function AdminUsers() {
       last_name: u.last_name || "",
       id_number: "",
       email: u.email || "",
-      phone: "",
+      phone: u.phone || "",
       role: u.role || "user",
+      status: u.status || "active",
+      status_reason: "",
       police_station: u.police_station || "",
     });
   }
@@ -89,6 +94,8 @@ export default function AdminUsers() {
       email: "",
       phone: "",
       role: "user",
+      status: "active",
+      status_reason: "",
       police_station: "",
     });
   }
@@ -103,6 +110,8 @@ export default function AdminUsers() {
       email: "",
       phone: "",
       role: "user",
+      status: "active",
+      status_reason: "",
       police_station: "",
     });
   }
@@ -121,10 +130,12 @@ export default function AdminUsers() {
     const query = String(q || "").trim().toLowerCase();
     const stationQ = String(stationFilter || "").trim().toLowerCase();
     const roleQ = String(roleFilter || "all").trim().toLowerCase();
+    const statusQ = String(statusFilter || "all").trim().toLowerCase();
 
     return (users || []).filter((u) => {
       if (!u) return false;
       if (roleQ !== "all" && String(u.role || "").toLowerCase() !== roleQ) return false;
+      if (statusQ !== "all" && String(u.status || "").toLowerCase() !== statusQ) return false;
 
       if (stationQ) {
         const st = String(u.police_station || "").toLowerCase();
@@ -136,6 +147,9 @@ export default function AdminUsers() {
         displayName(u),
         u.email || "",
         u.id || "",
+        u.id_number || "",
+        u.phone || "",
+        u.status || "",
         u.police_station || "",
       ]
         .join(" ")
@@ -143,7 +157,7 @@ export default function AdminUsers() {
 
       return hay.includes(query);
     });
-  }, [users, q, roleFilter, stationFilter]);
+  }, [users, q, roleFilter, statusFilter, stationFilter]);
 
   async function refresh() {
     const { data, error } = await invokeWithAuth("list-users");
@@ -159,6 +173,11 @@ export default function AdminUsers() {
     setLoading(true);
     setError("");
     try {
+      const statusNeedsReason = form.status !== "active";
+      if ((isAdding || isEditing) && statusNeedsReason && !String(form.status_reason || "").trim()) {
+        throw new Error("A reason is required when setting status to suspended/disabled.");
+      }
+
       if (isAdding) {
         const { data, error } = await invokeWithAuth("admin-create-user", {
           body: {
@@ -168,6 +187,8 @@ export default function AdminUsers() {
             email: form.email,
             phone: form.phone,
             role: form.role,
+            status: form.status,
+            suspended_reason: statusNeedsReason ? String(form.status_reason || "").trim() : undefined,
             police_station: form.police_station,
           },
         });
@@ -183,6 +204,8 @@ export default function AdminUsers() {
           phone: form.phone,
           police_station: form.police_station,
           role: form.role,
+          status: form.status,
+          suspended_reason: statusNeedsReason ? String(form.status_reason || "").trim() : undefined,
         };
 
         const { data, error } = await invokeWithAuth("update-user", {
@@ -217,7 +240,7 @@ export default function AdminUsers() {
         throw new Error(data?.message || error?.message || "Failed to delete user");
       }
       await refresh();
-      if (editing === id) cancelEdit();
+      if (editing === id) closeForm();
     } catch (e) {
       setError(e.message || "Failed to delete user");
     } finally {
@@ -274,6 +297,19 @@ export default function AdminUsers() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              <div className="sm:w-44">
+                <label className="text-xs text-gray-600">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
               <div className="sm:w-56">
                 <label className="text-xs text-gray-600">Station</label>
                 <input
@@ -289,6 +325,7 @@ export default function AdminUsers() {
                 onClick={() => {
                   setQ("");
                   setRoleFilter("all");
+                  setStatusFilter("all");
                   setStationFilter("");
                 }}
               >
@@ -373,12 +410,13 @@ export default function AdminUsers() {
               </div>
 
               <div>
-                <label className="text-xs text-gray-600">Phone</label>
+                <label className="text-xs text-gray-600">Phone *</label>
                 <input
                   value={form.phone}
                   onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
                   placeholder="+267…"
+                  required
                   disabled={loading}
                 />
               </div>
@@ -399,6 +437,22 @@ export default function AdminUsers() {
               </div>
 
               <div>
+                <label className="text-xs text-gray-600">Status</label>
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, status: e.target.value }))
+                  }
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  disabled={loading}
+                >
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="text-xs text-gray-600">Police station</label>
                 <input
                   value={form.police_station}
@@ -408,6 +462,24 @@ export default function AdminUsers() {
                   disabled={loading}
                 />
               </div>
+
+              {form.status !== "active" ? (
+                <div className="sm:col-span-3">
+                  <label className="text-xs text-gray-600">
+                    Reason for {form.status}
+                  </label>
+                  <textarea
+                    value={form.status_reason}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, status_reason: e.target.value }))
+                    }
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                    placeholder="Required"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              ) : null}
 
               <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
                 <RippleButton
@@ -447,7 +519,7 @@ export default function AdminUsers() {
                       <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
                     </div>
                     <div className="text-xs text-gray-500">
-                      Role: {roleLabel[u.role] || u.role || "—"} • ID: {u.id}
+                      Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID: {u.id}
                       {u.police_station ? ` • Station: ${u.police_station}` : ""}
                     </div>
                   </div>

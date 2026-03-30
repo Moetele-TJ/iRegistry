@@ -54,9 +54,16 @@ serve(async (req) => {
       return respond({ success: false, message: "User not found" }, corsHeaders, 404);
     }
 
+    const now = new Date().toISOString();
+
     const { error: delErr } = await supabase
       .from("users")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: now,
+        status: "disabled",
+        suspended_reason: "Deleted by admin",
+        suspended_at: now,
+      })
       .eq("id", id);
 
     if (delErr) {
