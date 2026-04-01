@@ -15,6 +15,7 @@ export default function Header() {
   const { count } = useTransfers();
   const { unread, loading } = useNotificationCenter();
 
+  const headerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const menuRef = useRef(null);
@@ -79,8 +80,37 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Keep a CSS variable in sync with the header height so
+  // fixed UI (like sidebars) can sit exactly underneath it.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    function update() {
+      const h = Math.ceil(el.getBoundingClientRect().height || 0);
+      if (h > 0) {
+        document.documentElement.style.setProperty("--app-header-h", `${h}px`);
+      }
+    }
+
+    update();
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+
+    window.addEventListener("resize", update);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
   return (
-    <header className="w-full bg-white shadow-lg px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-50">
+    <header
+      ref={headerRef}
+      className="w-full bg-white shadow-lg px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-50"
+    >
 
       {/* Logo */}
       <div
