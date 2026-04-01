@@ -272,9 +272,9 @@ export default function AdminUsers() {
 
         {/* Toolbar: Add + filters */}
         <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-end sm:justify-between">
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end flex-1">
-              <div className="flex-1">
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-end lg:justify-between">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end flex-1 min-w-0">
+              <div className="flex-1 min-w-[220px]">
                 <label className="text-xs text-gray-600">Search</label>
                 <input
                   value={q}
@@ -283,7 +283,7 @@ export default function AdminUsers() {
                   placeholder="Name, email, ID…"
                 />
               </div>
-              <div className="sm:w-44">
+              <div className="sm:w-44 min-w-[170px]">
                 <label className="text-xs text-gray-600">Role</label>
                 <select
                   value={roleFilter}
@@ -297,7 +297,7 @@ export default function AdminUsers() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <div className="sm:w-44">
+              <div className="sm:w-44 min-w-[170px]">
                 <label className="text-xs text-gray-600">Status</label>
                 <select
                   value={statusFilter}
@@ -310,7 +310,7 @@ export default function AdminUsers() {
                   <option value="disabled">Disabled</option>
                 </select>
               </div>
-              <div className="sm:w-56">
+              <div className="sm:w-56 min-w-[220px]">
                 <label className="text-xs text-gray-600">Station</label>
                 <input
                   value={stationFilter}
@@ -321,7 +321,7 @@ export default function AdminUsers() {
               </div>
               <RippleButton
                 type="button"
-                className="px-3 py-2 rounded border bg-white"
+                className="px-3 py-2 rounded border bg-white shrink-0"
                 onClick={() => {
                   setQ("");
                   setRoleFilter("all");
@@ -334,7 +334,7 @@ export default function AdminUsers() {
             </div>
             <RippleButton
               type="button"
-              className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
+              className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60 shrink-0"
               onClick={startAdd}
               disabled={loading}
             >
