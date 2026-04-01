@@ -22,7 +22,12 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
 
   const { data, error } = response || {};
 
-  if (error?.context?.status === 401) {
+  // Only force-login for requests that are actually authenticated.
+  // Public functions (e.g. item verification) should surface their errors in-UI,
+  // not clear the local session or silently redirect.
+  const hasAuthHeader = !!headers?.Authorization || !!headers?.authorization;
+
+  if (error?.context?.status === 401 && (withAuth || hasAuthHeader)) {
     localStorage.removeItem("session");
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
