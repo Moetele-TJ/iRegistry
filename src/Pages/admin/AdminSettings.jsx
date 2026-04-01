@@ -1,5 +1,8 @@
 // src/Pages/admin/AdminSettings.jsx
+import { useAdminSidebar } from "../../hooks/useAdminSidebar";
+
 export default function AdminSettings() {
+  useAdminSidebar();
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Admin Overview</h1>

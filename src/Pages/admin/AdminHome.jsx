@@ -1,8 +1,10 @@
 // src/Pages/admin/AdminHome.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 
 export default function AdminHome() {
+  useAdminSidebar();
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,

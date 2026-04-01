@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { useAdminSidebar } from "../../hooks/useAdminSidebar.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -13,6 +14,7 @@ function displayName(u) {
 
 export default function AdminUsers() {
   const navigate = useNavigate();
+  useAdminSidebar();
 
   const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(null); // user being edited or null
