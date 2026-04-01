@@ -31,7 +31,7 @@ export default function AdminLayout() {
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
       >
-        <nav className="py-4 space-y-2 px-2 h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] overflow-y-auto">
+        <nav className="py-4 space-y-2 px-2">
           <SidebarItem
             to="/admindashboard"
             icon={<LayoutDashboard size={20} />}
