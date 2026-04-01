@@ -29,7 +29,7 @@ function LayoutBody() {
   return (
     <>
       <AppSidebar sidebar={sidebar} />
-      <main className={showSidebar ? "pl-4" : ""}>
+      <main className={`bg-gray-100 ${showSidebar ? "pl-4" : ""}`}>
         <Outlet />
       </main>
     </>
