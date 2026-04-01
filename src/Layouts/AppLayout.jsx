@@ -24,12 +24,11 @@ export default function AppLayout() {
 
 function LayoutBody() {
   const { sidebar } = useSidebar();
-  const showSidebar = !!sidebar?.visible && (sidebar?.items?.length || 0) > 0;
 
   return (
     <>
       <AppSidebar sidebar={sidebar} />
-      <main className={showSidebar ? "pl-[72px] md:pl-[88px]" : ""}>
+      <main>
         <Outlet />
       </main>
     </>

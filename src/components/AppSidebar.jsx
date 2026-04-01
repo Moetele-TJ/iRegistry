@@ -13,7 +13,7 @@ export default function AppSidebar({ sidebar }) {
   return (
     <aside
       className={`
-        fixed left-0 top-16 md:top-20 z-50
+        fixed left-0 top-[72px] md:top-[92px] z-40
         bg-iregistrygreen text-white
         transition-all duration-300 ease-in-out
         ${(expanded && hoverExpand) ? "w-44" : "w-14"}
