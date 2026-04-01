@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar.js";
+import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
