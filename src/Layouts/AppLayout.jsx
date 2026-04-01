@@ -29,7 +29,13 @@ function LayoutBody() {
   return (
     <>
       <AppSidebar sidebar={sidebar} />
-      <main className={`bg-gray-100 ${showSidebar ? "pl-4" : ""}`}>
+      <main
+        className={`bg-gray-100 ${
+          showSidebar
+            ? "pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
+            : ""
+        }`}
+      >
         <Outlet />
       </main>
     </>
