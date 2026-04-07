@@ -78,7 +78,9 @@ serve(async (req) => {
     const { data, error } = await supabase
       .from("items")
       .select("id")
-      .eq("serial1_normalized", cleanSerial)
+      .or(
+        `serial1_normalized.eq.${cleanSerial},serial2_normalized.eq.${cleanSerial}`,
+      )
       .is("deletedat", null)
       .maybeSingle();
 

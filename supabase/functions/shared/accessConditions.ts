@@ -12,8 +12,9 @@ export async function getAccessConditions(
 
   if (!session || !session.role) {
     return {
-      reportedstolenat: "NOT_NULL",
-      deletedat: null,
+      // Public access to items is not permitted via get-items.
+      // Use the dedicated public verification endpoint instead.
+      forceEmpty: true,
     };
   }
 

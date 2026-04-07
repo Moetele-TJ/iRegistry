@@ -91,6 +91,17 @@ function photoStoragePublicUrl(entry, preferThumb = true) {
   return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${normalizedPath}`;
 }
 
+function formatItemPlace(item) {
+  const v = String(item?.village || "").trim();
+  const w = String(item?.ward || "").trim();
+  if (v || w) return [v, w].filter(Boolean).join(", ");
+  return "—";
+}
+
+function formatItemStation(item) {
+  return String(item?.station || item?.location || "").trim() || "—";
+}
+
 function itemThumbnailSrc(item) {
   const first = item?.photos?.[0] ?? null;
   return (
@@ -368,7 +379,11 @@ export default function Items() {
           (i.id && i.id.toLowerCase().includes(q)) ||
           (i.make && i.make.toLowerCase().includes(q)) ||
           (i.model && i.model.toLowerCase().includes(q)) ||
-          (i.serial1 && i.serial1.toLowerCase().includes(q))
+          (i.serial1 && i.serial1.toLowerCase().includes(q)) ||
+          (i.village && String(i.village).toLowerCase().includes(q)) ||
+          (i.ward && String(i.ward).toLowerCase().includes(q)) ||
+          (i.station && String(i.station).toLowerCase().includes(q)) ||
+          (i.location && String(i.location).toLowerCase().includes(q))
       );
     }
 
@@ -549,12 +564,12 @@ export default function Items() {
               ref={stolenStationInputRef}
               key={id}
               type="text"
-              defaultValue={it.location || ""}
+              defaultValue={it.station || it.location || ""}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
-              placeholder="Leave blank to use item location"
+              placeholder="Leave blank to use nearest police station on file"
             />
             <p className="text-xs text-gray-500">
-              If you leave this blank, your item&apos;s current location is used as the reporting station when the case opens.
+              If you leave this blank, your item&apos;s nearest police station is used when the case opens.
             </p>
           </div>
         ),
@@ -599,7 +614,9 @@ export default function Items() {
         "Model",
         "Status",
         "LastSeen",
-        "Location",
+        "TownVillage",
+        "WardStreet",
+        "NearestPoliceStation",
         "Serial1",
         "CreatedOn",
         "UpdatedOn",
@@ -612,7 +629,9 @@ export default function Items() {
         i.model || "",
         i.status || "",
         i.lastSeen || "",
-        i.location || "",
+        i.village || "",
+        i.ward || "",
+        i.station || i.location || "",
         i.serial1 || "",
         i.createdOn || "",
         i.updatedOn || "",
@@ -653,7 +672,7 @@ export default function Items() {
   const queueRowReadOnly = (item) =>
     showStationQueue && item.ownerId !== user?.id;
 
-  const tableColCount = showStationQueue ? 8 : 7;
+  const tableColCount = showStationQueue ? 9 : 8;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -948,7 +967,8 @@ export default function Items() {
                   <th className="text-left py-3 px-4">Case</th>
                 ) : null}
                 <th className="text-left py-3 px-4">Last Seen</th>
-                <th className="text-left py-3 px-4">Location</th>
+                <th className="text-left py-3 px-4">Place</th>
+                <th className="text-left py-3 px-4">Station</th>
                 <th className="text-right py-3 px-4">Est.Value</th>
                 <th className="text-right py-3 px-4">Actions</th>
               </tr>
@@ -980,7 +1000,10 @@ export default function Items() {
                       <div className="h-4 bg-gray-200 rounded w-28" />
                     </td>
                     <td className="py-3 px-4">
-                      <div className="h-4 bg-gray-200 rounded w-28" />
+                      <div className="h-4 bg-gray-200 rounded w-24" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-24" />
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="h-6 bg-gray-200 rounded w-24 ml-auto" />
@@ -1075,7 +1098,10 @@ export default function Items() {
                         {item.lastSeen || "-"}
                       </td>
                       <td className="py-4 px-5 text-gray-600">
-                        {item.location || "-"}
+                        {formatItemPlace(item)}
+                      </td>
+                      <td className="py-4 px-5 text-gray-600">
+                        {formatItemStation(item)}
                       </td>
                       <td className="py-4 px-5 text-right font-medium text-gray-700">
                         {formatCurrency(item.estimatedValue)}
@@ -1252,7 +1278,7 @@ export default function Items() {
                   <div className="my-4 border-t border-gray-100" />
 
                   {/* Info Grid */}
-                  <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
 
                     {/* Estimated Value */}
                     <div>
@@ -1264,13 +1290,21 @@ export default function Items() {
                       </div>
                     </div>
 
-                    {/* Location */}
+                    {/* Place + station */}
                     <div>
                       <div className="text-[11px] text-gray-400 uppercase tracking-wide">
-                        Location
+                        Place
                       </div>
                       <div className="text-gray-700 font-medium truncate">
-                        {item.location || "—"}
+                        {formatItemPlace(item)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-gray-400 uppercase tracking-wide">
+                        Station
+                      </div>
+                      <div className="text-gray-700 font-medium truncate">
+                        {formatItemStation(item)}
                       </div>
                     </div>
 

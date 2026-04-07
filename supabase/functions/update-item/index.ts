@@ -138,6 +138,11 @@ serve(async (req) => {
       "model",
       "serial1",
       "serial2",
+      // New location split
+      "village",
+      "ward",
+      "station",
+      // Legacy field (nearest station)
       "location",
       "photos",
       "purchaseDate",
@@ -158,6 +163,18 @@ serve(async (req) => {
 
       cleanUpdates[dbField] =
         typeof value === "string" ? value.trim() : value;
+    }
+
+    // Backwards-compatible mapping:
+    // - If client updates legacy `location` but not `station`, treat it as station.
+    // - If client updates `station` but not `location`, keep legacy `location` mirrored.
+    if ("location" in cleanUpdates && !("station" in cleanUpdates)) {
+      const loc = String(cleanUpdates.location ?? "").trim();
+      if (loc) cleanUpdates.station = loc;
+    }
+    if ("station" in cleanUpdates && !("location" in cleanUpdates)) {
+      const st = String(cleanUpdates.station ?? "").trim();
+      if (st) cleanUpdates.location = st;
     }
 
     /* ---------------- STATUS HANDLING ---------------- */
@@ -261,6 +278,8 @@ serve(async (req) => {
       cleanUpdates.estimatedvalue = val;
     }
 
+    // We keep `location` required for now because the DB column is NOT NULL.
+    // New UI will treat `station` as the required field; we mirror it into `location`.
     const requiredFields = ["category", "make", "model", "serial1", "location"];
 
     for (const field of requiredFields) {
@@ -552,8 +571,8 @@ serve(async (req) => {
     if (becomingStolen) {
       const ps =
         typeof policeStation === "string" ? policeStation.trim() : "";
-      const mirroredLocation = String(updatedItem.location ?? "").trim();
-      const station = (ps.length > 0 ? ps : mirroredLocation) || "Unknown";
+      const mirroredStation = String((updatedItem.station ?? updatedItem.location) ?? "").trim();
+      const station = (ps.length > 0 ? ps : mirroredStation) || "Unknown";
       const station_source = ps.length > 0
         ? "user_selected"
         : "mirrored_from_location";

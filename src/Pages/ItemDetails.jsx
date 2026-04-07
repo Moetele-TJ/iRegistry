@@ -458,8 +458,18 @@ export default function ItemDetails() {
                 </div>
 
                 <div>
-                  <div className="text-xs text-gray-500">Location</div>
-                  <div className="text-gray-800">{item.location || "—"}</div>
+                  <div className="text-xs text-gray-500">Town/Village</div>
+                  <div className="text-gray-800">{item.village || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Ward/Street</div>
+                  <div className="text-gray-800">{item.ward || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Nearest police station</div>
+                  <div className="text-gray-800">
+                    {item.station || item.location || "—"}
+                  </div>
                 </div>
 
                 <div>

@@ -1,9 +1,10 @@
 // src/Pages/EditItem.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { compressImage } from "../utils/imageCompression.js";
 
@@ -76,15 +77,20 @@ export default function EditItem() {
     updateItem,
     deleteItem,
   } = useItems();
+  const { user } = useAuth();
 
   const [storedItem, setStoredItem] = useState(null);
+  const [heldAtResidence, setHeldAtResidence] = useState(false);
+
   const [form, setForm] = useState({
     category: "",
     make: "",
     model: "",
     serial1: "",
     serial2: "",
-    location: "",
+    village: "",
+    ward: "",
+    station: "",
     purchaseDate: "",
     estimatedValue: "",
     shop: "",
@@ -110,7 +116,7 @@ export default function EditItem() {
   const latestSerial1Ref = useRef("");
   latestSerial1Ref.current = form.serial1;
 
-  const requiredFields = ["category", "make", "model", "serial1", "location"];
+  const requiredFields = ["category", "make", "model", "serial1", "station"];
 
   useEffect(() => {
     return () => {
@@ -128,13 +134,22 @@ export default function EditItem() {
     setStoredItem(found);
 
     if (found) {
+      const v = String(found.village || "").trim();
+      const w = String(found.ward || "").trim();
+      const st = String(found.station || found.location || "").trim();
+      const uv = String(user?.village || "").trim();
+      const uw = String(user?.ward || "").trim();
+      const atHome = (!v && !w) || (uv && uw && v === uv && w === uw);
+      setHeldAtResidence(!!atHome && !!uv);
       setForm({
         category: found.category || "",
         make: found.make || "",
         model: found.model || "",
         serial1: found.serial1 || "",
         serial2: found.serial2 || "",
-        location: found.location || "",
+        village: v || uv,
+        ward: w || uw,
+        station: st,
         purchaseDate: toDateInputValue(found.purchaseDate || found.lastSeen),
         estimatedValue:
           found.estimatedValue != null && found.estimatedValue !== ""
@@ -149,7 +164,59 @@ export default function EditItem() {
       setPhotoPreviews([]);
       setPoliceStation("");
     }
-  }, [routeParam, items, itemsLoading]);
+  }, [routeParam, items, itemsLoading, user?.village, user?.ward]);
+
+  useEffect(() => {
+    if (!heldAtResidence) return;
+    setForm((f) => ({
+      ...f,
+      village:
+        typeof user?.village === "string" && user.village.trim()
+          ? user.village.trim()
+          : f.village,
+      ward:
+        typeof user?.ward === "string" && user.ward.trim()
+          ? user.ward.trim()
+          : f.ward,
+      station:
+        typeof user?.police_station === "string" && user.police_station.trim()
+          ? user.police_station.trim()
+          : f.station,
+    }));
+  }, [heldAtResidence, user?.village, user?.ward, user?.police_station]);
+
+  const villageOptions = useMemo(() => {
+    const s = new Set(
+      (items || [])
+        .map((it) => String(it?.village || "").trim())
+        .filter(Boolean)
+    );
+    const u = String(user?.village || "").trim();
+    if (u) s.add(u);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, user?.village]);
+
+  const wardOptions = useMemo(() => {
+    const s = new Set(
+      (items || [])
+        .map((it) => String(it?.ward || "").trim())
+        .filter(Boolean)
+    );
+    const u = String(user?.ward || "").trim();
+    if (u) s.add(u);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, user?.ward]);
+
+  const stationOptions = useMemo(() => {
+    const s = new Set(
+      (items || [])
+        .map((it) => String(it?.station || it?.location || "").trim())
+        .filter(Boolean)
+    );
+    const u = String(user?.police_station || "").trim();
+    if (u) s.add(u);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, user?.police_station]);
 
   useEffect(() => {
     if (!form.serial1.trim()) {
@@ -361,9 +428,15 @@ export default function EditItem() {
 
     for (const f of requiredFields) {
       if (!form[f]?.trim()) {
+        const label =
+          f === "serial1"
+            ? "the primary serial number"
+            : f === "station"
+              ? "the nearest police station"
+              : f;
         await alert({
           title: "Missing Information",
-          message: `Please fill in ${f === "serial1" ? "the primary serial number" : f}.`,
+          message: `Please fill in ${label}.`,
           variant: "warning",
         });
         return;
@@ -500,7 +573,10 @@ export default function EditItem() {
         model: form.model.trim(),
         serial1: form.serial1.trim(),
         serial2: form.serial2.trim(),
-        location: form.location.trim(),
+        village: form.village.trim() || undefined,
+        ward: form.ward.trim() || undefined,
+        station: form.station.trim(),
+        location: form.station.trim(),
         purchaseDate: form.purchaseDate || undefined,
         estimatedValue: form.estimatedValue
           ? Number(form.estimatedValue)
@@ -685,13 +761,64 @@ export default function EditItem() {
             </Field>
           </div>
 
-          <Field label="Location" required>
+          <Field label="Item location">
+            <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+              <input
+                type="checkbox"
+                checked={heldAtResidence}
+                onChange={(e) => setHeldAtResidence(e.target.checked)}
+              />
+              Item is held at my place of residence
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Town/Village</label>
+                <input
+                  name="village"
+                  value={form.village}
+                  onChange={(e) => updateField("village", e.target.value)}
+                  className="input"
+                  list="edit-village-options"
+                  disabled={heldAtResidence}
+                />
+                <datalist id="edit-village-options">
+                  {villageOptions.map((v) => (
+                    <option key={v} value={v} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ward/Street</label>
+                <input
+                  name="ward"
+                  value={form.ward}
+                  onChange={(e) => updateField("ward", e.target.value)}
+                  className="input"
+                  list="edit-ward-options"
+                  disabled={heldAtResidence}
+                />
+                <datalist id="edit-ward-options">
+                  {wardOptions.map((w) => (
+                    <option key={w} value={w} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+          </Field>
+
+          <Field label="Nearest police station" required>
             <input
-              name="location"
-              value={form.location}
-              onChange={(e) => updateField("location", e.target.value)}
-              className={`input ${isFieldInvalid("location") ? "border-red-500 ring-red-500" : ""}`}
+              name="station"
+              value={form.station}
+              onChange={(e) => updateField("station", e.target.value)}
+              className={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
+              list="edit-station-options"
             />
+            <datalist id="edit-station-options">
+              {stationOptions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </Field>
 
           <Field label="Status">
@@ -711,7 +838,7 @@ export default function EditItem() {
                 value={policeStation}
                 onChange={(e) => setPoliceStation(e.target.value)}
                 className="input"
-                placeholder="Defaults to location if empty"
+                placeholder="Defaults to nearest police station if empty"
               />
             </Field>
           )}

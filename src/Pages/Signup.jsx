@@ -20,11 +20,11 @@ export default function Signup() {
     phone: "",
     email: "",
 
-    // STEP 2 (7 optional)
+    // STEP 2 (optional) — village/ward match items + validate-session profile
     state: "",
-    city: "",
+    village: "",
     postal_code: "",
-    address_line: "",
+    ward: "",
     alt_phone: "",
     landline: "",
     police_station: "",
@@ -283,14 +283,14 @@ export default function Signup() {
               <Input label="State" value={form.state}
                 onChange={(v) => setForm(f => ({ ...f, state: v }))} required={false} />
 
-              <Input label="City" value={form.city}
-                onChange={(v) => setForm(f => ({ ...f, city: v }))} required={false} />
+              <Input label="Town / village" value={form.village}
+                onChange={(v) => setForm(f => ({ ...f, village: v }))} required={false} />
 
               <Input label="Postal code" value={form.postal_code}
                 onChange={(v) => setForm(f => ({ ...f, postal_code: v }))} required={false} />
 
-              <Input label="Address line" value={form.address_line}
-                onChange={(v) => setForm(f => ({ ...f, address_line: v }))} required={false} />
+              <Input label="Ward / street" value={form.ward}
+                onChange={(v) => setForm(f => ({ ...f, ward: v }))} required={false} />
 
               <Input label="Alt. phone" value={form.alt_phone}
                 onChange={(v) => setForm(f => ({ ...f, alt_phone: v }))} required={false} />

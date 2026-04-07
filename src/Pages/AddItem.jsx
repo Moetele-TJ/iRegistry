@@ -4,12 +4,14 @@ import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { compressImage } from "../utils/imageCompression.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
   const { addItem, loading, items = [] } = useItems();
+  const { user } = useAuth();
   const [serialError, setSerialError] = useState(null);
   const [serialCheckWarning, setSerialCheckWarning] = useState(null);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -21,13 +23,17 @@ export default function AddItem() {
   const uploadCancelledRef = useRef(false);
   const [dragActive, setDragActive] = useState(false);
 
+  const [heldAtResidence, setHeldAtResidence] = useState(true);
+
   const [form, setForm] = useState({
     category: "",
     make: "",
     model: "",
     serial1: "",
     serial2: "",
-    location: "",
+    village: "",
+    ward: "",
+    station: "",
     purchaseDate: "",
     estimatedValue: "",
     shop: "",
@@ -39,6 +45,19 @@ export default function AddItem() {
   latestSerial1Ref.current = form.serial1;
 
   const { alert } = useModal();
+
+  useEffect(() => {
+    if (!heldAtResidence) return;
+    setForm((f) => ({
+      ...f,
+      village: typeof user?.village === "string" && user.village.trim() ? user.village.trim() : f.village,
+      ward: typeof user?.ward === "string" && user.ward.trim() ? user.ward.trim() : f.ward,
+      station:
+        typeof user?.police_station === "string" && user.police_station.trim()
+          ? user.police_station.trim()
+          : f.station,
+    }));
+  }, [heldAtResidence, user?.village, user?.ward, user?.police_station]);
 
   useEffect(() => {
     if (!form.serial1.trim()) {
@@ -124,6 +143,39 @@ export default function AddItem() {
     const s = new Set(subset.map((it) => (it?.model || "").trim()).filter(Boolean));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items, form.category, form.make]);
+
+  const villageOptions = useMemo(() => {
+    const s = new Set(
+      (items || [])
+        .map((it) => String(it?.village || "").trim())
+        .filter(Boolean)
+    );
+    const u = String(user?.village || "").trim();
+    if (u) s.add(u);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, user?.village]);
+
+  const wardOptions = useMemo(() => {
+    const s = new Set(
+      (items || [])
+        .map((it) => String(it?.ward || "").trim())
+        .filter(Boolean)
+    );
+    const u = String(user?.ward || "").trim();
+    if (u) s.add(u);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, user?.ward]);
+
+  const stationOptions = useMemo(() => {
+    const s = new Set(
+      (items || [])
+        .map((it) => String(it?.station || it?.location || "").trim())
+        .filter(Boolean)
+    );
+    const u = String(user?.police_station || "").trim();
+    if (u) s.add(u);
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [items, user?.police_station]);
 
   function handleCategoryChange(next) {
     const v = String(next ?? "");
@@ -263,7 +315,7 @@ export default function AddItem() {
     setPhotoPreviews(updated);
   }
 
-  const requiredFields = ["category", "make", "model", "serial1", "location"];
+  const requiredFields = ["category", "make", "model", "serial1", "station"];
 
   function isFieldInvalid(field) {
     return requiredFields.includes(field) && !form[field]?.trim();
@@ -346,14 +398,14 @@ export default function AddItem() {
       return;
     }
     
-    if (!form.location.trim()) {
+    if (!form.station.trim()) {
       await alert({
         title: "Missing Information",
-        message: "Please fill in the Location field before you continue.",
+        message: "Please fill in the Nearest police station field before you continue.",
         variant: "warning",
       });
 
-      document.querySelector('input[name="location"]')?.focus();
+      document.querySelector('input[name="station"]')?.focus();
       return;
     }
     
@@ -373,6 +425,7 @@ export default function AddItem() {
         payload.estimatedValue = Number(payload.estimatedValue);
       }
 
+      // API: station required; village/ward optional (legacy `location` mirrored server-side)
       const created = await addItem(payload);
 
       itemId = created.id;
@@ -670,15 +723,73 @@ export default function AddItem() {
             </Field>
           </div>
 
-          {/* Location */}
-          <Field label="Location" required>
+          {/* Where item is kept + nearest station */}
+          <Field label="Item location">
+            <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+              <input
+                type="checkbox"
+                checked={heldAtResidence}
+                onChange={(e) => setHeldAtResidence(e.target.checked)}
+              />
+              Item is held at my place of residence
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Town/Village</label>
+                <input
+                  name="village"
+                  value={form.village}
+                  onChange={(e) => updateField("village", e.target.value)}
+                  className="input"
+                  placeholder="e.g. Gantsi"
+                  list="add-village-options"
+                  disabled={heldAtResidence}
+                />
+                <datalist id="add-village-options">
+                  {villageOptions.map((v) => (
+                    <option key={v} value={v} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ward/Street</label>
+                <input
+                  name="ward"
+                  value={form.ward}
+                  onChange={(e) => updateField("ward", e.target.value)}
+                  className="input"
+                  placeholder="e.g. Ward 3"
+                  list="add-ward-options"
+                  disabled={heldAtResidence}
+                />
+                <datalist id="add-ward-options">
+                  {wardOptions.map((w) => (
+                    <option key={w} value={w} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            {heldAtResidence && (
+              <p className="text-xs text-gray-500 mt-2">
+                Town/Village and Ward/Street are taken from your profile. Uncheck to enter a different place.
+              </p>
+            )}
+          </Field>
+
+          <Field label="Nearest police station" required>
             <input
-              name="location"
-              value={form.location}
-              onChange={(e) => updateField("location", e.target.value)}
-              className={`input ${isFieldInvalid("location") ? "border-red-500 ring-red-500" : ""}`}
-              placeholder="Nearest Police Station..."
+              name="station"
+              value={form.station}
+              onChange={(e) => updateField("station", e.target.value)}
+              className={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
+              placeholder="e.g. Gantsi Police Station"
+              list="add-station-options"
             />
+            <datalist id="add-station-options">
+              {stationOptions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </Field>
 
           <Field label="Shop / retailer">

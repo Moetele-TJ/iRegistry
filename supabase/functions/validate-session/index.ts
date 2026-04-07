@@ -59,6 +59,8 @@ serve(async (req) => {
         status,
         identity_verified,
         is_minor,
+        village,
+        ward,
         police_station,
         last_login_at
       `)

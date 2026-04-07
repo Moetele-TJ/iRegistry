@@ -95,7 +95,12 @@ function normalizeFromDB(row) {
     serial2: row.serial2,
     slug: row.slug,
 
-    location: row.location,
+    // New location split
+    village: row.village ?? null,
+    ward: row.ward ?? null,
+    station: row.station ?? null,
+    // Legacy: keep `location` mapped for older UI bits (treated as station historically).
+    location: row.location ?? row.station ?? null,
     lastSeen: row.lastseen,
     status: row.status,
     reportedStolenAt: row.reportedstolenat,

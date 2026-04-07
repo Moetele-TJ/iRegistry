@@ -175,8 +175,15 @@ export default function AdminUsers() {
     setLoading(true);
     setError("");
     try {
+      const prevStatus =
+        isEditing && editing
+          ? users.find((u) => String(u.id) === String(editing))?.status
+          : undefined;
+      const statusIsChanging =
+        isAdding || (isEditing && typeof prevStatus === "string" && form.status !== prevStatus);
       const statusNeedsReason = form.status !== "active";
-      if ((isAdding || isEditing) && statusNeedsReason && !String(form.status_reason || "").trim()) {
+
+      if ((isAdding || isEditing) && statusIsChanging && statusNeedsReason && !String(form.status_reason || "").trim()) {
         throw new Error("A reason is required when setting status to suspended/disabled.");
       }
 

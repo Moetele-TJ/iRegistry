@@ -69,6 +69,11 @@ serve(async (req) => {
       model,
       serial1,
       serial2,
+      // New location split (preferred)
+      village,
+      ward,
+      station,
+      // Legacy field used as "nearest police station"
       location,
       photos,
       purchaseDate,
@@ -220,12 +225,19 @@ serve(async (req) => {
       baseSlug,
     });
 
-    if (!location) {
+    const resolvedStation =
+      (typeof station === "string" ? station.trim() : "") ||
+      (typeof location === "string" ? location.trim() : "");
+
+    const resolvedVillage = typeof village === "string" ? village.trim() : "";
+    const resolvedWard = typeof ward === "string" ? ward.trim() : "";
+
+    if (!resolvedStation) {
       return respond(
         {
           success: false,
           diag: "ITEM-CREATE-005",
-          message: "Location is required.",
+          message: "Nearest police station is required.",
         },
         corsHeaders,
         400
@@ -272,7 +284,12 @@ serve(async (req) => {
         serial1_normalized: serial1Normalized,
         serial2_normalized: serial2Normalized,
         slug,
-        location: location.trim(),
+        // New fields (UI will gradually enforce)
+        village: resolvedVillage || null,
+        ward: resolvedWard || null,
+        station: resolvedStation,
+        // Keep legacy column populated for backwards compatibility (and NOT NULL constraint).
+        location: resolvedStation,
         photos,
         purchasedate: purchaseDate || null,
         estimatedvalue: typeof estimatedValue ==="number" ? estimatedValue : null,

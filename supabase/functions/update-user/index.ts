@@ -85,6 +85,8 @@ serve(async (req) => {
     setIfString("email", 254);
     setIfString("phone", 50, { required: true });
     setIfString("police_station", 200);
+    setIfString("village", 200);
+    setIfString("ward", 200);
 
     if ("role" in updates) {
       const next = String(updates.role ?? "").trim().toLowerCase();
@@ -151,7 +153,7 @@ serve(async (req) => {
       .from("users")
       .update(clean)
       .eq("id", id)
-      .select("id, first_name, last_name, id_number, phone, email, role, police_station, status")
+      .select("id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, status")
       .single();
 
     if (upErr || !updated) {

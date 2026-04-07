@@ -53,6 +53,16 @@ serve(async (req) => {
 
     const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
+    if (!session) {
+      return respond(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        corsHeaders,
+        401,
+      );
+    }
 
     /* ================= BASE QUERY ================= */
 
