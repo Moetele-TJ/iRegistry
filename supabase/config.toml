@@ -381,6 +381,10 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
+# Edge Functions: verify_jwt = false is equivalent to deploying with --no-verify-jwt.
+# Used for login/signup/OTP, public stats, serial & item verification, owner contact, public photo search,
+# and background workers (e.g. process-embedding-queue) invoked without a user session.
+
 [functions.verify-otp]
 enabled = true
 verify_jwt = false
@@ -395,7 +399,7 @@ entrypoint = "./functions/create-user/index.ts"
 
 [functions.check-user-details]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/check-user-details/deno.json"
 entrypoint = "./functions/check-user-details/index.ts"
 
@@ -404,6 +408,12 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/dispatch-otp/deno.json"
 entrypoint = "./functions/dispatch-otp/index.ts"
+
+[functions.identify-user]
+enabled = true
+verify_jwt = false
+import_map = "./functions/identify-user/deno.json"
+entrypoint = "./functions/identify-user/index.ts"
 
 [functions.logout]
 enabled = true
@@ -517,7 +527,7 @@ entrypoint = "./functions/get-items/index.ts"
 
 [functions.check-serial]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/check-serial/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -539,7 +549,7 @@ entrypoint = "./functions/generate-upload-urls/index.ts"
 
 [functions.get-public-stats]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-public-stats/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -550,7 +560,7 @@ entrypoint = "./functions/get-public-stats/index.ts"
 
 [functions.verify-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/verify-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -561,7 +571,7 @@ entrypoint = "./functions/verify-item/index.ts"
 
 [functions.notify-owner]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/notify-owner/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -693,7 +703,7 @@ entrypoint = "./functions/create-embedding-job/index.ts"
 
 [functions.process-embedding-queue]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/process-embedding-queue/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -704,7 +714,7 @@ entrypoint = "./functions/process-embedding-queue/index.ts"
 
 [functions.public-photo-search]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/public-photo-search/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -712,3 +722,47 @@ entrypoint = "./functions/public-photo-search/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/public-photo-search/*.html" ]
+
+# --- Functions below were missing from config; deployed with JWT verification (session required) ---
+
+[functions.admin-create-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/admin-create-user/deno.json"
+entrypoint = "./functions/admin-create-user/index.ts"
+
+[functions.delete-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/delete-user/deno.json"
+entrypoint = "./functions/delete-user/index.ts"
+
+[functions.get-item-photo-urls]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-item-photo-urls/deno.json"
+entrypoint = "./functions/get-item-photo-urls/index.ts"
+
+[functions.get-item-police-case]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-item-police-case/deno.json"
+entrypoint = "./functions/get-item-police-case/index.ts"
+
+[functions.list-users]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-users/deno.json"
+entrypoint = "./functions/list-users/index.ts"
+
+[functions.update-police-case]
+enabled = true
+verify_jwt = true
+import_map = "./functions/update-police-case/deno.json"
+entrypoint = "./functions/update-police-case/index.ts"
+
+[functions.update-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/update-user/deno.json"
+entrypoint = "./functions/update-user/index.ts"
