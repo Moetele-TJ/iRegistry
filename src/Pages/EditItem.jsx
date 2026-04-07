@@ -7,6 +7,7 @@ import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { compressImage } from "../utils/imageCompression.js";
+import { normalizePhotos } from "../utils/itemPhotos.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -16,28 +17,6 @@ function toDateInputValue(v) {
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
-}
-
-/** Normalize DB photos to { original, thumb } for UI + API. */
-function normalizePhotos(photos) {
-  if (!Array.isArray(photos)) return [];
-  return photos
-    .map((p) => {
-      if (typeof p === "string") {
-        const s = p.trim();
-        if (!s) return null;
-        return { original: s, thumb: s };
-      }
-      if (p && typeof p === "object") {
-        const o = String(p.original || "").trim();
-        const t = String(p.thumb || "").trim();
-        if (o && t) return { original: o, thumb: t };
-        if (o) return { original: o, thumb: o };
-        if (t) return { original: t, thumb: t };
-      }
-      return null;
-    })
-    .filter(Boolean);
 }
 
 function photoThumbUrl(entry) {

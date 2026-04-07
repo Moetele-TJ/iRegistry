@@ -1,5 +1,5 @@
 // src/Pages/ItemDetails.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
@@ -9,6 +9,11 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import ItemActivityTimeline from "../components/ItemActivityTimeline";
 import { useItemActivity } from "../hooks/useItemActivity";
+import { useModal } from "../contexts/ModalContext.jsx";
+import { normalizePhotos } from "../utils/itemPhotos.js";
+import { compressImage } from "../utils/imageCompression.js";
+
+const MAX_PHOTOS = 5;
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -110,8 +115,9 @@ function normalizePoliceCaseRow(row) {
 export default function ItemDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { items, deleteItem } = useItems();
+  const { items, deleteItem, updateItem } = useItems();
   const { user } = useAuth();
+  const { confirm } = useModal();
 
   const [item, setItem] = useState(null);
   const [policeCaseDetail, setPoliceCaseDetail] = useState(null);
@@ -126,6 +132,25 @@ export default function ItemDetails() {
 
   // toast state
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
+
+  const [dragActive, setDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState(0);
+  const [totalUploads, setTotalUploads] = useState(0);
+  const activeXhrs = useRef([]);
+  const uploadCancelledRef = useRef(false);
+  const photoInputRef = useRef(null);
+
+  const photosNormalized = useMemo(() => normalizePhotos(item?.photos), [item?.photos]);
+
+  // Admins/cashiers may edit photos on any item. All other roles (including police) only on items they own.
+  const canManagePhotos =
+    !!user &&
+    !!item &&
+    (user.role === "admin" ||
+      user.role === "cashier" ||
+      String(user.id) === String(item.ownerId));
 
   useEffect(() => {
     const found = (items || []).find((it) => String(it.slug) === String(slug));
@@ -266,6 +291,229 @@ export default function ItemDetails() {
     void performDelete();
   }
 
+  function showToastMsg(msg, type = "info") {
+    setToast({ visible: true, message: msg, type });
+    setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3200);
+  }
+
+  function handleDragZone(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
+  }
+
+  async function handleDropFiles(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (!canManagePhotos || !item || !e.dataTransfer?.files?.length) return;
+    await processFiles(e.dataTransfer.files);
+  }
+
+  async function processFiles(fileList) {
+    if (!item || !canManagePhotos) return;
+    const room = MAX_PHOTOS - photosNormalized.length;
+    const selected = Array.from(fileList).slice(0, Math.max(0, room));
+    if (selected.length === 0) {
+      showToastMsg(`You can have at most ${MAX_PHOTOS} photos per item.`, "error");
+      return;
+    }
+    const previews = await Promise.all(
+      selected.map(async (file) => {
+        const compressed = await compressImage(file);
+        return { file: compressed, url: URL.createObjectURL(compressed) };
+      })
+    );
+    await uploadCompressedPreviews(previews);
+  }
+
+  async function uploadCompressedPreviews(previews) {
+    if (!item || previews.length === 0) return;
+    uploadCancelledRef.current = false;
+    setIsUploading(true);
+    setUploadProgress(0);
+    setCurrentUpload(0);
+    setTotalUploads(previews.length);
+    try {
+      const { data: uploadInit, error: uploadError } = await invokeWithAuth("generate-upload-urls", {
+        body: {
+          itemId: item.id,
+          files: previews.map((p) => ({
+            name: p.file.name,
+            type: p.file.type,
+            size: p.file.size,
+          })),
+        },
+      });
+      if (uploadError || !uploadInit?.success) {
+        throw new Error(uploadInit?.message || "Could not start photo upload.");
+      }
+      let completed = 0;
+      const totalBytes = previews.reduce((sum, p) => sum + p.file.size, 0);
+      let uploadedBytes = 0;
+      await Promise.all(
+        uploadInit.uploads.map((upload, i) => {
+          const file = previews[i]?.file;
+          if (!file) throw new Error("Photo upload mismatch.");
+          return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            activeXhrs.current.push(xhr);
+            xhr.open("PUT", upload.signedUrl);
+            xhr.setRequestHeader("Content-Type", file.type);
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const previous = xhr._lastLoaded || 0;
+                const delta = event.loaded - previous;
+                xhr._lastLoaded = event.loaded;
+                uploadedBytes += delta;
+                setUploadProgress(Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)));
+              }
+            };
+            xhr.onload = () => {
+              activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                completed++;
+                setCurrentUpload(completed);
+                resolve();
+              } else reject(new Error("Upload failed."));
+            };
+            xhr.onerror = () => {
+              activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
+              reject(new Error("Upload failed."));
+            };
+            xhr.send(file);
+          });
+        })
+      );
+      setUploadProgress(100);
+      await Promise.all(
+        uploadInit.uploads.map((u) =>
+          invokeWithAuth("generate-thumbnail", {
+            body: { originalPath: u.path, thumbPath: u.thumbPath },
+          })
+        )
+      );
+      const newEntries = uploadInit.uploads.map((u) => ({ original: u.path, thumb: u.thumbPath }));
+      const merged = [
+        ...photosNormalized.map((p) => ({ original: p.original, thumb: p.thumb })),
+        ...newEntries,
+      ];
+      await updateItem(item.id, { photos: merged });
+      await Promise.all(
+        uploadInit.uploads.map((u) =>
+          invokeWithAuth("create-embedding-job", {
+            body: { itemId: item.id, photoPath: u.path, thumbPath: u.thumbPath },
+          })
+        )
+      );
+      previews.forEach((p) => URL.revokeObjectURL(p.url));
+      showToastMsg("Photos updated.", "success");
+      setPhotoIndex(Math.max(0, merged.length - 1));
+    } catch (err) {
+      if (uploadCancelledRef.current) {
+        showToastMsg("Upload cancelled.", "warning");
+      } else {
+        showToastMsg(err.message || "Upload failed.", "error");
+      }
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setCurrentUpload(0);
+      setTotalUploads(0);
+      activeXhrs.current = [];
+    }
+  }
+
+  async function handlePhotoInputChange(e) {
+    const input = e.target;
+    const files = input.files;
+    if (!files?.length) return;
+    try {
+      await processFiles(files);
+    } catch (err) {
+      showToastMsg(err.message || "Could not process images.", "error");
+    } finally {
+      input.value = "";
+    }
+  }
+
+  function openPhotoPicker() {
+    if (!canManagePhotos || isUploading || !item) return;
+    const room = MAX_PHOTOS - photosNormalized.length;
+    if (room <= 0) {
+      showToastMsg(`Maximum ${MAX_PHOTOS} photos per item.`, "warning");
+      return;
+    }
+    photoInputRef.current?.click();
+  }
+
+  async function applyPhotoReorder(fromIndex, toIndex) {
+    if (!item || fromIndex === toIndex) return;
+    const next = [...photosNormalized];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    try {
+      await updateItem(item.id, { photos: next });
+      setPhotoIndex((prev) => {
+        if (prev === fromIndex) return toIndex;
+        if (fromIndex < toIndex && prev > fromIndex && prev <= toIndex) return prev - 1;
+        if (fromIndex > toIndex && prev >= toIndex && prev < fromIndex) return prev + 1;
+        return prev;
+      });
+    } catch (err) {
+      showToastMsg(err.message || "Could not reorder photos.", "error");
+    }
+  }
+
+  function requestPhotoReorder(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    void confirm({
+      title: "Apply new photo order?",
+      message:
+        "The first photo is used as the main image on this page and in lists. Save this order?",
+      confirmLabel: "Apply order",
+      cancelLabel: "Cancel",
+      variant: "warning",
+      onConfirm: async () => {
+        await applyPhotoReorder(fromIndex, toIndex);
+      },
+    });
+  }
+
+  async function applyPhotoRemove(index) {
+    if (!item) return;
+    const next = photosNormalized.filter((_, i) => i !== index);
+    try {
+      await updateItem(item.id, { photos: next });
+      setPhotoIndex((prev) => Math.min(prev, Math.max(0, next.length - 1)));
+    } catch (err) {
+      showToastMsg(err.message || "Could not remove photo.", "error");
+    }
+  }
+
+  function requestPhotoRemove(index) {
+    void confirm({
+      title: "Remove this photo?",
+      message:
+        "This photo will be removed from the item. You can add new photos later if you need to.",
+      confirmLabel: "Remove",
+      cancelLabel: "Keep",
+      danger: true,
+      onConfirm: async () => {
+        await applyPhotoRemove(index);
+      },
+    });
+  }
+
+  function cancelUpload() {
+    uploadCancelledRef.current = true;
+    activeXhrs.current.forEach((xhr) => xhr.abort());
+    activeXhrs.current = [];
+    setIsUploading(false);
+    setUploadProgress(0);
+  }
+
   const publicMainPhotoUrls = item ? itemPhotoUrls(item, true) : [];
   const publicThumbPhotoUrls = item ? itemPhotoUrls(item, false) : [];
 
@@ -278,6 +526,8 @@ export default function ItemDetails() {
     mainPhotoUrls.length > 0
       ? mainPhotoUrls[Math.min(photoIndex, mainPhotoUrls.length - 1)]
       : fallbackImage;
+
+  const photoRoom = MAX_PHOTOS - photosNormalized.length;
 
   if (!item) {
     return (
@@ -302,39 +552,177 @@ export default function ItemDetails() {
       <div className="p-6 sm:p-8 max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Left: main = original (full-res); strip = thumbs; fallback imageUrl if no photos */}
+            {/* Left: photos — read-only for guests; owners/admins can add, reorder, remove */}
             <div className="md:w-1/3 flex flex-col items-center justify-center gap-3">
-              {mainPhotoSrc ? (
-                <img
-                  src={mainPhotoSrc}
-                  alt={item.name || "Item photo"}
-                  className="w-48 h-48 object-cover rounded-lg border border-gray-200"
-                  onError={(e) => {
-                    e.currentTarget.src = "";
-                  }}
-                />
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handlePhotoInputChange}
+              />
+
+              {canManagePhotos ? (
+                <>
+                  <div
+                    className={`relative w-48 h-48 rounded-lg border-2 overflow-hidden cursor-pointer transition-colors ${
+                      dragActive
+                        ? "border-iregistrygreen bg-emerald-50"
+                        : "border-gray-200 bg-gray-50 hover:border-iregistrygreen/50"
+                    } ${isUploading ? "cursor-wait" : ""}`}
+                    onDragEnter={handleDragZone}
+                    onDragLeave={handleDragZone}
+                    onDragOver={handleDragZone}
+                    onDrop={handleDropFiles}
+                    onClick={openPhotoPicker}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openPhotoPicker();
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Add photos — click or drop images here"
+                  >
+                    {mainPhotoSrc ? (
+                      <img
+                        src={mainPhotoSrc}
+                        alt={item.name || "Item photo"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 px-2 text-center">
+                        <div className="text-3xl mb-1">＋</div>
+                        <span className="text-xs leading-tight">
+                          Add photos
+                          <br />
+                          <span className="text-[10px] text-gray-400">click or drop</span>
+                        </span>
+                      </div>
+                    )}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center text-white text-xs px-2">
+                        <div className="w-[90%] bg-white/25 rounded-full h-1.5 mb-2 overflow-hidden">
+                          <div
+                            className="bg-iregistrygreen h-1.5 rounded-full transition-all"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        <span>
+                          Uploading {currentUpload}/{totalUploads}
+                        </span>
+                        <button
+                          type="button"
+                          className="mt-2 text-[11px] underline text-white/90"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cancelUpload();
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                    {!isUploading && photoRoom > 0 && (
+                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[10px] text-center py-1 px-1">
+                        {photosNormalized.length === 0 ? "Add up to 5 photos" : `${photoRoom} slot(s) left`}
+                      </div>
+                    )}
+                  </div>
+
+                  {(thumbPhotoUrls.length > 0 || photoRoom < MAX_PHOTOS) && (
+                    <div className="w-full max-w-[13rem]">
+                      {thumbPhotoUrls.length > 0 && (
+                        <p className="text-[10px] text-gray-500 text-center mb-1">
+                          Drag thumbnails to reorder · first = main
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {thumbPhotoUrls.map((url, i) => (
+                          <div
+                            key={`${url}-${i}`}
+                            draggable
+                            onDragStart={(e) => e.dataTransfer.setData("exIndex", String(i))}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              const from = Number(e.dataTransfer.getData("exIndex"));
+                              if (!Number.isNaN(from)) requestPhotoReorder(from, i);
+                            }}
+                            className="relative group"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setPhotoIndex(i)}
+                              className={`w-11 h-11 rounded-md overflow-hidden border-2 shrink-0 block ${
+                                photoIndex === i
+                                  ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
+                                  : "border-gray-200 opacity-90 hover:opacity-100"
+                              }`}
+                            >
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                            </button>
+                            {i === 0 && (
+                              <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800/85 text-white px-1 rounded whitespace-nowrap">
+                                Main
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              title="Remove photo"
+                              className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-[10px] leading-5 opacity-0 group-hover:opacity-100 transition shadow"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                requestPhotoRemove(i);
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="w-48 h-48 bg-gray-50 rounded-lg border flex items-center justify-center text-gray-400">
-                  <div className="text-4xl">☁</div>
-                </div>
-              )}
-              {thumbPhotoUrls.length > 1 && (
-                <div className="flex flex-wrap gap-2 justify-center max-w-[12.5rem]">
-                  {thumbPhotoUrls.map((url, i) => (
-                    <button
-                      key={url + i}
-                      type="button"
-                      onClick={() => setPhotoIndex(i)}
-                      className={`w-11 h-11 rounded-md overflow-hidden border-2 shrink-0 ${
-                        photoIndex === i
-                          ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
-                          : "border-gray-200 opacity-80 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {mainPhotoSrc ? (
+                    <img
+                      src={mainPhotoSrc}
+                      alt={item.name || "Item photo"}
+                      className="w-48 h-48 object-cover rounded-lg border border-gray-200"
+                      onError={(e) => {
+                        e.currentTarget.src = "";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-48 h-48 bg-gray-50 rounded-lg border flex items-center justify-center text-gray-400">
+                      <div className="text-4xl">☁</div>
+                    </div>
+                  )}
+                  {thumbPhotoUrls.length > 1 && (
+                    <div className="flex flex-wrap gap-2 justify-center max-w-[12.5rem]">
+                      {thumbPhotoUrls.map((url, i) => (
+                        <button
+                          key={url + i}
+                          type="button"
+                          onClick={() => setPhotoIndex(i)}
+                          className={`w-11 h-11 rounded-md overflow-hidden border-2 shrink-0 ${
+                            photoIndex === i
+                              ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
+                              : "border-gray-200 opacity-80 hover:opacity-100"
+                          }`}
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
