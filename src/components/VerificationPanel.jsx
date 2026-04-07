@@ -102,6 +102,8 @@ export default function VerificationPanel() {
         clearInterval(autoCaptureRef.current);
         autoCaptureRef.current = null;
       }
+      // Unmount: read latest video node to stop tracks (ref may update after mount).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       const video = videoRef.current;
       const stream = video?.srcObject;
       if (stream) stream.getTracks().forEach(track => track.stop());

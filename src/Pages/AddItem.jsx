@@ -471,7 +471,6 @@ export default function AddItem() {
       setTotalUploads(uploadInit.uploads.length);
 
       try {
-        const total = Math.min(uploadInit.uploads.length, photoPreviews.length);
         let completed = 0;
         const totalBytes = photoPreviews.reduce((sum, p) => sum + p.file.size, 0);
         let uploadedBytes = 0;

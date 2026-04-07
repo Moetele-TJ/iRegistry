@@ -1,6 +1,6 @@
 //  📁 src/components/DashboardAlertsPanel.jsx
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getIcon } from "../utils/iconResolver";
 import TimeAgo from "./TimeAgo";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
@@ -26,20 +26,24 @@ export default function DashboardAlertsPanel({ alerts }) {
     }));
   }
 
-  const groupedAlerts = alerts.reduce((acc, alert) => {
-    const key = alert.itemid; // use ID internally
+  const groupedAlerts = useMemo(
+    () =>
+      alerts.reduce((acc, alert) => {
+        const key = alert.itemid; // use ID internally
 
-    if (!acc[key]) {
-      acc[key] = {
-        itemName: alert.items?.name || "Item",
-        alerts: []
-      };
-    }
+        if (!acc[key]) {
+          acc[key] = {
+            itemName: alert.items?.name || "Item",
+            alerts: []
+          };
+        }
 
-    acc[key].alerts.push(alert);
+        acc[key].alerts.push(alert);
 
-    return acc;
-  }, {});
+        return acc;
+      }, {}),
+    [alerts]
+  );
 
   useEffect(() => {
     const autoExpand = {};
@@ -54,7 +58,7 @@ export default function DashboardAlertsPanel({ alerts }) {
 
     setExpandedItems(autoExpand);
 
-  }, [alerts]);
+  }, [groupedAlerts]);
 
   const unreadCount = alerts.filter(alert => !alert.isread).length;
 

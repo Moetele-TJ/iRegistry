@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { supabase } from "../lib/supabase";
 import { invokeFn } from "../lib/invokeFn";
 import { getJwtExpiryMs } from "../lib/jwtExpiry";
 import {

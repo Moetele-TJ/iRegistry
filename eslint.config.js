@@ -26,4 +26,11 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    files: ['src/contexts/**/*.{js,jsx}'],
+    rules: {
+      // Context files export both providers and hooks; Vite Fast Refresh allows this pattern.
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

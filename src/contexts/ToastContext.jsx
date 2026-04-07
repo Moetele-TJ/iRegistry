@@ -93,7 +93,7 @@ function ToastContainer({ toasts, removeToast }) {
 }
 
 function Toast({ toast, onClose }) {
-  const { id, type, message, duration = 3000 } = toast;
+  const { type, message, duration = 3000 } = toast;
   const timerRef = useRef(null);
   const [hover, setHover] = useState(false);
 

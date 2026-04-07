@@ -116,7 +116,7 @@ export default function ItemDetails() {
   const [item, setItem] = useState(null);
   const [policeCaseDetail, setPoliceCaseDetail] = useState(null);
   const [policeCaseLoading, setPoliceCaseLoading] = useState(false);
-  const { activity, loading } = useItemActivity(item?.id);
+  const { activity } = useItemActivity(item?.id);
   const [confirmOpen, setConfirmOpen] = useState(false); // modal state
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -176,7 +176,7 @@ export default function ItemDetails() {
 
         setSignedMainPhotoUrls((mainUrls || []).filter(Boolean));
         setSignedThumbPhotoUrls((thumbUrls || []).filter(Boolean));
-      } catch (e) {
+      } catch {
         // If signing fails for any reason, fallback to public URLs below.
         if (!cancelled) {
           setSignedMainPhotoUrls([]);
@@ -262,8 +262,7 @@ export default function ItemDetails() {
   }
 
   // wrapper that ConfirmModal can call as action
-  function handleDeleteAction(arg) {
-    // arg is ignored; we already know item id in closure
+  function handleDeleteAction() {
     void performDelete();
   }
 

@@ -53,8 +53,8 @@ export default function HomePage() {
   const chartKey = stats?.totals?.totalItems || 0;
 
   const [expandedCard, setExpandedCard] = useState(null);
-  const { user, logout } = useAuth();
-  const [openMenu, setOpenMenu] = useState(false);
+  const { user } = useAuth();
+  const [, setOpenMenu] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -165,7 +165,6 @@ export default function HomePage() {
             title="Total Users"
             value={totalUsers}
             initialLoading={initialLoading}
-            refreshing={refreshing}
             icon={<Users size={22} />}
             miniTrend = {userTrend}
             expanded={expandedCard === "users"}
@@ -181,7 +180,6 @@ export default function HomePage() {
             title="Total Items"
             value={total}
             initialLoading={initialLoading}
-            refreshing={refreshing}
             icon={<Package size={22} />}
             miniTrend = {itemTrend}
             expanded={expandedCard === "total"}
@@ -216,7 +214,6 @@ export default function HomePage() {
             title="Active Items"
             value={active}
             initialLoading={initialLoading}
-            refreshing={refreshing}
             icon={<ShieldCheck size={22} />}
             miniTrend = {activeTrend}
             expanded={expandedCard === "active"}
@@ -235,7 +232,6 @@ export default function HomePage() {
             title="Stolen Items"
             value={stolen}
             initialLoading={initialLoading}
-            refreshing={refreshing}
             red
             icon={<AlertTriangle size={22} />}
             miniTrend = {stolenTrend}
@@ -363,7 +359,6 @@ function StatCard({
   value,
   red,
   initialLoading,
-  refreshing,
   icon,
   miniTrend = [],
   expanded,

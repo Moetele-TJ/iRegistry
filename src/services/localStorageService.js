@@ -22,6 +22,8 @@ export const localStorageService = {
   clear() {
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   },
 };

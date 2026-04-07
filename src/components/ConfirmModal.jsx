@@ -60,6 +60,7 @@ export default function ConfirmModal({
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleConfirm/handleCancel are defined below; isOpen is the meaningful trigger
   }, [isOpen]);
 
   if (!isOpen) return null;

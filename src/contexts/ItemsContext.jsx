@@ -5,8 +5,8 @@ import React, {
   useContext,
   useEffect,
   useReducer,
+  useCallback,
 } from "react";
-import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
 /* ===================================================== */
@@ -136,51 +136,53 @@ export function ItemsProvider({ children }) {
   const { user } = useAuth();
 
   /* ---------------- FETCH ITEMS ---------------- */
-  
-  async function refreshItems(filters = {}) {
-    if (!user?.id) {
-      dispatch({ type: "SET_ITEMS", payload: [] });
-      return;
-    }
 
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
-
-    try {
-      const { data, error } = await invokeWithAuth("get-items", {
-        body: {
-          ownerId: filters.ownerId ?? user.id,
-          policeStationStolenView: filters.policeStationStolenView,
-          includeDeleted: filters.includeDeleted,
-          category: filters.category,
-          make: filters.make,
-          model: filters.model,
-          reportedStolen: filters.reportedStolen,
-          hasPhotos: filters.hasPhotos,
-          createdFrom: filters.createdFrom,
-          createdTo: filters.createdTo,
-          search: filters.search,
-        },
-      });
-
-      if (error || !data?.success) {
-        throw new Error(data?.message || "Failed to load items");
+  const refreshItems = useCallback(
+    async function refreshItems(filters = {}) {
+      if (!user?.id) {
+        dispatch({ type: "SET_ITEMS", payload: [] });
+        return;
       }
 
-      dispatch({
-        type: "SET_ITEMS",
-        payload: (data.items || []).map(normalizeFromDB),
-      });
+      dispatch({ type: "SET_LOADING", payload: true });
+      dispatch({ type: "SET_ERROR", payload: null });
 
-    } catch (err) {
-      dispatch({
-        type: "SET_ERROR",
-        payload: err.message || "Failed to load items",
-      });
-    } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
-    }
-  }
+      try {
+        const { data, error } = await invokeWithAuth("get-items", {
+          body: {
+            ownerId: filters.ownerId ?? user.id,
+            policeStationStolenView: filters.policeStationStolenView,
+            includeDeleted: filters.includeDeleted,
+            category: filters.category,
+            make: filters.make,
+            model: filters.model,
+            reportedStolen: filters.reportedStolen,
+            hasPhotos: filters.hasPhotos,
+            createdFrom: filters.createdFrom,
+            createdTo: filters.createdTo,
+            search: filters.search,
+          },
+        });
+
+        if (error || !data?.success) {
+          throw new Error(data?.message || "Failed to load items");
+        }
+
+        dispatch({
+          type: "SET_ITEMS",
+          payload: (data.items || []).map(normalizeFromDB),
+        });
+      } catch (err) {
+        dispatch({
+          type: "SET_ERROR",
+          payload: err.message || "Failed to load items",
+        });
+      } finally {
+        dispatch({ type: "SET_LOADING", payload: false });
+      }
+    },
+    [user?.id]
+  );
 
   /* Initial load */
   useEffect(() => {
@@ -190,7 +192,7 @@ export function ItemsProvider({ children }) {
     }
 
     refreshItems({ ownerId: user.id });
-  }, [user?.id]);
+  }, [user?.id, refreshItems]);
 
   /* ---------------- ADD ITEM ---------------- */
   

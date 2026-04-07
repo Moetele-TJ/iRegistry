@@ -128,7 +128,6 @@ export default function Items() {
     const {
     items: ctxItems = [],
     loading,
-    error,
     updateItem,
     deleteItem,
     refreshItems,
@@ -141,7 +140,7 @@ export default function Items() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All"); // All / Active / Stolen
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("name"); // name | lastSeen | status
+  const [sortBy] = useState("name"); // name | lastSeen | status
   const [page, setPage] = useState(1);
   const perPage = 8;
 
@@ -263,7 +262,7 @@ export default function Items() {
   }
 
   // derived items (from context)
-  const items = ctxItems || [];
+  const items = useMemo(() => ctxItems || [], [ctxItems]);
 
   async function handlePoliceStolenToggle(nextValue) {
     setPoliceShowStolenAtStation(nextValue);
@@ -459,7 +458,7 @@ export default function Items() {
         }
 
         setSignedThumbByItemId(next);
-      } catch (e) {
+      } catch {
         // If signing fails, keep showing the public URLs.
         if (!cancelled) setSignedThumbByItemId({});
       }

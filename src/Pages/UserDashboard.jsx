@@ -44,18 +44,6 @@ export default function UserDashboard() {
   const summary = data?.personal?.summary || {};
   const alerts = data?.personal?.alerts || [];
 
-  const groupedAlerts = alerts.reduce((acc, alert) => {
-    const itemName = alert.items?.name || "Item";
-
-    if (!acc[itemName]) {
-      acc[itemName] = [];
-    }
-
-    acc[itemName].push(alert);
-
-    return acc;
-  }, {});
-
   const activeCount = summary.activeItems || 0;
   const stolenCount = summary.stolenItems || 0;
   const { total: notifTotal, unread } = useNotificationCenter();

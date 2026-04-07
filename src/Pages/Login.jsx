@@ -61,6 +61,7 @@ export default function Login() {
     if (otp.length === 6 && !verifyingOtp && step === "otp") {
       handleVerifyOtp();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only otp length should trigger auto-submit
   }, [otp]);
 
   // ⏱ Cooldown timer

@@ -1,5 +1,5 @@
 // 📁 src/hooks/useUserNotifications.js
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
@@ -12,8 +12,7 @@ export function useUserNotifications() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
 
-  async function fetchNotifications() {
-
+  const fetchNotifications = useCallback(async () => {
     setLoading(true);
 
     const { data: res, error } = await invokeWithAuth(
@@ -36,7 +35,7 @@ export function useUserNotifications() {
     }
 
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
 
@@ -44,7 +43,7 @@ export function useUserNotifications() {
 
     fetchNotifications();
 
-  }, [user?.id]);
+  }, [user?.id, fetchNotifications]);
 
   return {
     notifications,

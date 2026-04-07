@@ -1,5 +1,5 @@
 //  src/hooks/usePendingTransfers.js
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -8,8 +8,7 @@ export function usePendingTransfers() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchTransfers() {
-
+  const fetchTransfers = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -19,7 +18,7 @@ export function usePendingTransfers() {
       setData(data.data || []);
     }
     setLoading(false);
-  }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -28,7 +27,7 @@ export function usePendingTransfers() {
       setData([]);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, fetchTransfers]);
 
   return { data, loading, count: data.length, refresh: fetchTransfers };
 }

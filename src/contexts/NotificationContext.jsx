@@ -42,7 +42,7 @@ export function NotificationProvider({ children }) {
       supabase.removeChannel(channel);
     };
 
-  }, [user?.id]);
+  }, [user?.id, refreshNotifications]);
 
   const value = {
     notifications,
