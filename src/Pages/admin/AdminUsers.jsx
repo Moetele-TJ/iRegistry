@@ -767,13 +767,16 @@ export default function AdminUsers() {
                       ) : null}
                     </div>
 
-                    <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto sm:min-w-[280px]">
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <label className="text-xs text-gray-600 sr-only sm:not-sr-only sm:w-full">Change role</label>
+                    <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto sm:min-w-[320px]">
+                      <div>
+                        <label className="text-xs text-gray-600" htmlFor={`user-role-${u.id}`}>
+                          Change role
+                        </label>
                         <select
+                          id={`user-role-${u.id}`}
                           value={u.role || "user"}
                           onChange={(e) => void quickChangeRole(u, e.target.value)}
-                          className="border rounded-lg px-2 py-1.5 text-sm flex-1 min-w-[8rem] disabled:opacity-50"
+                          className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
                           disabled={loading || rowBusy || self}
                           title={self ? "Cannot change your own role" : "Change role"}
                         >
@@ -784,11 +787,11 @@ export default function AdminUsers() {
                           ))}
                         </select>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
                         {st !== "active" ? (
                           <RippleButton
                             type="button"
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50"
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50 whitespace-nowrap"
                             onClick={() => void quickReactivate(u)}
                             disabled={loading || rowBusy || self}
                           >
@@ -799,7 +802,7 @@ export default function AdminUsers() {
                           <>
                             <RippleButton
                               type="button"
-                              className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm disabled:opacity-50"
+                              className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm disabled:opacity-50 whitespace-nowrap"
                               onClick={() => openSuspendModal(u, "suspended")}
                               disabled={loading || rowBusy || self}
                             >
@@ -807,7 +810,7 @@ export default function AdminUsers() {
                             </RippleButton>
                             <RippleButton
                               type="button"
-                              className="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm disabled:opacity-50"
+                              className="shrink-0 px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm disabled:opacity-50 whitespace-nowrap"
                               onClick={() => openSuspendModal(u, "disabled")}
                               disabled={loading || rowBusy || self}
                             >
@@ -815,17 +818,15 @@ export default function AdminUsers() {
                             </RippleButton>
                           </>
                         ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2 justify-end sm:justify-start">
                         <RippleButton
-                          className="px-3 py-1 rounded bg-gray-100 text-sm"
+                          className="shrink-0 px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
                           onClick={() => startEdit(u)}
                           disabled={loading || rowBusy}
                         >
                           Edit
                         </RippleButton>
                         <RippleButton
-                          className="px-3 py-1 rounded bg-red-50 text-red-600 border text-sm disabled:opacity-50"
+                          className="shrink-0 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
                           onClick={() => handleDelete(u.id)}
                           disabled={loading || rowBusy || self}
                         >
