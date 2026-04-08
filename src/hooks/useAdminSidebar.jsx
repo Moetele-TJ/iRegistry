@@ -4,6 +4,7 @@ import {
   Bell,
   FileText,
   LayoutDashboard,
+  MonitorSmartphone,
   Package,
   Coins,
   ReceiptText,
@@ -32,6 +33,7 @@ export function useAdminSidebar({ visible = true } = {}) {
       { to: "/admindashboard/items", icon: <Package size={20} />, label: "Items" },
       { to: "/admindashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/admindashboard/activity", icon: <Activity size={20} />, label: "Activity" },
+      { to: "/admindashboard/sessions", icon: <MonitorSmartphone size={20} />, label: "Sessions" },
     ],
     []
   );

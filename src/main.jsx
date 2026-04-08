@@ -36,6 +36,7 @@ import AdminSettings from "./Pages/admin/AdminSettings.jsx";
 import AdminItemsPage from "./Pages/admin/AdminItemsPage.jsx";
 import AdminNotificationsPage from "./Pages/admin/AdminNotificationsPage.jsx";
 import AdminActivityPage from "./Pages/admin/AdminActivityPage.jsx";
+import AdminSessionsPage from "./Pages/admin/AdminSessionsPage.jsx";
 import AdminTopupPage from "./Pages/admin/AdminTopupPage.jsx";
 import AdminTransactionsPage from "./Pages/admin/AdminTransactionsPage.jsx";
 import AdminPricingPage from "./Pages/admin/AdminPricingPage.jsx";
@@ -129,6 +130,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<AdminItemsPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />
+                    <Route path="sessions" element={<AdminSessionsPage />} />
                   </Route>
 
                   <Route
