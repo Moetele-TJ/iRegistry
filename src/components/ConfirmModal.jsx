@@ -120,6 +120,15 @@ export default function ConfirmModal({
     return "bg-iregistrygreen hover:opacity-90";
   }
 
+  function getDialogBg() {
+    // "danger" should always win (even if variant says otherwise)
+    if (danger) return "bg-red-50 border-red-100";
+    if (variant === "success") return "bg-emerald-50 border-emerald-100";
+    if (variant === "warning") return "bg-orange-50 border-orange-100";
+    if (variant === "error") return "bg-orange-50 border-orange-100";
+    return "bg-white border-gray-100";
+  }
+
   /* ================= UI ================= */
 
   return (
@@ -135,7 +144,7 @@ export default function ConfirmModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative bg-white rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 p-5 max-h-[90vh] overflow-y-auto z-10"
+        className={`relative rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 p-5 max-h-[90vh] overflow-y-auto z-10 border ${getDialogBg()}`}
       >
         {title && (
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
