@@ -18,5 +18,8 @@ export default function ProfileRoleRedirect() {
   if (role === "police") {
     return <Navigate to="/policedashboard/profile" replace />;
   }
+  if (role === "cashier") {
+    return <Navigate to="/cashierdashboard/profile" replace />;
+  }
   return <Navigate to="/userdashboard/profile" replace />;
 }

@@ -39,6 +39,11 @@ import PoliceHome from "./Pages/police/PoliceHome.jsx";
 import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
 import PoliceNotificationsPage from "./Pages/police/PoliceNotificationsPage.jsx";
 import PoliceActivityPage from "./Pages/police/PoliceActivityPage.jsx";
+import CashierLayout from "./Pages/cashier/CashierLayout.jsx";
+import CashierHome from "./Pages/cashier/CashierHome.jsx";
+import CashierItemsPage from "./Pages/cashier/CashierItemsPage.jsx";
+import CashierNotificationsPage from "./Pages/cashier/CashierNotificationsPage.jsx";
+import CashierActivityPage from "./Pages/cashier/CashierActivityPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -79,7 +84,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/userdashboard"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
                         <UserLayout />
                       </ProtectedRoute>
                     }
@@ -124,11 +129,26 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="activity" element={<PoliceActivityPage />} />
                   </Route>
 
+                  <Route
+                    path="/cashierdashboard"
+                    element={
+                      <ProtectedRoute allowedRoles={["cashier"]}>
+                        <CashierLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<CashierHome />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="items" element={<CashierItemsPage />} />
+                    <Route path="notifications" element={<CashierNotificationsPage />} />
+                    <Route path="activity" element={<CashierActivityPage />} />
+                  </Route>
+
                   {/* Items */}
                   <Route
                     path="/items"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <Items />
                       </ProtectedRoute>
                     }
@@ -137,7 +157,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/items/add"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <AddItem />
                       </ProtectedRoute>
                     }
@@ -146,7 +166,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/items/:slug"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <ItemDetails />
                       </ProtectedRoute>
                     }
@@ -155,7 +175,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/items/:id/edit"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <EditItem />
                       </ProtectedRoute>
                     }
@@ -164,7 +184,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/notifications"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <Notifications />
                       </ProtectedRoute>
                     }
@@ -173,7 +193,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/activity"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <Activity />
                       </ProtectedRoute>
                     }

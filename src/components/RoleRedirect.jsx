@@ -34,6 +34,9 @@ export default function RoleRedirect() {
     case "police":
       return <Navigate to="/policedashboard" replace />;
 
+    case "cashier":
+      return <Navigate to="/cashierdashboard" replace />;
+
     default:
       return <Navigate to="/userdashboard" replace />;
   }

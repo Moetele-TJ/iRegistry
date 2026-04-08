@@ -71,6 +71,7 @@ export default function Header() {
   function dashboardPath() {
     if (role === "admin") return "/admindashboard";
     if (role === "police") return "/policedashboard";
+    if (role === "cashier") return "/cashierdashboard";
     if (role === "user") return "/userdashboard";
     return "/";
   }
@@ -78,7 +79,8 @@ export default function Header() {
   function profilePath() {
     if (role === "admin") return "/admindashboard/profile";
     if (role === "police") return "/policedashboard/profile";
-    if (role === "user" || role === "cashier") return "/userdashboard/profile";
+    if (role === "cashier") return "/cashierdashboard/profile";
+    if (role === "user") return "/userdashboard/profile";
     return "/profile";
   }
 
@@ -158,8 +160,8 @@ export default function Header() {
             </div>
           )}
 
-          {/* Transfers */}
-          {count > 0 && (
+          {/* Transfers (owner queue; not used on cashier accounts) */}
+          {count > 0 && role !== "cashier" && (
             <div
               className="relative cursor-pointer hover:scale-105 transition-transform"
               onClick={() => navigate("/userdashboard?tab=transfers")}
