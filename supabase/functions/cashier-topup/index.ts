@@ -21,6 +21,10 @@ function isCashier(role: unknown) {
   return String(role || "").toLowerCase() === "cashier";
 }
 
+function isAdmin(role: unknown) {
+  return String(role || "").toLowerCase() === "admin";
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -36,7 +40,7 @@ serve(async (req) => {
       return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
     }
 
-    if (!isCashier(session.role)) {
+    if (!isCashier(session.role) && !isAdmin(session.role)) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

@@ -8,6 +8,7 @@ import {
   Settings,
   UserCircle,
   Users,
+  Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 
@@ -21,6 +22,7 @@ export function useAdminSidebar({ visible = true } = {}) {
       { to: "/admindashboard/users", icon: <Users size={20} />, label: "Users" },
       { to: "/admindashboard/audit-logs", icon: <FileText size={20} />, label: "Audit Logs" },
       { to: "/admindashboard/settings", icon: <Settings size={20} />, label: "Settings" },
+      { to: "/admindashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/admindashboard/items", icon: <Package size={20} />, label: "Items" },
       { to: "/admindashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/admindashboard/activity", icon: <Activity size={20} />, label: "Activity" },

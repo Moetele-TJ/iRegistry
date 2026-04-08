@@ -34,6 +34,7 @@ import AdminSettings from "./Pages/admin/AdminSettings.jsx";
 import AdminItemsPage from "./Pages/admin/AdminItemsPage.jsx";
 import AdminNotificationsPage from "./Pages/admin/AdminNotificationsPage.jsx";
 import AdminActivityPage from "./Pages/admin/AdminActivityPage.jsx";
+import AdminTopupPage from "./Pages/admin/AdminTopupPage.jsx";
 import PoliceLayout from "./Pages/police/PoliceLayout.jsx";
 import PoliceHome from "./Pages/police/PoliceHome.jsx";
 import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
@@ -110,6 +111,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
                     <Route path="settings" element={<AdminSettings />} />
+                  <Route path="topup" element={<AdminTopupPage />} />
                     <Route path="items" element={<AdminItemsPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />
