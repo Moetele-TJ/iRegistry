@@ -211,6 +211,110 @@ serve(async (req) => {
 
     }
 
+    /* ---------------- BILLING ----------------
+     * - MARK_STOLEN: only when switching Active -> Stolen
+     * - UPLOAD_PHOTOS: when new photo entries are introduced
+     * - EDIT_ITEM: any other field change (excluding status change & photo upload)
+     */
+    const billToUserId = String(existing.ownerid);
+    const { data: ownerRow } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("id", billToUserId)
+      .maybeSingle();
+    const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
+    const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
+
+    const spend = async (task: string, meta: Record<string, unknown>) => {
+      const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
+        p_user_id: billToUserId,
+        p_task_code: task,
+        p_reference: String(existing.id),
+        p_metadata: meta,
+      });
+      const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
+      const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
+      if (spendErr || !ok) {
+        return { ok: false, message: msg || "Insufficient credits" };
+      }
+      return { ok: true, message: "OK" };
+    };
+
+    // 1) Mark stolen billing
+    if (!ownerIsPrivileged && statusChanged && cleanUpdates.status === "Stolen") {
+      const r = await spend("MARK_STOLEN", { kind: "update-item", action: "mark-stolen" });
+      if (!r.ok) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-BILL-001",
+            message: r.message,
+            billing: { required: true, task_code: "MARK_STOLEN" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
+    }
+
+    // 2) Upload photos billing (detect new photos)
+    let chargedPhotos = false;
+    if (!ownerIsPrivileged && "photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
+      const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
+      const existingSet = new Set(
+        existingPhotos
+          .map((p: any) => (typeof p === "string" ? p : p?.original || p?.thumb || ""))
+          .map((s: any) => String(s || "").trim())
+          .filter(Boolean),
+      );
+      const incoming = cleanUpdates.photos as any[];
+      const hasNew = incoming.some((p) => {
+        const raw = typeof p === "string" ? p : p?.original || p?.thumb || "";
+        const key = String(raw || "").trim();
+        return key && !existingSet.has(key);
+      });
+      if (hasNew) {
+        const r = await spend("UPLOAD_PHOTOS", { kind: "update-item", action: "upload-photos" });
+        if (!r.ok) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-UPDATE-BILL-002",
+              message: r.message,
+              billing: { required: true, task_code: "UPLOAD_PHOTOS" },
+            },
+            corsHeaders,
+            402,
+          );
+        }
+        chargedPhotos = true;
+      }
+    }
+
+    // 3) Edit item billing (any other non-status, non-photo change)
+    if (!ownerIsPrivileged) {
+      const keys = Object.keys(cleanUpdates);
+      const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
+      const hasNonPhotoNonStatusChange = meaningful.some((k) => k !== "photos" && k !== "status");
+      if (hasNonPhotoNonStatusChange) {
+        const r = await spend("EDIT_ITEM", { kind: "update-item", action: "edit-item" });
+        if (!r.ok) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-UPDATE-BILL-003",
+              message: r.message,
+              billing: { required: true, task_code: "EDIT_ITEM" },
+            },
+            corsHeaders,
+            402,
+          );
+        }
+      } else if (!chargedPhotos && statusChanged && cleanUpdates.status === "Active") {
+        // no-op: reactivating stolen is currently not billed (restore-item is billed for deleted restore)
+      }
+    }
+
     if (Object.keys(cleanUpdates).length === 0) {
       return respond(
         {

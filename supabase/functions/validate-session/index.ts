@@ -50,7 +50,8 @@ serve(async (req) => {
     // Fetch user profile from public.users
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select(`
+      .select(
+        `
         id,
         first_name,
         last_name,
@@ -63,8 +64,10 @@ serve(async (req) => {
         village,
         ward,
         police_station,
-        last_login_at
-      `)
+        last_login_at,
+        user_credits(balance)
+      `,
+      )
       .eq("id", session.user_id)
       .is("deleted_at", null)
       .maybeSingle();
@@ -102,14 +105,25 @@ serve(async (req) => {
       );
     }
 
+    const credit_balance =
+      typeof (user as any)?.user_credits?.balance === "number"
+        ? (user as any).user_credits.balance
+        : 0;
+
+    const normalizedUser = {
+      ...(user as any),
+      credit_balance,
+    };
+    delete (normalizedUser as any).user_credits;
+
     return respond(
       {
         success: true,
-        user,
-        session_token: session.new_token ?? null
+        user: normalizedUser,
+        session_token: session.new_token ?? null,
       },
       corsHeaders,
-      200
+      200,
     );
 
   } catch (err) {

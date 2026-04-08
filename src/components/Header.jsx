@@ -160,6 +160,15 @@ export default function Header() {
       {user && (
         <div className="flex items-center gap-4">
 
+          {/* Credits */}
+          <div
+            className="hidden sm:inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900"
+            title="Credits balance"
+          >
+            Credits:&nbsp;
+            <span className="tabular-nums">{Number(user.credit_balance ?? 0)}</span>
+          </div>
+
           {/* Notifications */}
           {!loading && unread > 0 && (
             <div

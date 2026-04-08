@@ -108,6 +108,37 @@ serve(async (req) => {
       );
     }
 
+    /* ---------------- BILLING ---------------- */
+    const { data: ownerRow } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("id", existing.ownerid)
+      .maybeSingle();
+    const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
+    const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
+    if (!ownerIsPrivileged) {
+      const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
+        p_user_id: String(existing.ownerid),
+        p_task_code: "RESTORE_ITEM",
+        p_reference: String(existing.id),
+        p_metadata: { kind: "restore-item" },
+      });
+      const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
+      const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
+      if (spendErr || !ok) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-RESTORE-BILL-001",
+            message: msg || "Insufficient credits",
+            billing: { required: true, task_code: "RESTORE_ITEM" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
+    }
+
     /* ---------------- RESTORE ---------------- */
 
     const { error: restoreError, count } = await supabase

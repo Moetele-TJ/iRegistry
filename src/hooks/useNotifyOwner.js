@@ -13,11 +13,28 @@ export function useNotifyOwner() {
       setError(null);
       setSuccess(false);
 
-      const { data, error } = await invokeFn(
+      const res = await invokeFn(
         "notify-owner",
         { body: { serial, message, contact, notifyPolice } },
         { withAuth: false }
       );
+
+      const { data, error } = res || {};
+
+      // If free limit is reached and user is logged in, retry authenticated (paid).
+      if ((error?.context?.status === 402 || data?.billing?.required) && localStorage.getItem("session")) {
+        const paid = await invokeFn(
+          "notify-owner",
+          { body: { serial, message, contact, notifyPolice } },
+          { withAuth: true }
+        );
+        const { data: paidData, error: paidError } = paid || {};
+        if (paidError || !paidData?.success) {
+          throw new Error(paidData?.message || "Failed to notify owner");
+        }
+        setSuccess(true);
+        return;
+      }
 
       if (error || !data?.success) {
         throw new Error(data?.message || "Failed to notify owner");

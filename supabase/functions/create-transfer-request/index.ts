@@ -35,6 +35,36 @@ serve(async (req) => {
 
     const { item_id, message } = await req.json();
 
+    // Billing: requester pays to initiate a transfer request (if task cost is > 0)
+    const { data: requesterRow } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("id", session.user_id)
+      .maybeSingle();
+    const role = String((requesterRow as any)?.role || "").toLowerCase();
+    const isPrivileged = role === "admin" || role === "cashier";
+    if (!isPrivileged) {
+      const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
+        p_user_id: String(session.user_id),
+        p_task_code: "REQUEST_TRANSFER",
+        p_reference: String(item_id || ""),
+        p_metadata: { kind: "create-transfer-request" },
+      });
+      const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
+      const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
+      if (spendErr || !ok) {
+        return respond(
+          {
+            success: false,
+            message: msg || "Insufficient credits",
+            billing: { required: true, task_code: "REQUEST_TRANSFER" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
+    }
+
     const { error } = await supabase.rpc("request_item_transfer", {
       p_item_id: item_id,
       p_requester_id: session.user_id,

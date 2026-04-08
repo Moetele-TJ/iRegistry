@@ -8,6 +8,7 @@ import { respond } from "../shared/respond.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { logActivity } from "../shared/logActivity.ts";
 import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
+import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -79,10 +80,7 @@ serve(async (req) => {
   const forwarded = req.headers.get("x-forwarded-for");
   const ip = forwarded ? forwarded.split(",")[0].trim() : "unknown";
 
-  await recordAttempt(supabase, {
-    ip,
-    action: "verify",
-  });
+  await recordAttempt(supabase, { ip, action: "verify" });
 
   const allowed = await checkRateLimit(supabase, {
     ip,
@@ -148,6 +146,68 @@ serve(async (req) => {
         200
       );
     }
+
+    // Billing gate: free 2/day per (ip,item). After that, require auth + credits.
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const actionKey = `verify_item:${item.id}`;
+    const { count: dayCount } = await supabase
+      .from("request_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("ip", ip)
+      .eq("action", actionKey)
+      .gte("created_at", dayStart.toISOString());
+
+    const freePerDay = 2;
+    const overFree = (dayCount ?? 0) >= freePerDay;
+
+    if (overFree) {
+      const auth = req.headers.get("authorization") || req.headers.get("Authorization");
+      const session = await validateSession(supabase, auth);
+      if (!session) {
+        return respond(
+          {
+            success: false,
+            message: "Free verification limit reached. Please login and use credits to continue.",
+            billing: { required: true, task_code: "VERIFY_ITEM_SERIAL" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
+
+      const { data: spender } = await supabase
+        .from("users")
+        .select("id, role")
+        .eq("id", session.user_id)
+        .maybeSingle();
+      const role = String((spender as any)?.role || "").toLowerCase();
+      const privileged = role === "admin" || role === "cashier";
+      if (!privileged) {
+        const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
+          p_user_id: String(session.user_id),
+          p_task_code: "VERIFY_ITEM_SERIAL",
+          p_reference: String(item.id),
+          p_metadata: { kind: "verify-item", ip },
+        });
+        const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
+        const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
+        if (spendErr || !ok) {
+          return respond(
+            {
+              success: false,
+              message: msg || "Insufficient credits",
+              billing: { required: true, task_code: "VERIFY_ITEM_SERIAL" },
+            },
+            corsHeaders,
+            402,
+          );
+        }
+      }
+    }
+
+    // Record per-item daily attempt after gating
+    await recordAttempt(supabase, { ip, action: actionKey });
 
     if (item.status === "Stolen") {
 
