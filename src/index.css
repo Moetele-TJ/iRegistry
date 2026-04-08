@@ -91,3 +91,27 @@ body {
 .animate-scan {
   animation: scan 2s linear infinite;
 }
+
+/* Toast pop-in (used by ToastContext) */
+@keyframes toast-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+    filter: blur(1px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.01);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.toast-pop {
+  animation: toast-pop 180ms ease-out both;
+  will-change: transform, opacity;
+}

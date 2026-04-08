@@ -112,6 +112,12 @@ function Toast({ toast, onClose }) {
     type === "success" ? "toast-success" : type === "error" ? "toast-error" : "toast-info";
   const bgClass =
     type === "success" ? "toast-success-bg" : type === "error" ? "toast-error-bg" : "toast-info-bg";
+  const accentClass =
+    type === "success"
+      ? "border-emerald-300"
+      : type === "error"
+        ? "border-red-300"
+        : "border-blue-300";
 
   return (
     <div
@@ -124,8 +130,8 @@ function Toast({ toast, onClose }) {
       onMouseLeave={() => {
         setHover(false);
       }}
-      className={`w-full flex items-start gap-3 p-3 rounded-lg shadow-md border border-gray-100 ${bgClass}`}
-      style={{ minWidth: 260 }}
+      className={`toast-pop w-full flex items-start gap-3 p-3 rounded-xl shadow-2xl border ${accentClass} ${bgClass}`}
+      style={{ minWidth: 280 }}
     >
       {/* icon */}
       <div className="flex-shrink-0 mt-0.5">
