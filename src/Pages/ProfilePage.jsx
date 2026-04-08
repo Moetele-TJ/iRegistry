@@ -1,6 +1,7 @@
 // src/Pages/ProfilePage.jsx
 import { useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate } from "react-router-dom";
 import { useAdminSidebar } from "../hooks/useAdminSidebar.jsx";
@@ -88,6 +89,7 @@ const inputClass =
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
+  const { addToast } = useToast();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -131,11 +133,15 @@ export default function ProfilePage() {
     const email = String(form.email ?? "").trim();
     const phone = String(form.phone ?? "").trim();
     if (!last_name) {
-      setFormError("Last name is required.");
+      const msg = "Last name is required.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
       return;
     }
     if (!phone) {
-      setFormError("Phone number is required.");
+      const msg = "Phone number is required.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
       return;
     }
     setSaving(true);
@@ -156,12 +162,26 @@ export default function ProfilePage() {
         },
       });
       if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Could not save profile");
+        const msg =
+          (data && typeof data.message === "string" && data.message) ||
+          error?.message ||
+          "Could not save profile";
+        throw new Error(msg);
       }
       await refreshUser();
       setEditing(false);
+      if (String(data?.message || "").toLowerCase().includes("no changes")) {
+        addToast({ type: "info", message: "No changes to save." });
+      } else {
+        addToast({
+          type: "success",
+          message: "Your profile was updated successfully.",
+        });
+      }
     } catch (e) {
-      setFormError(e.message || "Could not save profile");
+      const msg = e?.message || "Could not save profile";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
     } finally {
       setSaving(false);
     }
@@ -241,7 +261,13 @@ export default function ProfilePage() {
         </div>
 
         {formError ? (
-          <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{formError}</div>
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800"
+          >
+            {formError}
+          </div>
         ) : null}
 
         {/* Hero */}

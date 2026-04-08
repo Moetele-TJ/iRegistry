@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar";
+import { useToast } from "../../contexts/ToastContext.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -14,6 +15,7 @@ function displayName(u) {
 
 export default function AdminUsers() {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   useAdminSidebar();
 
   const [users, setUsers] = useState([]);
@@ -54,7 +56,9 @@ export default function AdminUsers() {
         if (cancelled) return;
         if (error || !data?.success) {
           setUsers([]);
-          setError(data?.message || error?.message || "Failed to load users");
+          const msg = data?.message || error?.message || "Failed to load users";
+          setError(msg);
+          addToast({ type: "error", message: msg });
           return;
         }
         setUsers(data.users || []);
@@ -68,7 +72,7 @@ export default function AdminUsers() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [addToast]);
 
   function startEdit(u) {
     setMode("edit");
@@ -205,6 +209,7 @@ export default function AdminUsers() {
         if (error || !data?.success) {
           throw new Error(data?.message || error?.message || "Failed to create user");
         }
+        addToast({ type: "success", message: "User was created successfully." });
       } else if (isEditing) {
         const updates = {
           first_name: form.first_name,
@@ -224,6 +229,11 @@ export default function AdminUsers() {
         if (error || !data?.success) {
           throw new Error(data?.message || error?.message || "Failed to update user");
         }
+        if (String(data?.message || "").toLowerCase().includes("no changes")) {
+          addToast({ type: "info", message: "No changes to save." });
+        } else {
+          addToast({ type: "success", message: "User was updated successfully." });
+        }
       } else {
         return;
       }
@@ -231,7 +241,9 @@ export default function AdminUsers() {
       await refresh();
       closeForm();
     } catch (e) {
-      setError(e.message || "Failed to update user");
+      const msg = e.message || "Failed to save user";
+      setError(msg);
+      addToast({ type: "error", message: msg });
     } finally {
       setLoading(false);
     }
@@ -248,10 +260,13 @@ export default function AdminUsers() {
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Failed to delete user");
       }
+      addToast({ type: "success", message: "User was deleted successfully." });
       await refresh();
       if (editing === id) closeForm();
     } catch (e) {
-      setError(e.message || "Failed to delete user");
+      const msg = e.message || "Failed to delete user";
+      setError(msg);
+      addToast({ type: "error", message: msg });
     } finally {
       setLoading(false);
     }
