@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Coins, RefreshCw, Users } from "lucide-react";
+import { CalendarDays, Coins, RefreshCw, Users, List } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -36,16 +36,17 @@ export default function AdminRevenuePage() {
   const [report, setReport] = useState(null);
   const [users, setUsers] = useState([]);
   const [cashierId, setCashierId] = useState("");
+  const [channel, setChannel] = useState("CASHIER"); // CASHIER | ONLINE | BOTH
+  const [showTransactions] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     async function loadUsers() {
       try {
-        const { data, error } = await invokeWithAuth("list-users");
+        const { data, error } = await invokeWithAuth("list-cashier-actors");
         if (cancelled) return;
         if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load users");
-        const cashiers = (data.users || []).filter((u) => String(u.role || "").toLowerCase() === "cashier");
-        setUsers(cashiers);
+        setUsers(data.cashiers || []);
       } catch (e) {
         addToast({ type: "error", message: e.message || "Failed to load users" });
         setUsers([]);
@@ -61,7 +62,14 @@ export default function AdminRevenuePage() {
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("revenue-report", {
-        body: { from, to, cashier_user_id: cashierId || null },
+        body: {
+          from,
+          to,
+          cashier_user_id: channel === "CASHIER" ? (cashierId || null) : null,
+          channels: channel === "BOTH" ? ["CASHIER", "ONLINE"] : [channel],
+          include_transactions: showTransactions,
+          limit: 500,
+        },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load report");
       setReport(data);
@@ -88,6 +96,7 @@ export default function AdminRevenuePage() {
   }, [report]);
 
   const totalCount = report?.totals?.count ?? 0;
+  const tx = report?.transactions || [];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -105,19 +114,28 @@ export default function AdminRevenuePage() {
         <div className="min-w-[220px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <Users size={14} className="text-gray-400" />
-            Cashier
+            Cashier actor
           </label>
           <select
             value={cashierId}
             onChange={(e) => setCashierId(e.target.value)}
             className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+            disabled={channel !== "CASHIER"}
           >
-            <option value="">All cashiers</option>
+            <option value="">All cashier actors</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
                 {String(u.first_name || "").trim()} {String(u.last_name || "").trim()} ({u.id_number || u.email || u.phone || u.id})
               </option>
             ))}
+          </select>
+        </div>
+        <div className="min-w-[180px]">
+          <label className="text-xs text-gray-600">Channel</label>
+          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm">
+            <option value="CASHIER">Cashier</option>
+            <option value="ONLINE">Online</option>
+            <option value="BOTH">Both</option>
           </select>
         </div>
         <div className="min-w-[180px]">
@@ -165,6 +183,50 @@ export default function AdminRevenuePage() {
           )}
         </div>
       </div>
+
+      {showTransactions ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <List size={16} className="text-gray-400" />
+              Transactions
+            </div>
+            <div className="text-xs text-gray-400">{tx.length} shown</div>
+          </div>
+          {tx.length === 0 ? (
+            <div className="text-sm text-gray-500">No transactions for this filter.</div>
+          ) : (
+            <div className="overflow-auto rounded-xl border border-gray-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left font-semibold px-4 py-3">Confirmed</th>
+                    <th className="text-left font-semibold px-4 py-3">Channel</th>
+                    <th className="text-left font-semibold px-4 py-3">Amount</th>
+                    <th className="text-left font-semibold px-4 py-3">Credits</th>
+                    <th className="text-left font-semibold px-4 py-3">Reference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {tx.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                        {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">{p.channel}</td>
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{fmtMoney(p.currency, p.amount)}</td>
+                      <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {p.channel === "CASHIER" ? (p.receipt_no || "—") : (p.provider_reference || p.provider || "—")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

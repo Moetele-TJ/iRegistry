@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Coins, RefreshCw } from "lucide-react";
+import { CalendarDays, Coins, RefreshCw, List } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -37,7 +37,7 @@ export default function CashierRevenuePage() {
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("revenue-report", {
-        body: { from, to },
+        body: { from, to, channels: ["CASHIER"], include_transactions: true, limit: 500 },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load report");
       setReport(data);
@@ -64,6 +64,7 @@ export default function CashierRevenuePage() {
   }, [report]);
 
   const totalCount = report?.totals?.count ?? 0;
+  const tx = report?.transactions || [];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -120,6 +121,44 @@ export default function CashierRevenuePage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <List size={16} className="text-gray-400" />
+            Transactions
+          </div>
+          <div className="text-xs text-gray-400">{tx.length} shown</div>
+        </div>
+        {tx.length === 0 ? (
+          <div className="text-sm text-gray-500">No transactions for this filter.</div>
+        ) : (
+          <div className="overflow-auto rounded-xl border border-gray-100">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="text-left font-semibold px-4 py-3">Confirmed</th>
+                  <th className="text-left font-semibold px-4 py-3">Amount</th>
+                  <th className="text-left font-semibold px-4 py-3">Credits</th>
+                  <th className="text-left font-semibold px-4 py-3">Receipt</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {tx.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                      {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{fmtMoney(p.currency, p.amount)}</td>
+                    <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
+                    <td className="px-4 py-3 text-gray-700">{p.receipt_no || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

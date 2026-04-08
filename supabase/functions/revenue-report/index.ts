@@ -42,7 +42,7 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { from, to, cashier_user_id } = body ?? {};
+    const { from, to, cashier_user_id, channels, include_transactions, limit = 200 } = body ?? {};
 
     const fromD = parseDateOnly(from);
     const toD = parseDateOnly(to);
@@ -59,23 +59,42 @@ serve(async (req) => {
     const end = new Date(toD);
     end.setUTCDate(end.getUTCDate() + 1);
 
+    // channels can be: ["CASHIER"], ["ONLINE"], or both
+    const channelListRaw = Array.isArray(channels) ? channels : ["CASHIER"];
+    const channelList = channelListRaw
+      .map((c) => String(c || "").toUpperCase())
+      .filter((c) => c === "CASHIER" || c === "ONLINE");
+    const finalChannels: string[] = channelList.length ? channelList : ["CASHIER"];
+
     let cashierId = null as string | null;
     if (isCashier) {
       cashierId = String(session.user_id);
+      // Cashiers can only see cashier-channel payments they executed
+      finalChannels.splice(0, finalChannels.length, "CASHIER");
     } else if (typeof cashier_user_id === "string" && cashier_user_id.trim()) {
       cashierId = cashier_user_id.trim();
     }
 
     let q = supabase
       .from("payments")
-      .select("id, amount, currency, cashier_user_id, confirmed_at", { count: "exact" })
-      .eq("channel", "CASHIER")
+      .select(
+        "id, user_id, channel, status, currency, amount, credits_granted, receipt_no, provider, provider_reference, cashier_user_id, confirmed_at, created_at",
+        { count: "exact" },
+      )
       .eq("status", "CONFIRMED")
       .is("reversed_at", null)
       .gte("confirmed_at", start.toISOString())
       .lt("confirmed_at", end.toISOString());
 
+    if (finalChannels.length === 1) {
+      q = q.eq("channel", finalChannels[0]);
+    } else {
+      q = q.in("channel", finalChannels);
+    }
+
     if (cashierId) q = q.eq("cashier_user_id", cashierId);
+
+    q = q.order("confirmed_at", { ascending: false }).limit(Math.min(Number(limit) || 200, 5000));
 
     const { data, error, count } = await q;
     if (error) return respond({ success: false, message: error.message || "Failed to compute report" }, corsHeaders, 500);
@@ -98,11 +117,13 @@ serve(async (req) => {
           from: String(from),
           to: String(to),
           cashier_user_id: cashierId,
+          channels: finalChannels,
         },
         totals: {
           count: count ?? (data || []).length,
           by_currency: byCurrency,
         },
+        transactions: include_transactions ? (data || []) : undefined,
       },
       corsHeaders,
       200,
