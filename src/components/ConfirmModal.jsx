@@ -14,6 +14,7 @@ export default function ConfirmModal({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   danger = false,
+  confirmDisabled = false,
   mode = "confirm",
   variant = "default",
   children,
@@ -68,7 +69,7 @@ export default function ConfirmModal({
   /* ================= ACTION HANDLERS ================= */
 
   async function handleConfirm() {
-    if (loading) return;
+    if (loading || confirmDisabled) return;
 
     try {
       setLoading(true);
@@ -170,7 +171,7 @@ export default function ConfirmModal({
               "px-4 py-2 rounded-lg text-white flex items-center justify-center gap-2 disabled:opacity-60 " +
               getButtonColor()
             }
-            disabled={loading}
+            disabled={loading || confirmDisabled}
           >
             {loading ? (
               <>

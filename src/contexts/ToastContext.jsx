@@ -82,7 +82,7 @@ function ToastContainer({ toasts, removeToast }) {
   const mount = typeof document !== "undefined" ? document.body : null;
   return mount
     ? createPortal(
-        <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 items-end max-w-xs">
+        <div className="fixed bottom-6 right-4 z-50 flex flex-col gap-3 items-end max-w-xs">
           {toasts.map((t) => (
             <Toast key={t.id} toast={t} onClose={() => removeToast(t.id)} />
           ))}
