@@ -84,6 +84,23 @@ export default function Header() {
     return "/profile";
   }
 
+  /** Registry list route scoped to the same dashboard shell as the sidebar (avoids mismatched nav vs layout). */
+  function itemsPath() {
+    if (role === "admin") return "/admindashboard/items";
+    if (role === "police") return "/policedashboard/items";
+    if (role === "cashier") return "/cashierdashboard/items";
+    if (role === "user") return "/userdashboard/items";
+    return "/items";
+  }
+
+  function notificationsPath() {
+    if (role === "admin") return "/admindashboard/notifications";
+    if (role === "police") return "/policedashboard/notifications";
+    if (role === "cashier") return "/cashierdashboard/notifications";
+    if (role === "user") return "/userdashboard/notifications";
+    return "/notifications";
+  }
+
   function go(path) {
     setOpen(false);
     navigate(path);
@@ -147,7 +164,7 @@ export default function Header() {
           {!loading && unread > 0 && (
             <div
               className="relative cursor-pointer hover:scale-105 transition-transform"
-              onClick={() => navigate("/notifications")}
+              onClick={() => navigate(user ? notificationsPath() : "/notifications")}
             >
               <Bell
                 size={20}
@@ -204,7 +221,7 @@ export default function Header() {
             </NavLink>
 
             <NavLink
-              to="/items"
+              to={itemsPath()}
               className={({ isActive }) =>
                 `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
               }
@@ -344,7 +361,7 @@ export default function Header() {
                   </NavLink>
 
                   <NavLink
-                    to="/items"
+                    to={itemsPath()}
                     onClick={() => setOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-2 font-medium transition ${

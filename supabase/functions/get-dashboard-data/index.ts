@@ -209,6 +209,45 @@ serve(async (req) => {
       };
     }
 
+    if (role === "cashier") {
+      const { count: activeUsers } = await supabase
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .is("deleted_at", null);
+
+      const { data: estRows } = await supabase
+        .from("items")
+        .select("estimatedvalue")
+        .is("deletedat", null);
+
+      let totalEstimatedValue = 0;
+      let itemsWithEstimate = 0;
+      for (const row of estRows || []) {
+        const v = (row as { estimatedvalue?: unknown }).estimatedvalue;
+        if (v == null || v === "") continue;
+        const n = Number(v);
+        if (Number.isFinite(n)) {
+          totalEstimatedValue += n;
+          itemsWithEstimate += 1;
+        }
+      }
+
+      const { count: highSeverityAudits } = await supabase
+        .from("audit_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("severity", "high");
+
+      roleData.cashierOverview = {
+        activeUsers: activeUsers ?? 0,
+        totalEstimatedValue,
+        itemsWithEstimate,
+        averageEstimatedValue:
+          itemsWithEstimate > 0 ? totalEstimatedValue / itemsWithEstimate : 0,
+        highSeverityAudits: highSeverityAudits ?? 0,
+      };
+    }
+
     if (role === "police") {
       const station = await getPoliceStation(supabase, userId);
 
