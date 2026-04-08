@@ -21,6 +21,14 @@ export default function NotificationsPage() {
 
   async function markNotificationRead(id) {
     try {
+      const ok = await confirm({
+        title: "Confirm",
+        message: "Mark this notification as read?",
+        confirmLabel: "Mark as read",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!ok) return;
+
       await invokeWithAuth("mark-notifications-read", {
         body: { ids: [id] }
       });
@@ -45,7 +53,7 @@ export default function NotificationsPage() {
   async function handleMarkAllRead() {
 
     const confirmed = await confirm({
-      title: "Mark all notifications as read?",
+      title: "Confirm",
       message: "This will mark all unread notifications as read.",
       confirmLabel: "Mark all",
       cancelLabel: "Cancel",

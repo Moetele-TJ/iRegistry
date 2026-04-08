@@ -4,13 +4,23 @@ import { useState, useEffect, useMemo } from "react";
 import { getIcon } from "../utils/iconResolver";
 import TimeAgo from "./TimeAgo";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
+import { useModal } from "../contexts/ModalContext.jsx";
 
 export default function DashboardAlertsPanel({ alerts }) {
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState({});
+  const { confirm } = useModal();
 
   async function markItemAlertsRead(itemId) {
     try {
+      const ok = await confirm({
+        title: "Confirm",
+        message: "Mark these item alerts as read?",
+        confirmLabel: "Mark as read",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!ok) return;
+
       await invokeWithAuth("mark-notifications-read", {
         body: { itemId }
       });

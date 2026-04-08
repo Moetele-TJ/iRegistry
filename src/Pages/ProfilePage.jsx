@@ -6,6 +6,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate } from "react-router-dom";
 import { useAdminSidebar } from "../hooks/useAdminSidebar.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { useModal } from "../contexts/ModalContext.jsx";
 import {
   ArrowLeft,
   Mail,
@@ -90,6 +91,7 @@ const inputClass =
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const { addToast } = useToast();
+  const { confirm } = useModal();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -147,6 +149,14 @@ export default function ProfilePage() {
     setSaving(true);
     setFormError("");
     try {
+      const ok = await confirm({
+        title: "Confirm",
+        message: "Save these changes to your profile?",
+        confirmLabel: "Save changes",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!ok) return;
+
       const { data, error } = await invokeWithAuth("update-user", {
         body: {
           id: String(user.id),

@@ -44,7 +44,7 @@ export default function AddItem() {
   const latestSerial1Ref = useRef("");
   latestSerial1Ref.current = form.serial1;
 
-  const { alert } = useModal();
+  const { alert, confirm } = useModal();
 
   useEffect(() => {
     if (!heldAtResidence) return;
@@ -413,6 +413,13 @@ export default function AddItem() {
     let itemSlug;
 
     try {
+      const confirmed = await confirm({
+        title: "Confirm",
+        message: "Create this item now? This will create a new item record immediately.",
+        confirmLabel: "Create item",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!confirmed) return;
 
       const payload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [

@@ -2,9 +2,11 @@
 import { usePendingTransfers } from "../hooks/usePendingTransfers";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import RippleButton from "./RippleButton";
+import { useModal } from "../contexts/ModalContext.jsx";
 
 export default function PendingTransferRequests() {
   const { data, loading, refresh } = usePendingTransfers();
+  const { confirm } = useModal();
 
   if (loading) {
     return (
@@ -17,6 +19,18 @@ export default function PendingTransferRequests() {
   if (!data.length) return null;
 
   async function handleDecision(id, decision) {
+    const ok = await confirm({
+      title: "Confirm",
+      message:
+        decision === "APPROVED"
+          ? "Approving will transfer ownership and may consume credits."
+          : "Reject this transfer request?",
+      confirmLabel: decision === "APPROVED" ? "Approve" : "Reject",
+      cancelLabel: "Cancel",
+      danger: decision !== "APPROVED",
+    }).catch(() => false);
+    if (!ok) return;
+
     await invokeWithAuth("review-transfer-request", {
       body: { request_id: id, decision },
     });

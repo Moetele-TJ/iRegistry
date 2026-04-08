@@ -330,6 +330,14 @@ export default function ItemDetails() {
 
   async function uploadCompressedPreviews(previews) {
     if (!item || previews.length === 0) return;
+    const ok = await confirm({
+      title: "Upload photos",
+      message: `Upload ${previews.length} new photo(s) to this item? This will update the item record.`,
+      confirmLabel: "Upload",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
     uploadCancelledRef.current = false;
     setIsUploading(true);
     setUploadProgress(0);

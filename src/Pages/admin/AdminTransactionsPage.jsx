@@ -4,6 +4,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -30,6 +31,7 @@ function fmtMoney(currency, amount) {
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
   useAdminSidebar({ visible: showSidebar });
   const { addToast } = useToast();
+  const { confirm } = useModal();
 
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -118,6 +120,16 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
       addToast({ type: "error", message: "Enter a reversal reason." });
       return;
     }
+
+    const ok = await confirm({
+      title: "Confirm",
+      message: "This will subtract credits from the user if they still have enough balance. Continue?",
+      confirmLabel: "Reverse",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
     setReversingId(paymentId);
     try {
       const { data, error } = await invokeWithAuth("reverse-payment", {

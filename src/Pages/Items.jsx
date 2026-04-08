@@ -7,6 +7,7 @@ import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { useModal } from "../contexts/ModalContext.jsx";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatCurrency(value) {
@@ -124,6 +125,7 @@ function photoEntryPath(entry, preferThumb = true) {
 }
 
 export default function Items() {
+  const { confirm } = useModal();
   const navigate = useNavigate();
     const {
     items: ctxItems = [],
@@ -294,6 +296,14 @@ export default function Items() {
     const evLine = policeAdvanceEvidenceLine.trim();
     const evidence = evLine ? { summary: evLine } : undefined;
     try {
+      const ok = await confirm({
+        title: "Confirm",
+        message: `Update case to "${step?.label || "next step"}"? This will update the police case record.`,
+        confirmLabel: "Update case",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!ok) return;
+
       await executePoliceCaseAdvance(item, step, {
         note: note || undefined,
         evidence,

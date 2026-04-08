@@ -48,7 +48,7 @@ function photoThumbUrl(entry) {
 export default function EditItem() {
   const { id: routeParam } = useParams();
   const navigate = useNavigate();
-  const { alert } = useModal();
+  const { alert, confirm } = useModal();
 
   const {
     items,
@@ -438,6 +438,14 @@ export default function EditItem() {
     }));
 
     try {
+      const confirmed = await confirm({
+        title: "Confirm",
+        message: "Save changes to this item? This will update the item record immediately.",
+        confirmLabel: "Save changes",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!confirmed) return;
+
       if (photoPreviews.length > 0) {
         uploadCancelledRef.current = false;
         setIsUploading(true);
@@ -613,7 +621,14 @@ export default function EditItem() {
 
   async function handleDelete() {
     if (!storedItem) return;
-    if (!window.confirm("Delete this item? This cannot be undone.")) return;
+    const confirmed = await confirm({
+      title: "Confirm",
+      message: "Delete this item? This cannot be undone.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!confirmed) return;
 
     try {
       await deleteItem(storedItem.id);

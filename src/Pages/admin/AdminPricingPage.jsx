@@ -4,10 +4,12 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 
 export default function AdminPricingPage() {
   useAdminSidebar();
   const { addToast } = useToast();
+  const { confirm } = useModal();
 
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +75,15 @@ export default function AdminPricingPage() {
       addToast({ type: "error", message: "Credits cost must be a number >= 0." });
       return;
     }
+
+    const ok = await confirm({
+      title: "Confirm",
+      message: `Save task "${payload.name}" (${payload.code}) at ${payload.credits_cost} credits?`,
+      confirmLabel: "Save task",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
     setSaving(true);
     try {
       const { data, error } = await invokeWithAuth("admin-upsert-task", { body: payload });

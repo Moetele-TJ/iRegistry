@@ -5,6 +5,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -16,6 +17,7 @@ function displayName(u) {
 export default function AdminUsers() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { confirm } = useModal();
   useAdminSidebar();
 
   const [users, setUsers] = useState([]);
@@ -192,6 +194,14 @@ export default function AdminUsers() {
       }
 
       if (isAdding) {
+        const ok = await confirm({
+          title: "Confirm",
+          message: "Create this user? This will add a new user record.",
+          confirmLabel: "Create",
+          cancelLabel: "Cancel",
+        }).catch(() => false);
+        if (!ok) return;
+
         const { data, error } = await invokeWithAuth("admin-create-user", {
           body: {
             first_name: form.first_name,
@@ -211,6 +221,14 @@ export default function AdminUsers() {
         }
         addToast({ type: "success", message: "User was created successfully." });
       } else if (isEditing) {
+        const ok = await confirm({
+          title: "Confirm",
+          message: "Save changes to this user? This will update the user record immediately.",
+          confirmLabel: "Save changes",
+          cancelLabel: "Cancel",
+        }).catch(() => false);
+        if (!ok) return;
+
         const updates = {
           first_name: form.first_name,
           last_name: form.last_name,
@@ -250,7 +268,14 @@ export default function AdminUsers() {
   }
 
   async function handleDelete(id) {
-    if (!confirm("Delete this user? This action cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Confirm",
+      message: "Delete this user? This action cannot be undone.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
     setLoading(true);
     setError("");
     try {

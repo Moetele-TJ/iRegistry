@@ -3,6 +3,7 @@ import { Search, Receipt, Wallet, User, ChevronRight } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 
 const PACKAGES = [
   { id: "BWP_30", label: "P30", credits: 10, amount: 30, currency: "BWP", usdRef: "2.22" },
@@ -19,6 +20,7 @@ function displayName(u) {
 
 export default function CashierTopupPage() {
   const { addToast } = useToast();
+  const { confirm } = useModal();
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
@@ -85,6 +87,16 @@ export default function CashierTopupPage() {
       addToast({ type: "error", message: "Receipt number is required." });
       return;
     }
+
+    const ok = await confirm({
+      title: "Confirm",
+      message: `Credit ${selectedUser ? displayName(selectedUser) : "this user"} with ${pkg.credits} credits for ${pkg.label}?`,
+      confirmLabel: "Confirm top-up",
+      cancelLabel: "Cancel",
+      danger: false,
+    }).catch(() => false);
+    if (!ok) return;
+
     setSubmitting(true);
     try {
       const { data, error } = await invokeWithAuth("cashier-topup", {
