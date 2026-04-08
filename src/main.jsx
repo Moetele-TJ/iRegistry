@@ -44,6 +44,7 @@ import CashierHome from "./Pages/cashier/CashierHome.jsx";
 import CashierItemsPage from "./Pages/cashier/CashierItemsPage.jsx";
 import CashierNotificationsPage from "./Pages/cashier/CashierNotificationsPage.jsx";
 import CashierActivityPage from "./Pages/cashier/CashierActivityPage.jsx";
+import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -140,6 +141,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route index element={<CashierHome />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<CashierItemsPage />} />
+                    <Route path="topup" element={<CashierTopupPage />} />
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
                   </Route>

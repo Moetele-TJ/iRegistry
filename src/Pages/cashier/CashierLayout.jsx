@@ -7,6 +7,7 @@ import {
   Bell,
   Activity,
   UserCircle,
+  Wallet,
 } from "lucide-react";
 
 export default function CashierLayout() {
@@ -45,6 +46,12 @@ export default function CashierLayout() {
               to="/cashierdashboard/items"
               icon={<Package size={20} />}
               label="Items"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/cashierdashboard/topup"
+              icon={<Wallet size={20} />}
+              label="Top up"
               expanded={expanded}
             />
             <SidebarItem
