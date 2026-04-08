@@ -194,7 +194,7 @@ export default function Items() {
   }, [isPrivileged]);
 
   // Confirm modal state (new pattern: action + arg passed into modal)
-  const [confirm, setConfirm] = useState({
+  const [confirmState, setConfirmState] = useState({
     isOpen: false,
     title: "",
     message: "",
@@ -217,7 +217,7 @@ export default function Items() {
   const [policeAdvanceEvidenceLine, setPoliceAdvanceEvidenceLine] = useState("");
 
   function openConfirm(opts = {}) {
-    setConfirm({
+    setConfirmState({
       isOpen: true,
       title: opts.title || "Confirm",
       message: opts.message || "Are you sure?",
@@ -232,7 +232,7 @@ export default function Items() {
   }
 
   function closeConfirm() {
-    setConfirm({
+    setConfirmState({
       isOpen: false,
       title: "",
       message: "",
@@ -250,9 +250,9 @@ export default function Items() {
 
     if (!success) return;
 
-    if (confirm.afterConfirmMessage) {
+    if (confirmState.afterConfirmMessage) {
       setToast({
-        message: confirm.afterConfirmMessage,
+        message: confirmState.afterConfirmMessage,
         type: "success",
         visible: true,
       });
@@ -688,17 +688,17 @@ export default function Items() {
 
       {/* Confirm modal wired to call action(actionArg) and run afterConfirm */}
       <ConfirmModal
-        isOpen={confirm.isOpen}
+        isOpen={confirmState.isOpen}
         onClose={() => closeConfirm()}
-        action={confirm.action}
-        actionArg={confirm.arg}
+        action={confirmState.action}
+        actionArg={confirmState.arg}
         afterConfirm={(success) => handleAfterConfirm(success)}
-        title={confirm.title}
-        message={confirm.message}
-        confirmLabel={confirm.confirmLabel}
-        cancelLabel={confirm.cancelLabel}
-        danger={confirm.danger}
-        children={confirm.children}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        danger={confirmState.danger}
+        children={confirmState.children}
       />
 
       {policeAdvanceModal ? (
