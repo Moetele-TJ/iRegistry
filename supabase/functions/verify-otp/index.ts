@@ -113,7 +113,7 @@ serve(async (req) => {
         code:"2",
         success:false,
         diag:"OTP-VFY-LOCK",
-        message:"Too many attempts. Request new OTP."
+        message:"Too many wrong attempts. Please request a new verification code."
       },
     corsHeaders,
     429
@@ -141,11 +141,16 @@ serve(async (req) => {
         req
       });
 
+      const expired =
+        !!otpRecord && new Date(otpRecord.expires_at) < new Date();
+
       return respond({
-        code:"1",
+        code: "1",
         success: false,
-        diag : "OTP-VFY-003",
-        message: "OTP is invalid or has expired",
+        diag: "OTP-VFY-003",
+        message: expired
+          ? "This code has expired. Please request a new one."
+          : "No active verification code. Please request a new one.",
       },
       corsHeaders,
       400
@@ -159,9 +164,12 @@ serve(async (req) => {
 
     if (incomingHash !== otpRecord.otp_hash) {
 
+      const newAttempts = otpRecord.attempts + 1;
+      const attemptsRemaining = Math.max(0, 3 - newAttempts);
+
       await supabase
       .from("login_otps")
-      .update({ attempts: otpRecord.attempts + 1 })
+      .update({ attempts: newAttempts })
       .eq("id", otpRecord.id);
 
       await logAudit({
@@ -173,11 +181,17 @@ serve(async (req) => {
         req
       });
 
+      const message =
+        attemptsRemaining > 0
+          ? `That code isn't correct. ${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} left before this code is locked.`
+          : "That code isn't correct. One more failed attempt will lock this code—request a new one if you need to.";
+
       return respond({
         code: "1",
         success: false,
         diag : "OTP-VFY-004",
-        message: "Invalid OTP",
+        message,
+        attempts_remaining: attemptsRemaining,
       },
       corsHeaders,
       400

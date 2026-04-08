@@ -35,6 +35,27 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
     return { data: null, error };
   }
 
+  // Non-2xx edge functions set `error` (e.g. FunctionsHttpError) and often leave `data` null.
+  // The JSON body is still available on `error.context` and should surface as `data` for UI.
+  if (error) {
+    let body = null;
+    try {
+      const ctx = error.context;
+      if (ctx && typeof ctx.json === "function") {
+        body = await ctx.json();
+      }
+    } catch {
+      /* ignore */
+    }
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      if (body.session_token) {
+        localStorage.setItem("session", body.session_token);
+        emitSessionTokenRefreshed(body.session_token);
+      }
+      return { data: body, error: null };
+    }
+  }
+
   if (data?.session_token) {
     localStorage.setItem("session", data.session_token);
     emitSessionTokenRefreshed(data.session_token);

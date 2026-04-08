@@ -200,7 +200,7 @@ export default function Login() {
     });
 
     if (channelError || !data) {
-      setError("Failed to dispatch OTP. Please check your nework connection.");
+      setError("Failed to dispatch OTP. Please check your network connection.");
       return;
     }
 
@@ -254,44 +254,36 @@ export default function Login() {
         otp,
       });
 
-        //Supabse/network error
-      if (verifyError && !data) {
-        setError("OTP Verification failed. Please check your network connection.");
+      if (verifyError || !data) {
+        setError(
+          "We couldn't reach the server. Check your connection and try again."
+        );
+        setOtp("");
         return;
       }
 
-      if(!data){
-        setError("No response from server. Please try again");
-        return;
+      if (!data.success) {
+        if (navigator.vibrate) {
+          navigator.vibrate(200);
+        }
 
-      }
+        const diag = data.diag || "";
+        const msg =
+          data.message || "Something went wrong. Please try again.";
 
-      //Back end business logic handling
-    if (!data.success) {
-
-      if (navigator.vibrate) {
-        navigator.vibrate(200);
-      }
-
-      switch (data.code) {
-        case "1":
-          setError(data.message);
-          setErrorCode(data.diag);
+        if (diag === "OTP-VFY-LOCK" || diag === "OTP-VFY-RACE") {
           setOtp("");
-          break;
+          setStep("channel");
+          setError(msg);
+          setErrorCode(diag);
+          return;
+        }
 
-        case "2":
-          // hard reset
-          localStorage.removeItem("session");
-          setStep("identity");
-          setOtp("");
-          setMaskedPhone("");
-          setCooldown(0);
-          setError(data.message);
-          break;
-
-        default:
-          // Reset to the start of the flow without a hard reload.
+        if (
+          diag === "AUTH-VRY-001" ||
+          diag === "SYS-VFY-001" ||
+          (typeof diag === "string" && diag.startsWith("SESS-"))
+        ) {
           localStorage.removeItem("session");
           setStep("identity");
           setOtp("");
@@ -300,31 +292,33 @@ export default function Login() {
           setChannels([]);
           setCooldown(0);
           setExpiry(300);
-          setError(data.message || "Login failed. Please try again.");
-          setErrorCode(data.diag || "");
-      
-      }
-      return;
-    }
-    // ✅ OTP verified successfully
-    setSuccessAnim(true);
+          setError(msg);
+          setErrorCode(diag);
+          return;
+        }
 
-    // store session + update AuthContext
-    await loginWithToken(data.session_token);
-    
-    // short success animation, then redirect
-    setTimeout(() => {
-      setSuccessAnim(false);
-      const target = getPostLoginTarget();
-      if (target) {
-        navigate(target, { replace: true });
-      } else {
-        navigate("/redirect", { replace: true });
+        setOtp("");
+        setError(msg);
+        setErrorCode(diag);
+        return;
       }
-    }, 3000);
-    
-    setOtp("");
-    
+
+      // ✅ OTP verified successfully
+      setSuccessAnim(true);
+
+      await loginWithToken(data.session_token);
+
+      setTimeout(() => {
+        setSuccessAnim(false);
+        const target = getPostLoginTarget();
+        if (target) {
+          navigate(target, { replace: true });
+        } else {
+          navigate("/redirect", { replace: true });
+        }
+      }, 3000);
+
+      setOtp("");
     } catch (err) {
       console.error(err);
       setError("Unexpected error occurred");

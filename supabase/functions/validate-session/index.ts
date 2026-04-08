@@ -33,7 +33,7 @@ serve(async (req) => {
       );
     }
 
-    const session = await validateSession(supabase, auth);
+    const session = await validateSession(supabase, auth, { rotateJwt: true });
 
     if (!session) {
       return respond(

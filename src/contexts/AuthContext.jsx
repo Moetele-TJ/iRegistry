@@ -8,18 +8,15 @@ import React, {
   useState,
 } from "react";
 import { invokeFn } from "../lib/invokeFn";
-import { getJwtExpiryMs } from "../lib/jwtExpiry";
-import {
-  SESSION_TOKEN_REFRESHED,
-  emitSessionTokenRefreshed,
-} from "../lib/sessionEvents";
 
 const AuthContext = createContext(null);
+
+/** Background validate-session while logged in (sliding DB session + JWT rotation). */
+const SESSION_SLIDE_INTERVAL_MS = 20 * 60 * 1000;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { id, role }
   const [loading, setLoading] = useState(true);
-  const logoutTimerRef = useRef(null);
 
   const logout = useCallback(async ({ silent = false } = {}) => {
     const token = localStorage.getItem("session");
@@ -35,41 +32,10 @@ export function AuthProvider({ children }) {
     } catch {
       console.warn("Logout request failed, clearing local session anyway");
     } finally {
-      if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-        logoutTimerRef.current = null;
-      }
       localStorage.removeItem("session");
       setUser(null);
     }
   }, []);
-
-  const scheduleAutoLogout = useCallback(
-    (token) => {
-      const expiry = getJwtExpiryMs(token);
-      if (!expiry) return;
-
-      const remaining = expiry - Date.now();
-
-      if (remaining <= 0) {
-        void logout({ silent: true });
-        return;
-      }
-
-      if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-      }
-
-      logoutTimerRef.current = setTimeout(() => {
-        void logout({ silent: true });
-
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
-      }, remaining);
-    },
-    [logout]
-  );
 
   const validateSession = useCallback(
     async (token) => {
@@ -85,12 +51,8 @@ export function AuthProvider({ children }) {
         } else {
           setUser(data.user);
 
-          const tokenToUse = data.session_token || token;
-          scheduleAutoLogout(tokenToUse);
-
           if (data.session_token) {
             localStorage.setItem("session", data.session_token);
-            emitSessionTokenRefreshed(data.session_token);
           }
         }
       } catch (err) {
@@ -100,7 +62,7 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     },
-    [logout, scheduleAutoLogout]
+    [logout]
   );
 
   const validateSessionRef = useRef(validateSession);
@@ -130,10 +92,6 @@ export function AuthProvider({ children }) {
       const token = e.newValue;
 
       if (!token) {
-        if (logoutTimerRef.current) {
-          clearTimeout(logoutTimerRef.current);
-          logoutTimerRef.current = null;
-        }
         setUser(null);
         setLoading(false);
         return;
@@ -150,32 +108,26 @@ export function AuthProvider({ children }) {
   }, []);
 
   /* ----------------------------------
-   * Same tab: token refreshed via invokeWithAuth
+   * Sliding session: re-validate periodically while logged in
+   * (extends server expires_at; validate-session returns a fresh JWT)
    * ---------------------------------- */
   useEffect(() => {
-    function handleSessionTokenRefreshed(ev) {
-      const t = ev.detail?.token;
-      if (t) scheduleAutoLogout(t);
-    }
+    if (!user?.id) return;
 
-    window.addEventListener(SESSION_TOKEN_REFRESHED, handleSessionTokenRefreshed);
+    const id = window.setInterval(() => {
+      const t = localStorage.getItem("session");
+      if (t) void validateSessionRef.current(t);
+    }, SESSION_SLIDE_INTERVAL_MS);
 
-    return () => {
-      window.removeEventListener(
-        SESSION_TOKEN_REFRESHED,
-        
-        handleSessionTokenRefreshed
-      );
-    };
-  }, [scheduleAutoLogout]);
+    return () => window.clearInterval(id);
+  }, [user?.id]);
 
   const loginWithToken = useCallback(
     async (token) => {
       localStorage.setItem("session", token);
-      scheduleAutoLogout(token);
       await validateSession(token);
     },
-    [scheduleAutoLogout, validateSession]
+    [validateSession]
   );
 
   const refreshUser = useCallback(async () => {
