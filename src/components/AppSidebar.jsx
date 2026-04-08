@@ -13,18 +13,21 @@ export default function AppSidebar({ sidebar }) {
   return (
     <aside
       className={`
-        fixed left-0 top-[var(--app-header-h)] z-40
+        fixed left-0 top-[var(--app-header-h)] bottom-0 z-40
+        flex flex-col overflow-hidden
         bg-iregistrygreen text-white
-        transition-all duration-300 ease-in-out
+        transition-[width] duration-300 ease-in-out
         ${(expanded && hoverExpand) ? "w-44" : "w-14"}
         rounded-br-3xl
         shadow-lg
-        overflow-hidden
       `}
       onMouseEnter={() => hoverExpand && setExpanded(true)}
       onMouseLeave={() => hoverExpand && setExpanded(false)}
     >
-      <nav className="py-4 space-y-2 px-2">
+      <nav
+        className="app-sidebar-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-2 space-y-2"
+        aria-label="Main navigation"
+      >
         {items.map((it) => (
           <SidebarItem
             key={it.to}
