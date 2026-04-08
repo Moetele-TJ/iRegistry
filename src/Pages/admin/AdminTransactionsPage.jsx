@@ -32,6 +32,20 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
   useAdminSidebar({ visible: showSidebar });
   const { addToast } = useToast();
 
+  const REVERSAL_REASONS = useMemo(
+    () => [
+      "Duplicate payment",
+      "Wrong user credited",
+      "Wrong package/amount",
+      "Customer refunded (cash)",
+      "Chargeback / disputed payment",
+      "Fraud / suspicious activity",
+      "Data entry mistake",
+      "Other",
+    ],
+    [],
+  );
+
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
@@ -43,6 +57,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
 
   const [reversingId, setReversingId] = useState("");
   const [reverseReason, setReverseReason] = useState("");
+  const [reverseReasonPreset, setReverseReasonPreset] = useState("");
   const [reverseModal, setReverseModal] = useState({ isOpen: false, payment: null });
 
   useEffect(() => {
@@ -115,6 +130,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
 
   function openReverseModal(payment) {
     if (!canReverse) return;
+    setReverseReasonPreset("");
     setReverseModal({ isOpen: true, payment });
   }
 
@@ -167,6 +183,26 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
         <div className="space-y-2">
           <div className="text-xs text-gray-500">
             Reason is required.
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">Quick reason</label>
+            <select
+              value={reverseReasonPreset}
+              onChange={(e) => {
+                const v = e.target.value;
+                setReverseReasonPreset(v);
+                if (v && v !== "Other") setReverseReason(v);
+                if (v === "Other") setReverseReason("");
+              }}
+              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+            >
+              <option value="">Select…</option>
+              {REVERSAL_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
           </div>
           <textarea
             value={reverseReason}
