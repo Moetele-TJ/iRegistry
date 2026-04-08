@@ -46,6 +46,8 @@ import Signup from "./Pages/Signup.jsx";
 
 import Notifications from "./Pages/NotificationsPage.jsx";
 import Activity from "./Pages/ActivityPage.jsx";
+import ProfilePage from "./Pages/ProfilePage.jsx";
+import ProfileRoleRedirect from "./components/ProfileRoleRedirect.jsx";
 
 // CONTEXTS
 import { ItemsProvider } from "./contexts/ItemsContext.jsx";
@@ -77,12 +79,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/userdashboard"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <UserLayout />
                       </ProtectedRoute>
                     }
                   >
                     <Route index element={<UserDashboard />} />
+                    <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<UserItemsPage />} />
                     <Route path="notifications" element={<UserNotificationsPage />} />
                     <Route path="activity" element={<UserActivityPage />} />
@@ -97,6 +100,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     }
                   >
                     <Route index element={<AdminHome />} />
+                    <Route path="profile" element={<ProfilePage />} />
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
                     <Route path="settings" element={<AdminSettings />} />
@@ -114,6 +118,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     }
                   >
                     <Route index element={<PoliceHome />} />
+                    <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<PoliceItemsPage />} />
                     <Route path="notifications" element={<PoliceNotificationsPage />} />
                     <Route path="activity" element={<PoliceActivityPage />} />
@@ -173,6 +178,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                       </ProtectedRoute>
                     }
                   />
+
+                  <Route path="/profile" element={<ProfileRoleRedirect />} />
 
                 </Route>
 

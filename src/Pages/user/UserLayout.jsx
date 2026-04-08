@@ -6,6 +6,7 @@ import {
   Package,
   Bell,
   Activity,
+  UserCircle,
 } from "lucide-react";
 
 export default function UserLayout() {
@@ -32,6 +33,12 @@ export default function UserLayout() {
               to="/userdashboard"
               icon={<LayoutDashboard size={20} />}
               label="Overview"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/userdashboard/profile"
+              icon={<UserCircle size={20} />}
+              label="Profile"
               expanded={expanded}
             />
             <SidebarItem

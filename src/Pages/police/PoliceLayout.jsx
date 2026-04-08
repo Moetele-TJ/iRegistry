@@ -6,6 +6,7 @@ import {
   Package,
   Bell,
   Activity,
+  UserCircle,
 } from "lucide-react";
 
 export default function PoliceLayout() {
@@ -32,6 +33,12 @@ export default function PoliceLayout() {
               to="/policedashboard"
               icon={<LayoutDashboard size={20} />}
               label="Dashboard"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/policedashboard/profile"
+              icon={<UserCircle size={20} />}
+              label="Profile"
               expanded={expanded}
             />
             <SidebarItem

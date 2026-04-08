@@ -5,7 +5,7 @@ import logo from "../assets/iregistry-logo.png";
 import { useAuth } from "../contexts/AuthContext";
 import { useTransfers } from "../contexts/TransferContext";
 import { useNotificationCenter } from "../contexts/NotificationContext";
-import { Repeat, Bell } from "lucide-react";
+import { Repeat, Bell, UserCircle } from "lucide-react";
 import ConfirmModal from "./ConfirmModal.jsx";
 
 export default function Header() {
@@ -62,6 +62,13 @@ export default function Header() {
     if (role === "police") return "/policedashboard";
     if (role === "user") return "/userdashboard";
     return "/";
+  }
+
+  function profilePath() {
+    if (role === "admin") return "/admindashboard/profile";
+    if (role === "police") return "/policedashboard/profile";
+    if (role === "user" || role === "cashier") return "/userdashboard/profile";
+    return "/profile";
   }
 
   function go(path) {
@@ -190,6 +197,16 @@ export default function Header() {
               Items
             </NavLink>
 
+            <NavLink
+              to={profilePath()}
+              className={({ isActive }) =>
+                isActive ? "text-iregistrygreen font-semibold inline-flex items-center gap-1" : "inline-flex items-center gap-1"
+              }
+            >
+              <UserCircle size={18} className="shrink-0 opacity-80" />
+              Profile
+            </NavLink>
+
             <button
               onClick={() => setShowLogoutConfirm(true)}
               className="border px-3 py-1 rounded"
@@ -309,6 +326,20 @@ export default function Header() {
                     }
                   >
                     📦 Items
+                  </NavLink>
+
+                  <NavLink
+                    to={profilePath()}
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                        isActive
+                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    👤 Profile
                   </NavLink>
 
                   <button

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Package,
   Settings,
+  UserCircle,
   Users,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -16,6 +17,7 @@ export function useAdminSidebar({ visible = true } = {}) {
   const items = useMemo(
     () => [
       { to: "/admindashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/admindashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/admindashboard/users", icon: <Users size={20} />, label: "Users" },
       { to: "/admindashboard/audit-logs", icon: <FileText size={20} />, label: "Audit Logs" },
       { to: "/admindashboard/settings", icon: <Settings size={20} />, label: "Settings" },
