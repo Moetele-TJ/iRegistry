@@ -54,6 +54,7 @@ serve(async (req) => {
         id,
         first_name,
         last_name,
+        phone,
         email,
         role,
         status,

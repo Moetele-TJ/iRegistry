@@ -1,8 +1,10 @@
 // src/Pages/ProfilePage.jsx
+import { useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate } from "react-router-dom";
 import { useAdminSidebar } from "../hooks/useAdminSidebar.jsx";
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import {
   ArrowLeft,
   Mail,
@@ -15,6 +17,8 @@ import {
   Building2,
   Baby,
   Hash,
+  Pencil,
+  Phone,
 } from "lucide-react";
 
 function fmtDate(iso) {
@@ -79,11 +83,89 @@ function Field({ label, children, mono }) {
   );
 }
 
+const inputClass =
+  "mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-iregistrygreen focus:outline-none focus:ring-2 focus:ring-iregistrygreen/20";
+
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    village: "",
+    ward: "",
+    police_station: "",
+  });
 
   useAdminSidebar({ visible: !!user && user.role === "admin" });
+
+  const openEdit = useCallback(() => {
+    if (!user) return;
+    setFormError("");
+    setForm({
+      first_name: user.first_name ?? "",
+      last_name: user.last_name ?? "",
+      email: user.email ?? "",
+      phone: user.phone ?? "",
+      village: user.village ?? "",
+      ward: user.ward ?? "",
+      police_station: user.police_station ?? "",
+    });
+    setEditing(true);
+  }, [user]);
+
+  const cancelEdit = useCallback(() => {
+    setFormError("");
+    setEditing(false);
+  }, []);
+
+  async function saveProfile() {
+    if (!user?.id) return;
+    const first_name = String(form.first_name ?? "").trim();
+    const last_name = String(form.last_name ?? "").trim();
+    const email = String(form.email ?? "").trim();
+    const phone = String(form.phone ?? "").trim();
+    if (!last_name) {
+      setFormError("Last name is required.");
+      return;
+    }
+    if (!phone) {
+      setFormError("Phone number is required.");
+      return;
+    }
+    setSaving(true);
+    setFormError("");
+    try {
+      const { data, error } = await invokeWithAuth("update-user", {
+        body: {
+          id: String(user.id),
+          updates: {
+            first_name: first_name || null,
+            last_name,
+            email: email || null,
+            phone,
+            village: String(form.village ?? "").trim() || null,
+            ward: String(form.ward ?? "").trim() || null,
+            police_station: String(form.police_station ?? "").trim() || null,
+          },
+        },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not save profile");
+      }
+      await refreshUser();
+      setEditing(false);
+    } catch (e) {
+      setFormError(e.message || "Could not save profile");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!user) {
     return (
@@ -117,15 +199,50 @@ export default function ProfilePage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Profile</h1>
             <p className="mt-1 text-sm text-gray-500">Your account details and registry identity</p>
           </div>
-          <RippleButton
-            type="button"
-            className="inline-flex items-center justify-center gap-2 self-start sm:self-auto px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft size={18} className="opacity-70" />
-            Back
-          </RippleButton>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {!editing ? (
+              <RippleButton
+                type="button"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
+                onClick={openEdit}
+              >
+                <Pencil size={18} />
+                Edit profile
+              </RippleButton>
+            ) : (
+              <>
+                <RippleButton
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                  onClick={cancelEdit}
+                  disabled={saving}
+                >
+                  Cancel
+                </RippleButton>
+                <RippleButton
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm disabled:opacity-60"
+                  onClick={() => void saveProfile()}
+                  disabled={saving}
+                >
+                  {saving ? "Saving…" : "Save changes"}
+                </RippleButton>
+              </>
+            )}
+            <RippleButton
+              type="button"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft size={18} className="opacity-70" />
+              Back
+            </RippleButton>
+          </div>
         </div>
+
+        {formError ? (
+          <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{formError}</div>
+        ) : null}
 
         {/* Hero */}
         <div className="relative mb-6 lg:mb-8 rounded-3xl overflow-hidden border border-emerald-100/80 shadow-lg bg-gradient-to-br from-iregistrygreen via-emerald-600 to-emerald-800 text-white">
@@ -167,38 +284,135 @@ export default function ProfilePage() {
           <div className="lg:col-span-5 space-y-5 lg:space-y-6">
             <Card title="Personal" icon={UserRound}>
               <div className="grid gap-6 sm:gap-7">
-                <Field label="Full name">{fullName || "—"}</Field>
-                <Field label="Email">
-                  <span className="inline-flex items-center gap-2">
-                    <Mail size={15} className="text-gray-400 shrink-0" />
-                    {user.email || "—"}
-                  </span>
-                </Field>
-                <div className="grid grid-cols-2 gap-4 pt-1">
-                  <Field label="Minor account">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
-                        user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
-                      }`}
-                    >
-                      <Baby size={14} />
-                      {user.is_minor ? "Yes" : "No"}
-                    </span>
-                  </Field>
-                </div>
+                {!editing ? (
+                  <>
+                    <Field label="Full name">{fullName || "—"}</Field>
+                    <Field label="Email">
+                      <span className="inline-flex items-center gap-2">
+                        <Mail size={15} className="text-gray-400 shrink-0" />
+                        {user.email || "—"}
+                      </span>
+                    </Field>
+                    <Field label="Phone">
+                      <span className="inline-flex items-center gap-2">
+                        <Phone size={15} className="text-gray-400 shrink-0" />
+                        {user.phone || "—"}
+                      </span>
+                    </Field>
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                      <Field label="Minor account">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
+                            user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
+                          }`}
+                        >
+                          <Baby size={14} />
+                          {user.is_minor ? "Yes" : "No"}
+                        </span>
+                      </Field>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">First name</label>
+                      <input
+                        className={inputClass}
+                        value={form.first_name}
+                        onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+                        autoComplete="given-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Last name</label>
+                      <input
+                        className={inputClass}
+                        value={form.last_name}
+                        onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+                        autoComplete="family-name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</label>
+                      <input
+                        type="email"
+                        className={inputClass}
+                        value={form.email}
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</label>
+                      <input
+                        type="tel"
+                        className={inputClass}
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        autoComplete="tel"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                      <Field label="Minor account">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
+                            user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
+                          }`}
+                        >
+                          <Baby size={14} />
+                          {user.is_minor ? "Yes" : "No"}
+                        </span>
+                      </Field>
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
 
             <Card title="Location" icon={MapPin}>
               <div className="grid gap-6">
-                <Field label="Town / Village">
-                  <span className="inline-flex items-start gap-2">
-                    <Building2 size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                    {user.village || "—"}
-                  </span>
-                </Field>
-                <Field label="Ward / Street">{user.ward || "—"}</Field>
-                <Field label="Police station">{user.police_station || "—"}</Field>
+                {!editing ? (
+                  <>
+                    <Field label="Town / Village">
+                      <span className="inline-flex items-start gap-2">
+                        <Building2 size={15} className="text-gray-400 mt-0.5 shrink-0" />
+                        {user.village || "—"}
+                      </span>
+                    </Field>
+                    <Field label="Ward / Street">{user.ward || "—"}</Field>
+                    <Field label="Police station">{user.police_station || "—"}</Field>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Town / Village</label>
+                      <input
+                        className={inputClass}
+                        value={form.village}
+                        onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
+                        autoComplete="address-level2"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ward / Street</label>
+                      <input
+                        className={inputClass}
+                        value={form.ward}
+                        onChange={(e) => setForm((f) => ({ ...f, ward: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Police station</label>
+                      <input
+                        className={inputClass}
+                        value={form.police_station}
+                        onChange={(e) => setForm((f) => ({ ...f, police_station: e.target.value }))}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
           </div>
@@ -256,7 +470,7 @@ export default function ProfilePage() {
             </Card>
 
             <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
-              To update your details, contact support or use admin tools if you have access.
+              Role, verification status, and national ID are managed by administrators. Use Edit profile to change your name, contact details, and location.
             </p>
           </div>
         </div>

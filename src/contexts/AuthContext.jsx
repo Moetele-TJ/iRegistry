@@ -178,11 +178,18 @@ export function AuthProvider({ children }) {
     [scheduleAutoLogout, validateSession]
   );
 
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem("session");
+    if (!token) return;
+    await validateSession(token);
+  }, [validateSession]);
+
   const value = {
     user,
     loading,
     loginWithToken,
     logout,
+    refreshUser,
   };
 
   return (

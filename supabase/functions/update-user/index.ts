@@ -32,15 +32,24 @@ serve(async (req) => {
       return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
     }
 
-    if (!isPrivilegedRole(session.role)) {
-      return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
-    }
-
     const body = await req.json().catch(() => null);
     const { id, updates } = body ?? {};
 
     if (!id || typeof id !== "string" || !updates || typeof updates !== "object") {
       return respond({ success: false, message: "Invalid request" }, corsHeaders, 400);
+    }
+
+    const isSelf = String(session.user_id) === String(id);
+    const privileged = isPrivilegedRole(session.role);
+
+    if (!isSelf && !privileged) {
+      return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    }
+
+    if (isSelf && !privileged) {
+      if ("role" in updates || "status" in updates || "suspended_reason" in updates) {
+        return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+      }
     }
 
     const { data: existing, error: fetchErr } = await supabase
