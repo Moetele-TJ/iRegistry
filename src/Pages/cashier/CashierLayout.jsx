@@ -10,6 +10,7 @@ import {
   Wallet,
   ReceiptText,
   Tag,
+  Coins,
 } from "lucide-react";
 
 export default function CashierLayout() {
@@ -66,6 +67,12 @@ export default function CashierLayout() {
               to="/cashierdashboard/pricing"
               icon={<Tag size={20} />}
               label="Pricing"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/cashierdashboard/revenue"
+              icon={<Coins size={20} />}
+              label="Revenue"
               expanded={expanded}
             />
             <SidebarItem

@@ -39,6 +39,7 @@ import AdminActivityPage from "./Pages/admin/AdminActivityPage.jsx";
 import AdminTopupPage from "./Pages/admin/AdminTopupPage.jsx";
 import AdminTransactionsPage from "./Pages/admin/AdminTransactionsPage.jsx";
 import AdminPricingPage from "./Pages/admin/AdminPricingPage.jsx";
+import AdminRevenuePage from "./Pages/admin/AdminRevenuePage.jsx";
 import PoliceLayout from "./Pages/police/PoliceLayout.jsx";
 import PoliceHome from "./Pages/police/PoliceHome.jsx";
 import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
@@ -53,6 +54,7 @@ import CashierActivityPage from "./Pages/cashier/CashierActivityPage.jsx";
 import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
 import CashierTransactionsPage from "./Pages/cashier/CashierTransactionsPage.jsx";
 import CashierPricingPage from "./Pages/cashier/CashierPricingPage.jsx";
+import CashierRevenuePage from "./Pages/cashier/CashierRevenuePage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -123,6 +125,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route path="topup" element={<AdminTopupPage />} />
                   <Route path="transactions" element={<AdminTransactionsPage />} />
                   <Route path="pricing" element={<AdminPricingPage />} />
+                  <Route path="revenue" element={<AdminRevenuePage />} />
                     <Route path="items" element={<AdminItemsPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />
@@ -158,6 +161,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="topup" element={<CashierTopupPage />} />
                     <Route path="transactions" element={<CashierTransactionsPage />} />
                     <Route path="pricing" element={<CashierPricingPage />} />
+                    <Route path="revenue" element={<CashierRevenuePage />} />
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
                   </Route>
