@@ -5,7 +5,18 @@ import logo from "../assets/iregistry-logo.png";
 import { useAuth } from "../contexts/AuthContext";
 import { useTransfers } from "../contexts/TransferContext";
 import { useNotificationCenter } from "../contexts/NotificationContext";
-import { Repeat, Bell, UserCircle } from "lucide-react";
+import {
+  Repeat,
+  Bell,
+  UserCircle,
+  Home,
+  LayoutDashboard,
+  Package,
+  LogOut,
+  UserPlus,
+  LogIn,
+  Menu,
+} from "lucide-react";
 import ConfirmModal from "./ConfirmModal.jsx";
 
 export default function Header() {
@@ -171,9 +182,10 @@ export default function Header() {
           to="/"
           end
           className={({ isActive }) =>
-            isActive ? "text-iregistrygreen font-semibold" : ""
+            `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
           }
         >
+          <Home size={18} className="shrink-0 opacity-80" />
           Home
         </NavLink>
 
@@ -182,25 +194,27 @@ export default function Header() {
             <NavLink
               to={dashboardPath()}
               className={({ isActive }) =>
-                isActive ? "text-iregistrygreen font-semibold" : ""
+                `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
               }
             >
+              <LayoutDashboard size={18} className="shrink-0 opacity-80" />
               Dashboard
             </NavLink>
 
             <NavLink
               to="/items"
               className={({ isActive }) =>
-                isActive ? "text-iregistrygreen font-semibold" : ""
+                `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
               }
             >
+              <Package size={18} className="shrink-0 opacity-80" />
               Items
             </NavLink>
 
             <NavLink
               to={profilePath()}
               className={({ isActive }) =>
-                isActive ? "text-iregistrygreen font-semibold inline-flex items-center gap-1" : "inline-flex items-center gap-1"
+                `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
               }
             >
               <UserCircle size={18} className="shrink-0 opacity-80" />
@@ -208,9 +222,11 @@ export default function Header() {
             </NavLink>
 
             <button
+              type="button"
               onClick={() => setShowLogoutConfirm(true)}
-              className="border px-3 py-1 rounded"
+              className="inline-flex items-center gap-1.5 border px-3 py-1 rounded hover:bg-gray-50 transition-colors"
             >
+              <LogOut size={18} className="shrink-0 opacity-80" />
               Logout
             </button>
           </>
@@ -221,16 +237,20 @@ export default function Header() {
             <NavLink
               to="/signup"
               className={({ isActive }) =>
-                isActive ? "text-iregistrygreen font-semibold" : ""
+                `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
               }
             >
+              <UserPlus size={18} className="shrink-0 opacity-80" />
               Signup
             </NavLink>
 
             <NavLink
               to="/login"
-              className="bg-iregistrygreen text-white px-4 py-2 rounded"
+              className={({ isActive }) =>
+                `inline-flex items-center gap-1.5 bg-iregistrygreen text-white px-4 py-2 rounded ${isActive ? "ring-2 ring-offset-2 ring-iregistrygreen/40" : ""}`
+              }
             >
+              <LogIn size={18} className="shrink-0 opacity-95" />
               Login
             </NavLink>
           </>
@@ -240,10 +260,13 @@ export default function Header() {
       {/* ===== MOBILE MENU BUTTON ===== */}
       <div className="relative md:hidden" ref={menuRef}>
         <button
+          type="button"
           onClick={() => setOpen(!open)}
-          className="text-2xl px-2 text-iregistrygreen"
+          className="p-2 rounded-lg text-iregistrygreen hover:bg-gray-100 transition-colors"
+          aria-expanded={open}
+          aria-label={open ? "Close menu" : "Open menu"}
         >
-          ☰
+          <Menu size={26} strokeWidth={2} />
         </button>
 
         {/* ===== MOBILE POPOVER MENU ===== */}
@@ -263,7 +286,8 @@ export default function Header() {
                   }`
                 }
               >
-                🏠 Home
+                <Home size={18} className="shrink-0 opacity-80" />
+                Home
               </NavLink>
 
               {!user && (
@@ -279,7 +303,8 @@ export default function Header() {
                       }`
                     }
                   >
-                    ✍️ Signup
+                    <UserPlus size={18} className="shrink-0 opacity-80" />
+                    Signup
                   </NavLink>
 
                   <NavLink
@@ -293,7 +318,8 @@ export default function Header() {
                       }`
                     }
                   >
-                    🔐 Login
+                    <LogIn size={18} className="shrink-0 opacity-80" />
+                    Login
                   </NavLink>
                 </>
               )}
@@ -311,7 +337,8 @@ export default function Header() {
                       }`
                     }
                   >
-                    📊 Dashboard
+                    <LayoutDashboard size={18} className="shrink-0 opacity-80" />
+                    Dashboard
                   </NavLink>
 
                   <NavLink
@@ -325,7 +352,8 @@ export default function Header() {
                       }`
                     }
                   >
-                    📦 Items
+                    <Package size={18} className="shrink-0 opacity-80" />
+                    Items
                   </NavLink>
 
                   <NavLink
@@ -339,17 +367,20 @@ export default function Header() {
                       }`
                     }
                   >
-                    👤 Profile
+                    <UserCircle size={18} className="shrink-0 opacity-80" />
+                    Profile
                   </NavLink>
 
                   <button
+                    type="button"
                     onClick={() => {
                       setOpen(false);
                       setShowLogoutConfirm(true);
                     }}
-                    className="flex items-center gap-3 px-4 py-2 font-medium text-red-600"
+                    className="flex w-full items-center gap-3 px-4 py-2 font-medium text-red-600 text-left hover:bg-red-50/80 transition-colors"
                   >
-                    🚪 Logout
+                    <LogOut size={18} className="shrink-0 opacity-90" />
+                    Logout
                   </button>
                 </>
               )}
