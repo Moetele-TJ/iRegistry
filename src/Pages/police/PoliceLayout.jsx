@@ -7,6 +7,7 @@ import {
   Bell,
   Activity,
   UserCircle,
+  Tag,
 } from "lucide-react";
 
 export default function PoliceLayout() {
@@ -57,6 +58,12 @@ export default function PoliceLayout() {
               to="/policedashboard/activity"
               icon={<Activity size={20} />}
               label="Activity"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/policedashboard/pricing"
+              icon={<Tag size={20} />}
+              label="Pricing"
               expanded={expanded}
             />
           </nav>

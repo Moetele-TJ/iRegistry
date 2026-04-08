@@ -27,6 +27,7 @@ import UserItemsPage from "./Pages/user/UserItemsPage.jsx";
 import UserNotificationsPage from "./Pages/user/UserNotificationsPage.jsx";
 import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
 import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
+import UserPricingPage from "./Pages/user/UserPricingPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
@@ -37,11 +38,13 @@ import AdminNotificationsPage from "./Pages/admin/AdminNotificationsPage.jsx";
 import AdminActivityPage from "./Pages/admin/AdminActivityPage.jsx";
 import AdminTopupPage from "./Pages/admin/AdminTopupPage.jsx";
 import AdminTransactionsPage from "./Pages/admin/AdminTransactionsPage.jsx";
+import AdminPricingPage from "./Pages/admin/AdminPricingPage.jsx";
 import PoliceLayout from "./Pages/police/PoliceLayout.jsx";
 import PoliceHome from "./Pages/police/PoliceHome.jsx";
 import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
 import PoliceNotificationsPage from "./Pages/police/PoliceNotificationsPage.jsx";
 import PoliceActivityPage from "./Pages/police/PoliceActivityPage.jsx";
+import PolicePricingPage from "./Pages/police/PolicePricingPage.jsx";
 import CashierLayout from "./Pages/cashier/CashierLayout.jsx";
 import CashierHome from "./Pages/cashier/CashierHome.jsx";
 import CashierItemsPage from "./Pages/cashier/CashierItemsPage.jsx";
@@ -49,6 +52,7 @@ import CashierNotificationsPage from "./Pages/cashier/CashierNotificationsPage.j
 import CashierActivityPage from "./Pages/cashier/CashierActivityPage.jsx";
 import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
 import CashierTransactionsPage from "./Pages/cashier/CashierTransactionsPage.jsx";
+import CashierPricingPage from "./Pages/cashier/CashierPricingPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -100,6 +104,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="notifications" element={<UserNotificationsPage />} />
                     <Route path="activity" element={<UserActivityPage />} />
                     <Route path="transactions" element={<UserTransactionsPage />} />
+                    <Route path="pricing" element={<UserPricingPage />} />
                   </Route>
 
                   <Route
@@ -117,6 +122,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="settings" element={<AdminSettings />} />
                   <Route path="topup" element={<AdminTopupPage />} />
                   <Route path="transactions" element={<AdminTransactionsPage />} />
+                  <Route path="pricing" element={<AdminPricingPage />} />
                     <Route path="items" element={<AdminItemsPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />
@@ -135,6 +141,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<PoliceItemsPage />} />
                     <Route path="notifications" element={<PoliceNotificationsPage />} />
                     <Route path="activity" element={<PoliceActivityPage />} />
+                    <Route path="pricing" element={<PolicePricingPage />} />
                   </Route>
 
                   <Route
@@ -150,6 +157,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<CashierItemsPage />} />
                     <Route path="topup" element={<CashierTopupPage />} />
                     <Route path="transactions" element={<CashierTransactionsPage />} />
+                    <Route path="pricing" element={<CashierPricingPage />} />
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
                   </Route>

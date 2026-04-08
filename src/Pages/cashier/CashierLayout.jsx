@@ -9,6 +9,7 @@ import {
   UserCircle,
   Wallet,
   ReceiptText,
+  Tag,
 } from "lucide-react";
 
 export default function CashierLayout() {
@@ -59,6 +60,12 @@ export default function CashierLayout() {
               to="/cashierdashboard/transactions"
               icon={<ReceiptText size={20} />}
               label="Transactions"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/cashierdashboard/pricing"
+              icon={<Tag size={20} />}
+              label="Pricing"
               expanded={expanded}
             />
             <SidebarItem

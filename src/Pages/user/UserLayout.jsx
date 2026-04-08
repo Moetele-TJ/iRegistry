@@ -8,6 +8,7 @@ import {
   Activity,
   UserCircle,
   ReceiptText,
+  Tag,
 } from "lucide-react";
 
 export default function UserLayout() {
@@ -64,6 +65,12 @@ export default function UserLayout() {
               to="/userdashboard/transactions"
               icon={<ReceiptText size={20} />}
               label="Transactions"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/userdashboard/pricing"
+              icon={<Tag size={20} />}
+              label="Pricing"
               expanded={expanded}
             />
           </nav>

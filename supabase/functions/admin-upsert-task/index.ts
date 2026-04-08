@@ -1,0 +1,78 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+import { getCorsHeaders } from "../shared/cors.ts";
+import { respond } from "../shared/respond.ts";
+import { validateSession } from "../shared/validateSession.ts";
+
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+function isAdmin(role: unknown) {
+  return String(role || "").toLowerCase() === "admin";
+}
+
+function normalizeCode(code: unknown) {
+  return String(code || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  try {
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
+    const session = await validateSession(supabase, auth);
+    if (!session) return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
+    if (!isAdmin(session.role)) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+
+    const body = await req.json().catch(() => null);
+    const { code, name, description, credits_cost, active } = body ?? {};
+
+    const cleanCode = normalizeCode(code);
+    if (!cleanCode) return respond({ success: false, message: "code is required" }, corsHeaders, 400);
+
+    const cleanName = String(name || "").trim();
+    if (!cleanName) return respond({ success: false, message: "name is required" }, corsHeaders, 400);
+
+    const cost = Number(credits_cost);
+    if (!Number.isFinite(cost) || cost < 0 || !Number.isInteger(cost)) {
+      return respond({ success: false, message: "credits_cost must be a whole number >= 0" }, corsHeaders, 400);
+    }
+
+    const payload: Record<string, any> = {
+      code: cleanCode,
+      name: cleanName,
+      description: typeof description === "string" ? description.trim() || null : null,
+      credits_cost: cost,
+      active: typeof active === "boolean" ? active : true,
+    };
+
+    const { data, error } = await supabase
+      .from("task_catalog")
+      .upsert(payload, { onConflict: "code" })
+      .select("code, name, description, credits_cost, active, updated_at")
+      .single();
+
+    if (error || !data) {
+      return respond({ success: false, message: error?.message || "Failed to save task" }, corsHeaders, 500);
+    }
+
+    return respond({ success: true, task: data }, corsHeaders, 200);
+  } catch (err: any) {
+    console.error("admin-upsert-task crash:", err);
+    return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);
+  }
+});
+
