@@ -2,10 +2,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
+import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -14,8 +16,25 @@ function displayName(u) {
   return full || u?.email || u?.id || "—";
 }
 
+const ROLE_OPTIONS = [
+  { value: "user", label: "User" },
+  { value: "police", label: "Police" },
+  { value: "cashier", label: "Cashier" },
+  { value: "admin", label: "Admin" },
+];
+
+const SUSPEND_REASONS = [
+  "Policy violation",
+  "Fraud / abuse",
+  "Non-payment / chargeback",
+  "Account requested closure",
+  "Duplicate account",
+  "Other",
+];
+
 export default function AdminUsers() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
   useAdminSidebar();
@@ -44,8 +63,15 @@ export default function AdminUsers() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [stationFilter, setStationFilter] = useState("");
 
+  const [quickRowId, setQuickRowId] = useState("");
+  const [suspendModal, setSuspendModal] = useState({ isOpen: false, user: null });
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspendPreset, setSuspendPreset] = useState("");
+  const [suspendStatus, setSuspendStatus] = useState("suspended");
+
   const isEditing = mode === "edit" && !!editing;
   const isAdding = mode === "add";
+  const currentUserId = currentUser?.id != null ? String(currentUser.id) : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +113,7 @@ export default function AdminUsers() {
       phone: u.phone || "",
       role: u.role || "user",
       status: u.status || "active",
-      status_reason: "",
+      status_reason: u.suspended_reason || "",
       police_station: u.police_station || "",
     });
   }
@@ -267,7 +293,110 @@ export default function AdminUsers() {
     }
   }
 
+  function isSelf(id) {
+    return currentUserId && String(id) === currentUserId;
+  }
+
+  async function quickUpdateUser(id, updates, successMsg) {
+    setQuickRowId(String(id));
+    setError("");
+    try {
+      const { data, error } = await invokeWithAuth("update-user", {
+        body: { id: String(id), updates },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Update failed");
+      }
+      addToast({
+        type: "success",
+        message: successMsg || "User updated.",
+      });
+      await refresh();
+      return true;
+    } catch (e) {
+      const msg = e.message || "Update failed";
+      setError(msg);
+      addToast({ type: "error", message: msg });
+      return false;
+    } finally {
+      setQuickRowId("");
+    }
+  }
+
+  async function quickChangeRole(u, nextRole) {
+    if (isSelf(u.id)) {
+      addToast({ type: "error", message: "You cannot change your own role." });
+      return;
+    }
+    const r = String(nextRole || "").toLowerCase();
+    if (!r || r === String(u.role || "").toLowerCase()) return;
+    const label = roleLabel[r] || r;
+    const ok = await confirm({
+      title: "Confirm",
+      message: `Change role for ${displayName(u)} to ${label}?`,
+      confirmLabel: "Change role",
+      cancelLabel: "Cancel",
+      variant: "warning",
+    }).catch(() => false);
+    if (!ok) return;
+    await quickUpdateUser(u.id, { role: r }, `Role updated to ${label}.`);
+  }
+
+  function openSuspendModal(u, kind) {
+    if (isSelf(u.id)) {
+      addToast({ type: "error", message: "You cannot suspend or disable your own account." });
+      return;
+    }
+    setSuspendStatus(kind);
+    setSuspendPreset("");
+    setSuspendReason(u.suspended_reason || "");
+    setSuspendModal({ isOpen: true, user: u });
+  }
+
+  function closeSuspendModal() {
+    if (quickRowId) return;
+    setSuspendModal({ isOpen: false, user: null });
+    setSuspendReason("");
+    setSuspendPreset("");
+  }
+
+  async function submitSuspend() {
+    const u = suspendModal.user;
+    if (!u?.id) return;
+    const reason = String(suspendReason || "").trim();
+    if (!reason) return;
+    const status = suspendStatus === "disabled" ? "disabled" : "suspended";
+    const ok = await quickUpdateUser(
+      u.id,
+      { status, suspended_reason: reason },
+      status === "disabled" ? "User disabled." : "User suspended.",
+    );
+    if (ok) closeSuspendModal();
+  }
+
+  async function quickReactivate(u) {
+    if (isSelf(u.id)) return;
+    const st = String(u.status || "").toLowerCase();
+    if (st === "active") {
+      addToast({ type: "info", message: "User is already active." });
+      return;
+    }
+    const ok = await confirm({
+      title: "Confirm",
+      message: `Reactivate ${displayName(u)}? They will be able to sign in again.`,
+      confirmLabel: "Reactivate",
+      cancelLabel: "Cancel",
+      variant: "success",
+    }).catch(() => false);
+    if (!ok) return;
+    await quickUpdateUser(u.id, { status: "active" }, "User reactivated.");
+  }
+
   async function handleDelete(id) {
+    if (isSelf(id)) {
+      addToast({ type: "error", message: "You cannot delete your own account here." });
+      return;
+    }
     const ok = await confirm({
       title: "Confirm",
       message: "Delete this user? This action cannot be undone.",
@@ -297,13 +426,63 @@ export default function AdminUsers() {
     }
   }
 
+  const suspendVerb = suspendStatus === "disabled" ? "Disable" : "Suspend";
+
   return (
     <div className="min-h-screen bg-gray-100">
+      <ConfirmModal
+        isOpen={suspendModal.isOpen}
+        onClose={closeSuspendModal}
+        onConfirm={() => void submitSuspend()}
+        title={`${suspendVerb} user`}
+        message={`${suspendVerb} ${suspendModal.user ? displayName(suspendModal.user) : "this user"}? A reason is required.`}
+        confirmLabel={quickRowId ? "Saving…" : suspendVerb}
+        cancelLabel="Cancel"
+        danger
+        confirmDisabled={!!quickRowId || !String(suspendReason || "").trim()}
+      >
+        <div className="space-y-2">
+          <div>
+            <label className="text-xs text-gray-600">Quick reason</label>
+            <select
+              value={suspendPreset}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSuspendPreset(v);
+                if (v && v !== "Other") setSuspendReason(v);
+                if (v === "Other") setSuspendReason("");
+              }}
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
+              disabled={!!quickRowId}
+            >
+              <option value="">Select…</option>
+              {SUSPEND_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-600">Reason (required)</label>
+            <textarea
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm min-h-[88px]"
+              placeholder="Explain why this account is being suspended or disabled…"
+              disabled={!!quickRowId}
+            />
+          </div>
+        </div>
+      </ConfirmModal>
+
       <div className="p-4 sm:p-6 w-full max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-iregistrygreen">Manage Users</h1>
-            <p className="text-sm text-gray-500">Create and manage application users and roles.</p>
+            <p className="text-sm text-gray-500">
+              Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form.
+            </p>
           </div>
 
           <div className="flex gap-2">
@@ -476,13 +655,16 @@ export default function AdminUsers() {
                   value={form.role}
                   onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  disabled={loading}
+                  disabled={loading || (isEditing && isSelf(editing))}
                 >
                   <option value="user">User</option>
                   <option value="police">Police</option>
                   <option value="cashier">Cashier</option>
                   <option value="admin">Admin</option>
                 </select>
+                {isEditing && isSelf(editing) ? (
+                  <p className="text-xs text-gray-400 mt-1">You cannot change your own role.</p>
+                ) : null}
               </div>
 
               <div>
@@ -493,12 +675,15 @@ export default function AdminUsers() {
                     setForm((s) => ({ ...s, status: e.target.value }))
                   }
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  disabled={loading}
+                  disabled={loading || (isEditing && isSelf(editing))}
                 >
                   <option value="active">Active</option>
                   <option value="suspended">Suspended</option>
                   <option value="disabled">Disabled</option>
                 </select>
+                {isEditing && isSelf(editing) ? (
+                  <p className="text-xs text-gray-400 mt-1">Use another admin account to change your status.</p>
+                ) : null}
               </div>
 
               <div>
@@ -560,30 +745,97 @@ export default function AdminUsers() {
             <div className="text-gray-500 py-6 text-center">No users yet.</div>
           ) : (
             <div className="space-y-2">
-              {filteredUsers.map((u) => (
-                <div key={u.id} className="flex items-center justify-between border rounded-lg p-3">
-                  <div>
-                    <div className="font-medium text-gray-900">
-                      {displayName(u)}{" "}
-                      <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
+              {filteredUsers.map((u) => {
+                const st = String(u.status || "").toLowerCase();
+                const rowBusy = quickRowId === String(u.id);
+                const self = isSelf(u.id);
+                return (
+                  <div key={u.id} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border rounded-lg p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-gray-900">
+                        {displayName(u)}{" "}
+                        <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID: {u.id}
+                        {u.police_station ? ` • Station: ${u.police_station}` : ""}
+                      </div>
+                      {u.suspended_reason && st !== "active" ? (
+                        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1 mt-2 max-w-xl">
+                          Reason: {u.suspended_reason}
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID: {u.id}
-                      {u.police_station ? ` • Station: ${u.police_station}` : ""}
+
+                    <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto sm:min-w-[280px]">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <label className="text-xs text-gray-600 sr-only sm:not-sr-only sm:w-full">Change role</label>
+                        <select
+                          value={u.role || "user"}
+                          onChange={(e) => void quickChangeRole(u, e.target.value)}
+                          className="border rounded-lg px-2 py-1.5 text-sm flex-1 min-w-[8rem] disabled:opacity-50"
+                          disabled={loading || rowBusy || self}
+                          title={self ? "Cannot change your own role" : "Change role"}
+                        >
+                          {ROLE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {st !== "active" ? (
+                          <RippleButton
+                            type="button"
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50"
+                            onClick={() => void quickReactivate(u)}
+                            disabled={loading || rowBusy || self}
+                          >
+                            Reactivate
+                          </RippleButton>
+                        ) : null}
+                        {st === "active" ? (
+                          <>
+                            <RippleButton
+                              type="button"
+                              className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm disabled:opacity-50"
+                              onClick={() => openSuspendModal(u, "suspended")}
+                              disabled={loading || rowBusy || self}
+                            >
+                              Suspend
+                            </RippleButton>
+                            <RippleButton
+                              type="button"
+                              className="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm disabled:opacity-50"
+                              onClick={() => openSuspendModal(u, "disabled")}
+                              disabled={loading || rowBusy || self}
+                            >
+                              Disable
+                            </RippleButton>
+                          </>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2 justify-end sm:justify-start">
+                        <RippleButton
+                          className="px-3 py-1 rounded bg-gray-100 text-sm"
+                          onClick={() => startEdit(u)}
+                          disabled={loading || rowBusy}
+                        >
+                          Edit
+                        </RippleButton>
+                        <RippleButton
+                          className="px-3 py-1 rounded bg-red-50 text-red-600 border text-sm disabled:opacity-50"
+                          onClick={() => handleDelete(u.id)}
+                          disabled={loading || rowBusy || self}
+                        >
+                          Delete
+                        </RippleButton>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex gap-2">
-                    <RippleButton className="px-3 py-1 rounded bg-gray-100 text-sm" onClick={() => startEdit(u)}>
-                      Edit
-                    </RippleButton>
-
-                    <RippleButton className="px-3 py-1 rounded bg-red-50 text-red-600 border text-sm" onClick={() => handleDelete(u.id)}>
-                      Delete
-                    </RippleButton>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
