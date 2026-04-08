@@ -7,6 +7,7 @@ import {
   Bell,
   Activity,
   UserCircle,
+  ReceiptText,
 } from "lucide-react";
 
 export default function UserLayout() {
@@ -57,6 +58,12 @@ export default function UserLayout() {
               to="/userdashboard/activity"
               icon={<Activity size={20} />}
               label="Activity"
+              expanded={expanded}
+            />
+            <SidebarItem
+              to="/userdashboard/transactions"
+              icon={<ReceiptText size={20} />}
+              label="Transactions"
               expanded={expanded}
             />
           </nav>

@@ -26,6 +26,7 @@ import UserLayout from "./Pages/user/UserLayout.jsx";
 import UserItemsPage from "./Pages/user/UserItemsPage.jsx";
 import UserNotificationsPage from "./Pages/user/UserNotificationsPage.jsx";
 import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
+import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
@@ -47,6 +48,7 @@ import CashierItemsPage from "./Pages/cashier/CashierItemsPage.jsx";
 import CashierNotificationsPage from "./Pages/cashier/CashierNotificationsPage.jsx";
 import CashierActivityPage from "./Pages/cashier/CashierActivityPage.jsx";
 import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
+import CashierTransactionsPage from "./Pages/cashier/CashierTransactionsPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -97,6 +99,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<UserItemsPage />} />
                     <Route path="notifications" element={<UserNotificationsPage />} />
                     <Route path="activity" element={<UserActivityPage />} />
+                    <Route path="transactions" element={<UserTransactionsPage />} />
                   </Route>
 
                   <Route
@@ -146,6 +149,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<CashierItemsPage />} />
                     <Route path="topup" element={<CashierTopupPage />} />
+                    <Route path="transactions" element={<CashierTransactionsPage />} />
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
                   </Route>

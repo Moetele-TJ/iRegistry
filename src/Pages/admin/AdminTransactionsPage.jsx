@@ -27,8 +27,8 @@ function fmtMoney(currency, amount) {
   }
 }
 
-export default function AdminTransactionsPage() {
-  useAdminSidebar();
+export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
+  useAdminSidebar({ visible: showSidebar });
   const { addToast } = useToast();
 
   const [users, setUsers] = useState([]);
@@ -112,6 +112,7 @@ export default function AdminTransactionsPage() {
   }, [selectedUserId]);
 
   async function reversePayment(paymentId) {
+    if (!canReverse) return;
     const reason = String(reverseReason || "").trim();
     if (!reason) {
       addToast({ type: "error", message: "Enter a reversal reason." });
@@ -203,12 +204,14 @@ export default function AdminTransactionsPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <input
-                value={reverseReason}
-                onChange={(e) => setReverseReason(e.target.value)}
-                className="border rounded-xl px-3 py-2 text-sm w-64"
-                placeholder="Reversal reason (required)"
-              />
+              {canReverse ? (
+                <input
+                  value={reverseReason}
+                  onChange={(e) => setReverseReason(e.target.value)}
+                  className="border rounded-xl px-3 py-2 text-sm w-64"
+                  placeholder="Reversal reason (required)"
+                />
+              ) : null}
               <RippleButton
                 className="px-3 py-2 rounded-xl border bg-white text-sm"
                 onClick={() => void loadPayments(selectedUserId)}
@@ -267,14 +270,18 @@ export default function AdminTransactionsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <RippleButton
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm disabled:opacity-50"
-                            disabled={!reversible || reversingId === p.id}
-                            onClick={() => void reversePayment(p.id)}
-                          >
-                            <RotateCcw size={16} />
-                            {reversingId === p.id ? "Reversing…" : "Reverse"}
-                          </RippleButton>
+                          {canReverse ? (
+                            <RippleButton
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm disabled:opacity-50"
+                              disabled={!reversible || reversingId === p.id}
+                              onClick={() => void reversePayment(p.id)}
+                            >
+                              <RotateCcw size={16} />
+                              {reversingId === p.id ? "Reversing…" : "Reverse"}
+                            </RippleButton>
+                          ) : (
+                            <span className="text-xs text-gray-400">Read only</span>
+                          )}
                         </td>
                       </tr>
                     );
