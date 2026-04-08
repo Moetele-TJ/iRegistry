@@ -41,7 +41,9 @@ serve(async (req) => {
 
     const { data: users, error } = await supabase
       .from("users")
-      .select("id, first_name, last_name, id_number, phone, email, role, police_station, status")
+      .select(
+        "id, first_name, last_name, id_number, phone, email, role, police_station, status, user_credits(balance)",
+      )
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
@@ -53,11 +55,12 @@ serve(async (req) => {
       );
     }
 
-    return respond(
-      { success: true, users: users || [] },
-      corsHeaders,
-      200
-    );
+    const normalized = (users || []).map((u: any) => {
+      const bal = typeof u?.user_credits?.balance === "number" ? u.user_credits.balance : 0;
+      return { ...u, credit_balance: bal, user_credits: undefined };
+    });
+
+    return respond({ success: true, users: normalized }, corsHeaders, 200);
   } catch (err: any) {
     console.error("list-users crash:", err);
     return respond(

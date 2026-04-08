@@ -102,6 +102,15 @@ export default function CashierTopupPage() {
         type: "success",
         message: `Top up successful: +${pkg.credits} credits. New balance: ${data.new_balance ?? "—"}.`,
       });
+      if (typeof data.new_balance === "number") {
+        setUsers((prev) =>
+          (prev || []).map((u) =>
+            String(u.id) === String(selectedUserId)
+              ? { ...u, credit_balance: data.new_balance }
+              : u,
+          ),
+        );
+      }
       setReceiptNo("");
       setNote("");
     } catch (e) {
@@ -191,6 +200,11 @@ export default function CashierTopupPage() {
               {selectedUser ? displayName(selectedUser) : "—"}
             </div>
             <div className="text-xs text-gray-500 mt-1">{selectedUser ? `User ID: ${selectedUser.id}` : ""}</div>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900">
+              Current balance:
+              <span className="tabular-nums">{Number(selectedUser?.credit_balance ?? 0)}</span>
+              credits
+            </div>
           </div>
 
           <div>
