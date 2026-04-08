@@ -1,5 +1,5 @@
 // src/Pages/admin/AdminUsers.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
@@ -31,6 +31,126 @@ const SUSPEND_REASONS = [
   "Duplicate account",
   "Other",
 ];
+
+/**
+ * Role dropdown width matches the combined width of the action buttons (measured).
+ */
+function UserRowActionControls({
+  userId,
+  role,
+  statusLower,
+  self,
+  rowBusy,
+  loading,
+  onRoleChange,
+  onSuspend,
+  onDisable,
+  onReactivate,
+  onEdit,
+  onDelete,
+}) {
+  const btnRowRef = useRef(null);
+  const [actionsWidthPx, setActionsWidthPx] = useState(null);
+
+  useLayoutEffect(() => {
+    const el = btnRowRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setActionsWidthPx(Math.ceil(w));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [statusLower, self, rowBusy, loading]);
+
+  const measured = actionsWidthPx != null;
+
+  return (
+    <div
+      className={`flex flex-col shrink-0 self-start max-w-full min-w-0 ${
+        measured ? "gap-2" : "gap-0"
+      }`}
+      style={
+        measured
+          ? { width: actionsWidthPx, boxSizing: "border-box" }
+          : undefined
+      }
+    >
+      <div
+        className={
+          measured ? "min-w-0" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
+        }
+        aria-hidden={!measured}
+      >
+        <label className="text-xs text-gray-600" htmlFor={`user-role-${userId}`}>
+          Change role
+        </label>
+        <select
+          id={`user-role-${userId}`}
+          value={role || "user"}
+          onChange={(e) => onRoleChange(e.target.value)}
+          className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-1.5 text-sm disabled:opacity-50 box-border"
+          disabled={loading || rowBusy || self}
+          title={self ? "Cannot change your own role" : "Change role"}
+        >
+          {ROLE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div ref={btnRowRef} className="flex flex-row flex-nowrap items-center gap-2 self-start">
+        {statusLower !== "active" ? (
+          <RippleButton
+            type="button"
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50 whitespace-nowrap"
+            onClick={onReactivate}
+            disabled={loading || rowBusy || self}
+          >
+            Reactivate
+          </RippleButton>
+        ) : null}
+        {statusLower === "active" ? (
+          <>
+            <RippleButton
+              type="button"
+              className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm disabled:opacity-50 whitespace-nowrap"
+              onClick={onSuspend}
+              disabled={loading || rowBusy || self}
+            >
+              Suspend
+            </RippleButton>
+            <RippleButton
+              type="button"
+              className="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm disabled:opacity-50 whitespace-nowrap"
+              onClick={onDisable}
+              disabled={loading || rowBusy || self}
+            >
+              Disable
+            </RippleButton>
+          </>
+        ) : null}
+        <RippleButton
+          className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
+          onClick={onEdit}
+          disabled={loading || rowBusy}
+        >
+          Edit
+        </RippleButton>
+        <RippleButton
+          className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
+          onClick={onDelete}
+          disabled={loading || rowBusy || self}
+        >
+          Delete
+        </RippleButton>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminUsers() {
   const navigate = useNavigate();
@@ -767,73 +887,21 @@ export default function AdminUsers() {
                       ) : null}
                     </div>
 
-                    <div className="flex flex-col gap-2 w-full shrink-0 lg:w-auto lg:min-w-[28rem]">
-                      <div>
-                        <label className="text-xs text-gray-600" htmlFor={`user-role-${u.id}`}>
-                          Change role
-                        </label>
-                        <select
-                          id={`user-role-${u.id}`}
-                          value={u.role || "user"}
-                          onChange={(e) => void quickChangeRole(u, e.target.value)}
-                          className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm disabled:opacity-50"
-                          disabled={loading || rowBusy || self}
-                          title={self ? "Cannot change your own role" : "Change role"}
-                        >
-                          {ROLE_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex flex-row flex-nowrap items-center gap-2">
-                        {st !== "active" ? (
-                          <RippleButton
-                            type="button"
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50 whitespace-nowrap"
-                            onClick={() => void quickReactivate(u)}
-                            disabled={loading || rowBusy || self}
-                          >
-                            Reactivate
-                          </RippleButton>
-                        ) : null}
-                        {st === "active" ? (
-                          <>
-                            <RippleButton
-                              type="button"
-                              className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm disabled:opacity-50 whitespace-nowrap"
-                              onClick={() => openSuspendModal(u, "suspended")}
-                              disabled={loading || rowBusy || self}
-                            >
-                              Suspend
-                            </RippleButton>
-                            <RippleButton
-                              type="button"
-                              className="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm disabled:opacity-50 whitespace-nowrap"
-                              onClick={() => openSuspendModal(u, "disabled")}
-                              disabled={loading || rowBusy || self}
-                            >
-                              Disable
-                            </RippleButton>
-                          </>
-                        ) : null}
-                        <RippleButton
-                          className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
-                          onClick={() => startEdit(u)}
-                          disabled={loading || rowBusy}
-                        >
-                          Edit
-                        </RippleButton>
-                        <RippleButton
-                          className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
-                          onClick={() => handleDelete(u.id)}
-                          disabled={loading || rowBusy || self}
-                        >
-                          Delete
-                        </RippleButton>
-                      </div>
-                    </div>
+                    <UserRowActionControls
+                      key={u.id}
+                      userId={u.id}
+                      role={u.role}
+                      statusLower={st}
+                      self={self}
+                      rowBusy={rowBusy}
+                      loading={loading}
+                      onRoleChange={(next) => void quickChangeRole(u, next)}
+                      onSuspend={() => openSuspendModal(u, "suspended")}
+                      onDisable={() => openSuspendModal(u, "disabled")}
+                      onReactivate={() => void quickReactivate(u)}
+                      onEdit={() => startEdit(u)}
+                      onDelete={() => handleDelete(u.id)}
+                    />
                   </div>
                 );
               })}
