@@ -115,7 +115,7 @@ function normalizePoliceCaseRow(row) {
 export default function ItemDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { items, deleteItem, updateItem } = useItems();
+  const { items, deleteItem, updateItem, transferOwnership } = useItems();
   const { user } = useAuth();
   const { confirm } = useModal();
 
@@ -132,6 +132,14 @@ export default function ItemDetails() {
 
   // toast state
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
+
+  // admin transfer ownership (admin-only)
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferErr, setTransferErr] = useState("");
+  const [newOwnerId, setNewOwnerId] = useState("");
+  const [evidenceType, setEvidenceType] = useState("ADMIN_TRANSFER");
+  const [evidenceFile, setEvidenceFile] = useState(null);
 
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -294,6 +302,80 @@ export default function ItemDetails() {
   function showToastMsg(msg, type = "info") {
     setToast({ visible: true, message: msg, type });
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3200);
+  }
+
+  function openTransferOwnershipModal() {
+    if (!item?.id) return;
+    setTransferErr("");
+    setNewOwnerId("");
+    setEvidenceType("ADMIN_TRANSFER");
+    setEvidenceFile(null);
+    setTransferOpen(true);
+  }
+
+  function closeTransferOwnershipModal() {
+    if (transferBusy) return;
+    setTransferOpen(false);
+  }
+
+  async function submitTransferOwnership() {
+    if (!item?.id) return;
+    const target = String(newOwnerId || "").trim();
+    if (!target) {
+      setTransferErr("New owner user ID is required.");
+      return;
+    }
+    if (!evidenceFile) {
+      setTransferErr("Evidence file is required (PDF or image).");
+      return;
+    }
+    const type = String(evidenceType || "").trim();
+    if (!type) {
+      setTransferErr("Evidence type is required.");
+      return;
+    }
+
+    const ok = await confirm({
+      title: "Confirm",
+      message: "Transfer ownership to the specified user? This action updates the item owner immediately.",
+      confirmLabel: "Transfer ownership",
+      cancelLabel: "Cancel",
+      variant: "warning",
+    }).catch(() => false);
+    if (!ok) return;
+
+    setTransferBusy(true);
+    setTransferErr("");
+    try {
+      const form = new FormData();
+      form.set("file", evidenceFile);
+      form.set("itemId", String(item.id));
+      form.set("type", type);
+      form.set("referenceId", `admin_transfer:${String(item.id)}`);
+
+      const { data: up, error: upErr } = await invokeWithAuth("upload-ownership-evidence", {
+        body: form,
+      });
+
+      if (upErr || !up?.success || !up?.evidence) {
+        throw new Error(up?.message || upErr?.message || "Failed to upload evidence");
+      }
+
+      await transferOwnership({
+        itemId: String(item.id),
+        newOwnerId: target,
+        evidence: up.evidence,
+      });
+
+      showToastMsg("Ownership transferred successfully.", "success");
+      setTransferOpen(false);
+    } catch (e) {
+      const msg = e?.message || "Ownership transfer failed";
+      setTransferErr(msg);
+      showToastMsg(msg, "error");
+    } finally {
+      setTransferBusy(false);
+    }
   }
 
   function handleDragZone(e) {
@@ -750,6 +832,15 @@ export default function ItemDetails() {
                     Back
                   </RippleButton>
 
+                  {user?.role === "admin" ? (
+                    <RippleButton
+                      className="px-4 py-2 rounded bg-amber-500 text-white text-sm"
+                      onClick={openTransferOwnershipModal}
+                    >
+                      Transfer ownership
+                    </RippleButton>
+                  ) : null}
+
                   <RippleButton
                     className="px-4 py-2 rounded bg-iregistrygreen text-white text-sm"
                     onClick={() => navigate(`/items/${item.slug}/edit`)}
@@ -951,6 +1042,81 @@ export default function ItemDetails() {
         cancelLabel="Cancel"
         danger={true}
       />
+
+      {/* Admin transfer ownership modal */}
+      <ConfirmModal
+        isOpen={transferOpen}
+        onClose={closeTransferOwnershipModal}
+        onConfirm={() => void submitTransferOwnership()}
+        title="Transfer ownership (admin)"
+        message="Upload evidence and set the new owner user ID."
+        confirmLabel={transferBusy ? "Transferring…" : "Transfer"}
+        cancelLabel="Cancel"
+        variant="warning"
+        confirmDisabled={
+          transferBusy ||
+          !String(newOwnerId || "").trim() ||
+          !evidenceFile ||
+          !String(evidenceType || "").trim()
+        }
+      >
+        <div className="space-y-3">
+          {transferErr ? (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-3">
+              {transferErr}
+            </div>
+          ) : null}
+
+          <div>
+            <label className="text-xs text-gray-600">New owner user ID</label>
+            <input
+              value={newOwnerId}
+              onChange={(e) => setNewOwnerId(e.target.value)}
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="UUID (e.g. 2a1b…)"
+              disabled={transferBusy}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <div className="text-[11px] text-gray-400 mt-1">
+              Paste the user&apos;s UUID from the Users page.
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-600">Evidence type</label>
+            <select
+              value={evidenceType}
+              onChange={(e) => setEvidenceType(e.target.value)}
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
+              disabled={transferBusy}
+            >
+              <option value="ADMIN_TRANSFER">Admin transfer</option>
+              <option value="COURT_ORDER">Court order</option>
+              <option value="POLICE_CLEARANCE">Police clearance</option>
+              <option value="INVOICE_RECEIPT">Invoice / receipt</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-600">Evidence file (PDF or image)</label>
+            <input
+              type="file"
+              accept="application/pdf,image/*"
+              className="mt-1 w-full text-sm"
+              disabled={transferBusy}
+              onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
+            />
+            {evidenceFile ? (
+              <div className="text-[11px] text-gray-500 mt-1 break-all">
+                Selected: {evidenceFile.name} ({Math.round(evidenceFile.size / 1024)} KB)
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </ConfirmModal>
 
       {/* Toast */}
       <Toast

@@ -3,10 +3,14 @@ import { usePendingTransfers } from "../hooks/usePendingTransfers";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import RippleButton from "./RippleButton";
 import { useModal } from "../contexts/ModalContext.jsx";
+import { useToast } from "../contexts/ToastContext.jsx";
+import { useState } from "react";
 
 export default function PendingTransferRequests() {
   const { data, loading, refresh } = usePendingTransfers();
   const { confirm } = useModal();
+  const { addToast } = useToast();
+  const [busyId, setBusyId] = useState("");
 
   if (loading) {
     return (
@@ -19,6 +23,7 @@ export default function PendingTransferRequests() {
   if (!data.length) return null;
 
   async function handleDecision(id, decision) {
+    if (busyId) return;
     const ok = await confirm({
       title: "Confirm",
       message:
@@ -31,10 +36,33 @@ export default function PendingTransferRequests() {
     }).catch(() => false);
     if (!ok) return;
 
-    await invokeWithAuth("review-transfer-request", {
-      body: { request_id: id, decision },
-    });
-    refresh();
+    setBusyId(String(id));
+    try {
+      const { data: res, error } = await invokeWithAuth("review-transfer-request", {
+        body: { request_id: id, decision },
+      });
+
+      if (error || !res?.success) {
+        const msg = res?.message || error?.message || "Transfer action failed";
+        if (res?.billing?.required) {
+          addToast({
+            type: "error",
+            message: `${msg} (credits required: ${res?.billing?.task_code || "TRANSFER_OWNERSHIP"})`,
+          });
+        } else {
+          addToast({ type: "error", message: msg });
+        }
+        return;
+      }
+
+      addToast({
+        type: "success",
+        message: decision === "APPROVED" ? "Transfer approved." : "Transfer rejected.",
+      });
+      await refresh();
+    } finally {
+      setBusyId("");
+    }
   }
 
   return (
@@ -73,15 +101,17 @@ export default function PendingTransferRequests() {
               <RippleButton
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                 onClick={() => handleDecision(r.id, "APPROVED")}
+                disabled={busyId === String(r.id)}
               >
-                Approve
+                {busyId === String(r.id) ? "Working..." : "Approve"}
               </RippleButton>
 
               <RippleButton
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                 onClick={() => handleDecision(r.id, "REJECTED")}
+                disabled={busyId === String(r.id)}
               >
-                Reject
+                {busyId === String(r.id) ? "Working..." : "Reject"}
               </RippleButton>
             </div>
           </div>

@@ -11,6 +11,7 @@ import { useItemVerification } from "../hooks/useItemVerification";
 import { useNotifyOwner } from "../hooks/useNotifyOwner";
 import { usePhotoVerification } from "../hooks/usePhotoVerification";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext.jsx";
 
 // Icons
 import { ShieldAlert, Info, Camera } from "lucide-react";
@@ -39,6 +40,7 @@ export default function VerificationPanel() {
 
   // Context/Navigation
   const { user } = useAuth();
+  const { addToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -232,8 +234,20 @@ export default function VerificationPanel() {
       const { data, error } = await invokeWithAuth("create-transfer-request", {
         body: { item_id: finalResult?.itemId, message: null },
       });
-      if (error || !data?.success) throw new Error(data?.message || error?.message || "Transfer request failed");
+      if (error || !data?.success) {
+        const msg = data?.message || error?.message || "Transfer request failed";
+        if (data?.billing?.required) {
+          addToast({
+            type: "error",
+            message: `${msg} (credits required: ${data?.billing?.task_code || "REQUEST_TRANSFER"})`,
+          });
+        } else {
+          addToast({ type: "error", message: msg });
+        }
+        throw new Error(msg);
+      }
       setTransferSuccess(true);
+      addToast({ type: "success", message: "Transfer request submitted." });
       setAction(null);
     } catch (err) {
       setTransferError(err.message);
@@ -576,7 +590,10 @@ export default function VerificationPanel() {
       {/* Confirm Modal */}
       <ConfirmModal
         isOpen={showTransferConfirm}
-        onClose={() => setShowTransferConfirm(false)}
+        onClose={() => {
+          if (transferLoading) return;
+          setShowTransferConfirm(false);
+        }}
         onConfirm={async () => {
           setShowTransferConfirm(false);
           await executeTransfer();
@@ -585,6 +602,7 @@ export default function VerificationPanel() {
         message="Are you sure you want to request ownership transfer for this item?"
         confirmLabel="Yes, Request Transfer"
         cancelLabel="Cancel"
+        confirmDisabled={transferLoading}
       />
       {/* Camera Overlay */}
       {cameraOpen && (
