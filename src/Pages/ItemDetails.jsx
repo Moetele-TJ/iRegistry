@@ -143,6 +143,7 @@ export default function ItemDetails() {
   const [ownerUsers, setOwnerUsers] = useState([]);
   const [ownerUsersLoading, setOwnerUsersLoading] = useState(false);
   const [ownerQuery, setOwnerQuery] = useState("");
+  const [ownerPickerOpen, setOwnerPickerOpen] = useState(false);
 
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -314,6 +315,7 @@ export default function ItemDetails() {
     setEvidenceType("ADMIN_TRANSFER");
     setEvidenceFile(null);
     setOwnerQuery("");
+    setOwnerPickerOpen(false);
     setTransferOpen(true);
   }
 
@@ -430,6 +432,14 @@ export default function ItemDetails() {
       return hay.includes(q);
     });
   }, [ownerUsers, ownerQuery]);
+
+  const selectedOwnerLabel = useMemo(() => {
+    if (!newOwnerId) return "";
+    const u = (ownerUsers || []).find((x) => String(x?.id) === String(newOwnerId));
+    if (!u) return "";
+    const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
+    return name || u?.email || u?.id_number || u?.id || "";
+  }, [newOwnerId, ownerUsers]);
 
   function handleDragZone(e) {
     e.preventDefault();
@@ -1125,36 +1135,64 @@ export default function ItemDetails() {
 
             <input
               value={ownerQuery}
-              onChange={(e) => setOwnerQuery(e.target.value)}
+              onChange={(e) => {
+                setOwnerQuery(e.target.value);
+                setNewOwnerId("");
+                setOwnerPickerOpen(true);
+              }}
+              onFocus={() => setOwnerPickerOpen(true)}
               className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="Search by name, email, ID…"
               disabled={transferBusy || ownerUsersLoading}
             />
 
-            <select
-              value={newOwnerId}
-              onChange={(e) => setNewOwnerId(e.target.value)}
-              className="mt-2 w-full border rounded-lg px-3 py-2 text-sm bg-white"
-              disabled={transferBusy || ownerUsersLoading}
-            >
-              <option value="">
-                {ownerUsersLoading ? "Loading owners…" : "Select owner…"}
-              </option>
-              {filteredOwners.slice(0, 200).map((u) => {
-                const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
-                const label = name || u?.email || u?.id_number || u?.id;
-                const meta = [u?.email, u?.id_number].filter(Boolean).join(" • ");
-                return (
-                  <option key={u.id} value={u.id}>
-                    {label}{meta ? ` — ${meta}` : ""}
-                  </option>
-                );
-              })}
-            </select>
-
             <div className="text-[11px] text-gray-400 mt-1">
-              Showing up to 200 results. Refine search to narrow down.
+              {newOwnerId && selectedOwnerLabel
+                ? `Selected: ${selectedOwnerLabel}`
+                : "Type to search, then tap a result to select."}
             </div>
+
+            {ownerPickerOpen && !transferBusy ? (
+              <div className="mt-2 max-h-56 overflow-auto rounded-lg border bg-white shadow-sm">
+                {ownerUsersLoading ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">Loading owners…</div>
+                ) : filteredOwners.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">No matches.</div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredOwners.slice(0, 50).map((u) => {
+                      const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
+                      const primary = name || u?.email || u?.id_number || u?.id;
+                      const secondary = [u?.email, u?.id_number, u?.phone].filter(Boolean).join(" • ");
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                          onClick={() => {
+                            setNewOwnerId(String(u.id));
+                            setOwnerQuery(primary);
+                            setOwnerPickerOpen(false);
+                          }}
+                        >
+                          <div className="text-sm text-gray-800 font-medium truncate">
+                            {primary}
+                          </div>
+                          {secondary ? (
+                            <div className="text-xs text-gray-500 truncate">{secondary}</div>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                    {filteredOwners.length > 50 ? (
+                      <div className="px-3 py-2 text-xs text-gray-400">
+                        Showing 50 results. Keep typing to narrow down.
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <div>
