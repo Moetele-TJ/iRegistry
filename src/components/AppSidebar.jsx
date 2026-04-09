@@ -17,7 +17,7 @@ export default function AppSidebar({ sidebar }) {
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         transition-[width] duration-300 ease-in-out
-        ${(expanded && hoverExpand) ? "w-44" : "w-14"}
+        ${(expanded && hoverExpand) ? "w-[var(--app-sidebar-expanded-w)]" : "w-[var(--app-sidebar-collapsed-w)]"}
         rounded-br-3xl
         shadow-lg
       `}

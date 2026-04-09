@@ -22,7 +22,17 @@
     Roboto, "Helvetica Neue", Arial;
   --app-header-h: 80px;
   --app-sidebar-collapsed-w: 56px; /* Tailwind w-14 */
+  --app-sidebar-expanded-w: 176px; /* Tailwind w-44 */
   --app-sidebar-gutter: 32px; /* ~ 2x scrollbar width */
+}
+
+/* Mobile: reduce sidebar offset so content uses more width */
+@media (max-width: 640px) {
+  :root {
+    --app-sidebar-collapsed-w: 48px; /* Tailwind w-12 */
+    --app-sidebar-expanded-w: 160px; /* Slightly narrower than desktop */
+    --app-sidebar-gutter: 12px;
+  }
 }
 
 /* Scrollable sidebar: many nav items stay reachable below the viewport */
