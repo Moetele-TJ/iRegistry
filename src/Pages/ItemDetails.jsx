@@ -140,6 +140,9 @@ export default function ItemDetails() {
   const [newOwnerId, setNewOwnerId] = useState("");
   const [evidenceType, setEvidenceType] = useState("ADMIN_TRANSFER");
   const [evidenceFile, setEvidenceFile] = useState(null);
+  const [ownerUsers, setOwnerUsers] = useState([]);
+  const [ownerUsersLoading, setOwnerUsersLoading] = useState(false);
+  const [ownerQuery, setOwnerQuery] = useState("");
 
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -310,6 +313,7 @@ export default function ItemDetails() {
     setNewOwnerId("");
     setEvidenceType("ADMIN_TRANSFER");
     setEvidenceFile(null);
+    setOwnerQuery("");
     setTransferOpen(true);
   }
 
@@ -377,6 +381,55 @@ export default function ItemDetails() {
       setTransferBusy(false);
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOwners() {
+      if (!transferOpen) return;
+      if (user?.role !== "admin") return;
+      setOwnerUsersLoading(true);
+      try {
+        const { data, error } = await invokeWithAuth("list-users");
+        if (cancelled) return;
+        if (error || !data?.success) {
+          throw new Error(data?.message || error?.message || "Failed to load users");
+        }
+        const all = Array.isArray(data?.users) ? data.users : [];
+        // "registered owner" = normal app users (exclude staff roles)
+        const owners = all.filter((u) => String(u?.role || "").toLowerCase() === "user");
+        setOwnerUsers(owners);
+      } catch (e) {
+        if (!cancelled) {
+          setOwnerUsers([]);
+          setTransferErr(e?.message || "Failed to load users");
+        }
+      } finally {
+        if (!cancelled) setOwnerUsersLoading(false);
+      }
+    }
+    void loadOwners();
+    return () => {
+      cancelled = true;
+    };
+  }, [transferOpen, user?.role]);
+
+  const filteredOwners = useMemo(() => {
+    const q = String(ownerQuery || "").trim().toLowerCase();
+    if (!q) return ownerUsers;
+    return (ownerUsers || []).filter((u) => {
+      const hay = [
+        u?.first_name || "",
+        u?.last_name || "",
+        u?.email || "",
+        u?.id_number || "",
+        u?.phone || "",
+        u?.id || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [ownerUsers, ownerQuery]);
 
   function handleDragZone(e) {
     e.preventDefault();
@@ -1068,19 +1121,39 @@ export default function ItemDetails() {
           ) : null}
 
           <div>
-            <label className="text-xs text-gray-600">New owner user ID</label>
+            <label className="text-xs text-gray-600">New owner</label>
+
             <input
+              value={ownerQuery}
+              onChange={(e) => setOwnerQuery(e.target.value)}
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+              placeholder="Search by name, email, ID…"
+              disabled={transferBusy || ownerUsersLoading}
+            />
+
+            <select
               value={newOwnerId}
               onChange={(e) => setNewOwnerId(e.target.value)}
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-mono"
-              placeholder="UUID (e.g. 2a1b…)"
-              disabled={transferBusy}
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
+              className="mt-2 w-full border rounded-lg px-3 py-2 text-sm bg-white"
+              disabled={transferBusy || ownerUsersLoading}
+            >
+              <option value="">
+                {ownerUsersLoading ? "Loading owners…" : "Select owner…"}
+              </option>
+              {filteredOwners.slice(0, 200).map((u) => {
+                const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
+                const label = name || u?.email || u?.id_number || u?.id;
+                const meta = [u?.email, u?.id_number].filter(Boolean).join(" • ");
+                return (
+                  <option key={u.id} value={u.id}>
+                    {label}{meta ? ` — ${meta}` : ""}
+                  </option>
+                );
+              })}
+            </select>
+
             <div className="text-[11px] text-gray-400 mt-1">
-              Paste the user&apos;s UUID from the Users page.
+              Showing up to 200 results. Refine search to narrow down.
             </div>
           </div>
 
