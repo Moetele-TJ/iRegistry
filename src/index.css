@@ -29,7 +29,7 @@
 /* Mobile: reduce sidebar offset so content uses more width */
 @media (max-width: 640px) {
   :root {
-    --app-sidebar-collapsed-w: 40px;
+    --app-sidebar-collapsed-w: 48px; /* enough room for 20px icons */
     --app-sidebar-expanded-w: 160px; /* Slightly narrower than desktop */
     --app-sidebar-gutter: 0px;
   }

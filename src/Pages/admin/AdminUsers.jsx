@@ -596,7 +596,7 @@ export default function AdminUsers() {
         </div>
       </ConfirmModal>
 
-      <div className="p-2 sm:p-6 w-full max-w-7xl mx-auto">
+      <div className="px-1 py-2 sm:p-6 w-full max-w-none mx-0 sm:max-w-7xl sm:mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-iregistrygreen">Manage Users</h1>
