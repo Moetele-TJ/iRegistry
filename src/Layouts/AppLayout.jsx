@@ -30,7 +30,7 @@ function LayoutBody() {
     <>
       <AppSidebar sidebar={sidebar} />
       <main
-        className={`bg-gray-100 ${
+        className={`bg-gray-100 pt-[var(--app-header-h)] ${
           showSidebar
             ? "pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
             : ""

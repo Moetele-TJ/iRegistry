@@ -146,7 +146,7 @@ export default function Header() {
   return (
     <header
       ref={headerRef}
-      className="w-full bg-white shadow-lg px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-50"
+      className="fixed top-0 left-0 right-0 w-full bg-white shadow-lg px-4 md:px-8 py-3 flex items-center justify-between z-50"
     >
 
       {/* Logo */}
