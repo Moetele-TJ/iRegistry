@@ -1,19 +1,36 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SidebarItem from "./SidebarItem";
+import { useLocation } from "react-router-dom";
 
 export default function AppSidebar({ sidebar }) {
   const [expanded, setExpanded] = useState(false);
+  const location = useLocation();
 
   const items = useMemo(() => sidebar?.items || [], [sidebar]);
   const visible = !!sidebar?.visible && items.length > 0;
   const hoverExpand = sidebar?.hoverExpand !== false;
+  const [canHover, setCanHover] = useState(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia?.("(hover: hover) and (pointer: fine)");
+    if (!mq) return;
+    const update = () => setCanHover(!!mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+
+  // On touch devices, "hover" can stick until the next tap; collapse immediately on navigation.
+  useEffect(() => {
+    setExpanded(false);
+  }, [location.pathname]);
 
   if (!visible) return null;
 
   return (
     <aside
       className={`
-        fixed left-0 top-[var(--app-header-h)] bottom-0 z-40
+        fixed left-0 top-[var(--app-header-h)] bottom-auto sm:bottom-0 z-40
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         transition-[width] duration-300 ease-in-out
@@ -21,11 +38,11 @@ export default function AppSidebar({ sidebar }) {
         rounded-br-3xl
         shadow-lg
       `}
-      onMouseEnter={() => hoverExpand && setExpanded(true)}
-      onMouseLeave={() => hoverExpand && setExpanded(false)}
+      onMouseEnter={() => (canHover && hoverExpand) && setExpanded(true)}
+      onMouseLeave={() => (canHover && hoverExpand) && setExpanded(false)}
     >
       <nav
-        className="app-sidebar-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-2 space-y-2"
+        className="app-sidebar-nav flex-none sm:flex-1 sm:min-h-0 overflow-visible sm:overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-2 space-y-2"
         aria-label="Main navigation"
       >
         {items.map((it) => (
@@ -35,6 +52,7 @@ export default function AppSidebar({ sidebar }) {
             icon={it.icon}
             label={it.label}
             expanded={expanded && hoverExpand}
+            onNavigate={() => setExpanded(false)}
           />
         ))}
       </nav>

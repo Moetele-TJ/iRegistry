@@ -31,7 +31,7 @@
   :root {
     --app-sidebar-collapsed-w: 48px; /* Tailwind w-12 */
     --app-sidebar-expanded-w: 160px; /* Slightly narrower than desktop */
-    --app-sidebar-gutter: 12px;
+    --app-sidebar-gutter: 4px;
   }
 }
 
