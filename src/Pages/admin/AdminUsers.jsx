@@ -42,7 +42,10 @@ function UserRowActionControls({
   self,
   rowBusy,
   loading,
+  mobileRole,
+  setMobileRole,
   onRoleChange,
+  onMobileAction,
   onSuspend,
   onDisable,
   onReactivate,
@@ -51,6 +54,7 @@ function UserRowActionControls({
 }) {
   const btnRowRef = useRef(null);
   const [actionsWidthPx, setActionsWidthPx] = useState(null);
+  const [mobileAction, setMobileAction] = useState("");
 
   useLayoutEffect(() => {
     const el = btnRowRef.current;
@@ -78,9 +82,43 @@ function UserRowActionControls({
           : undefined
       }
     >
+      {/* Mobile: single action dropdown (no buttons/role dropdown) */}
+      <div className="sm:hidden">
+        <label className="text-xs text-gray-600" htmlFor={`user-actions-${userId}`}>
+          Actions
+        </label>
+        <select
+          id={`user-actions-${userId}`}
+          value={mobileAction}
+          onChange={(e) => {
+            const v = e.target.value;
+            setMobileAction(v);
+            if (!v) return;
+            onMobileAction?.(v);
+            // reset so the same action can be selected again
+            setTimeout(() => setMobileAction(""), 0);
+          }}
+          className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-2 text-sm disabled:opacity-50 box-border bg-white"
+          disabled={loading || rowBusy}
+        >
+          <option value="">Select…</option>
+          <option value="change_role">Change role…</option>
+          {statusLower === "active" ? (
+            <>
+              <option value="suspend">Suspend…</option>
+              <option value="disable">Disable…</option>
+            </>
+          ) : (
+            <option value="reactivate">Reactivate</option>
+          )}
+          <option value="edit">Edit</option>
+          <option value="delete">Delete…</option>
+        </select>
+      </div>
+
       <div
         className={
-          measured ? "min-w-0" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
+          measured ? "min-w-0 hidden sm:block" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
         }
         aria-hidden={!measured}
       >
@@ -102,7 +140,7 @@ function UserRowActionControls({
           ))}
         </select>
       </div>
-      <div ref={btnRowRef} className="flex flex-row flex-nowrap items-center gap-2 self-start">
+      <div ref={btnRowRef} className="hidden sm:flex flex-row flex-nowrap items-center gap-2 self-start">
         {statusLower !== "active" ? (
           <RippleButton
             type="button"
@@ -188,6 +226,9 @@ export default function AdminUsers() {
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendPreset, setSuspendPreset] = useState("");
   const [suspendStatus, setSuspendStatus] = useState("suspended");
+
+  const [roleModal, setRoleModal] = useState({ isOpen: false, user: null });
+  const [roleNext, setRoleNext] = useState("");
 
   const isEditing = mode === "edit" && !!editing;
   const isAdding = mode === "add";
@@ -443,6 +484,31 @@ export default function AdminUsers() {
     }
   }
 
+  function openRoleModal(u) {
+    if (!u?.id) return;
+    if (isSelf(u.id)) {
+      addToast({ type: "error", message: "You cannot change your own role." });
+      return;
+    }
+    setRoleNext(String(u.role || "user"));
+    setRoleModal({ isOpen: true, user: u });
+  }
+
+  function closeRoleModal() {
+    if (quickRowId) return;
+    setRoleModal({ isOpen: false, user: null });
+    setRoleNext("");
+  }
+
+  async function submitRoleChange() {
+    const u = roleModal.user;
+    if (!u?.id) return;
+    const next = String(roleNext || "").toLowerCase();
+    if (!next || next === String(u.role || "").toLowerCase()) return;
+    const label = roleLabel[next] || next;
+    await quickUpdateUser(u.id, { role: next }, `Role updated to ${label}.`);
+  }
+
   async function quickChangeRole(u, nextRole) {
     if (isSelf(u.id)) {
       addToast({ type: "error", message: "You cannot change your own role." });
@@ -550,6 +616,39 @@ export default function AdminUsers() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <ConfirmModal
+        isOpen={roleModal.isOpen}
+        onClose={closeRoleModal}
+        onConfirm={() => void submitRoleChange()}
+        title="Change role"
+        message={`Select a new role for ${roleModal.user ? displayName(roleModal.user) : "this user"}.`}
+        confirmLabel={quickRowId ? "Saving…" : "Change role"}
+        cancelLabel="Cancel"
+        variant="warning"
+        confirmDisabled={
+          !!quickRowId ||
+          !roleModal.user ||
+          !String(roleNext || "").trim() ||
+          String(roleNext || "").toLowerCase() === String(roleModal.user?.role || "").toLowerCase()
+        }
+      >
+        <div>
+          <label className="text-xs text-gray-600">Role</label>
+          <select
+            value={roleNext}
+            onChange={(e) => setRoleNext(e.target.value)}
+            className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
+            disabled={!!quickRowId}
+          >
+            {ROLE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </ConfirmModal>
+
       <ConfirmModal
         isOpen={suspendModal.isOpen}
         onClose={closeSuspendModal}
@@ -895,7 +994,17 @@ export default function AdminUsers() {
                       self={self}
                       rowBusy={rowBusy}
                       loading={loading}
+                      mobileRole={roleNext}
+                      setMobileRole={setRoleNext}
                       onRoleChange={(next) => void quickChangeRole(u, next)}
+                      onMobileAction={(action) => {
+                        if (action === "change_role") return openRoleModal(u);
+                        if (action === "suspend") return openSuspendModal(u, "suspended");
+                        if (action === "disable") return openSuspendModal(u, "disabled");
+                        if (action === "reactivate") return void quickReactivate(u);
+                        if (action === "edit") return startEdit(u);
+                        if (action === "delete") return void handleDelete(u.id);
+                      }}
                       onSuspend={() => openSuspendModal(u, "suspended")}
                       onDisable={() => openSuspendModal(u, "disabled")}
                       onReactivate={() => void quickReactivate(u)}
