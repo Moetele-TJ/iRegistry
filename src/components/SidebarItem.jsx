@@ -1,11 +1,26 @@
 // src/components/SidebarItem.jsx
 import { NavLink } from "react-router-dom";
 
-export default function SidebarItem({ to, icon, label, expanded, onNavigate }) {
+export default function SidebarItem({
+  to,
+  icon,
+  label,
+  expanded,
+  onNavigate,
+  touchMode,
+  onTouchExpand,
+}) {
   return (
     <NavLink
       to={to}
-      onClick={onNavigate}
+      onClick={(e) => {
+        if (touchMode && !expanded) {
+          e.preventDefault();
+          onTouchExpand?.();
+          return;
+        }
+        onNavigate?.();
+      }}
       className={({ isActive }) =>
         `
         flex items-center gap-3 px-3 py-2 rounded-lg

@@ -10,6 +10,7 @@ export default function AppSidebar({ sidebar }) {
   const visible = !!sidebar?.visible && items.length > 0;
   const hoverExpand = sidebar?.hoverExpand !== false;
   const [canHover, setCanHover] = useState(true);
+  const touchMode = !canHover;
 
   useEffect(() => {
     const mq = window.matchMedia?.("(hover: hover) and (pointer: fine)");
@@ -53,6 +54,8 @@ export default function AppSidebar({ sidebar }) {
             label={it.label}
             expanded={expanded && hoverExpand}
             onNavigate={() => setExpanded(false)}
+            touchMode={touchMode}
+            onTouchExpand={() => setExpanded(true)}
           />
         ))}
       </nav>
