@@ -1,7 +1,7 @@
 // src/Pages/admin/AdminHome.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag } from "lucide-react";
+import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle } from "lucide-react";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
@@ -13,6 +13,8 @@ export default function AdminHome() {
 
   const [stats, setStats] = useState(null); // from stats(mode=admin)
   const [dashboard, setDashboard] = useState(null); // from get-dashboard-data (alerts, activity)
+  const [paymentAttention, setPaymentAttention] = useState({ pending: [], failed: [] });
+  const [suspendedUsers, setSuspendedUsers] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,7 +35,15 @@ export default function AdminHome() {
       // If this ever fails, we still render the dashboard using get-dashboard-data.
       const statsReq = invokeWithAuth("stats?mode=admin");
 
-      const [dashRes, statsRes] = await Promise.allSettled([dashReq, statsReq]);
+      const paymentsReq = invokeWithAuth("list-payments", { body: { user_id: null, limit: 200, offset: 0 } });
+      const usersReq = invokeWithAuth("list-users");
+
+      const [dashRes, statsRes, paymentsRes, usersRes] = await Promise.allSettled([
+        dashReq,
+        statsReq,
+        paymentsReq,
+        usersReq,
+      ]);
 
       if (dashRes.status === "fulfilled") {
         const { data, error } = dashRes.value;
@@ -52,6 +62,30 @@ export default function AdminHome() {
         setStats(null);
       }
 
+      if (paymentsRes.status === "fulfilled") {
+        const { data, error } = paymentsRes.value;
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load payments");
+        const all = Array.isArray(data?.payments) ? data.payments : [];
+        const pending = all.filter((p) => String(p?.status || "").toUpperCase() === "PENDING");
+        const failed = all.filter((p) => String(p?.status || "").toUpperCase() === "FAILED");
+        setPaymentAttention({ pending: pending.slice(0, 8), failed: failed.slice(0, 8) });
+      } else {
+        setPaymentAttention({ pending: [], failed: [] });
+      }
+
+      if (usersRes.status === "fulfilled") {
+        const { data, error } = usersRes.value;
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load users");
+        const all = Array.isArray(data?.users) ? data.users : [];
+        const susp = all.filter((u) => {
+          const st = String(u?.status || "").toLowerCase();
+          return st === "suspended" || st === "disabled";
+        });
+        setSuspendedUsers(susp.slice(0, 8));
+      } else {
+        setSuspendedUsers([]);
+      }
+
     } catch (err) {
       console.error("Failed to load admin dashboard", err);
       setError(err?.message || "Failed to load dashboard");
@@ -63,6 +97,9 @@ export default function AdminHome() {
 
   const roleActivity = dashboard?.roleData?.roleActivity?.data || [];
   const alerts = dashboard?.personal?.alerts || [];
+  const pendingPaymentsCount = paymentAttention.pending.length;
+  const failedPaymentsCount = paymentAttention.failed.length;
+  const suspendedUsersCount = suspendedUsers.length;
 
   const statCards = useMemo(() => {
     const fallbackUsers = dashboard?.roleData?.adminOverview?.totalUsers;
@@ -120,6 +157,17 @@ export default function AdminHome() {
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-7 space-y-4">
           <PendingTransferRequests />
+          <AttentionPaymentsCard
+            loading={loading}
+            pending={paymentAttention.pending}
+            failed={paymentAttention.failed}
+            onGoPayments={() => navigate("/admindashboard/transactions")}
+          />
+          <SuspendedUsersCard
+            loading={loading}
+            users={suspendedUsers}
+            onGoUsers={() => navigate("/admindashboard/users")}
+          />
           <QuickActions onGo={(to) => navigate(to)} />
         </div>
 
@@ -215,6 +263,110 @@ function RecentActivityCard({ events, loading, onGoActivity }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttentionPaymentsCard({ loading, pending, failed, onGoPayments }) {
+  const total = (pending?.length || 0) + (failed?.length || 0);
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={16} className="text-amber-500" />
+          <div className="text-sm uppercase tracking-wide text-gray-500">Payments needing attention</div>
+        </div>
+        <button type="button" onClick={onGoPayments} className="text-sm text-iregistrygreen hover:underline">
+          Open
+        </button>
+      </div>
+      {loading ? (
+        <div className="text-sm text-gray-400">Loading…</div>
+      ) : total === 0 ? (
+        <div className="text-sm text-gray-400">No pending or failed payments.</div>
+      ) : (
+        <div className="space-y-3">
+          {pending?.length ? (
+            <div>
+              <div className="text-xs font-semibold text-amber-700 mb-1">Pending ({pending.length})</div>
+              <div className="space-y-1">
+                {pending.slice(0, 3).map((p) => (
+                  <div key={p.id} className="text-sm text-gray-700 truncate">
+                    {p.channel} • {p.currency} {p.amount} • {p.users ? `${p.users.first_name || ""} ${p.users.last_name || ""}`.trim() : p.user_id}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {failed?.length ? (
+            <div>
+              <div className="text-xs font-semibold text-red-700 mb-1">Failed ({failed.length})</div>
+              <div className="space-y-1">
+                {failed.slice(0, 3).map((p) => (
+                  <div key={p.id} className="text-sm text-gray-700 truncate">
+                    {p.channel} • {p.currency} {p.amount} • {p.users ? `${p.users.first_name || ""} ${p.users.last_name || ""}`.trim() : p.user_id}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={onGoPayments}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm hover:bg-gray-50"
+            >
+              Review payments
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuspendedUsersCard({ loading, users, onGoUsers }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="text-sm uppercase tracking-wide text-gray-500">Suspended / disabled users</div>
+        <button type="button" onClick={onGoUsers} className="text-sm text-iregistrygreen hover:underline">
+          Open
+        </button>
+      </div>
+      {loading ? (
+        <div className="text-sm text-gray-400">Loading…</div>
+      ) : !users || users.length === 0 ? (
+        <div className="text-sm text-gray-400">No suspended users.</div>
+      ) : (
+        <div className="space-y-2">
+          {users.slice(0, 5).map((u) => {
+            const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
+            const label = name || u?.email || u?.id_number || u?.id;
+            const st = String(u?.status || "").toLowerCase();
+            return (
+              <div key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm text-gray-800 font-medium truncate">{label}</div>
+                  <div className="text-xs text-gray-500 truncate">{u.email || u.phone || u.id_number || u.id}</div>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st === "disabled" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>
+                  {st || "—"}
+                </span>
+              </div>
+            );
+          })}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={onGoUsers}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm hover:bg-gray-50"
+            >
+              Manage users
+            </button>
+          </div>
         </div>
       )}
     </div>
