@@ -215,6 +215,9 @@ serve(async (req) => {
      * - MARK_STOLEN: only when switching Active -> Stolen
      * - UPLOAD_PHOTOS: when new photo entries are introduced
      * - EDIT_ITEM: any other field change (excluding status change & photo upload)
+     *
+     * When a privileged actor (admin/cashier) updates an item on behalf of another user,
+     * do not dock credits from the item owner.
      */
     const billToUserId = String(existing.ownerid);
     const { data: ownerRow } = await supabase
@@ -224,6 +227,8 @@ serve(async (req) => {
       .maybeSingle();
     const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
     const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
+
+    const actorIsPrivileged = isPrivilegedRole(actorRole);
 
     const spend = async (task: string, meta: Record<string, unknown>) => {
       const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
@@ -241,7 +246,7 @@ serve(async (req) => {
     };
 
     // 1) Mark stolen billing
-    if (!ownerIsPrivileged && statusChanged && cleanUpdates.status === "Stolen") {
+    if (!actorIsPrivileged && !ownerIsPrivileged && statusChanged && cleanUpdates.status === "Stolen") {
       const r = await spend("MARK_STOLEN", { kind: "update-item", action: "mark-stolen" });
       if (!r.ok) {
         return respond(
@@ -259,7 +264,7 @@ serve(async (req) => {
 
     // 2) Upload photos billing (detect new photos)
     let chargedPhotos = false;
-    if (!ownerIsPrivileged && "photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
+    if (!actorIsPrivileged && !ownerIsPrivileged && "photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
       const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
       const existingSet = new Set(
         existingPhotos
@@ -292,7 +297,7 @@ serve(async (req) => {
     }
 
     // 3) Edit item billing (any other non-status, non-photo change)
-    if (!ownerIsPrivileged) {
+    if (!actorIsPrivileged && !ownerIsPrivileged) {
       const keys = Object.keys(cleanUpdates);
       const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
       const hasNonPhotoNonStatusChange = meaningful.some((k) => k !== "photos" && k !== "status");

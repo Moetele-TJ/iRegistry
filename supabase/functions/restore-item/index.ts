@@ -108,7 +108,9 @@ serve(async (req) => {
       );
     }
 
-    /* ---------------- BILLING ---------------- */
+    /* ---------------- BILLING ----------------
+     * Privileged actors restoring items on behalf of owners must not charge the owner.
+     */
     const { data: ownerRow } = await supabase
       .from("users")
       .select("id, role")
@@ -116,7 +118,8 @@ serve(async (req) => {
       .maybeSingle();
     const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
     const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
-    if (!ownerIsPrivileged) {
+    const actorIsPrivileged = isPrivilegedRole(actorRole);
+    if (!actorIsPrivileged && !ownerIsPrivileged) {
       const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
         p_user_id: String(existing.ownerid),
         p_task_code: "RESTORE_ITEM",

@@ -116,7 +116,11 @@ serve(async (req) => {
     /* ================= BILLING: FREE ALLOWANCE + CREDITS =================
      * Lifetime rule: allow up to 2 item registrations per account (count all statuses).
      * We count by items.created_by, which is set to the account the item is registered under.
+     *
+     * Privileged actors (admin/cashier) acting on behalf of another user must not dock credits
+     * from the target account — the org absorbs the task cost.
      */
+    if (!isPrivileged) {
     const { data: ownerRow } = await supabase
       .from("users")
       .select("id, role")
@@ -177,6 +181,7 @@ serve(async (req) => {
           );
         }
       }
+    }
     }
 
     /* ================= SERIAL VALIDATION ================= */
