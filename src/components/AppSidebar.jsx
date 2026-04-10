@@ -43,7 +43,7 @@ export default function AppSidebar({ sidebar }) {
       onMouseLeave={() => (canHover && hoverExpand) && setExpanded(false)}
     >
       <nav
-        className="app-sidebar-nav flex-none sm:flex-1 sm:min-h-0 overflow-visible sm:overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-2 space-y-2"
+        className="app-sidebar-nav flex-none sm:flex-1 sm:min-h-0 overflow-visible sm:overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
         aria-label="Main navigation"
       >
         {items.map((it) => (

@@ -22,11 +22,10 @@ export default function SidebarItem({
         onNavigate?.();
       }}
       className={({ isActive }) => {
+        // Single horizontal inset (nav has px-0): px-2 + w-10 + px-2 = 56px = collapsed rail — icons stay centered, not squeezed.
         const base =
           "group flex w-full items-center rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5";
-        // Keep icon column anchored to a fixed left inset in BOTH modes.
-        // Collapsed centering is achieved by the sidebar width (56px) matching: px-2 + w-10 + px-2.
-        const layout = expanded ? "justify-start gap-3" : "justify-start";
+        const layout = expanded ? "justify-start gap-3" : "justify-center";
         const bg = expanded
           ? isActive
             ? "bg-white/20 font-semibold"
