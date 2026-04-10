@@ -15,15 +15,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useNotificationCenter } from "../../contexts/NotificationContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
-
-function fmtBWP(n) {
-  if (n == null || !Number.isFinite(Number(n))) return "—";
-  return new Intl.NumberFormat("en-BW", {
-    style: "currency",
-    currency: "BWP",
-    currencyDisplay: "symbol",
-  }).format(Number(n));
-}
+import { formatBwpCurrency } from "../../lib/formatBWP.js";
 
 export default function CashierHome() {
   const { user } = useAuth();
@@ -99,7 +91,7 @@ export default function CashierHome() {
               <StatCard
                 icon={<Banknote size={18} />}
                 label="Total estimated value"
-                value={fmtBWP(cashierOverview?.totalEstimatedValue)}
+                value={formatBwpCurrency(cashierOverview?.totalEstimatedValue)}
                 hint="Sum of estimated values on all active items"
                 accent="bg-emerald-600"
               />
@@ -108,7 +100,7 @@ export default function CashierHome() {
                 label="Average estimate"
                 value={
                   cashierOverview?.itemsWithEstimate > 0
-                    ? fmtBWP(cashierOverview?.averageEstimatedValue)
+                    ? formatBwpCurrency(cashierOverview?.averageEstimatedValue)
                     : "—"
                 }
                 hint="Among items with a valuation"

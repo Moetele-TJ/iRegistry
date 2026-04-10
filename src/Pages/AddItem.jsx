@@ -6,6 +6,7 @@ import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
 
 export default function AddItem() {
@@ -24,6 +25,8 @@ export default function AddItem() {
   const [dragActive, setDragActive] = useState(false);
 
   const [heldAtResidence, setHeldAtResidence] = useState(true);
+  /** Raw digits while focused; formatted BWP string when blurred */
+  const [estimatedValueFocused, setEstimatedValueFocused] = useState(false);
 
   const [form, setForm] = useState({
     category: "",
@@ -194,20 +197,6 @@ export default function AddItem() {
       make: v,
       model: "", // reset dependent field
     }));
-  }
-
-  function formatCurrency(value) {
-    if (!value) return "";
-
-    const number = Number(value);
-    if (isNaN(number)) return "";
-
-    return (
-      "P " +
-      number
-        .toFixed(2)
-        .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-    );
   }
 
   function handleCurrencyChange(e) {
@@ -836,11 +825,18 @@ export default function AddItem() {
           <Field label="Estimated Value (P)">
             <input
               name="estimatedValue"
-              value={formatCurrency(form.estimatedValue)}
+              value={
+                estimatedValueFocused
+                  ? form.estimatedValue
+                  : formatBwpCurrency(form.estimatedValue, { empty: "" })
+              }
               onChange={handleCurrencyChange}
-              className="input"
-              placeholder="P 0.00"
+              onFocus={() => setEstimatedValueFocused(true)}
+              onBlur={() => setEstimatedValueFocused(false)}
+              className="input tabular-nums"
+              placeholder="e.g. 1500"
               inputMode="decimal"
+              autoComplete="off"
             />
           </Field>
 

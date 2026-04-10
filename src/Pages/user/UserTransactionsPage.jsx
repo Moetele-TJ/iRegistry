@@ -3,21 +3,7 @@ import { ReceiptText } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-
-function fmtMoney(currency, amount) {
-  if (amount == null) return "—";
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return String(amount);
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "BWP",
-      currencyDisplay: "symbol",
-    }).format(n);
-  } catch {
-    return `${currency || ""} ${n}`;
-  }
-}
+import { formatMoneyAmount } from "../../lib/formatBWP.js";
 
 export default function UserTransactionsPage() {
   const { addToast } = useToast();
@@ -89,7 +75,7 @@ export default function UserTransactionsPage() {
                     {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
                   </td>
                   <td className="px-4 py-3 text-gray-700">{p.channel}</td>
-                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{fmtMoney(p.currency, p.amount)}</td>
+                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
                   <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
                   <td className="px-4 py-3">
                     <span

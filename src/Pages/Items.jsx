@@ -8,17 +8,8 @@ import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { useModal } from "../contexts/ModalContext.jsx";
+import { formatBwpCurrency } from "../lib/formatBWP.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
-function formatCurrency(value) {
-  if (value == null) return "-";
-
-  return new Intl.NumberFormat("en-BW", {
-    style: "currency",
-    currency: "BWP",
-    currencyDisplay: "symbol", // shows P
-  }).format(value);
-}
 
 function formatPoliceCaseStatus(status) {
   if (!status) return "—";
@@ -1113,7 +1104,7 @@ export default function Items() {
                         {formatItemStation(item)}
                       </td>
                       <td className="py-4 px-5 text-right font-medium text-gray-700">
-                        {formatCurrency(item.estimatedValue)}
+                        {formatBwpCurrency(item.estimatedValue, { empty: "-" })}
                       </td>
                       <td className="py-4 px-5 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1295,7 +1286,7 @@ export default function Items() {
                         Value
                       </div>
                       <div className="text-gray-900 font-semibold">
-                        {formatCurrency(item.estimatedValue)}
+                        {formatBwpCurrency(item.estimatedValue, { empty: "-" })}
                       </div>
                     </div>
 

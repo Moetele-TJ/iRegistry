@@ -7,6 +7,7 @@ import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { formatBwpCurrency } from "../lib/formatBWP.js";
 import ItemActivityTimeline from "../components/ItemActivityTimeline";
 import { useItemActivity } from "../hooks/useItemActivity";
 import { useModal } from "../contexts/ModalContext.jsx";
@@ -964,8 +965,8 @@ export default function ItemDetails() {
                     </div>
                     <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Value</div>
-                      <div className="mt-0.5 font-semibold text-gray-900 truncate">
-                        {item.estimatedValue || item.value || "—"}
+                      <div className="mt-0.5 font-semibold text-gray-900 truncate tabular-nums">
+                        {formatBwpCurrency(item.estimatedValue ?? item.value)}
                       </div>
                     </div>
                     <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">

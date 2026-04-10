@@ -3,6 +3,7 @@ import { CalendarDays, Coins, RefreshCw, List } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { formatMoneyAmount } from "../../lib/formatBWP.js";
 
 function todayISO() {
   const d = new Date();
@@ -10,20 +11,6 @@ function todayISO() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
-}
-
-function fmtMoney(currency, amount) {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return "—";
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "BWP",
-      currencyDisplay: "symbol",
-    }).format(n);
-  } catch {
-    return `${currency || ""} ${n}`;
-  }
 }
 
 export default function CashierRevenuePage() {
@@ -115,7 +102,7 @@ export default function CashierRevenuePage() {
               {rows.map((r) => (
                 <div key={r.currency} className="flex items-center justify-between gap-3">
                   <div className="text-sm text-gray-700">{r.currency}</div>
-                  <div className="text-sm font-semibold text-gray-900 tabular-nums">{fmtMoney(r.currency, r.amount)}</div>
+                  <div className="text-sm font-semibold text-gray-900 tabular-nums">{formatMoneyAmount(r.currency, r.amount)}</div>
                 </div>
               ))}
             </div>
@@ -150,7 +137,7 @@ export default function CashierRevenuePage() {
                     <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                       {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{fmtMoney(p.currency, p.amount)}</td>
+                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
                     <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
                     <td className="px-4 py-3 text-gray-700">{p.receipt_no || "—"}</td>
                   </tr>

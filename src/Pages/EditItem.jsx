@@ -6,6 +6,7 @@ import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
 import { normalizePhotos } from "../utils/itemPhotos.js";
 
@@ -78,6 +79,8 @@ export default function EditItem() {
     status: "Active",
   });
   const [policeStation, setPoliceStation] = useState("");
+  /** Raw digits while focused; formatted BWP when blurred */
+  const [estimatedValueFocused, setEstimatedValueFocused] = useState(false);
 
   const [existingPhotos, setExistingPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -249,18 +252,6 @@ export default function EditItem() {
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  function formatCurrency(value) {
-    if (!value) return "";
-    const number = Number(value);
-    if (Number.isNaN(number)) return "";
-    return (
-      "P " +
-      number
-        .toFixed(2)
-        .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-    );
   }
 
   function handleCurrencyChange(e) {
@@ -871,10 +862,18 @@ export default function EditItem() {
           <Field label="Estimated Value (P)">
             <input
               name="estimatedValue"
-              value={formatCurrency(form.estimatedValue)}
+              value={
+                estimatedValueFocused
+                  ? form.estimatedValue
+                  : formatBwpCurrency(form.estimatedValue, { empty: "" })
+              }
               onChange={handleCurrencyChange}
-              className="input"
+              onFocus={() => setEstimatedValueFocused(true)}
+              onBlur={() => setEstimatedValueFocused(false)}
+              className="input tabular-nums"
+              placeholder="e.g. 1500"
               inputMode="decimal"
+              autoComplete="off"
             />
           </Field>
 

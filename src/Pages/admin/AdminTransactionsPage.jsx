@@ -4,27 +4,13 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { formatMoneyAmount } from "../../lib/formatBWP.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
   const last = String(u?.last_name || "").trim();
   const full = `${first} ${last}`.trim();
   return full || u?.email || u?.id_number || u?.phone || u?.id || "—";
-}
-
-function fmtMoney(currency, amount) {
-  if (amount == null) return "—";
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return String(amount);
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "BWP",
-      currencyDisplay: "symbol",
-    }).format(n);
-  } catch {
-    return `${currency || ""} ${n}`;
-  }
 }
 
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
@@ -320,7 +306,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                           {p.receipt_no ? <div className="text-xs text-gray-500">Receipt: {p.receipt_no}</div> : null}
                         </td>
                         <td className="px-4 py-3 text-gray-700">{p.channel}</td>
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{fmtMoney(p.currency, p.amount)}</td>
+                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
                         <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
                         <td className="px-4 py-3">
                           <span
