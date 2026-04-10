@@ -33,7 +33,7 @@
     /* px-2 (8+8) + w-10 icon column (40) = 56px; keeps icons aligned with expanded state */
     --app-sidebar-collapsed-w: 56px;
     --app-sidebar-expanded-w: 160px; /* Slightly narrower than desktop */
-    --app-sidebar-gutter: var(--app-sidebar-collapsed-w);
+    --app-sidebar-gutter: 0px;
   }
 }
 
