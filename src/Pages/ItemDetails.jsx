@@ -705,7 +705,7 @@ export default function ItemDetails() {
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           {/* Header */}
-          <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/70 to-white">
+          <div className="px-5 sm:px-6 py-4 border-b border-emerald-100/70 bg-gradient-to-r from-emerald-50/95 via-emerald-50/50 to-white">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
