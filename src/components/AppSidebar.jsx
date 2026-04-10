@@ -31,7 +31,7 @@ export default function AppSidebar({ sidebar }) {
   return (
     <aside
       className={`
-        fixed left-0 top-[var(--app-header-h)] bottom-auto sm:bottom-0 z-40
+        fixed left-0 top-[var(--app-header-h)] bottom-auto sm:bottom-0 z-[70]
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         transition-[width] duration-300 ease-in-out

@@ -12,7 +12,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+    <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-[60]">
       <ul className="flex justify-around py-2">
         {links.map(link => {
           const active = location.pathname === link.to;
