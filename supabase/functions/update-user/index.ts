@@ -158,6 +158,10 @@ serve(async (req) => {
       return respond({ success: true, message: "No changes" }, corsHeaders, 200);
     }
 
+    const roleWillChange =
+      typeof (clean as any).role === "string" &&
+      String((clean as any).role).toLowerCase() !== String(existing.role || "").toLowerCase();
+
     const { data: updated, error: upErr } = await supabase
       .from("users")
       .update(clean)
@@ -167,6 +171,21 @@ serve(async (req) => {
 
     if (upErr || !updated) {
       return respond({ success: false, message: upErr?.message || "Failed to update user" }, corsHeaders, 500);
+    }
+
+    // If an admin changes a user's role, revoke all existing sessions so they must log in again.
+    // This prevents a stale session from continuing with the old role.
+    if (roleWillChange) {
+      const { error: revokeErr } = await supabase
+        .from("sessions")
+        .update({ revoked: true })
+        .eq("user_id", id)
+        .eq("revoked", false);
+
+      if (revokeErr) {
+        console.error("update-user: failed to revoke sessions after role change", revokeErr.message);
+        // Do not fail the role change if revocation fails; client can still force re-login.
+      }
     }
 
     return respond({ success: true, user: updated }, corsHeaders, 200);

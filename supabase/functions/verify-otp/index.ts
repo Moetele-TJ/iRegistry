@@ -198,34 +198,9 @@ serve(async (req) => {
     );
     }
 
-    // ----------------------------------
-    // MARK OTP AS USED (ANTI-REPLAY)
-    // ----------------------------------
-    const { data: usedOtp, error: serverError } = await supabase
-      .from("login_otps")
-      .update({ used: true })
-      .eq("id", otpRecord.id)
-      .eq("used", false)           // 🔒 atomic guard
-      .select("id")
-      .maybeSingle();
-
-    if (serverError) {
-      return respond({
-        code: "1",
-        success: false,
-        diag: "OTP-VFY-005",
-        message: "Technical error! Please try again.",
-      }, corsHeaders, 500);
-    }
-
-    if (!usedOtp) {
-      return respond({
-        code: "1",
-        success: false,
-        diag: "OTP-VFY-RACE",
-        message: "OTP already used. Please request a new one.",
-      }, corsHeaders, 409);
-    }
+    // NOTE: We mark OTP as used only after we successfully create a session.
+    // This allows a user who hits the "2 device limit" to revoke an existing session
+    // and retry with the same OTP within its expiry window.
 
     // ----------------------------------
     // FETCH USER ROLE
@@ -248,14 +223,91 @@ serve(async (req) => {
     );
     }
 
-    //-----------------------------------
-    //BEFORE CREATING A NEW SESSION REVOKE
-    //ALL EXISTING ONES
-    //-----------------------------------
-    await supabase
+    // ----------------------------------
+    // LIMIT PARALLEL SESSIONS (max 2)
+    // ----------------------------------
+    const MAX_PARALLEL_SESSIONS = 2;
+    const nowIso = new Date().toISOString();
+
+    const { data: activeSessions, error: activeErr } = await supabase
       .from("sessions")
-      .update({ revoked:true })
-      .eq("user_id", body.user_id);
+      .select("id, created_at, expires_at, ip_address, user_agent, device_id, device_name")
+      .eq("user_id", body.user_id)
+      .eq("revoked", false)
+      .gt("expires_at", nowIso)
+      .order("created_at", { ascending: false });
+
+    if (activeErr) {
+      return respond(
+        {
+          code: "2",
+          success: false,
+          diag: "SESS-LIST-001",
+          message: "We are unable to verify your active sessions. Please try again.",
+        },
+        corsHeaders,
+        500,
+      );
+    }
+
+    const sessions = Array.isArray(activeSessions) ? activeSessions : [];
+
+    // If user has >=2 active sessions, require them to revoke one (or more) to proceed.
+    if (sessions.length >= MAX_PARALLEL_SESSIONS) {
+      const revokeId = typeof body?.revoke_session_id === "string" ? body.revoke_session_id : "";
+
+      if (!revokeId) {
+        return respond(
+          {
+            code: "2",
+            success: false,
+            diag: "SESS-LIMIT",
+            message:
+              "You are already logged in on 2 devices. Revoke one session to continue logging in here.",
+            sessions,
+            max_parallel: MAX_PARALLEL_SESSIONS,
+          },
+          corsHeaders,
+          409,
+        );
+      }
+
+      // Revoke the chosen session (must belong to the same user).
+      const { data: revokedRow, error: revokeErr } = await supabase
+        .from("sessions")
+        .update({ revoked: true })
+        .eq("id", revokeId)
+        .eq("user_id", body.user_id)
+        .eq("revoked", false)
+        .select("id")
+        .maybeSingle();
+
+      if (revokeErr) {
+        return respond(
+          {
+            code: "2",
+            success: false,
+            diag: "SESS-REVOKE-001",
+            message: "Failed to revoke the selected session. Please try again.",
+          },
+          corsHeaders,
+          500,
+        );
+      }
+
+      if (!revokedRow) {
+        return respond(
+          {
+            code: "2",
+            success: false,
+            diag: "SESS-REVOKE-002",
+            message: "That session could not be revoked (it may have already expired). Please refresh and try again.",
+          },
+          corsHeaders,
+          409,
+        );
+      }
+    }
 
     //-----------------------------------
     // Create Session
@@ -309,6 +361,9 @@ serve(async (req) => {
      //-----------------------------------
     //SAVE SESSION
     //-----------------------------------
+    const deviceId = typeof body?.device_id === "string" ? body.device_id.trim() : "";
+    const deviceName = typeof body?.device_name === "string" ? body.device_name.trim() : "";
+
     const {error : sessionError} = await supabase.from("sessions").insert({
       user_id: body.user_id,
       id: sessionId,
@@ -317,6 +372,8 @@ serve(async (req) => {
       ip_address: req.headers.get("x-forwarded-for"),
       user_agent: req.headers.get("user-agent"),
       expires_at: new Date(Date.now() + 60 * 60 * 1000),
+      device_id: deviceId || null,
+      device_name: deviceName || null,
     });
 
     if (sessionError){
@@ -329,6 +386,43 @@ serve(async (req) => {
       corsHeaders,
       500
     );
+    }
+
+    // ----------------------------------
+    // MARK OTP AS USED (ANTI-REPLAY) — after session is created
+    // ----------------------------------
+    const { data: usedOtp, error: serverError } = await supabase
+      .from("login_otps")
+      .update({ used: true })
+      .eq("id", otpRecord.id)
+      .eq("used", false) // 🔒 atomic guard
+      .select("id")
+      .maybeSingle();
+
+    if (serverError) {
+      return respond(
+        {
+          code: "1",
+          success: false,
+          diag: "OTP-VFY-005",
+          message: "Technical error! Please try again.",
+        },
+        corsHeaders,
+        500,
+      );
+    }
+
+    if (!usedOtp) {
+      return respond(
+        {
+          code: "1",
+          success: false,
+          diag: "OTP-VFY-RACE",
+          message: "OTP already used. Please request a new one.",
+        },
+        corsHeaders,
+        409,
+      );
     }
 
     //log verify success

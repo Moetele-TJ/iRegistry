@@ -5,8 +5,33 @@ import { invokeFn } from "../lib/invokeFn";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
+function getDeviceId() {
+  try {
+    const k = "ireg_device_id";
+    const existing = localStorage.getItem(k);
+    if (existing && typeof existing === "string" && existing.length >= 8) return existing;
+    const next = (crypto?.randomUUID?.() || `${Date.now()}_${Math.random()}`).toString();
+    localStorage.setItem(k, next);
+    return next;
+  } catch {
+    return "";
+  }
+}
+
+function getDeviceName() {
+  try {
+    const ua = navigator.userAgent || "";
+    const platform = navigator.platform || "";
+    const base = platform || "Device";
+    const isMobile = /Mobi|Android/i.test(ua);
+    return `${base}${isMobile ? " (mobile)" : ""}`.slice(0, 80);
+  } catch {
+    return "";
+  }
+}
+
 export default function Login() {
-  const [step, setStep] = useState("identity"); // identity | otp | channel
+  const [step, setStep] = useState("identity"); // identity | otp | channel | sessions
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
 
@@ -27,6 +52,8 @@ export default function Login() {
   const [expiry, setExpiry] = useState(300); // 5 minutes (300s)
   const [IdentifyingUser, setIdentifyingUser] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [sessionLimit, setSessionLimit] = useState(null); // { sessions: [], max_parallel: number }
+  const [revokeSessionId, setRevokeSessionId] = useState("");
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -252,6 +279,9 @@ export default function Login() {
       const { data, error: verifyError } = await invokePublicFn("verify-otp", {
         user_id: userId,
         otp,
+        revoke_session_id: revokeSessionId || undefined,
+        device_id: getDeviceId() || undefined,
+        device_name: getDeviceName() || undefined,
       });
 
       if (verifyError || !data) {
@@ -270,6 +300,18 @@ export default function Login() {
         const diag = data.diag || "";
         const msg =
           data.message || "Something went wrong. Please try again.";
+
+        if (diag === "SESS-LIMIT") {
+          setSessionLimit({
+            sessions: Array.isArray(data.sessions) ? data.sessions : [],
+            max_parallel: Number(data.max_parallel || 2),
+          });
+          setRevokeSessionId("");
+          setStep("sessions");
+          setError(msg);
+          setErrorCode(diag);
+          return;
+        }
 
         if (diag === "OTP-VFY-LOCK" || diag === "OTP-VFY-RACE") {
           setOtp("");
@@ -643,6 +685,76 @@ export default function Login() {
                   </button>
                 )}
               </div>
+            </>
+          )}
+
+          {step === "sessions" && (
+            <>
+              <p className="text-sm text-gray-600 mb-3">
+                You’re currently logged in on {sessionLimit?.sessions?.length || 0} device(s). To log in here, revoke one
+                existing session.
+              </p>
+
+              <div className="space-y-2 mb-4">
+                {(sessionLimit?.sessions || []).map((s) => {
+                  const id = s?.id;
+                  const createdAt = s?.created_at ? new Date(s.created_at).toLocaleString() : "—";
+                  const expiresAt = s?.expires_at ? new Date(s.expires_at).toLocaleString() : "—";
+                  const ua = String(s?.user_agent || "").slice(0, 80);
+                  const ip = String(s?.ip_address || "").split(",")[0].trim();
+                  const thisDevice =
+                    s?.device_id && getDeviceId() && String(s.device_id) === String(getDeviceId());
+                  const selected = revokeSessionId && id === revokeSessionId;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setRevokeSessionId(id)}
+                      className={`w-full text-left border rounded-lg p-3 transition ${
+                        selected ? "border-iregistrygreen bg-emerald-50" : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-gray-800 break-words">
+                        {thisDevice ? "This device • " : ""}Session {id ? String(id).slice(0, 8) : "—"}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Started: {createdAt} • Expires: {expiresAt}
+                      </div>
+                      {s?.device_name ? (
+                        <div className="text-xs text-gray-600 mt-1">
+                          Device: {String(s.device_name)}
+                        </div>
+                      ) : null}
+                      <div className="text-xs text-gray-500 mt-1 break-words">
+                        {ip ? `IP: ${ip} • ` : ""}
+                        {ua ? `UA: ${ua}` : ""}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setErrorCode("");
+                  setStep("otp");
+                }}
+                className="w-full py-3 mb-2 rounded-lg border border-gray-300 text-gray-700 font-semibold"
+                disabled={verifyingOtp}
+              >
+                Back
+              </button>
+
+              <button
+                type="button"
+                onClick={handleVerifyOtp}
+                disabled={verifyingOtp || !revokeSessionId}
+                className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+              >
+                {verifyingOtp ? "Revoking & logging in…" : "Revoke selected session and login"}
+              </button>
             </>
           )}
         </div>

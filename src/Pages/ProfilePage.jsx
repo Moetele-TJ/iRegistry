@@ -197,6 +197,29 @@ export default function ProfilePage() {
     }
   }
 
+  async function logoutOtherDevices() {
+    const ok = await confirm({
+      title: "Confirm",
+      message: "Log out of other devices? You will stay logged in on this device.",
+      confirmLabel: "Log out other devices",
+      cancelLabel: "Cancel",
+      variant: "warning",
+    }).catch(() => false);
+    if (!ok) return;
+
+    try {
+      const { data, error } = await invokeWithAuth("logout-other-sessions");
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not revoke sessions");
+      }
+      addToast({ type: "success", message: data?.message || "Logged out other devices." });
+      // Refresh profile so last_login_at (derived from sessions) stays accurate.
+      await refreshUser();
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Could not log out other devices" });
+    }
+  }
+
   if (!user) {
     return (
       <div className="min-h-[min(100vh,720px)] bg-gradient-to-b from-gray-100 to-gray-50 flex items-center justify-center p-6">
@@ -502,6 +525,15 @@ export default function ProfilePage() {
                     {user.id ? String(user.id) : "—"}
                   </span>
                 </Field>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <RippleButton
+                  type="button"
+                  className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={() => void logoutOtherDevices()}
+                >
+                  Log out other devices
+                </RippleButton>
               </div>
             </Card>
 
