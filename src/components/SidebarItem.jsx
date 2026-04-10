@@ -24,7 +24,9 @@ export default function SidebarItem({
       className={({ isActive }) => {
         const base =
           "group flex w-full items-center rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5";
-        const layout = expanded ? "justify-start gap-3" : "justify-center";
+        // Keep icon column anchored to a fixed left inset in BOTH modes.
+        // Collapsed centering is achieved by the sidebar width (56px) matching: px-2 + w-10 + px-2.
+        const layout = expanded ? "justify-start gap-3" : "justify-start";
         const bg = expanded
           ? isActive
             ? "bg-white/20 font-semibold"
