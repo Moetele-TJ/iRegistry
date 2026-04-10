@@ -23,7 +23,8 @@
   --app-header-h: 80px;
   --app-sidebar-collapsed-w: 56px; /* Tailwind w-14 */
   --app-sidebar-expanded-w: 176px; /* Tailwind w-44 */
-  --app-sidebar-gutter: 32px; /* ~ 2x scrollbar width */
+  /* Space between sidebar and content (in addition to collapsed width). */
+  --app-sidebar-gutter: var(--app-sidebar-collapsed-w);
 }
 
 /* Mobile: reduce sidebar offset so content uses more width */
@@ -32,7 +33,7 @@
     /* px-2 (8+8) + w-10 icon column (40) = 56px; keeps icons aligned with expanded state */
     --app-sidebar-collapsed-w: 56px;
     --app-sidebar-expanded-w: 160px; /* Slightly narrower than desktop */
-    --app-sidebar-gutter: 0px;
+    --app-sidebar-gutter: var(--app-sidebar-collapsed-w);
   }
 }
 
