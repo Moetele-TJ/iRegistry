@@ -502,12 +502,19 @@ export default function Login() {
           )}
 
           {step === "identity" && (
-            <>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (IdentifyingUser) return;
+                void handleIdentifyUser();
+              }}
+            >
               <label className="block text-sm mb-1">Last name</label>
               <input
                 className="w-full border rounded-lg px-4 py-2 mb-4"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name"
               />
 
               <label className="block text-sm mb-1">
@@ -517,6 +524,7 @@ export default function Login() {
                 className="w-full border rounded-lg px-4 py-2 mb-3"
                 value={idNumber}
                 onChange={(e) => setIdNumber(e.target.value)}
+                autoComplete="off"
               />
 
               <div className="text-sm text-center mb-6">
@@ -531,13 +539,13 @@ export default function Login() {
               </div>
 
               <button
-                onClick={handleIdentifyUser}
+                type="submit"
                 disabled={IdentifyingUser}
                 className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold"
               >
                 {IdentifyingUser ? "Sending..." : "Send OTP"}
               </button>
-            </>
+            </form>
           )}
 
           {step === "channel" && (
