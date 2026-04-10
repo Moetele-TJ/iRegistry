@@ -22,29 +22,34 @@ export default function SidebarItem({
         onNavigate?.();
       }}
       className={({ isActive }) => {
-        const base = "group flex items-center rounded-xl transition-colors duration-200";
-        const layout = expanded ? "justify-start gap-3 px-3 py-2" : "justify-center px-2 py-1.5";
+        const base =
+          "group flex items-center justify-start gap-3 rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5";
         const bg = expanded
-          ? (isActive ? "bg-white/20 font-semibold" : "hover:bg-white/10")
+          ? isActive
+            ? "bg-white/20 font-semibold"
+            : "hover:bg-white/10"
           : "hover:bg-white/10";
-        return `${base} ${layout} ${bg}`;
+        return `${base} ${bg}`;
       }}
     >
       {({ isActive }) => (
         <>
-          {/* Icon (always visible) */}
+          {/* Fixed icon column: same left edge + same box in collapsed vs expanded */}
           <span
             className={[
-              "shrink-0 flex items-center justify-center rounded-xl",
-              expanded ? "w-5 h-5" : "w-10 h-10",
+              "shrink-0 flex w-10 h-10 items-center justify-center rounded-xl",
               !expanded && isActive ? "bg-white/20" : "",
             ].join(" ")}
           >
-            {icon}
+            <span className="flex h-5 w-5 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
+              {icon}
+            </span>
           </span>
 
           {/* Label (auto-hide/show) */}
-          {expanded && <span className="whitespace-nowrap">{label}</span>}
+          {expanded ? (
+            <span className="min-w-0 flex-1 truncate text-left whitespace-nowrap">{label}</span>
+          ) : null}
         </>
       )}
     </NavLink>

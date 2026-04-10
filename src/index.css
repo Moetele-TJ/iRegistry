@@ -29,7 +29,8 @@
 /* Mobile: reduce sidebar offset so content uses more width */
 @media (max-width: 640px) {
   :root {
-    --app-sidebar-collapsed-w: 48px; /* enough room for 20px icons */
+    /* px-2 (8+8) + w-10 icon column (40) = 56px; keeps icons aligned with expanded state */
+    --app-sidebar-collapsed-w: 56px;
     --app-sidebar-expanded-w: 160px; /* Slightly narrower than desktop */
     --app-sidebar-gutter: 0px;
   }
