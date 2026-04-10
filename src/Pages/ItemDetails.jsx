@@ -702,7 +702,7 @@ export default function ItemDetails() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="p-6 sm:p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left: photos — read-only for guests; owners/admins can add, reorder, remove */}
@@ -1071,17 +1071,13 @@ export default function ItemDetails() {
               </div>
             </div>
           </div>
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-4">
+              Activity Timeline
+            </h2>
+            <ItemActivityTimeline events={activity} />
+          </div>
         </div>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-        <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-4">
-          Activity Timeline
-        </h2>
-
-        <ItemActivityTimeline events={activity} />
-
       </div>
 
       {/* ConfirmModal (shared component) */}
