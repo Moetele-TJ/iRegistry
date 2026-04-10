@@ -15,10 +15,14 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await supabase.functions.invoke(name, {
-    ...options,
-    headers,
-  });
+  async function doInvoke(h) {
+    return await supabase.functions.invoke(name, {
+      ...options,
+      headers: h,
+    });
+  }
+
+  const response = await doInvoke(headers);
 
   const { data, error } = response || {};
 
@@ -28,6 +32,33 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
   const hasAuthHeader = !!headers?.Authorization || !!headers?.authorization;
 
   if (error?.context?.status === 401 && (withAuth || hasAuthHeader)) {
+    // Token rotation race safety:
+    // If another request/tab refreshed localStorage.session since this request started,
+    // retry once with the latest token instead of logging out.
+    try {
+      const sent = String(headers.Authorization || headers.authorization || "");
+      const sentToken = sent.startsWith("Bearer ") ? sent.slice("Bearer ".length) : "";
+      const latestToken = localStorage.getItem("session") || "";
+      if (latestToken && sentToken && latestToken !== sentToken) {
+        const retryHeaders = {
+          ...headers,
+          Authorization: `Bearer ${latestToken}`,
+        };
+        const retryRes = await doInvoke(retryHeaders);
+        const { data: retryData, error: retryError } = retryRes || {};
+        if (!retryError) {
+          if (retryData?.session_token) {
+            localStorage.setItem("session", retryData.session_token);
+            emitSessionTokenRefreshed(retryData.session_token);
+          }
+          return retryRes;
+        }
+        // fall through to logout below if retry still 401 or other failure
+      }
+    } catch {
+      /* ignore and continue to logout */
+    }
+
     localStorage.removeItem("session");
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
