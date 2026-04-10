@@ -1,5 +1,5 @@
 // src/Pages/ProfilePage.jsx
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
@@ -54,10 +54,21 @@ function initials(user) {
   return e.toUpperCase();
 }
 
+function getDeviceId() {
+  try {
+    const k = "ireg_device_id";
+    const existing = localStorage.getItem(k);
+    if (existing && typeof existing === "string" && existing.length >= 8) return existing;
+    return "";
+  } catch {
+    return "";
+  }
+}
+
 function Card({ title, icon: Icon, children, className = "" }) {
   return (
     <section
-      className={`bg-white rounded-2xl border border-gray-100/80 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden ${className}`}
+      className={`bg-white rounded-2xl border border-gray-100/80 shadow-md hover:shadow-xl transition-[box-shadow,transform] duration-300 overflow-hidden will-change-transform hover:-translate-y-[1px] ${className}`}
     >
       <div className="flex items-center gap-2 px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-white">
         {Icon && (
@@ -67,7 +78,7 @@ function Card({ title, icon: Icon, children, className = "" }) {
         )}
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-800">{title}</h2>
       </div>
-      <div className="p-5 sm:p-6">{children}</div>
+      <div className="p-5 sm:p-6 bg-gradient-to-b from-white to-gray-50/40">{children}</div>
     </section>
   );
 }
@@ -107,6 +118,33 @@ export default function ProfilePage() {
   });
 
   useAdminSidebar({ visible: !!user && user.role === "admin" });
+
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState("");
+
+  async function loadSessions() {
+    setSessionsLoading(true);
+    setSessionsError("");
+    try {
+      const { data, error } = await invokeWithAuth("self-sessions", { body: { action: "list" } });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to load sessions");
+      }
+      setSessions(Array.isArray(data.sessions) ? data.sessions : []);
+    } catch (e) {
+      setSessions([]);
+      setSessionsError(e?.message || "Failed to load sessions");
+    } finally {
+      setSessionsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const openEdit = useCallback(() => {
     if (!user) return;
@@ -215,8 +253,40 @@ export default function ProfilePage() {
       addToast({ type: "success", message: data?.message || "Logged out other devices." });
       // Refresh profile so last_login_at (derived from sessions) stays accurate.
       await refreshUser();
+      await loadSessions();
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Could not log out other devices" });
+    }
+  }
+
+  async function revokeSession(sessionId) {
+    const ok = await confirm({
+      title: "Confirm",
+      message: "Revoke this session? The device will be logged out.",
+      confirmLabel: "Revoke session",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
+    setSessionsLoading(true);
+    setSessionsError("");
+    try {
+      const { data, error } = await invokeWithAuth("self-sessions", {
+        body: { action: "revoke", session_id: sessionId },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to revoke session");
+      }
+      addToast({ type: "success", message: data?.message || "Session revoked." });
+      await refreshUser();
+      await loadSessions();
+    } catch (e) {
+      const msg = e?.message || "Failed to revoke session";
+      setSessionsError(msg);
+      addToast({ type: "error", message: msg });
+    } finally {
+      setSessionsLoading(false);
     }
   }
 
@@ -529,12 +599,82 @@ export default function ProfilePage() {
               <div className="mt-5 flex flex-wrap gap-2">
                 <RippleButton
                   type="button"
-                  className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-slate-800 active:scale-[0.99] transition"
                   onClick={() => void logoutOtherDevices()}
                 >
                   Log out other devices
                 </RippleButton>
+                <RippleButton
+                  type="button"
+                  className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:shadow-md hover:bg-gray-50 transition"
+                  onClick={() => void loadSessions()}
+                  disabled={sessionsLoading}
+                >
+                  {sessionsLoading ? "Refreshing…" : "Refresh sessions"}
+                </RippleButton>
               </div>
+            </Card>
+
+            <Card title="Active sessions" icon={Clock}>
+              {sessionsError ? (
+                <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  {sessionsError}
+                </div>
+              ) : null}
+
+              {sessionsLoading && sessions.length === 0 ? (
+                <div className="text-sm text-gray-500">Loading sessions…</div>
+              ) : sessions.length === 0 ? (
+                <div className="text-sm text-gray-500">No active sessions found.</div>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((s) => {
+                    const thisDevice = s?.device_id && getDeviceId() && String(s.device_id) === String(getDeviceId());
+                    const id = s?.id ? String(s.id) : "";
+                    const ip = String(s?.ip_address || "").split(",")[0].trim();
+                    const ua = String(s?.user_agent || "");
+                    return (
+                      <div
+                        key={id || Math.random()}
+                        className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                              <span className="truncate">
+                                {thisDevice ? "This device" : (s?.device_name ? String(s.device_name) : "Session")}
+                              </span>
+                              {thisDevice ? (
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
+                                  current
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Started: {fmtDate(s?.created_at)} • Expires: {fmtDate(s?.expires_at)}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 break-words">
+                              {ip ? `IP: ${ip}` : "IP: —"}
+                              {ua ? ` • UA: ${ua.slice(0, 120)}` : ""}
+                            </div>
+                          </div>
+                          <div className="shrink-0">
+                            <RippleButton
+                              type="button"
+                              className="px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
+                              disabled={sessionsLoading || thisDevice}
+                              title={thisDevice ? "You cannot revoke your current session from this device." : "Revoke session"}
+                              onClick={() => void revokeSession(id)}
+                            >
+                              Revoke
+                            </RippleButton>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
 
             <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
