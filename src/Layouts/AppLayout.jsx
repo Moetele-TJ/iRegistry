@@ -32,7 +32,7 @@ function LayoutBody() {
       <main
         className={`bg-gray-100 pt-[var(--app-header-h)] pl-0 ${
           showSidebar
-            ? "sm:pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
+            ? "pl-[calc(var(--app-sidebar-collapsed-w)-1px)] sm:pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
             : ""
         }`}
       >
