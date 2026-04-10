@@ -606,21 +606,43 @@ export default function ProfilePage() {
               icon={Clock}
               actions={
                 <>
-                  <RippleButton
-                    type="button"
-                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[0.99] transition"
-                    onClick={() => void logoutOtherDevices()}
-                  >
-                    Log out other devices
-                  </RippleButton>
-                  <RippleButton
-                    type="button"
-                    className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
-                    onClick={() => void loadSessions()}
+                  {/* Mobile: compact actions dropdown */}
+                  <select
+                    className="sm:hidden rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm font-semibold px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    value=""
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      // reset immediately so the same option can be selected again
+                      e.target.value = "";
+                      if (v === "logout_other") void logoutOtherDevices();
+                      if (v === "refresh") void loadSessions();
+                    }}
                     disabled={sessionsLoading}
+                    aria-label="Manage sessions"
                   >
-                    {sessionsLoading ? "Refreshing…" : "Refresh"}
-                  </RippleButton>
+                    <option value="">Manage sessions…</option>
+                    <option value="logout_other">Log out other devices</option>
+                    <option value="refresh">Refresh</option>
+                  </select>
+
+                  {/* Desktop: buttons */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <RippleButton
+                      type="button"
+                      className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[0.99] transition"
+                      onClick={() => void logoutOtherDevices()}
+                    >
+                      Log out other devices
+                    </RippleButton>
+                    <RippleButton
+                      type="button"
+                      className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
+                      onClick={() => void loadSessions()}
+                      disabled={sessionsLoading}
+                    >
+                      {sessionsLoading ? "Refreshing…" : "Refresh"}
+                    </RippleButton>
+                  </div>
                 </>
               }
             >
