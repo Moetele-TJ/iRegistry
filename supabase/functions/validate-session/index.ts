@@ -64,7 +64,6 @@ serve(async (req) => {
         village,
         ward,
         police_station,
-        last_login_at,
         user_credits(balance)
       `,
       )
@@ -110,9 +109,22 @@ serve(async (req) => {
         ? (user as any).user_credits.balance
         : 0;
 
+    const { data: lastSessionRow } = await supabase
+      .from("session_last_login")
+      .select("last_login_at")
+      .eq("user_id", session.user_id)
+      .limit(1)
+      .maybeSingle();
+
+    const last_login_at =
+      typeof (lastSessionRow as any)?.last_login_at === "string"
+        ? (lastSessionRow as any).last_login_at
+        : null;
+
     const normalizedUser = {
       ...(user as any),
       credit_balance,
+      last_login_at,
     };
     delete (normalizedUser as any).user_credits;
 
