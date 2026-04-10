@@ -52,10 +52,15 @@ serve(async (req) => {
     );
   }
 
-  //check if user already has an existing valid otp before sending a new one
+  const deviceId = typeof body?.device_id === "string" ? body.device_id.trim() : "";
+  const deviceName = typeof body?.device_name === "string" ? body.device_name.trim() : "";
+
+  // Check if user already has an existing valid OTP before sending a new one.
+  // IMPORTANT: Only reuse when the OTP was generated for THIS device.
+  // Otherwise, a user logging in on a second device could be blocked from receiving an OTP.
   const { data: existingOtp } = await supabase
     .from("login_otps")
-    .select("id, expires_at, attempts")
+    .select("id, expires_at, attempts, channel, device_id")
     .eq("user_id", body.user_id)
     .eq("used", false)
     .order("created_at", { ascending: false })
@@ -65,12 +70,14 @@ serve(async (req) => {
   if (
     existingOtp &&
     new Date(existingOtp.expires_at) > new Date() &&
-    existingOtp.attempts < 3
+    existingOtp.attempts < 3 &&
+    deviceId &&
+    String(existingOtp.device_id || "") === deviceId
   ) {
     return respond({
         success: true,
         diag: "OTP-EXIST",
-        message: "A verification code has already been sent. Please enter it.",
+        message: "A verification code has already been sent to this device. Please enter it.",
         reuse: true,
       },
       corsHeaders,
@@ -104,6 +111,8 @@ serve(async (req) => {
     user_id: body.user_id,
     otp_hash: otpHash,
     channel: body.channel,
+    device_id: deviceId || null,
+    device_name: deviceName || null,
     
     ...(body.channel ==="sms" && {contact: user.phone}),
     ...(body.channel ==="email" && {contact: user.email}),

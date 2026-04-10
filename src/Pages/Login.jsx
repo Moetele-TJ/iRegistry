@@ -224,6 +224,8 @@ export default function Login() {
     const { data, error: channelError } = await invokePublicFn("dispatch-otp", {
       user_id: userId,
       channel,
+      device_id: getDeviceId() || undefined,
+      device_name: getDeviceName() || undefined,
     });
 
     if (channelError || !data) {
