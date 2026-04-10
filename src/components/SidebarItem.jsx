@@ -23,13 +23,14 @@ export default function SidebarItem({
       }}
       className={({ isActive }) => {
         const base =
-          "group flex items-center justify-start gap-3 rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5";
+          "group flex w-full items-center rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5";
+        const layout = expanded ? "justify-start gap-3" : "justify-center";
         const bg = expanded
           ? isActive
             ? "bg-white/20 font-semibold"
             : "hover:bg-white/10"
           : "hover:bg-white/10";
-        return `${base} ${bg}`;
+        return `${base} ${layout} ${bg}`;
       }}
     >
       {({ isActive }) => (
