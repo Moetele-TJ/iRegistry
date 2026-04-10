@@ -4,7 +4,6 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate } from "react-router-dom";
-import { useAdminSidebar } from "../hooks/useAdminSidebar.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import {
@@ -119,8 +118,6 @@ export default function ProfilePage() {
     ward: "",
     police_station: "",
   });
-
-  useAdminSidebar({ visible: !!user && user.role === "admin" });
 
   const [sessions, setSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);

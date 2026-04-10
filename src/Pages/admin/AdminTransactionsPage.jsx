@@ -4,7 +4,6 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -29,7 +28,6 @@ function fmtMoney(currency, amount) {
 }
 
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
-  useAdminSidebar({ visible: showSidebar });
   const { addToast } = useToast();
 
   const REVERSAL_REASONS = useMemo(
