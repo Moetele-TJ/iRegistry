@@ -65,18 +65,21 @@ function getDeviceId() {
   }
 }
 
-function Card({ title, icon: Icon, children, className = "" }) {
+function Card({ title, icon: Icon, actions, children, className = "" }) {
   return (
     <section
       className={`bg-white rounded-2xl border border-gray-100/80 shadow-md hover:shadow-xl transition-[box-shadow,transform] duration-300 overflow-hidden will-change-transform hover:-translate-y-[1px] ${className}`}
     >
-      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-white">
-        {Icon && (
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-iregistrygreen/10 text-iregistrygreen">
-            <Icon size={18} strokeWidth={2} />
-          </span>
-        )}
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-800">{title}</h2>
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-white">
+        <div className="flex items-center gap-2 min-w-0">
+          {Icon && (
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-iregistrygreen/10 text-iregistrygreen">
+              <Icon size={18} strokeWidth={2} />
+            </span>
+          )}
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-800 truncate">{title}</h2>
+        </div>
+        {actions ? <div className="flex items-center gap-2 shrink-0">{actions}</div> : null}
       </div>
       <div className="p-5 sm:p-6 bg-gradient-to-b from-white to-gray-50/40">{children}</div>
     </section>
@@ -598,28 +601,31 @@ export default function ProfilePage() {
               </div>
             </Card>
 
-            <Card title="Active sessions" icon={Clock}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                <div className="text-sm text-gray-500">
-                  Manage where you’re currently signed in.
-                </div>
-                <div className="flex flex-wrap gap-2">
+            <Card
+              title="Active sessions"
+              icon={Clock}
+              actions={
+                <>
                   <RippleButton
                     type="button"
-                    className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-slate-800 active:scale-[0.99] transition"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[0.99] transition"
                     onClick={() => void logoutOtherDevices()}
                   >
                     Log out other devices
                   </RippleButton>
                   <RippleButton
                     type="button"
-                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:shadow-md hover:bg-gray-50 transition"
+                    className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
                     onClick={() => void loadSessions()}
                     disabled={sessionsLoading}
                   >
-                    {sessionsLoading ? "Refreshing…" : "Refresh sessions"}
+                    {sessionsLoading ? "Refreshing…" : "Refresh"}
                   </RippleButton>
-                </div>
+                </>
+              }
+            >
+              <div className="text-sm text-gray-500 mb-4">
+                Manage where you’re currently signed in.
               </div>
               {sessionsError ? (
                 <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
