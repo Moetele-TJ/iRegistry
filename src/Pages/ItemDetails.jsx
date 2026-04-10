@@ -702,380 +702,388 @@ export default function ItemDetails() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Left: photos — read-only for guests; owners/admins can add, reorder, remove */}
-            <div className="md:w-1/3 flex flex-col items-center justify-center gap-3">
-              <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handlePhotoInputChange}
-              />
-
-              {canManagePhotos ? (
-                <>
-                  <div
-                    className={`relative w-48 h-48 rounded-lg border-2 overflow-hidden cursor-pointer transition-colors ${
-                      dragActive
-                        ? "border-iregistrygreen bg-emerald-50"
-                        : "border-gray-200 bg-gray-50 hover:border-iregistrygreen/50"
-                    } ${isUploading ? "cursor-wait" : ""}`}
-                    onDragEnter={handleDragZone}
-                    onDragLeave={handleDragZone}
-                    onDragOver={handleDragZone}
-                    onDrop={handleDropFiles}
-                    onClick={openPhotoPicker}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openPhotoPicker();
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Add photos — click or drop images here"
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+          {/* Header */}
+          <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/70 to-white">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-iregistrygreen truncate">
+                    {item.name || "Untitled"}
+                  </h1>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${
+                      item.status === "Stolen"
+                        ? "bg-red-50 text-red-700 border-red-100"
+                        : "bg-emerald-50 text-emerald-800 border-emerald-100"
+                    }`}
                   >
-                    {mainPhotoSrc ? (
-                      <img
-                        src={mainPhotoSrc}
-                        alt={item.name || "Item photo"}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = "";
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 px-2 text-center">
-                        <div className="text-3xl mb-1">＋</div>
-                        <span className="text-xs leading-tight">
-                          Add photos
-                          <br />
-                          <span className="text-[10px] text-gray-400">click or drop</span>
-                        </span>
-                      </div>
-                    )}
-                    {isUploading && (
-                      <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center text-white text-xs px-2">
-                        <div className="w-[90%] bg-white/25 rounded-full h-1.5 mb-2 overflow-hidden">
-                          <div
-                            className="bg-iregistrygreen h-1.5 rounded-full transition-all"
-                            style={{ width: `${uploadProgress}%` }}
-                          />
-                        </div>
-                        <span>
-                          Uploading {currentUpload}/{totalUploads}
-                        </span>
-                        <button
-                          type="button"
-                          className="mt-2 text-[11px] underline text-white/90"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            cancelUpload();
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                    {!isUploading && photoRoom > 0 && (
-                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[10px] text-center py-1 px-1">
-                        {photosNormalized.length === 0 ? "Add up to 5 photos" : `${photoRoom} slot(s) left`}
-                      </div>
-                    )}
-                  </div>
-
-                  {(thumbPhotoUrls.length > 0 || photoRoom < MAX_PHOTOS) && (
-                    <div className="w-full max-w-[13rem]">
-                      {thumbPhotoUrls.length > 0 && (
-                        <p className="text-[10px] text-gray-500 text-center mb-1">
-                          Drag thumbnails to reorder · first = main
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {thumbPhotoUrls.map((url, i) => (
-                          <div
-                            key={`${url}-${i}`}
-                            draggable
-                            onDragStart={(e) => e.dataTransfer.setData("exIndex", String(i))}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                              const from = Number(e.dataTransfer.getData("exIndex"));
-                              if (!Number.isNaN(from)) requestPhotoReorder(from, i);
-                            }}
-                            className="relative group"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => setPhotoIndex(i)}
-                              className={`w-11 h-11 rounded-md overflow-hidden border-2 shrink-0 block ${
-                                photoIndex === i
-                                  ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
-                                  : "border-gray-200 opacity-90 hover:opacity-100"
-                              }`}
-                            >
-                              <img src={url} alt="" className="w-full h-full object-cover" />
-                            </button>
-                            {i === 0 && (
-                              <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800/85 text-white px-1 rounded whitespace-nowrap">
-                                Main
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              title="Remove photo"
-                              className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-[10px] leading-5 opacity-0 group-hover:opacity-100 transition shadow"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                requestPhotoRemove(i);
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {mainPhotoSrc ? (
-                    <img
-                      src={mainPhotoSrc}
-                      alt={item.name || "Item photo"}
-                      className="w-48 h-48 object-cover rounded-lg border border-gray-200"
-                      onError={(e) => {
-                        e.currentTarget.src = "";
-                      }}
-                    />
-                  ) : (
-                    <div className="w-48 h-48 bg-gray-50 rounded-lg border flex items-center justify-center text-gray-400">
-                      <div className="text-4xl">☁</div>
-                    </div>
-                  )}
-                  {thumbPhotoUrls.length > 1 && (
-                    <div className="flex flex-wrap gap-2 justify-center max-w-[12.5rem]">
-                      {thumbPhotoUrls.map((url, i) => (
-                        <button
-                          key={url + i}
-                          type="button"
-                          onClick={() => setPhotoIndex(i)}
-                          className={`w-11 h-11 rounded-md overflow-hidden border-2 shrink-0 ${
-                            photoIndex === i
-                              ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
-                              : "border-gray-200 opacity-80 hover:opacity-100"
-                          }`}
-                        >
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Right: details */}
-            <div className="md:w-2/3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-2xl font-extrabold text-iregistrygreen">{item.name || "Untitled"}</h1>
-                  <div className="text-sm text-gray-500">Serial: {item.serial1 || "—"}</div>
-                </div>
-
-                <div className="flex gap-3 mt-1">
-                  <RippleButton
-                    className="px-4 py-2 rounded border bg-white text-sm"
-                    onClick={() => navigate("/items")}
-                  >
-                    Back
-                  </RippleButton>
-
-                  {user?.role === "admin" ? (
-                    <RippleButton
-                      className="px-4 py-2 rounded bg-amber-500 text-white text-sm"
-                      onClick={openTransferOwnershipModal}
-                    >
-                      Transfer ownership
-                    </RippleButton>
-                  ) : null}
-
-                  <RippleButton
-                    className="px-4 py-2 rounded bg-iregistrygreen text-white text-sm"
-                    onClick={() => navigate(`/items/${item.slug}/edit`)}
-                  >
-                    Edit
-                  </RippleButton>
-
-                  <RippleButton
-                    className="px-4 py-2 rounded bg-red-600 text-white text-sm"
-                    onClick={openDeleteModal}
-                  >
-                    Delete
-                  </RippleButton>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-xs text-gray-500">Category</div>
-                  <div className="text-gray-800">{item.category || "—"}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Status</div>
-                  <div className={`font-semibold ${item.status === "Stolen" ? "text-red-600" : "text-green-600"}`}>
                     {item.status || "—"}
-                  </div>
+                  </span>
+                  {item.category ? (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-100">
+                      {item.category}
+                    </span>
+                  ) : null}
                 </div>
-
-                {item.status === "Stolen" && (
-                  <div className="sm:col-span-2">
-                    {policeCaseLoading && (
-                      <p className="text-xs text-gray-400">Loading police case…</p>
-                    )}
-                    {!policeCaseLoading && policeCaseDetail && (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4 space-y-2 text-sm">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                          Police recovery case
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-800">
-                          <div>
-                            <span className="text-gray-500 text-xs">Case status</span>
-                            <div className="font-medium">
-                              {formatPoliceCaseStatusLabel(policeCaseDetail.status)}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-gray-500 text-xs">Reporting station</span>
-                            <div>{policeCaseDetail.station || "—"}</div>
-                          </div>
-                          {policeCaseDetail.openedAt && (
-                            <div>
-                              <span className="text-gray-500 text-xs">Opened</span>
-                              <div>{fmtDate(policeCaseDetail.openedAt)}</div>
-                            </div>
-                          )}
-                          {policeCaseDetail.clearedAt && (
-                            <div>
-                              <span className="text-gray-500 text-xs">Cleared for return</span>
-                              <div>{fmtDate(policeCaseDetail.clearedAt)}</div>
-                            </div>
-                          )}
-                        </div>
-                        {policeCaseDetail.notes && (
-                          <div>
-                            <div className="text-gray-500 text-xs mb-0.5">Case notes</div>
-                            <div className="text-gray-800 whitespace-pre-wrap text-sm border-t border-slate-200/80 pt-2">
-                              {policeCaseDetail.notes}
-                            </div>
-                          </div>
-                        )}
-                        {policeCaseDetail.evidence &&
-                          typeof policeCaseDetail.evidence === "object" && (
-                            <div>
-                              <div className="text-gray-500 text-xs mb-0.5">Evidence (record)</div>
-                              <pre className="text-xs bg-white/80 border border-slate-100 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap font-mono text-gray-700">
-                                {JSON.stringify(policeCaseDetail.evidence, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                      </div>
-                    )}
-                    {!policeCaseLoading && !policeCaseDetail && user && (
-                      <p className="text-xs text-gray-400">
-                        No open police case on file, or you don&apos;t have access to case details.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <div className="text-xs text-gray-500">Make / Model</div>
-                  <div className="text-gray-800">
-                    {(item.make || "") + (item.model ? ` / ${item.model}` : "") || "—"}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Last seen / Purchase date</div>
-                  <div className="text-gray-800">{item.lastSeen || item.purchaseDate || "—"}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Town/Village</div>
-                  <div className="text-gray-800">{item.village || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Ward/Street</div>
-                  <div className="text-gray-800">{item.ward || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Nearest police station</div>
-                  <div className="text-gray-800">
-                    {item.station || item.location || "—"}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Estimated value</div>
-                  <div className="text-gray-800">{item.value || item.estimatedValue || "—"}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Serial 1</div>
-                  <div className="text-gray-800">{item.serial1 || "—"}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Serial 2</div>
-                  <div className="text-gray-800">{item.serial2 || "—"}</div>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <div className="text-xs text-gray-500">Notes / Owner Info</div>
-                  <div className="text-gray-800 whitespace-pre-wrap">{item.ownerInfo || item.notes || "—"}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Bought from (Shop)</div>
-                  <div className="text-gray-800">{item.shop || "—"}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500">Warranty expiry</div>
-                  <div className="text-gray-800">{item.warrantyExpiry || "—"}</div>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <div className="text-xs text-gray-500">Description</div>
-                  <div className="text-gray-800 whitespace-pre-wrap">{item.description || "—"}</div>
+                <div className="mt-1 text-sm text-gray-600">
+                  Serial: <span className="font-medium text-gray-800">{item.serial1 || "—"}</span>
+                  <span className="mx-2 text-gray-300">|</span>
+                  Updated: <span className="font-medium text-gray-800">{fmtDate(item.updatedOn) || "—"}</span>
                 </div>
               </div>
 
-              <hr className="my-6" />
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <RippleButton
+                  className="px-4 py-2 rounded-xl border bg-white text-sm"
+                  onClick={() => navigate("/items")}
+                >
+                  Back
+                </RippleButton>
 
-              <div className="text-xs text-gray-500 grid grid-cols-2 gap-4">
-                <div>
-                  <div>Created on</div>
-                  <div className="text-gray-700">{fmtDate(item.createdOn)}</div>
-                </div>
-                <div>
-                  <div>Updated on</div>
-                  <div className="text-gray-700">{fmtDate(item.updatedOn)}</div>
-                </div>
+                {user?.role === "admin" ? (
+                  <RippleButton
+                    className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm"
+                    onClick={openTransferOwnershipModal}
+                  >
+                    Transfer ownership
+                  </RippleButton>
+                ) : null}
+
+                <RippleButton
+                  className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm"
+                  onClick={() => navigate(`/items/${item.slug}/edit`)}
+                >
+                  Edit
+                </RippleButton>
+
+                <RippleButton
+                  className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm"
+                  onClick={openDeleteModal}
+                >
+                  Delete
+                </RippleButton>
               </div>
             </div>
           </div>
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <h2 className="text-sm uppercase tracking-wide text-gray-500 mb-4">
-              Activity Timeline
-            </h2>
-            <ItemActivityTimeline events={activity} />
+
+          {/* Body */}
+          <div className="p-5 sm:p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Media + quick facts */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                    Photos
+                  </div>
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handlePhotoInputChange}
+                    />
+
+                    {canManagePhotos ? (
+                      <>
+                        <div
+                          className={`relative w-full max-w-[22rem] aspect-square rounded-2xl border-2 overflow-hidden cursor-pointer transition-colors ${
+                            dragActive
+                              ? "border-iregistrygreen bg-emerald-50"
+                              : "border-gray-200 bg-gray-50 hover:border-iregistrygreen/50"
+                          } ${isUploading ? "cursor-wait" : ""}`}
+                          onDragEnter={handleDragZone}
+                          onDragLeave={handleDragZone}
+                          onDragOver={handleDragZone}
+                          onDrop={handleDropFiles}
+                          onClick={openPhotoPicker}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              openPhotoPicker();
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Add photos — click or drop images here"
+                        >
+                          {mainPhotoSrc ? (
+                            <img
+                              src={mainPhotoSrc}
+                              alt={item.name || "Item photo"}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "";
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 px-2 text-center">
+                              <div className="text-3xl mb-1">＋</div>
+                              <span className="text-xs leading-tight">
+                                Add photos
+                                <br />
+                                <span className="text-[10px] text-gray-400">click or drop</span>
+                              </span>
+                            </div>
+                          )}
+                          {isUploading && (
+                            <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center text-white text-xs px-2">
+                              <div className="w-[90%] bg-white/25 rounded-full h-1.5 mb-2 overflow-hidden">
+                                <div
+                                  className="bg-iregistrygreen h-1.5 rounded-full transition-all"
+                                  style={{ width: `${uploadProgress}%` }}
+                                />
+                              </div>
+                              <span>
+                                Uploading {currentUpload}/{totalUploads}
+                              </span>
+                              <button
+                                type="button"
+                                className="mt-2 text-[11px] underline text-white/90"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  cancelUpload();
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                          {!isUploading && photoRoom > 0 && (
+                            <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[10px] text-center py-1 px-1">
+                              {photosNormalized.length === 0 ? "Add up to 5 photos" : `${photoRoom} slot(s) left`}
+                            </div>
+                          )}
+                        </div>
+
+                        {(thumbPhotoUrls.length > 0 || photoRoom < MAX_PHOTOS) && (
+                          <div className="w-full max-w-[22rem]">
+                            {thumbPhotoUrls.length > 0 && (
+                              <p className="text-[10px] text-gray-500 text-center mb-1">
+                                Drag thumbnails to reorder · first = main
+                              </p>
+                            )}
+                            <div className="flex flex-wrap gap-2 justify-center">
+                              {thumbPhotoUrls.map((url, i) => (
+                                <div
+                                  key={`${url}-${i}`}
+                                  draggable
+                                  onDragStart={(e) => e.dataTransfer.setData("exIndex", String(i))}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    const from = Number(e.dataTransfer.getData("exIndex"));
+                                    if (!Number.isNaN(from)) requestPhotoReorder(from, i);
+                                  }}
+                                  className="relative group"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => setPhotoIndex(i)}
+                                    className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 block ${
+                                      photoIndex === i
+                                        ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
+                                        : "border-gray-200 opacity-90 hover:opacity-100"
+                                    }`}
+                                  >
+                                    <img src={url} alt="" className="w-full h-full object-cover" />
+                                  </button>
+                                  {i === 0 && (
+                                    <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800/85 text-white px-1 rounded whitespace-nowrap">
+                                      Main
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    title="Remove photo"
+                                    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-[10px] leading-5 opacity-0 group-hover:opacity-100 transition shadow"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      requestPhotoRemove(i);
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {mainPhotoSrc ? (
+                          <img
+                            src={mainPhotoSrc}
+                            alt={item.name || "Item photo"}
+                            className="w-full max-w-[22rem] aspect-square object-cover rounded-2xl border border-gray-200"
+                            onError={(e) => {
+                              e.currentTarget.src = "";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full max-w-[22rem] aspect-square bg-gray-50 rounded-2xl border flex items-center justify-center text-gray-400">
+                            <div className="text-4xl">☁</div>
+                          </div>
+                        )}
+                        {thumbPhotoUrls.length > 1 && (
+                          <div className="flex flex-wrap gap-2 justify-center max-w-[22rem]">
+                            {thumbPhotoUrls.map((url, i) => (
+                              <button
+                                key={url + i}
+                                type="button"
+                                onClick={() => setPhotoIndex(i)}
+                                className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 ${
+                                  photoIndex === i
+                                    ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
+                                    : "border-gray-200 opacity-80 hover:opacity-100"
+                                }`}
+                              >
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                    Quick facts
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Make / Model</div>
+                      <div className="mt-0.5 font-semibold text-gray-900 truncate">
+                        {(item.make || "") + (item.model ? ` / ${item.model}` : "") || "—"}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Value</div>
+                      <div className="mt-0.5 font-semibold text-gray-900 truncate">
+                        {item.estimatedValue || item.value || "—"}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Last seen</div>
+                      <div className="mt-0.5 font-semibold text-gray-900 truncate">{item.lastSeen || "—"}</div>
+                    </div>
+                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Purchased</div>
+                      <div className="mt-0.5 font-semibold text-gray-900 truncate">{item.purchaseDate || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Details + activity */}
+              <div className="lg:col-span-7 space-y-4">
+                {item.status === "Stolen" ? (
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 shadow-sm p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-600 mb-3">
+                      Police recovery case
+                    </div>
+                    {policeCaseLoading ? (
+                      <p className="text-sm text-slate-500">Loading police case…</p>
+                    ) : policeCaseDetail ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-900">
+                        <div className="rounded-2xl bg-white/70 border border-slate-100 p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</div>
+                          <div className="mt-0.5 font-semibold">{formatPoliceCaseStatusLabel(policeCaseDetail.status)}</div>
+                        </div>
+                        <div className="rounded-2xl bg-white/70 border border-slate-100 p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Station</div>
+                          <div className="mt-0.5 font-semibold">{policeCaseDetail.station || "—"}</div>
+                        </div>
+                        {policeCaseDetail.openedAt ? (
+                          <div className="rounded-2xl bg-white/70 border border-slate-100 p-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Opened</div>
+                            <div className="mt-0.5 font-semibold">{fmtDate(policeCaseDetail.openedAt)}</div>
+                          </div>
+                        ) : null}
+                        {policeCaseDetail.clearedAt ? (
+                          <div className="rounded-2xl bg-white/70 border border-slate-100 p-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Cleared</div>
+                            <div className="mt-0.5 font-semibold">{fmtDate(policeCaseDetail.clearedAt)}</div>
+                          </div>
+                        ) : null}
+                        {policeCaseDetail.notes ? (
+                          <div className="sm:col-span-2 rounded-2xl bg-white/70 border border-slate-100 p-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Notes</div>
+                            <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{policeCaseDetail.notes}</div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : user ? (
+                      <p className="text-sm text-slate-500">
+                        No open police case on file, or you don&apos;t have access to case details.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                    Item details
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-xs text-gray-500">Town/Village</div>
+                      <div className="text-gray-900 font-medium">{item.village || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Ward/Street</div>
+                      <div className="text-gray-900 font-medium">{item.ward || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Nearest police station</div>
+                      <div className="text-gray-900 font-medium">{item.station || item.location || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Serial 2</div>
+                      <div className="text-gray-900 font-medium">{item.serial2 || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Bought from (Shop)</div>
+                      <div className="text-gray-900 font-medium">{item.shop || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Warranty expiry</div>
+                      <div className="text-gray-900 font-medium">{item.warrantyExpiry || "—"}</div>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <div className="text-xs text-gray-500">Notes</div>
+                      <div className="text-gray-900 whitespace-pre-wrap">{item.ownerInfo || item.notes || "—"}</div>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <div className="text-xs text-gray-500">Description</div>
+                      <div className="text-gray-900 whitespace-pre-wrap">{item.description || "—"}</div>
+                    </div>
+                    <div className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                      <div>
+                        <div className="text-xs text-gray-500">Created</div>
+                        <div className="text-gray-900 font-medium">{fmtDate(item.createdOn) || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Updated</div>
+                        <div className="text-gray-900 font-medium">{fmtDate(item.updatedOn) || "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                    Activity
+                  </div>
+                  <ItemActivityTimeline events={activity} />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
