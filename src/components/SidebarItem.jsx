@@ -21,22 +21,31 @@ export default function SidebarItem({
         }
         onNavigate?.();
       }}
-      className={({ isActive }) =>
-        `
-        flex items-center gap-3 px-3 py-2 rounded-lg
-        transition-colors duration-200
-        ${isActive ? "bg-white/20 font-semibold" : "hover:bg-white/10"}
-        `
-      }
+      className={({ isActive }) => {
+        const base = "group flex items-center rounded-xl transition-colors duration-200";
+        const layout = expanded ? "justify-start gap-3 px-3 py-2" : "justify-center px-2 py-1.5";
+        const bg = expanded
+          ? (isActive ? "bg-white/20 font-semibold" : "hover:bg-white/10")
+          : "hover:bg-white/10";
+        return `${base} ${layout} ${bg}`;
+      }}
     >
-      {/* Icon (always visible) */}
-      <span className="shrink-0">{icon}</span>
+      {({ isActive }) => (
+        <>
+          {/* Icon (always visible) */}
+          <span
+            className={[
+              "shrink-0 flex items-center justify-center rounded-xl",
+              expanded ? "w-5 h-5" : "w-10 h-10",
+              !expanded && isActive ? "bg-white/20" : "",
+            ].join(" ")}
+          >
+            {icon}
+          </span>
 
-      {/* Label (auto-hide/show) */}
-      {expanded && (
-        <span className="whitespace-nowrap">
-          {label}
-        </span>
+          {/* Label (auto-hide/show) */}
+          {expanded && <span className="whitespace-nowrap">{label}</span>}
+        </>
       )}
     </NavLink>
   );
