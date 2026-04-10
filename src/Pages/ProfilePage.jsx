@@ -596,26 +596,31 @@ export default function ProfilePage() {
                   </span>
                 </Field>
               </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <RippleButton
-                  type="button"
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-slate-800 active:scale-[0.99] transition"
-                  onClick={() => void logoutOtherDevices()}
-                >
-                  Log out other devices
-                </RippleButton>
-                <RippleButton
-                  type="button"
-                  className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:shadow-md hover:bg-gray-50 transition"
-                  onClick={() => void loadSessions()}
-                  disabled={sessionsLoading}
-                >
-                  {sessionsLoading ? "Refreshing…" : "Refresh sessions"}
-                </RippleButton>
-              </div>
             </Card>
 
             <Card title="Active sessions" icon={Clock}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                <div className="text-sm text-gray-500">
+                  Manage where you’re currently signed in.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <RippleButton
+                    type="button"
+                    className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-slate-800 active:scale-[0.99] transition"
+                    onClick={() => void logoutOtherDevices()}
+                  >
+                    Log out other devices
+                  </RippleButton>
+                  <RippleButton
+                    type="button"
+                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:shadow-md hover:bg-gray-50 transition"
+                    onClick={() => void loadSessions()}
+                    disabled={sessionsLoading}
+                  >
+                    {sessionsLoading ? "Refreshing…" : "Refresh sessions"}
+                  </RippleButton>
+                </div>
+              </div>
               {sessionsError ? (
                 <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
                   {sessionsError}
