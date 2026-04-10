@@ -7,6 +7,7 @@ import {
   Package,
   ReceiptText,
   Tag,
+  Users,
   UserCircle,
   Wallet,
 } from "lucide-react";
@@ -20,6 +21,7 @@ export function useCashierSidebar({ visible = true } = {}) {
       { to: "/cashierdashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/cashierdashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/cashierdashboard/items", icon: <Package size={20} />, label: "Items" },
+      { to: "/cashierdashboard/users", icon: <Users size={20} />, label: "Users" },
       { to: "/cashierdashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/cashierdashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
       { to: "/cashierdashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },

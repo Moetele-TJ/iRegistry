@@ -56,6 +56,7 @@ import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
 import CashierTransactionsPage from "./Pages/cashier/CashierTransactionsPage.jsx";
 import CashierPricingPage from "./Pages/cashier/CashierPricingPage.jsx";
 import CashierRevenuePage from "./Pages/cashier/CashierRevenuePage.jsx";
+import CashierUsersPage from "./Pages/cashier/CashierUsersPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -160,6 +161,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route index element={<CashierHome />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<CashierItemsPage />} />
+                    <Route path="users" element={<CashierUsersPage />} />
                     <Route path="topup" element={<CashierTopupPage />} />
                     <Route path="transactions" element={<CashierTransactionsPage />} />
                     <Route path="pricing" element={<CashierPricingPage />} />
