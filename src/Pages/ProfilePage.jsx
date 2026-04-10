@@ -1,5 +1,5 @@
 // src/Pages/ProfilePage.jsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
@@ -125,6 +125,8 @@ export default function ProfilePage() {
   const [sessions, setSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
+  const [mobileSessionsMenuOpen, setMobileSessionsMenuOpen] = useState(false);
+  const mobileSessionsMenuRef = useRef(null);
 
   async function loadSessions() {
     setSessionsLoading(true);
@@ -148,6 +150,21 @@ export default function ProfilePage() {
     void loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!mobileSessionsMenuOpen) return;
+    function onDown(e) {
+      const el = mobileSessionsMenuRef.current;
+      if (!el) return;
+      if (!el.contains(e.target)) setMobileSessionsMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+    };
+  }, [mobileSessionsMenuOpen]);
 
   const openEdit = useCallback(() => {
     if (!user) return;
@@ -606,24 +623,50 @@ export default function ProfilePage() {
               icon={Clock}
               actions={
                 <>
-                  {/* Mobile: compact actions dropdown */}
-                  <select
-                    className="sm:hidden rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm font-semibold px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                    value=""
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      // reset immediately so the same option can be selected again
-                      e.target.value = "";
-                      if (v === "logout_other") void logoutOtherDevices();
-                      if (v === "refresh") void loadSessions();
-                    }}
-                    disabled={sessionsLoading}
-                    aria-label="Manage sessions"
-                  >
-                    <option value="">Manage sessions…</option>
-                    <option value="logout_other">Log out other devices</option>
-                    <option value="refresh">Refresh</option>
-                  </select>
+                  {/* Mobile: compact actions menu (label is NOT an option) */}
+                  <div className="sm:hidden relative" ref={mobileSessionsMenuRef}>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm font-semibold px-3 py-2 shadow-sm hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
+                      onClick={() => setMobileSessionsMenuOpen((v) => !v)}
+                      disabled={sessionsLoading}
+                      aria-haspopup="menu"
+                      aria-expanded={mobileSessionsMenuOpen}
+                    >
+                      Manage sessions
+                      <span aria-hidden className="text-emerald-700">▾</span>
+                    </button>
+
+                    {mobileSessionsMenuOpen ? (
+                      <div
+                        role="menu"
+                        className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden z-[90]"
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="w-full text-left px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+                          onClick={() => {
+                            setMobileSessionsMenuOpen(false);
+                            void logoutOtherDevices();
+                          }}
+                        >
+                          Log out other devices
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="w-full text-left px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+                          onClick={() => {
+                            setMobileSessionsMenuOpen(false);
+                            void loadSessions();
+                          }}
+                        >
+                          Refresh
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
 
                   {/* Desktop: buttons */}
                   <div className="hidden sm:flex items-center gap-2">
