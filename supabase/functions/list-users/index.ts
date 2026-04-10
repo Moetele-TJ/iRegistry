@@ -42,7 +42,7 @@ serve(async (req) => {
     const { data: users, error } = await supabase
       .from("users")
       .select(
-        "id, first_name, last_name, id_number, phone, email, role, police_station, status, suspended_reason, suspended_at, user_credits(balance)",
+        "id, first_name, last_name, id_number, phone, email, role, police_station, status, suspended_reason, suspended_at, last_login_at, user_credits(balance)",
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false });

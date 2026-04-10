@@ -16,6 +16,15 @@ function displayName(u) {
   return full || u?.email || u?.id || "—";
 }
 
+function fmtDateTime(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return String(iso);
+  }
+}
+
 const ROLE_OPTIONS = [
   { value: "user", label: "User" },
   { value: "police", label: "Police" },
@@ -976,7 +985,7 @@ export default function AdminUsers() {
                         <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
                       </div>
                       <div className="text-xs text-gray-500">
-                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID / Passport: {u.id_number || "—"} • ID: {u.id}
+                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID / Passport: {u.id_number || "—"} • Last login: {fmtDateTime(u.last_login_at)} • ID: {u.id}
                         {u.police_station ? ` • Station: ${u.police_station}` : ""}
                       </div>
                       {u.suspended_reason && st !== "active" ? (
