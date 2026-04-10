@@ -269,7 +269,7 @@ export default function AdminUsers() {
     setForm({
       first_name: u.first_name || "",
       last_name: u.last_name || "",
-      id_number: "",
+      id_number: u.id_number || "",
       email: u.email || "",
       phone: u.phone || "",
       role: u.role || "user",
@@ -976,7 +976,7 @@ export default function AdminUsers() {
                         <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
                       </div>
                       <div className="text-xs text-gray-500">
-                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID: {u.id}
+                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID / Passport: {u.id_number || "—"} • ID: {u.id}
                         {u.police_station ? ` • Station: ${u.police_station}` : ""}
                       </div>
                       {u.suspended_reason && st !== "active" ? (
