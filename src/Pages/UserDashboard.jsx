@@ -7,6 +7,7 @@ import RecentActivityPanel from "../components/RecentActivityPanel";
 import PendingTransferRequests from "../components/PendingTransferRequests";
 import QuickActionsPanel from "../components/QuickActionsPanel";
 import DashboardAlertsPanel from "../components/DashboardAlertsPanel";
+import CreditsSummaryStrip from "../components/CreditsSummaryStrip.jsx";
 import { useDashboard } from "../hooks/useDashboard";
 
 function useCountUp(target = 0, duration = 800) {
@@ -72,6 +73,8 @@ export default function UserDashboard() {
             Here’s a snapshot of your asset portfolio
           </p>
         </div>
+
+        <CreditsSummaryStrip />
 
         {!loading && !hasItems && (
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 text-center">

@@ -9,6 +9,8 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
+import { useTaskPricing } from "../hooks/useTaskPricing.js";
+import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -128,6 +130,8 @@ export default function Items() {
 
   const { user } = useAuth();
   const role = user?.role;
+  const { getCost } = useTaskPricing();
+  const formatBilling = useBillingErrorMessage();
 
   // UI state
   const [query, setQuery] = useState("");
@@ -506,7 +510,7 @@ export default function Items() {
       }
     } catch (err) {
       setToast({
-        message: err.message || "Failed to update item",
+        message: formatBilling(err),
         type: "error",
         visible: true,
       });
@@ -542,9 +546,23 @@ export default function Items() {
     const next = it.status === "Stolen" ? "Active" : "Stolen";
 
     if (next === "Stolen") {
+      let stolenMsg = `Report "${it.name || it.id}" as stolen? A police case is opened for the station below.`;
+      if (!isPrivileged) {
+        const cost = getCost("MARK_STOLEN");
+        const bal = Number(user?.credit_balance ?? 0);
+        if (cost != null) {
+          stolenMsg += ` This costs ${cost} credits. Your balance: ${bal}.`;
+          if (bal < cost) {
+            stolenMsg += ` Add ${cost - bal} more credits (Credit pricing) before continuing.`;
+          }
+        }
+      } else {
+        stolenMsg +=
+          " As staff, this action typically does not charge your personal credits.";
+      }
       openConfirm({
         title: "Report stolen",
-        message: `Report "${it.name || it.id}" as stolen? A police case is opened for the station below.`,
+        message: stolenMsg,
         confirmLabel: "Mark Stolen",
         cancelLabel: "Cancel",
         danger: true,

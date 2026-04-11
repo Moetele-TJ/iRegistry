@@ -1,6 +1,10 @@
 //  src/components/PendingTransferRequests.jsx
 import { usePendingTransfers } from "../hooks/usePendingTransfers";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
+import { attachBillingToError } from "../lib/billingUx.js";
+import { useTaskPricing } from "../hooks/useTaskPricing.js";
+import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import RippleButton from "./RippleButton";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -10,6 +14,9 @@ export default function PendingTransferRequests() {
   const { data, loading, refresh } = usePendingTransfers();
   const { confirm } = useModal();
   const { addToast } = useToast();
+  const { user } = useAuth();
+  const { getCost } = useTaskPricing();
+  const formatBilling = useBillingErrorMessage();
   const [busyId, setBusyId] = useState("");
 
   if (loading) {
@@ -24,11 +31,24 @@ export default function PendingTransferRequests() {
 
   async function handleDecision(id, decision) {
     if (busyId) return;
+    let approveMsg =
+      "Approving will transfer ownership to the requester and may consume credits from your account.";
+    if (decision === "APPROVED") {
+      const cost = getCost("TRANSFER_OWNERSHIP");
+      const bal = Number(user?.credit_balance ?? 0);
+      if (cost != null) {
+        approveMsg += ` This step costs ${cost} credits. Your balance: ${bal}.`;
+        if (bal < cost) {
+          approveMsg += ` You need ${cost - bal} more credits — see Credit pricing or visit a cashier.`;
+        }
+      }
+    }
+
     const ok = await confirm({
       title: "Confirm",
       message:
         decision === "APPROVED"
-          ? "Approving will transfer ownership and may consume credits."
+          ? approveMsg
           : "Reject this transfer request?",
       confirmLabel: decision === "APPROVED" ? "Approve" : "Reject",
       cancelLabel: "Cancel",
@@ -44,14 +64,11 @@ export default function PendingTransferRequests() {
 
       if (error || !res?.success) {
         const msg = res?.message || error?.message || "Transfer action failed";
-        if (res?.billing?.required) {
-          addToast({
-            type: "error",
-            message: `${msg} (credits required: ${res?.billing?.task_code || "TRANSFER_OWNERSHIP"})`,
-          });
-        } else {
-          addToast({ type: "error", message: msg });
-        }
+        const e = attachBillingToError(new Error(msg), res);
+        addToast({
+          type: "error",
+          message: res?.billing?.required ? formatBilling(e) : msg,
+        });
         return;
       }
 

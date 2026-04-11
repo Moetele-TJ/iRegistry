@@ -1,5 +1,6 @@
 //src/contexts/ItemsContext.jsx
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { attachBillingToError } from "../lib/billingUx.js";
 import React, {
   createContext,
   useContext,
@@ -118,6 +119,8 @@ function normalizeFromDB(row) {
     deletedAt: row.deletedat,
 
     policeCase: normalizePoliceCase(row.police_case),
+
+    createdBy: row.created_by ?? row.createdby ?? null,
   };
 }
 
@@ -207,11 +210,14 @@ export function ItemsProvider({ children }) {
       });
 
       if (error) {
-        throw new Error(error.message || "Network error");
+        throw attachBillingToError(new Error(error.message || "Network error"), data);
       }
 
       if (!data?.success) {
-        throw new Error(data?.message || "Failed to create item");
+        throw attachBillingToError(
+          new Error(data?.message || "Failed to create item"),
+          data
+        );
       }
       
       const newItem = normalizeFromDB(data.item);
@@ -246,8 +252,9 @@ export function ItemsProvider({ children }) {
     );
 
     if (error || !data?.success) {
-      throw new Error(
-        data?.message || error?.message || "Failed to update item"
+      throw attachBillingToError(
+        new Error(data?.message || error?.message || "Failed to update item"),
+        data
       );
     }
 

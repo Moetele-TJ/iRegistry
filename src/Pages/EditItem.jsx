@@ -9,6 +9,10 @@ import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
 import { normalizePhotos } from "../utils/itemPhotos.js";
+import BillingCostBanner from "../components/BillingCostBanner.jsx";
+import { getEditItemPreviewCharges } from "../lib/billingUx.js";
+import { useTaskPricing } from "../hooks/useTaskPricing.js";
+import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -58,6 +62,8 @@ export default function EditItem() {
     deleteItem,
   } = useItems();
   const { user } = useAuth();
+  const { getCost } = useTaskPricing();
+  const formatBilling = useBillingErrorMessage();
 
   const [storedItem, setStoredItem] = useState(null);
   const [heldAtResidence, setHeldAtResidence] = useState(false);
@@ -99,6 +105,40 @@ export default function EditItem() {
   latestSerial1Ref.current = form.serial1;
 
   const requiredFields = ["category", "make", "model", "serial1", "station"];
+
+  const editPreviewCodes = useMemo(
+    () =>
+      getEditItemPreviewCharges({
+        storedItem,
+        form,
+        photoPreviews,
+        actorRole: user?.role,
+      }),
+    [storedItem, form, photoPreviews, user?.role]
+  );
+
+  const editConfirmNotes = useMemo(() => {
+    if (!storedItem) return "";
+    if (editPreviewCodes.length === 0) {
+      return " Based on your edits, no credit charge is expected for this save.";
+    }
+    let sum = 0;
+    let allKnown = true;
+    for (const c of editPreviewCodes) {
+      const n = getCost(c);
+      if (n == null) allKnown = false;
+      else sum += n;
+    }
+    const bal = Number(user?.credit_balance ?? 0);
+    if (allKnown) {
+      let t = ` Estimated charge (combined steps): ${sum} credits. Your balance: ${bal}.`;
+      if (bal < sum) {
+        t += ` Add ${sum - bal} credits before saving (Credit pricing).`;
+      }
+      return t;
+    }
+    return " This save may use credits for theft reports, new photos, or field edits — see the banner below.";
+  }, [storedItem, editPreviewCodes, getCost, user?.credit_balance]);
 
   useEffect(() => {
     return () => {
@@ -431,7 +471,7 @@ export default function EditItem() {
     try {
       const confirmed = await confirm({
         title: "Confirm",
-        message: "Save changes to this item? This will update the item record immediately.",
+        message: `Save changes to this item? This will update the item record immediately.${editConfirmNotes}`,
         confirmLabel: "Save changes",
         cancelLabel: "Cancel",
       }).catch(() => false);
@@ -599,7 +639,7 @@ export default function EditItem() {
       }
       await alert({
         title: "Could not save",
-        message: err.message || "Something went wrong.",
+        message: formatBilling(err),
         variant: "error",
       });
     } finally {
@@ -1013,6 +1053,12 @@ export default function EditItem() {
               </div>
             </div>
           )}
+
+          <BillingCostBanner
+            taskCodes={editPreviewCodes}
+            title="Credits for this save"
+            subtitle="Charges apply per step (mark stolen, new photos, or other field edits). Staff roles may be exempt."
+          />
 
           <div className="flex justify-end gap-3 pt-4">
             <RippleButton

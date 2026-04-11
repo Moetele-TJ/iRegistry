@@ -8,11 +8,52 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
+import BillingCostBanner from "../components/BillingCostBanner.jsx";
+import { useTaskPricing } from "../hooks/useTaskPricing.js";
+import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
   const { addItem, loading, items = [] } = useItems();
   const { user } = useAuth();
+  const { getCost } = useTaskPricing();
+  const formatBilling = useBillingErrorMessage();
+
+  const privilegedActor = useMemo(
+    () => ["admin", "cashier"].includes(String(user?.role || "").toLowerCase()),
+    [user?.role]
+  );
+  const createdByCount = useMemo(() => {
+    const uid = user?.id;
+    if (!uid) return 0;
+    return items.filter((it) => it.createdBy === uid).length;
+  }, [items, user?.id]);
+  const willChargeAddItem = !privilegedActor && createdByCount >= 2;
+
+  const addItemConfirmNotes = useMemo(() => {
+    if (privilegedActor) {
+      return " Staff registration — your account is not charged credits.";
+    }
+    if (!willChargeAddItem) {
+      return ` This will be free registration ${createdByCount + 1} of 2 included with your account.`;
+    }
+    const cost = getCost("ADD_ITEM");
+    const bal = Number(user?.credit_balance ?? 0);
+    if (cost != null) {
+      let t = ` This costs ${cost} credits. Your balance: ${bal}.`;
+      if (bal < cost) {
+        t += ` Add ${cost - bal} credits before continuing (Credit pricing in your dashboard).`;
+      }
+      return t;
+    }
+    return " Additional registrations require credits (see pricing).";
+  }, [
+    privilegedActor,
+    willChargeAddItem,
+    createdByCount,
+    getCost,
+    user?.credit_balance,
+  ]);
   const [serialError, setSerialError] = useState(null);
   const [serialCheckWarning, setSerialCheckWarning] = useState(null);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -404,7 +445,7 @@ export default function AddItem() {
     try {
       const confirmed = await confirm({
         title: "Confirm",
-        message: "Create this item now? This will create a new item record immediately.",
+        message: `Create this item now? This will create a new item record immediately.${addItemConfirmNotes}`,
         confirmLabel: "Create item",
         cancelLabel: "Cancel",
       }).catch(() => false);
@@ -603,7 +644,7 @@ export default function AddItem() {
 
       await alert({
         title: "Failed to Add Item",
-        message: err.message || "Something went wrong while processing this item.",
+        message: formatBilling(err),
         variant: "error",
       });
     }
@@ -968,6 +1009,18 @@ export default function AddItem() {
                 </button>
               </div>
             </div>
+          )}
+
+          {!privilegedActor && (
+            <BillingCostBanner
+              taskCodes={willChargeAddItem ? ["ADD_ITEM"] : []}
+              title="Registration & credits"
+              subtitle={
+                willChargeAddItem
+                  ? "You have used your 2 free lifetime registrations. This submission will charge credits."
+                  : "Your first 2 lifetime item registrations are free. Additional registrations use credits."
+              }
+            />
           )}
           
           {/* Actions */}

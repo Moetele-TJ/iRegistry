@@ -1,11 +1,14 @@
 //  📁 src/hooks/useNotifyOwner.js
 import { useState } from "react";
 import { invokeFn } from "../lib/invokeFn";
+import { attachBillingToError } from "../lib/billingUx.js";
+import { useBillingErrorMessage } from "./useBillingErrorMessage.js";
 
 export function useNotifyOwner() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const formatBilling = useBillingErrorMessage();
 
   async function notify({ serial, message, contact, notifyPolice }) {
     try {
@@ -30,19 +33,29 @@ export function useNotifyOwner() {
         );
         const { data: paidData, error: paidError } = paid || {};
         if (paidError || !paidData?.success) {
-          throw new Error(paidData?.message || "Failed to notify owner");
+          const e = attachBillingToError(
+            new Error(paidData?.message || paidError?.message || "Failed to notify owner"),
+            paidData
+          );
+          setError(formatBilling(e));
+          return;
         }
         setSuccess(true);
         return;
       }
 
       if (error || !data?.success) {
-        throw new Error(data?.message || "Failed to notify owner");
+        const e = attachBillingToError(
+          new Error(data?.message || error?.message || "Failed to notify owner"),
+          data
+        );
+        setError(formatBilling(e));
+        return;
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(err.message);
+      setError(formatBilling(err));
     } finally {
       setLoading(false);
     }
