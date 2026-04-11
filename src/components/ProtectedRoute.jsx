@@ -2,6 +2,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import Spinner from "./Spinner";
+import { normalizeRole } from "../lib/roleUtils.js";
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -21,11 +22,12 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     );
   }
 
-  if (
-    allowedRoles &&
-    !allowedRoles.includes(user.role)
-  ) {
-    return <Navigate to="/unauthorized" replace />;
+  if (allowedRoles?.length) {
+    const ur = normalizeRole(user.role);
+    const ok = allowedRoles.some((r) => normalizeRole(r) === ur);
+    if (!ok) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   return children;

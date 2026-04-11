@@ -7,6 +7,7 @@ import { normalizeSerial } from "../shared/serial.ts";
 import { respond } from "../shared/respond.ts";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -106,8 +107,7 @@ serve(async (req) => {
         .select("id, role")
         .eq("id", session.user_id)
         .maybeSingle();
-      const role = String((spender as any)?.role || "").toLowerCase();
-      privileged = role === "admin" || role === "cashier";
+      privileged = isPrivilegedRole((spender as any)?.role);
     }
 
     const applySpend = overFree && !privileged;

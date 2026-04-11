@@ -5,15 +5,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function roleOf(r: unknown) {
-  return String(r || "").toLowerCase();
-}
 
 function parseDateOnly(s: unknown) {
   const raw = String(s || "").trim();
@@ -34,9 +31,8 @@ serve(async (req) => {
     const session = await validateSession(supabase, auth);
     if (!session) return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
 
-    const role = roleOf(session.role);
-    const isAdmin = role === "admin";
-    const isCashier = role === "cashier";
+    const isAdmin = roleIs(session.role, "admin");
+    const isCashier = roleIs(session.role, "cashier");
     if (!isAdmin && !isCashier) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }

@@ -1,6 +1,7 @@
 // src/components/RoleRedirect.jsx
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { normalizeRole } from "../lib/roleUtils.js";
 
 export default function RoleRedirect() {
   const { user, loading } = useAuth();
@@ -26,18 +27,10 @@ export default function RoleRedirect() {
     );
   }
 
-  // Logged in → route by role
-  switch (user.role) {
-    case "admin":
-      return <Navigate to="/admindashboard" replace />;
-
-    case "police":
-      return <Navigate to="/policedashboard" replace />;
-
-    case "cashier":
-      return <Navigate to="/cashierdashboard" replace />;
-
-    default:
-      return <Navigate to="/userdashboard" replace />;
-  }
+  // Logged in → route by role (case-insensitive)
+  const r = normalizeRole(user.role);
+  if (r === "admin") return <Navigate to="/admindashboard" replace />;
+  if (r === "police") return <Navigate to="/policedashboard" replace />;
+  if (r === "cashier") return <Navigate to="/cashierdashboard" replace />;
+  return <Navigate to="/userdashboard" replace />;
 }

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Shield, Package, ClipboardList, ChevronRight } from "lucide-react";
 import { useDashboard } from "../../hooks/useDashboard.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { roleIs } from "../../lib/roleUtils.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
 
@@ -33,7 +34,7 @@ export default function PoliceHome() {
         <p className="text-sm text-gray-600 mt-1">
           Station queue and case activity use your profile&apos;s police station name.
         </p>
-        {user?.role === "admin" && (
+        {roleIs(user?.role, "admin") && (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
             You are signed in as <strong>admin</strong>. Station metrics below are for{" "}
             <strong>police</strong> accounts with a station on their profile.

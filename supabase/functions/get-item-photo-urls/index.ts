@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { isPrivilegedRole } from "../shared/roles.ts";
+import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
 
 const supabase = createClient(
@@ -90,11 +90,11 @@ serve(async (req) => {
     const actorUserId = session.user_id;
     const actorRole = session.role;
 
-    const canOwner = actorRole === "user" && item.ownerid === actorUserId;
+    const canOwner = roleIs(actorRole, "user") && item.ownerid === actorUserId;
     const canPrivileged = isPrivilegedRole(actorRole);
 
     let canPolice = false;
-    if (actorRole === "police") {
+    if (roleIs(actorRole, "police")) {
       const station = await getPoliceStation(supabase, actorUserId);
       if (station) {
         const { data: caseRow } = await supabase

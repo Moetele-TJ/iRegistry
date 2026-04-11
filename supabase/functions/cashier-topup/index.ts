@@ -5,6 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -16,14 +17,6 @@ const PACKAGES = [
   { id: "BWP_50", currency: "BWP", amount: 50.0, credits: 20 },
   { id: "BWP_100", currency: "BWP", amount: 100.0, credits: 50 },
 ] as const;
-
-function isCashier(role: unknown) {
-  return String(role || "").toLowerCase() === "cashier";
-}
-
-function isAdmin(role: unknown) {
-  return String(role || "").toLowerCase() === "admin";
-}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -40,7 +33,7 @@ serve(async (req) => {
       return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
     }
 
-    if (!isCashier(session.role) && !isAdmin(session.role)) {
+    if (!isPrivilegedRole(session.role)) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

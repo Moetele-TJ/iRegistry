@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { isPrivilegedRole } from "../shared/roles.ts";
+import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
 import { getPoliceCaseActivity } from "../shared/getPoliceCaseActivity.ts"
 
@@ -209,7 +209,7 @@ serve(async (req) => {
       };
     }
 
-    if (role === "cashier") {
+    if (roleIs(role, "cashier")) {
       const { count: activeUsers } = await supabase
         .from("users")
         .select("id", { count: "exact", head: true })
@@ -248,7 +248,7 @@ serve(async (req) => {
       };
     }
 
-    if (role === "police") {
+    if (roleIs(role, "police")) {
       const station = await getPoliceStation(supabase, userId);
 
       if (!station) {

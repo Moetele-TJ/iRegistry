@@ -5,15 +5,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function isAdmin(role: unknown) {
-  return String(role || "").toLowerCase() === "admin";
-}
 
 function normalizeCode(code: unknown) {
   return String(code || "")
@@ -35,7 +32,7 @@ serve(async (req) => {
     const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
     if (!session) return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-    if (!isAdmin(session.role)) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    if (!roleIs(session.role, "admin")) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
 
     const body = await req.json().catch(() => null);
     const { code, name, description, credits_cost, active } = body ?? {};

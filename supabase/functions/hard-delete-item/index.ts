@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logActivity } from "../shared/logActivity.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -79,7 +80,7 @@ serve(async (req) => {
     }
 
     const isOwner = item.ownerid === actorUserId;
-    const isAdmin = actorRole === "admin";
+    const isAdmin = roleIs(actorRole, "admin");
 
     if (!isOwner && !isAdmin) {
       return respond(

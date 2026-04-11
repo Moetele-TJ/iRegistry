@@ -114,8 +114,8 @@ serve(async (req) => {
       .select("id, role")
       .eq("id", existing.ownerid)
       .maybeSingle();
-    const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
-    const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
+    const ownerRole = (ownerRow as any)?.role;
+    const ownerIsPrivileged = isPrivilegedRole(ownerRole);
     const actorIsPrivileged = isPrivilegedRole(actorRole);
     const skipSpend = actorIsPrivileged || ownerIsPrivileged;
 

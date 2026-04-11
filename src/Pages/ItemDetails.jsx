@@ -22,6 +22,7 @@ import {
   isPrivilegedRole,
 } from "../lib/billingUx.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
+import { roleIs } from "../lib/roleUtils.js";
 
 const MAX_PHOTOS = 5;
 
@@ -171,9 +172,7 @@ export default function ItemDetails() {
   const canManagePhotos =
     !!user &&
     !!item &&
-    (user.role === "admin" ||
-      user.role === "cashier" ||
-      String(user.id) === String(item.ownerId));
+    (isPrivilegedRole(user.role) || String(user.id) === String(item.ownerId));
 
   useEffect(() => {
     const found = (items || []).find((it) => String(it.slug) === String(slug));
@@ -456,7 +455,7 @@ export default function ItemDetails() {
     let cancelled = false;
     async function loadOwners() {
       if (!transferOpen) return;
-      if (user?.role !== "admin") return;
+      if (!roleIs(user?.role, "admin")) return;
       setOwnerUsersLoading(true);
       try {
         const { data, error } = await invokeWithAuth("list-users");
@@ -466,7 +465,7 @@ export default function ItemDetails() {
         }
         const all = Array.isArray(data?.users) ? data.users : [];
         // "registered owner" = normal app users (exclude staff roles)
-        const owners = all.filter((u) => String(u?.role || "").toLowerCase() === "user");
+        const owners = all.filter((u) => roleIs(u?.role, "user"));
         setOwnerUsers(owners);
       } catch (e) {
         if (!cancelled) {
@@ -810,7 +809,7 @@ export default function ItemDetails() {
                   Back
                 </RippleButton>
 
-                {user?.role === "admin" ? (
+                {roleIs(user?.role, "admin") ? (
                   <RippleButton
                     className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm"
                     onClick={openTransferOwnershipModal}

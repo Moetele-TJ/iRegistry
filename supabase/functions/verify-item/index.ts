@@ -9,6 +9,7 @@ import { normalizeSerial } from "../shared/serial.ts";
 import { logActivity } from "../shared/logActivity.ts";
 import { checkRateLimit } from "../shared/rateLimit.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -184,8 +185,7 @@ serve(async (req) => {
         .select("id, role")
         .eq("id", session.user_id)
         .maybeSingle();
-      const role = String((spender as any)?.role || "").toLowerCase();
-      privileged = role === "admin" || role === "cashier";
+      privileged = isPrivilegedRole((spender as any)?.role);
     }
 
     const applySpend = overFree && !privileged;

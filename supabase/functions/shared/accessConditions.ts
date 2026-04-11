@@ -1,7 +1,7 @@
 //  📁 supabase/functions/shared/accessConditions.ts
 
 import { getPoliceStation } from "./getPoliceStation.ts";
-import { isPrivilegedRole } from "./roles.ts";
+import { isPrivilegedRole, roleIs } from "./roles.ts";
 
 export async function getAccessConditions(
   supabase: any,
@@ -23,7 +23,7 @@ export async function getAccessConditions(
 
   /* ================= USER ================= */
 
-  if (role === "user") {
+  if (roleIs(role, "user")) {
     return {
       ownerid: userId,
       deletedat: null,
@@ -32,7 +32,7 @@ export async function getAccessConditions(
 
   /* ================= POLICE ================= */
 
-  if (role === "police") {
+  if (roleIs(role, "police")) {
     // Default: same as a normal user — their own registered items.
     if (!opts?.policeStationStolenView) {
       return {

@@ -6,7 +6,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { isPrivilegedRole } from "../shared/roles.ts";
+import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -100,7 +100,7 @@ serve(async (req) => {
     if ("role" in updates) {
       const next = String(updates.role ?? "").trim().toLowerCase();
       // Only admins can change roles.
-      if (session.role !== "admin") {
+      if (!roleIs(session.role, "admin")) {
         return respond({ success: false, message: "Only admins can change roles" }, corsHeaders, 403);
       }
       if (!ALLOWED_ROLES.includes(next)) {
@@ -115,7 +115,7 @@ serve(async (req) => {
     if ("status" in updates) {
       const next = String(updates.status ?? "").trim().toLowerCase();
       // Only admins can change status.
-      if (session.role !== "admin") {
+      if (!roleIs(session.role, "admin")) {
         return respond({ success: false, message: "Only admins can change status" }, corsHeaders, 403);
       }
       if (!ALLOWED_STATUS.includes(next)) {

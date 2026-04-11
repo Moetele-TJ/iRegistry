@@ -18,6 +18,7 @@ import {
   Menu,
 } from "lucide-react";
 import ConfirmModal from "./ConfirmModal.jsx";
+import { roleIs } from "../lib/roleUtils.js";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -69,35 +70,35 @@ export default function Header() {
   const role = user?.role;
 
   function dashboardPath() {
-    if (role === "admin") return "/admindashboard";
-    if (role === "police") return "/policedashboard";
-    if (role === "cashier") return "/cashierdashboard";
-    if (role === "user") return "/userdashboard";
+    if (roleIs(role, "admin")) return "/admindashboard";
+    if (roleIs(role, "police")) return "/policedashboard";
+    if (roleIs(role, "cashier")) return "/cashierdashboard";
+    if (roleIs(role, "user")) return "/userdashboard";
     return "/";
   }
 
   function profilePath() {
-    if (role === "admin") return "/admindashboard/profile";
-    if (role === "police") return "/policedashboard/profile";
-    if (role === "cashier") return "/cashierdashboard/profile";
-    if (role === "user") return "/userdashboard/profile";
+    if (roleIs(role, "admin")) return "/admindashboard/profile";
+    if (roleIs(role, "police")) return "/policedashboard/profile";
+    if (roleIs(role, "cashier")) return "/cashierdashboard/profile";
+    if (roleIs(role, "user")) return "/userdashboard/profile";
     return "/profile";
   }
 
   /** Registry list route scoped to the same dashboard shell as the sidebar (avoids mismatched nav vs layout). */
   function itemsPath() {
-    if (role === "admin") return "/admindashboard/items";
-    if (role === "police") return "/policedashboard/items";
-    if (role === "cashier") return "/cashierdashboard/items";
-    if (role === "user") return "/userdashboard/items";
+    if (roleIs(role, "admin")) return "/admindashboard/items";
+    if (roleIs(role, "police")) return "/policedashboard/items";
+    if (roleIs(role, "cashier")) return "/cashierdashboard/items";
+    if (roleIs(role, "user")) return "/userdashboard/items";
     return "/items";
   }
 
   function notificationsPath() {
-    if (role === "admin") return "/admindashboard/notifications";
-    if (role === "police") return "/policedashboard/notifications";
-    if (role === "cashier") return "/cashierdashboard/notifications";
-    if (role === "user") return "/userdashboard/notifications";
+    if (roleIs(role, "admin")) return "/admindashboard/notifications";
+    if (roleIs(role, "police")) return "/policedashboard/notifications";
+    if (roleIs(role, "cashier")) return "/cashierdashboard/notifications";
+    if (roleIs(role, "user")) return "/userdashboard/notifications";
     return "/notifications";
   }
 
@@ -187,7 +188,7 @@ export default function Header() {
           )}
 
           {/* Transfers (owner queue; not used on cashier accounts) */}
-          {count > 0 && role !== "cashier" && (
+          {count > 0 && !roleIs(role, "cashier") && (
             <div
               className="relative cursor-pointer hover:scale-105 transition-transform"
               onClick={() => navigate("/userdashboard?tab=transfers")}

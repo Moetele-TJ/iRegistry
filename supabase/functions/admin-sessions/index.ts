@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -54,7 +55,7 @@ serve(async (req) => {
       );
     }
 
-    if (caller.role !== "admin") {
+    if (!roleIs(caller.role, "admin")) {
       return respond(
         { success: false, message: "Forbidden" },
         corsHeaders,

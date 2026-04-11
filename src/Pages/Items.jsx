@@ -17,6 +17,7 @@ import {
   willUpdateItemChargeOwnerWallet,
   isPrivilegedRole,
 } from "../lib/billingUx.js";
+import { roleIs } from "../lib/roleUtils.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -159,7 +160,7 @@ export default function Items() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [selectedOwnerId, setSelectedOwnerId] = useState(user?.id || "");
 
-  const isPrivileged = role === "admin" || role === "cashier";
+  const isPrivileged = isPrivilegedRole(role);
 
   useEffect(() => {
     // Reset scope defaults when switching sessions/roles.
@@ -700,7 +701,7 @@ export default function Items() {
   const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
   const endIndex = Math.min(page * perPage, total);
 
-  const showStationQueue = role === "police" && policeShowStolenAtStation;
+  const showStationQueue = roleIs(role, "police") && policeShowStolenAtStation;
   const queueRowReadOnly = (item) =>
     showStationQueue && item.ownerId !== user?.id;
 
@@ -916,7 +917,7 @@ export default function Items() {
                   ))}
                 </select>
 
-                {role === "police" && (
+                {roleIs(role, "police") && (
                   <label
                     className="flex items-center gap-2 text-sm text-gray-700 px-2 py-2 rounded-xl border bg-white"
                     title="List open police cases whose reporting station matches your police station profile"

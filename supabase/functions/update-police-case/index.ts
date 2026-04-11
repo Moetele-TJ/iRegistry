@@ -8,6 +8,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
 import { logActivity } from "../shared/logActivity.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -40,7 +41,7 @@ serve(async (req) => {
       );
     }
 
-    if (session.role !== "police") {
+    if (!roleIs(session.role, "police")) {
       return respond(
         {
           success: false,

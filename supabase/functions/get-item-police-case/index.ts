@@ -7,7 +7,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
-import { isPrivilegedRole } from "../shared/roles.ts";
+import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -86,7 +86,7 @@ serve(async (req) => {
       return respond({ success: true, case: caseRow }, corsHeaders, 200);
     }
 
-    if (role === "police") {
+    if (roleIs(role, "police")) {
       const station = await getPoliceStation(supabase, uid);
       if (
         station &&

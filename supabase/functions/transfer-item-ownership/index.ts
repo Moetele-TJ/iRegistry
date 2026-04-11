@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -39,7 +40,7 @@ serve(async (req) => {
     const actorUserId = session.user_id;
     const actorRole = session.role;
 
-    if (actorRole !== "admin") {
+    if (!roleIs(actorRole, "admin")) {
       return respond(
         {
           success: false,

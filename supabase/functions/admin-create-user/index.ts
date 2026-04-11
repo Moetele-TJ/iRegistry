@@ -6,6 +6,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -32,7 +33,7 @@ serve(async (req) => {
     }
 
     // Create users is admin-only.
-    if (session.role !== "admin") {
+    if (!roleIs(session.role, "admin")) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

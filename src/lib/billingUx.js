@@ -1,9 +1,11 @@
 /** Routes for user dashboard credit UX (see Header role-based paths if these change). */
+import { roleIs } from "./roleUtils.js";
+
 export const USER_PRICING_PATH = "/userdashboard/pricing";
 export const USER_TRANSACTIONS_PATH = "/userdashboard/transactions";
 
 export function isPrivilegedRole(role) {
-  return ["admin", "cashier"].includes(String(role || "").toLowerCase());
+  return roleIs(role, "admin", "cashier");
 }
 
 /**
