@@ -1,7 +1,7 @@
 //  src/components/PendingTransferRequests.jsx
 import { usePendingTransfers } from "../hooks/usePendingTransfers";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
-import { attachBillingToError } from "../lib/billingUx.js";
+import { attachBillingToError, willTransferApproveChargeOwner } from "../lib/billingUx.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -34,12 +34,18 @@ export default function PendingTransferRequests() {
     let approveMsg =
       "Approving will transfer ownership to the requester and may consume credits from your account.";
     if (decision === "APPROVED") {
-      const cost = getCost("TRANSFER_OWNERSHIP");
-      const bal = Number(user?.credit_balance ?? 0);
-      if (cost != null) {
-        approveMsg += ` This step costs ${cost} credits. Your balance: ${bal}.`;
-        if (bal < cost) {
-          approveMsg += ` You need ${cost - bal} more credits — see Credit pricing or visit a cashier.`;
+      const approverPays = willTransferApproveChargeOwner(user?.role);
+      if (!approverPays) {
+        approveMsg +=
+          " As an admin or cashier, approving does not deduct credits from your account.";
+      } else {
+        const cost = getCost("TRANSFER_OWNERSHIP");
+        const bal = Number(user?.credit_balance ?? 0);
+        if (cost != null) {
+          approveMsg += ` This step costs ${cost} credits. Your balance: ${bal}.`;
+          if (bal < cost) {
+            approveMsg += ` You need ${cost - bal} more credits — see Credit pricing or visit a cashier.`;
+          }
         }
       }
     }

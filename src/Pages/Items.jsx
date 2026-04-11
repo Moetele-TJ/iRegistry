@@ -12,6 +12,11 @@ import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
+import {
+  resolveOwnerBalanceForItem,
+  willUpdateItemChargeOwnerWallet,
+  isPrivilegedRole,
+} from "../lib/billingUx.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -548,19 +553,26 @@ export default function Items() {
     const next = it.status === "Stolen" ? "Active" : "Stolen";
 
     if (next === "Stolen") {
+      const ownerRole = it.ownerRole ?? null;
+      const chargesOwner = willUpdateItemChargeOwnerWallet(role, ownerRole);
+      const ownerBal = resolveOwnerBalanceForItem(it, user);
       let stolenMsg = `Report "${it.name || it.id}" as stolen? A police case is opened for the station below.`;
-      if (!isPrivileged) {
+      if (chargesOwner) {
         const cost = getCost("MARK_STOLEN");
-        const bal = Number(user?.credit_balance ?? 0);
         if (cost != null) {
-          stolenMsg += ` This costs ${cost} credits. Your balance: ${bal}.`;
-          if (bal < cost) {
-            stolenMsg += ` Add ${cost - bal} more credits (Credit pricing) before continuing.`;
+          stolenMsg += ` This costs ${cost} credits. Registered owner's balance: ${ownerBal}.`;
+          if (ownerBal < cost) {
+            stolenMsg += ` The owner needs ${cost - ownerBal} more credits (Credit pricing) before this can succeed.`;
           }
         }
+      } else if (
+        isPrivilegedRole(role) &&
+        it.ownerId &&
+        String(it.ownerId) !== String(user?.id)
+      ) {
+        stolenMsg += ` Owner reference balance: ${ownerBal} credits. Staff actions do not debit this owner's wallet.`;
       } else {
-        stolenMsg +=
-          " As staff, this action typically does not charge your personal credits.";
+        stolenMsg += " No owner credit charge applies for this action (policy).";
       }
       openConfirm({
         title: "Report stolen",

@@ -12,6 +12,7 @@ import {
 
 /**
  * Navigate to /items/add after optional low-balance confirm (paid registrations).
+ * Mirrors create-item: charges the resolved owner after free tier unless staff/policy exempts.
  */
 export function useAddItemPreflight() {
   const navigate = useNavigate();
@@ -19,11 +20,6 @@ export function useAddItemPreflight() {
   const { items = [] } = useItems();
   const { confirm } = useModal();
   const { getCost, loading: tasksLoading } = useTaskPricing();
-
-  const privilegedActor = useMemo(
-    () => ["admin", "cashier"].includes(String(user?.role || "").toLowerCase()),
-    [user?.role]
-  );
 
   const createdByCount = useMemo(() => {
     const uid = user?.id;
@@ -34,7 +30,12 @@ export function useAddItemPreflight() {
   const goToAddItem = useCallback(async () => {
     if (tasksLoading) return;
     const balance = Number(user?.credit_balance ?? 0);
-    const ctx = { createdByCount, privileged: privilegedActor, getCost };
+    const ctx = {
+      createdByCount,
+      actorRole: user?.role,
+      ownerRole: user?.role,
+      getCost,
+    };
     if (isBalanceBelowAddItemMinimum(balance, ctx)) {
       const charge = getAddItemChargeIfApplicable(ctx);
       const msg = formatInsufficientCreditsMessage(
@@ -43,6 +44,7 @@ export function useAddItemPreflight() {
           creditsCost: charge ?? undefined,
           balance,
           taskCode: "ADD_ITEM",
+          balanceLabel: "Your balance",
         }
       );
       const proceed = await confirm({
@@ -58,8 +60,8 @@ export function useAddItemPreflight() {
   }, [
     tasksLoading,
     user?.credit_balance,
+    user?.role,
     createdByCount,
-    privilegedActor,
     getCost,
     confirm,
     navigate,

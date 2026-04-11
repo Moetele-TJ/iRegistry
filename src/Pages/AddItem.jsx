@@ -11,6 +11,10 @@ import { compressImage } from "../utils/imageCompression.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
+import {
+  willCreateItemChargeOwnerWallet,
+  getAddItemChargeIfApplicable,
+} from "../lib/billingUx.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
@@ -19,39 +23,52 @@ export default function AddItem() {
   const { getCost } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
 
-  const privilegedActor = useMemo(
-    () => ["admin", "cashier"].includes(String(user?.role || "").toLowerCase()),
-    [user?.role]
-  );
   const createdByCount = useMemo(() => {
     const uid = user?.id;
     if (!uid) return 0;
     return items.filter((it) => it.createdBy === uid).length;
   }, [items, user?.id]);
-  const willChargeAddItem = !privilegedActor && createdByCount >= 2;
+
+  const chargesOwnerForAdd = useMemo(
+    () =>
+      willCreateItemChargeOwnerWallet(user?.role, user?.role),
+    [user?.role]
+  );
+
+  const addItemPaidCost = useMemo(
+    () =>
+      getAddItemChargeIfApplicable({
+        createdByCount,
+        actorRole: user?.role,
+        ownerRole: user?.role,
+        getCost,
+      }),
+    [createdByCount, user?.role, getCost]
+  );
+
+  const willChargeAddItem = addItemPaidCost != null;
 
   const addItemConfirmNotes = useMemo(() => {
-    if (privilegedActor) {
-      return " Staff registration — your account is not charged credits.";
+    if (!chargesOwnerForAdd) {
+      return " Registry policy: staff registrations do not debit the registrant's wallet for ADD_ITEM.";
     }
     if (!willChargeAddItem) {
       return ` This will be free registration ${createdByCount + 1} of 2 included with your account.`;
     }
-    const cost = getCost("ADD_ITEM");
     const bal = Number(user?.credit_balance ?? 0);
-    if (cost != null) {
-      let t = ` This costs ${cost} credits. Your balance: ${bal}.`;
-      if (bal < cost) {
-        t += ` Add ${cost - bal} credits before continuing (Credit pricing in your dashboard).`;
+    if (addItemPaidCost != null) {
+      let t = ` This costs ${addItemPaidCost} credits. Your balance: ${bal}.`;
+      if (bal < addItemPaidCost) {
+        t += ` Add ${addItemPaidCost - bal} credits before continuing (Credit pricing in your dashboard).`;
       }
       return t;
     }
     return " Additional registrations require credits (see pricing).";
   }, [
-    privilegedActor,
+    chargesOwnerForAdd,
     willChargeAddItem,
     createdByCount,
-    getCost,
+    addItemPaidCost,
     user?.credit_balance,
   ]);
   const [serialError, setSerialError] = useState(null);
@@ -1011,7 +1028,7 @@ export default function AddItem() {
             </div>
           )}
 
-          {!privilegedActor && (
+          {chargesOwnerForAdd ? (
             <BillingCostBanner
               taskCodes={willChargeAddItem ? ["ADD_ITEM"] : []}
               title="Registration & credits"
@@ -1021,6 +1038,14 @@ export default function AddItem() {
                   : "Your first 2 lifetime item registrations are free. Additional registrations use credits."
               }
             />
+          ) : (
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+              <div className="font-semibold">Staff registration</div>
+              <p className="mt-1 text-sky-900/90">
+                ADD_ITEM fees are absorbed by the registry when you register as
+                admin/cashier — the registrant&apos;s wallet is not charged.
+              </p>
+            </div>
           )}
           
           {/* Actions */}

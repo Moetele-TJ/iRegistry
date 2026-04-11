@@ -121,6 +121,12 @@ function normalizeFromDB(row) {
     policeCase: normalizePoliceCase(row.police_case),
 
     createdBy: row.created_by ?? row.createdby ?? null,
+
+    ownerRole: row.owner_role ?? null,
+    ownerCreditBalance:
+      typeof row.owner_credit_balance === "number"
+        ? row.owner_credit_balance
+        : null,
   };
 }
 

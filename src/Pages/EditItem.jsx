@@ -16,6 +16,9 @@ import {
   isBalanceBelowMinimumForEdit,
   getMinimumCreditForAnyEditAction,
   formatInsufficientCreditsMessage,
+  resolveOwnerBalanceForItem,
+  willUpdateItemChargeOwnerWallet,
+  isPrivilegedRole,
 } from "../lib/billingUx.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
@@ -112,6 +115,17 @@ export default function EditItem() {
 
   const requiredFields = ["category", "make", "model", "serial1", "station"];
 
+  const ownerRoleForBilling = storedItem?.ownerRole ?? null;
+  const ownerBal = useMemo(
+    () => (storedItem && user ? resolveOwnerBalanceForItem(storedItem, user) : 0),
+    [storedItem, user]
+  );
+  const chargesOwnerWallet = useMemo(
+    () =>
+      willUpdateItemChargeOwnerWallet(user?.role, ownerRoleForBilling),
+    [user?.role, ownerRoleForBilling]
+  );
+
   const editPreviewCodes = useMemo(
     () =>
       getEditItemPreviewCharges({
@@ -119,6 +133,7 @@ export default function EditItem() {
         form,
         photoPreviews,
         actorRole: user?.role,
+        ownerRole: storedItem?.ownerRole ?? null,
       }),
     [storedItem, form, photoPreviews, user?.role]
   );
@@ -135,40 +150,85 @@ export default function EditItem() {
       if (n == null) allKnown = false;
       else sum += n;
     }
-    const bal = Number(user?.credit_balance ?? 0);
+    const bal = chargesOwnerWallet
+      ? ownerBal
+      : Number(user?.credit_balance ?? 0);
+    const balLabel = chargesOwnerWallet
+      ? "Registered owner's balance"
+      : "Your balance";
     if (allKnown) {
-      let t = ` Estimated charge (combined steps): ${sum} credits. Your balance: ${bal}.`;
+      let t = ` Estimated charge (combined steps): ${sum} credits. ${balLabel}: ${bal}.`;
       if (bal < sum) {
-        t += ` Add ${sum - bal} credits before saving (Credit pricing).`;
+        t += ` Short by ${sum - bal} credits before saving (Credit pricing).`;
       }
       return t;
     }
     return " This save may use credits for theft reports, new photos, or field edits — see the banner below.";
-  }, [storedItem, editPreviewCodes, getCost, user?.credit_balance]);
+  }, [
+    storedItem,
+    editPreviewCodes,
+    getCost,
+    user?.credit_balance,
+    chargesOwnerWallet,
+    ownerBal,
+  ]);
 
-  /** Immediate warning: balance below cheapest billable step (matches pre-click guard on item page). */
+  /** Immediate warning when the billed account (owner) cannot afford the cheapest step. */
   const showEntryCreditWarning = useMemo(() => {
     if (!storedItem || !user || tasksLoading) return false;
+    if (!chargesOwnerWallet) return false;
     return isBalanceBelowMinimumForEdit(
-      user.credit_balance,
+      ownerBal,
       storedItem,
       getCost,
-      user.role
+      user.role,
+      ownerRoleForBilling
     );
-  }, [storedItem, user, getCost, tasksLoading]);
+  }, [
+    storedItem,
+    user,
+    getCost,
+    tasksLoading,
+    chargesOwnerWallet,
+    ownerBal,
+    ownerRoleForBilling,
+  ]);
+
+  const showStaffOwnerInfo = useMemo(() => {
+    if (!storedItem || !user || tasksLoading) return false;
+    if (chargesOwnerWallet) return false;
+    if (!isPrivilegedRole(user.role)) return false;
+    if (!storedItem.ownerId || String(storedItem.ownerId) === String(user.id)) {
+      return false;
+    }
+    return true;
+  }, [storedItem, user, tasksLoading, chargesOwnerWallet]);
 
   const entryCreditWarningText = useMemo(() => {
     if (!showEntryCreditWarning || !storedItem || !user) return "";
-    const min = getMinimumCreditForAnyEditAction(storedItem, getCost, user.role);
+    const min = getMinimumCreditForAnyEditAction(
+      storedItem,
+      getCost,
+      user.role,
+      ownerRoleForBilling
+    );
     return formatInsufficientCreditsMessage(
-      "Your balance is below the minimum credits usually needed for at least one update (edit details, add photos, or report stolen).",
+      "The registered owner's balance is below the minimum credits usually needed for at least one update (edit details, add photos, or report stolen).",
       {
         creditsCost: min ?? undefined,
-        balance: Number(user.credit_balance ?? 0),
+        balance: ownerBal,
         taskCode: null,
+        balanceLabel: "Registered owner's balance",
       }
     );
-  }, [showEntryCreditWarning, storedItem, user, getCost]);
+  }, [
+    showEntryCreditWarning,
+    storedItem,
+    user,
+    getCost,
+    ownerBal,
+    ownerRoleForBilling,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -761,9 +821,21 @@ export default function EditItem() {
 
         {showEntryCreditWarning ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <div className="font-semibold">Credit balance is low</div>
+            <div className="font-semibold">Owner has insufficient credits</div>
             <p className="mt-1 whitespace-pre-line">{entryCreditWarningText}</p>
             <BillingHelpLinks className="mt-2" />
+          </div>
+        ) : null}
+
+        {showStaffOwnerInfo ? (
+          <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            <div className="font-semibold">Staff edit (reference)</div>
+            <p className="mt-1">
+              Registered owner&apos;s balance:{" "}
+              <span className="tabular-nums font-semibold">{ownerBal}</span>{" "}
+              credits. Standard updates performed by staff do not debit this
+              owner&apos;s wallet.
+            </p>
           </div>
         ) : null}
 

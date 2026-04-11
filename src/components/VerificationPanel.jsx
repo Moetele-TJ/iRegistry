@@ -18,7 +18,7 @@ import { ShieldAlert, Info, Camera } from "lucide-react";
 
 // Utils
 import { invokeWithAuth } from "../lib/invokeWithAuth";
-import { attachBillingToError } from "../lib/billingUx.js";
+import { attachBillingToError, willTransferRequestChargeRequester } from "../lib/billingUx.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import BillingCostBanner from "./BillingCostBanner.jsx";
@@ -228,10 +228,19 @@ export default function VerificationPanel() {
     }
   }
 
+  /** Mirrors server: regular users pay REQUEST_TRANSFER; admin/cashier do not. */
+  const requestTransferUsesRequesterCredits =
+    !!user && willTransferRequestChargeRequester(user?.role);
+
   const transferConfirmMessage = useMemo(() => {
     let m =
       "Are you sure you want to request ownership transfer for this item? The owner will need to approve.";
     if (!user) return m;
+    if (!requestTransferUsesRequesterCredits) {
+      m +=
+        " As an admin or cashier, this request does not deduct credits from your account.";
+      return m;
+    }
     const cost = getCost("REQUEST_TRANSFER");
     const bal = Number(user?.credit_balance ?? 0);
     if (cost != null) {
@@ -241,7 +250,7 @@ export default function VerificationPanel() {
       }
     }
     return m;
-  }, [user, getCost]);
+  }, [user, getCost, requestTransferUsesRequesterCredits]);
 
   async function executeTransfer() {
     if (!finalResult?.itemId) {
@@ -594,9 +603,17 @@ export default function VerificationPanel() {
             <div className="mt-6 p-6 bg-white rounded-3xl shadow-lg border border-gray-200 space-y-4">
               {user && (
                 <BillingCostBanner
-                  taskCodes={["REQUEST_TRANSFER"]}
+                  taskCodes={
+                    requestTransferUsesRequesterCredits
+                      ? ["REQUEST_TRANSFER"]
+                      : []
+                  }
                   title="Transfer request"
-                  subtitle="Submitting a transfer request deducts credits when the owner has not pre-approved."
+                  subtitle={
+                    requestTransferUsesRequesterCredits
+                      ? "Submitting a transfer request may deduct credits from your account (see pricing)."
+                      : "As an admin or cashier, this request does not use credits from your account."
+                  }
                 />
               )}
               <p className="text-sm text-gray-600">

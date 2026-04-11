@@ -17,6 +17,9 @@ import {
   isBalanceBelowMinimumForEdit,
   getMinimumCreditForAnyEditAction,
   formatInsufficientCreditsMessage,
+  resolveOwnerBalanceForItem,
+  willUpdateItemChargeOwnerWallet,
+  isPrivilegedRole,
 } from "../lib/billingUx.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 
@@ -124,7 +127,7 @@ export default function ItemDetails() {
   const navigate = useNavigate();
   const { items, deleteItem, updateItem, transferOwnership } = useItems();
   const { user } = useAuth();
-  const { confirm } = useModal();
+  const { confirm, alert } = useModal();
   const { getCost, loading: tasksLoading } = useTaskPricing();
 
   const [item, setItem] = useState(null);
@@ -319,26 +322,36 @@ export default function ItemDetails() {
   async function goToEdit() {
     if (!item?.slug) return;
     const path = `/items/${item.slug}/edit`;
-    const role = user?.role;
-    if (["admin", "cashier"].includes(String(role || "").toLowerCase())) {
-      navigate(path);
-      return;
-    }
     if (tasksLoading) return;
 
-    const balance = Number(user?.credit_balance ?? 0);
-    if (isBalanceBelowMinimumForEdit(balance, item, getCost, role)) {
-      const min = getMinimumCreditForAnyEditAction(item, getCost, role);
+    const role = user?.role;
+    const ownerRole = item.ownerRole ?? null;
+    const ownerBal = resolveOwnerBalanceForItem(item, user);
+    const chargesOwner = willUpdateItemChargeOwnerWallet(role, ownerRole);
+
+    const min = getMinimumCreditForAnyEditAction(
+      item,
+      getCost,
+      role,
+      ownerRole
+    );
+
+    if (
+      chargesOwner &&
+      min != null &&
+      isBalanceBelowMinimumForEdit(ownerBal, item, getCost, role, ownerRole)
+    ) {
       const msg = formatInsufficientCreditsMessage(
-        "Your balance is below the minimum credits usually needed for at least one update (edit details, add photos, or report stolen).",
+        "The registered owner's account is below the minimum credits usually needed for at least one update (edit details, add photos, or report stolen).",
         {
-          creditsCost: min ?? undefined,
-          balance,
+          creditsCost: min,
+          balance: ownerBal,
           taskCode: null,
+          balanceLabel: "Registered owner's balance",
         }
       );
       const proceed = await confirm({
-        title: "Credit balance is low",
+        title: "Owner has insufficient credits",
         message: msg,
         confirmLabel: "Continue to editor",
         cancelLabel: "Stay here",
@@ -346,6 +359,20 @@ export default function ItemDetails() {
       }).catch(() => false);
       if (!proceed) return;
     }
+
+    if (
+      !chargesOwner &&
+      isPrivilegedRole(role) &&
+      item.ownerId &&
+      String(item.ownerId) !== String(user?.id)
+    ) {
+      await alert({
+        title: "Owner account (reference)",
+        message: `Registered owner's credit balance: ${ownerBal} credits.\n\nStaff edits do not debit this owner's wallet for standard item updates (registry policy). You can still open the editor.`,
+        variant: "default",
+      });
+    }
+
     navigate(path);
   }
 

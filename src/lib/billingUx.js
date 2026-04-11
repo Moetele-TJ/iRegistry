@@ -2,6 +2,56 @@
 export const USER_PRICING_PATH = "/userdashboard/pricing";
 export const USER_TRANSACTIONS_PATH = "/userdashboard/transactions";
 
+export function isPrivilegedRole(role) {
+  return ["admin", "cashier"].includes(String(role || "").toLowerCase());
+}
+
+/**
+ * update-item: credits are taken from the item owner only when neither the actor nor the owner is admin/cashier.
+ * (Mirrors supabase/functions/update-item/index.ts)
+ */
+export function willUpdateItemChargeOwnerWallet(actorRole, ownerRole) {
+  return (
+    !isPrivilegedRole(actorRole) && !isPrivilegedRole(ownerRole)
+  );
+}
+
+/**
+ * create-item: ADD_ITEM after free tier hits resolved owner's wallet unless actor is privileged (org absorbs)
+ * or owner account is staff (exempt).
+ */
+export function willCreateItemChargeOwnerWallet(actorRole, ownerRole) {
+  if (isPrivilegedRole(actorRole)) return false;
+  if (isPrivilegedRole(ownerRole)) return false;
+  return true;
+}
+
+/** create-transfer-request: requester pays unless admin/cashier. */
+export function willTransferRequestChargeRequester(actorRole) {
+  return !isPrivilegedRole(actorRole);
+}
+
+/** review-transfer-request (approve): owner pays unless admin/cashier. */
+export function willTransferApproveChargeOwner(actorRole) {
+  return !isPrivilegedRole(actorRole);
+}
+
+/**
+ * Balance used for item update / mark-stolen preflight: always the registered owner's credits
+ * when the server would charge the owner (otherwise N/A).
+ */
+export function resolveOwnerBalanceForItem(item, sessionUser) {
+  const oid = item?.ownerId;
+  const sid = sessionUser?.id;
+  if (oid && sid && String(oid) === String(sid)) {
+    return Number(sessionUser?.credit_balance ?? 0);
+  }
+  if (typeof item?.ownerCreditBalance === "number") {
+    return item.ownerCreditBalance;
+  }
+  return Number(sessionUser?.credit_balance ?? 0);
+}
+
 /**
  * Attach billing payload from a failed edge-function body onto an Error for UI handling.
  */
@@ -23,6 +73,7 @@ export function formatInsufficientCreditsMessage(
     taskCode,
     creditsCost,
     balance,
+    balanceLabel = "Current balance",
   } = {}
 ) {
   const parts = [baseMessage || "Not enough credits to complete this action."];
@@ -36,7 +87,7 @@ export function formatInsufficientCreditsMessage(
     parts.push(`Credits required: ${creditsCost}.`);
   }
   if (typeof balance === "number") {
-    parts.push(`Your current balance: ${balance} credits.`);
+    parts.push(`${balanceLabel}: ${balance} credits.`);
   }
   parts.push(
     `Open ${USER_PRICING_PATH} for prices and ${USER_TRANSACTIONS_PATH} for top-up history, or ask a cashier to add credits.`
@@ -47,7 +98,7 @@ export function formatInsufficientCreditsMessage(
 /**
  * Build message from an error possibly carrying `billing` / `taskCode`, plus pricing lookup.
  */
-export function messageForBillingFailure(err, { getCost, balance } = {}) {
+export function messageForBillingFailure(err, { getCost, balance, balanceLabel } = {}) {
   const code = err?.billing?.task_code || err?.taskCode;
   if (!err?.billing?.required && !code) {
     return err?.message || "Request failed.";
@@ -57,22 +108,21 @@ export function messageForBillingFailure(err, { getCost, balance } = {}) {
     taskCode: code,
     creditsCost: cost ?? undefined,
     balance: typeof balance === "number" ? balance : undefined,
+    balanceLabel: balanceLabel || "Your current balance",
   });
 }
 
 /**
- * Estimate which task codes may be charged on update-item for the current user edit (non-privileged owner path).
+ * Estimate which task codes may be charged on update-item for the current user edit.
  */
 export function getEditItemPreviewCharges({
   storedItem,
   form,
   photoPreviews,
   actorRole,
+  ownerRole,
 }) {
-  const privileged = ["admin", "cashier"].includes(
-    String(actorRole || "").toLowerCase()
-  );
-  if (privileged) return [];
+  if (!willUpdateItemChargeOwnerWallet(actorRole, ownerRole)) return [];
 
   const codes = [];
   if (storedItem?.status === "Active" && form?.status === "Stolen") {
@@ -119,14 +169,10 @@ export function getItemPhotoCount(item) {
 }
 
 /**
- * Task codes that could each be billed alone on a future save (user not admin/cashier).
- * Used to compute the *cheapest* possible paid step so we can warn before opening the editor.
+ * Possible single-step charges when opening the editor (owner wallet billed).
  */
-export function getEditEntryApplicableTaskCodes(item, actorRole) {
-  const privileged = ["admin", "cashier"].includes(
-    String(actorRole || "").toLowerCase()
-  );
-  if (privileged) return [];
+export function getEditEntryApplicableTaskCodes(item, actorRole, ownerRole) {
+  if (!willUpdateItemChargeOwnerWallet(actorRole, ownerRole)) return [];
 
   const codes = [];
   if (item?.status === "Active") codes.push("MARK_STOLEN");
@@ -135,12 +181,13 @@ export function getEditEntryApplicableTaskCodes(item, actorRole) {
   return codes;
 }
 
-/**
- * Minimum credits required to perform at least one billable edit action (single step).
- * Returns null if no charge applies or prices are unknown.
- */
-export function getMinimumCreditForAnyEditAction(item, getCost, actorRole) {
-  const codes = getEditEntryApplicableTaskCodes(item, actorRole);
+export function getMinimumCreditForAnyEditAction(
+  item,
+  getCost,
+  actorRole,
+  ownerRole
+) {
+  const codes = getEditEntryApplicableTaskCodes(item, actorRole, ownerRole);
   if (codes.length === 0) return null;
 
   let min = null;
@@ -152,15 +199,31 @@ export function getMinimumCreditForAnyEditAction(item, getCost, actorRole) {
   return min;
 }
 
-export function isBalanceBelowMinimumForEdit(balance, item, getCost, actorRole) {
-  const m = getMinimumCreditForAnyEditAction(item, getCost, actorRole);
+export function isBalanceBelowMinimumForEdit(
+  ownerBalance,
+  item,
+  getCost,
+  actorRole,
+  ownerRole
+) {
+  const m = getMinimumCreditForAnyEditAction(
+    item,
+    getCost,
+    actorRole,
+    ownerRole
+  );
   if (m == null) return false;
-  return Number(balance) < m;
+  return Number(ownerBalance) < m;
 }
 
-/** ADD_ITEM cost after free registrations; null if free or staff. */
-export function getAddItemChargeIfApplicable({ createdByCount, privileged, getCost }) {
-  if (privileged) return null;
+/** ADD_ITEM cost after free registrations; null if free or no wallet charge. */
+export function getAddItemChargeIfApplicable({
+  createdByCount,
+  actorRole,
+  ownerRole,
+  getCost,
+}) {
+  if (!willCreateItemChargeOwnerWallet(actorRole, ownerRole)) return null;
   if (createdByCount < 2) return null;
   const n = typeof getCost === "function" ? getCost("ADD_ITEM") : null;
   return n != null && Number.isFinite(n) ? n : null;

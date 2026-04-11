@@ -16,6 +16,53 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+/** Owner role + credit balance for billing preflight in the UI (mirrors update-item billToUserId). */
+async function enrichItemsWithOwnerBilling(
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const list = rows || [];
+  const ownerIds = [
+    ...new Set(
+      list
+        .map((r) => r?.ownerid)
+        .filter((id): id is string => typeof id === "string" && !!id.trim()),
+    ),
+  ];
+  if (ownerIds.length === 0) return list;
+
+  const [{ data: userRows, error: uErr }, { data: creditRows, error: cErr }] =
+    await Promise.all([
+      supabase.from("users").select("id, role").in("id", ownerIds),
+      supabase.from("user_credits").select("user_id, balance").in("user_id", ownerIds),
+    ]);
+
+  if (uErr) console.error("get-items owner roles:", uErr.message);
+  if (cErr) console.error("get-items owner credits:", cErr.message);
+
+  const roleBy = new Map(
+    (userRows || []).map((u: { id?: string; role?: string }) => [
+      u.id,
+      u.role ?? null,
+    ]),
+  );
+  const balBy = new Map(
+    (creditRows || []).map((c: { user_id?: string; balance?: number }) => [
+      c.user_id,
+      typeof c.balance === "number" ? c.balance : 0,
+    ]),
+  );
+
+  return list.map((row) => {
+    const oid = row?.ownerid;
+    const id = typeof oid === "string" ? oid : null;
+    return {
+      ...row,
+      owner_role: id ? (roleBy.get(id) ?? null) : null,
+      owner_credit_balance: id ? (balBy.get(id) ?? 0) : 0,
+    };
+  });
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -124,7 +171,7 @@ serve(async (req) => {
       if (itemErr) throw itemErr;
 
       const itemMap = new Map((itemRows || []).map((r) => [r.id, r]));
-      const ordered = ids
+      const orderedRaw = ids
         .map((id) => {
           const row = itemMap.get(id);
           if (!row) return null;
@@ -132,6 +179,10 @@ serve(async (req) => {
           return { ...row, police_case: pc };
         })
         .filter(Boolean);
+
+      const ordered = await enrichItemsWithOwnerBilling(
+        orderedRaw as Record<string, unknown>[],
+      );
 
       return respond(
         {
@@ -196,10 +247,14 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    const enriched = await enrichItemsWithOwnerBilling(
+      (data || []) as Record<string, unknown>[],
+    );
+
     return respond(
       {
         success: true,
-        items: data || [],
+        items: enriched,
         pagination: {
           page: safePage,
           pageSize: safePageSize,

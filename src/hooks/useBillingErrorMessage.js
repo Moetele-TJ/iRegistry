@@ -14,7 +14,11 @@ export function useBillingErrorMessage() {
     (err) => {
       const balance = Number(user?.credit_balance ?? 0);
       if (err?.billing?.required || err?.taskCode) {
-        return messageForBillingFailure(err, { getCost, balance });
+        return messageForBillingFailure(err, {
+        getCost,
+        balance,
+        balanceLabel: "Your current balance",
+      });
       }
       return err?.message || "Something went wrong.";
     },
