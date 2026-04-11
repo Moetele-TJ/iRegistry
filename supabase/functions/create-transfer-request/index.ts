@@ -35,36 +35,7 @@ serve(async (req) => {
 
     const { item_id, message } = await req.json();
 
-    // Billing: requester pays to initiate a transfer request (if task cost is > 0)
-    const { data: requesterRow } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("id", session.user_id)
-      .maybeSingle();
-    const role = String((requesterRow as any)?.role || "").toLowerCase();
-    const isPrivileged = role === "admin" || role === "cashier";
-    if (!isPrivileged) {
-      const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
-        p_user_id: String(session.user_id),
-        p_task_code: "REQUEST_TRANSFER",
-        p_reference: String(item_id || ""),
-        p_metadata: { kind: "create-transfer-request" },
-      });
-      const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-      const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-      if (spendErr || !ok) {
-        return respond(
-          {
-            success: false,
-            message: msg || "Insufficient credits",
-            billing: { required: true, task_code: "REQUEST_TRANSFER" },
-          },
-          corsHeaders,
-          402,
-        );
-      }
-    }
-
+    // Billing + insert are atomic in request_item_transfer (see migration 20260411120000_item_transfer_rpcs.sql).
     const { error } = await supabase.rpc("request_item_transfer", {
       p_item_id: item_id,
       p_requester_id: session.user_id,
@@ -72,13 +43,38 @@ serve(async (req) => {
     });
 
     if (error) {
+      const em = String(error.message || "");
+      if (em.includes("INSUFFICIENT_CREDITS")) {
+        return respond(
+          {
+            success: false,
+            message: "Insufficient credits",
+            billing: { required: true, task_code: "REQUEST_TRANSFER" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
+      const map: Record<string, string> = {
+        ITEM_NOT_FOUND: "Item not found",
+        ITEM_DELETED: "This item is no longer available",
+        ITEM_STOLEN: "Stolen items cannot be transferred",
+        ALREADY_OWNER: "You already own this item",
+        PENDING_REQUEST_EXISTS: "A transfer request is already pending for this item",
+        INVALID_PAYLOAD: "Invalid request",
+      };
+      for (const [code, text] of Object.entries(map)) {
+        if (em.includes(code)) {
+          return respond({ success: false, message: text }, corsHeaders, 400);
+        }
+      }
       return respond(
-        { 
+        {
           success: false,
-          message: error.message
+          message: em || "Could not create transfer request",
         },
-      corsHeaders,
-      400
+        corsHeaders,
+        400,
       );
     }
 

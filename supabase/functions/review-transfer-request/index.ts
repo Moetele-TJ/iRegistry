@@ -59,6 +59,18 @@ serve(async (req) => {
     });
 
     if (error) {
+      const em = String(error.message || "");
+      if (em.includes("INSUFFICIENT_CREDITS")) {
+        return respond(
+          {
+            success: false,
+            message: "Insufficient credits",
+            billing: { required: true, task_code: "TRANSFER_OWNERSHIP" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
       switch (error.message) {
         case "REQUEST_NOT_FOUND":
           return respond(
@@ -142,37 +154,7 @@ serve(async (req) => {
       }
     }
 
-    // Billing: only on approval (the owner is completing the transfer)
-    if (normalizedDecision === "APPROVED") {
-      const { data: ownerRow } = await supabase
-        .from("users")
-        .select("id, role")
-        .eq("id", session.user_id)
-        .maybeSingle();
-      const role = String((ownerRow as any)?.role || "").toLowerCase();
-      const isPrivileged = role === "admin" || role === "cashier";
-      if (!isPrivileged) {
-        const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
-          p_user_id: String(session.user_id),
-          p_task_code: "TRANSFER_OWNERSHIP",
-          p_reference: String(request_id),
-          p_metadata: { kind: "review-transfer-request" },
-        });
-        const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-        const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-        if (spendErr || !ok) {
-          return respond(
-            {
-              success: false,
-              message: msg || "Insufficient credits",
-              billing: { required: true, task_code: "TRANSFER_OWNERSHIP" },
-            },
-            corsHeaders,
-            402,
-          );
-        }
-      }
-    }
+    // TRANSFER_OWNERSHIP billing + ownership update run inside review_item_transfer (single transaction).
 
     return respond(
       {

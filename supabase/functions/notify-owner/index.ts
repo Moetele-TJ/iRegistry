@@ -83,9 +83,12 @@ serve(async (req) => {
     const freePerDay = 1;
     const overFree = (dayCount ?? 0) >= freePerDay;
 
+    let session: { user_id: string } | null = null;
+    let privileged = false;
+
     if (overFree) {
       const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-      const session = await validateSession(supabase, auth);
+      session = await validateSession(supabase, auth);
       if (!session) {
         return respond(
           {
@@ -104,63 +107,39 @@ serve(async (req) => {
         .eq("id", session.user_id)
         .maybeSingle();
       const role = String((spender as any)?.role || "").toLowerCase();
-      const privileged = role === "admin" || role === "cashier";
-      if (!privileged) {
-        const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
-          p_user_id: String(session.user_id),
-          p_task_code: "NOTIFY_OWNER",
-          p_reference: String(item.id),
-          p_metadata: { kind: "notify-owner", ip, notifyPolice: notifyPolice === true },
-        });
-        const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-        const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-        if (spendErr || !ok) {
-          return respond(
-            {
-              success: false,
-              message: msg || "Insufficient credits",
-              billing: { required: true, task_code: "NOTIFY_OWNER" },
-            },
-            corsHeaders,
-            402,
-          );
-        }
+      privileged = role === "admin" || role === "cashier";
+    }
+
+    const applySpend = overFree && !privileged;
+
+    const { error: deliverErr } = await supabase.rpc("notify_owner_deliver", {
+      p_item_id: item.id,
+      p_owner_id: item.ownerid,
+      p_ip: ip,
+      p_action_key: actionKey,
+      p_message: userMessage,
+      p_contact: contact,
+      p_notify_police: notifyPolice === true,
+      p_apply_spend: applySpend,
+      p_spender_id: applySpend && session ? session.user_id : null,
+    });
+
+    if (deliverErr) {
+      const em = String(deliverErr.message || "");
+      if (em.includes("INSUFFICIENT_CREDITS")) {
+        return respond(
+          {
+            success: false,
+            message: "Insufficient credits",
+            billing: { required: true, task_code: "NOTIFY_OWNER" },
+          },
+          corsHeaders,
+          402,
+        );
       }
+      console.error("notify_owner_deliver:", deliverErr);
+      throw deliverErr;
     }
-
-    // Record per-item daily attempt after gating
-    const { error: attemptErr } = await supabase
-      .from("request_attempts")
-      .insert({ ip, action: actionKey });
-    if (attemptErr) console.error("notify-owner attempt log failed:", attemptErr);
-
-    // Always notify owner
-    const inserts = [
-      {
-        itemid: item.id,
-        ownerid: item.ownerid,
-        recipient_type: "owner",
-        message: userMessage,
-        contact: contact ?? null,
-      },
-    ];
-
-    // If police checkbox selected
-    if (notifyPolice === true) {
-      inserts.push({
-        itemid: item.id,
-        ownerid: item.ownerid,
-        recipient_type: "police",
-        message: userMessage,
-        contact: contact ?? null,
-      });
-    }
-
-    const { error: insertError } = await supabase
-      .from("item_notifications")
-      .insert(inserts);
-
-    if (insertError) throw insertError;
 
     return respond(
       { success: true },

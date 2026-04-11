@@ -251,74 +251,35 @@ serve(async (req) => {
 
     const actorIsPrivileged = isPrivilegedRole(actorRole);
 
-    const spend = async (task: string, meta: Record<string, unknown>) => {
-      const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
-        p_user_id: billToUserId,
-        p_task_code: task,
-        p_reference: String(existing.id),
-        p_metadata: meta,
-      });
-      const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-      const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-      if (spendErr || !ok) {
-        return { ok: false, message: msg || "Insufficient credits" };
-      }
-      return { ok: true, message: "OK" };
-    };
-
-    // 1) Mark stolen billing
-    if (!actorIsPrivileged && !ownerIsPrivileged && statusChanged && cleanUpdates.status === "Stolen") {
-      const r = await spend("MARK_STOLEN", { kind: "update-item", action: "mark-stolen" });
-      if (!r.ok) {
-        return respond(
-          {
-            success: false,
-            diag: "ITEM-UPDATE-BILL-001",
-            message: r.message,
-            billing: { required: true, task_code: "MARK_STOLEN" },
-          },
-          corsHeaders,
-          402,
-        );
-      }
-    }
-
-    // 2) Upload photos billing (detect new photos)
+    /* Billing flags (same rules as debit_item_update_tasks migration) */
     let chargedPhotos = false;
-    if (!actorIsPrivileged && !ownerIsPrivileged && "photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
-      const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
-      const existingSet = new Set(
-        existingPhotos
-          .map((p: any) => (typeof p === "string" ? p : p?.original || p?.thumb || ""))
-          .map((s: any) => String(s || "").trim())
-          .filter(Boolean),
-      );
-      const incoming = cleanUpdates.photos as any[];
-      const hasNew = incoming.some((p) => {
-        const raw = typeof p === "string" ? p : p?.original || p?.thumb || "";
-        const key = String(raw || "").trim();
-        return key && !existingSet.has(key);
-      });
-      if (hasNew) {
-        const r = await spend("UPLOAD_PHOTOS", { kind: "update-item", action: "upload-photos" });
-        if (!r.ok) {
-          return respond(
-            {
-              success: false,
-              diag: "ITEM-UPDATE-BILL-002",
-              message: r.message,
-              billing: { required: true, task_code: "UPLOAD_PHOTOS" },
-            },
-            corsHeaders,
-            402,
-          );
-        }
-        chargedPhotos = true;
-      }
-    }
+    let needMarkStolen = false;
+    let needUploadPhotos = false;
+    let needEditItem = false;
 
-    // 3) Edit item billing (any other non-status, non-photo change that actually differs from DB)
     if (!actorIsPrivileged && !ownerIsPrivileged) {
+      needMarkStolen = Boolean(statusChanged && cleanUpdates.status === "Stolen");
+
+      if ("photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
+        const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
+        const existingSet = new Set(
+          existingPhotos
+            .map((p: any) => (typeof p === "string" ? p : p?.original || p?.thumb || ""))
+            .map((s: any) => String(s || "").trim())
+            .filter(Boolean),
+        );
+        const incoming = cleanUpdates.photos as any[];
+        const hasNew = incoming.some((p) => {
+          const raw = typeof p === "string" ? p : p?.original || p?.thumb || "";
+          const key = String(raw || "").trim();
+          return key && !existingSet.has(key);
+        });
+        if (hasNew) {
+          needUploadPhotos = true;
+          chargedPhotos = true;
+        }
+      }
+
       const keys = Object.keys(cleanUpdates);
       const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
       const hasNonPhotoNonStatusChange = meaningful.some((k) => {
@@ -328,22 +289,57 @@ serve(async (req) => {
         return !deepEqual(existingVal, v);
       });
       if (hasNonPhotoNonStatusChange) {
-        const r = await spend("EDIT_ITEM", { kind: "update-item", action: "edit-item" });
-        if (!r.ok) {
-          return respond(
-            {
-              success: false,
-              diag: "ITEM-UPDATE-BILL-003",
-              message: r.message,
-              billing: { required: true, task_code: "EDIT_ITEM" },
-            },
-            corsHeaders,
-            402,
-          );
-        }
-      } else if (!chargedPhotos && statusChanged && cleanUpdates.status === "Active") {
-        // no-op: reactivating stolen is currently not billed (restore-item is billed for deleted restore)
+        needEditItem = true;
       }
+    }
+
+    if (!actorIsPrivileged && !ownerIsPrivileged &&
+        (needMarkStolen || needUploadPhotos || needEditItem)) {
+      const { error: debitErr } = await supabase.rpc("debit_item_update_tasks", {
+        p_bill_to_user_id: billToUserId,
+        p_item_id: id,
+        p_mark_stolen: needMarkStolen,
+        p_upload_photos: needUploadPhotos,
+        p_edit_item: needEditItem,
+      });
+      if (debitErr) {
+        const em = String(debitErr.message || "");
+        const billingMap: [string, string][] = [
+          ["INSUFFICIENT_MARK_STOLEN", "MARK_STOLEN"],
+          ["INSUFFICIENT_UPLOAD_PHOTOS", "UPLOAD_PHOTOS"],
+          ["INSUFFICIENT_EDIT_ITEM", "EDIT_ITEM"],
+        ];
+        for (const [needle, code] of billingMap) {
+          if (em.includes(needle)) {
+            return respond(
+              {
+                success: false,
+                diag:
+                  code === "MARK_STOLEN"
+                    ? "ITEM-UPDATE-BILL-001"
+                    : code === "UPLOAD_PHOTOS"
+                    ? "ITEM-UPDATE-BILL-002"
+                    : "ITEM-UPDATE-BILL-003",
+                message: "Insufficient credits",
+                billing: { required: true, task_code: code },
+              },
+              corsHeaders,
+              402,
+            );
+          }
+        }
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-BILL-000",
+            message: debitErr.message || "Billing failed",
+          },
+          corsHeaders,
+          500,
+        );
+      }
+    } else if (!actorIsPrivileged && !ownerIsPrivileged && !chargedPhotos && statusChanged && cleanUpdates.status === "Active") {
+      // no-op: reactivating stolen is currently not billed (restore-item is billed for deleted restore)
     }
 
     if (Object.keys(cleanUpdates).length === 0) {

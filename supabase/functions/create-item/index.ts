@@ -113,77 +113,6 @@ serve(async (req) => {
       );
     }
 
-    /* ================= BILLING: FREE ALLOWANCE + CREDITS =================
-     * Lifetime rule: allow up to 2 item registrations per account (count all statuses).
-     * We count by items.created_by, which is set to the account the item is registered under.
-     *
-     * Privileged actors (admin/cashier) acting on behalf of another user must not dock credits
-     * from the target account — the org absorbs the task cost.
-     */
-    if (!isPrivileged) {
-    const { data: ownerRow } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("id", resolvedOwnerId)
-      .maybeSingle();
-
-    const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
-    const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
-
-    if (!ownerIsPrivileged) {
-      const { count: lifetimeCount, error: countErr } = await supabase
-        .from("items")
-        .select("id", { count: "exact", head: true })
-        .eq("created_by", resolvedOwnerId);
-
-      if (countErr) {
-        return respond(
-          {
-            success: false,
-            diag: "ITEM-CREATE-BILL-001",
-            message: "Could not verify account allowance. Try again.",
-          },
-          corsHeaders,
-          500,
-        );
-      }
-
-      const freeAllowance = 2;
-      const used = lifetimeCount ?? 0;
-
-      if (used >= freeAllowance) {
-        const { data: spendRes, error: spendErr } = await supabase.rpc(
-          "spend_credits",
-          {
-            p_user_id: resolvedOwnerId,
-            p_task_code: "ADD_ITEM",
-            p_reference: null,
-            p_metadata: { kind: "create-item" },
-          },
-        );
-
-        const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-        const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-
-        if (spendErr || !ok) {
-          return respond(
-            {
-              success: false,
-              diag: "ITEM-CREATE-BILL-002",
-              message: msg || "Payment required: insufficient credits",
-              billing: {
-                required: true,
-                task_code: "ADD_ITEM",
-              },
-            },
-            corsHeaders,
-            402,
-          );
-        }
-      }
-    }
-    }
-
     /* ================= SERIAL VALIDATION ================= */
 
     if (!serial1) {
@@ -337,6 +266,55 @@ serve(async (req) => {
         corsHeaders,
         400
       );
+    }
+
+    /* ================= BILLING (after validation; apply_add_item_registration_charge) =================
+     * Lifetime rule + ADD_ITEM debit live in RPC (mirrors previous inline logic).
+     * Runs only after serial/duplicate/slug checks so we do not debit a failed registration.
+     */
+    if (!isPrivileged) {
+      const { error: chargeErr } = await supabase.rpc("apply_add_item_registration_charge", {
+        p_owner_id: resolvedOwnerId,
+        p_actor_id: actorUserId,
+      });
+      if (chargeErr) {
+        const em = String(chargeErr.message || "");
+        if (em.includes("INSUFFICIENT_ADD_ITEM")) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-CREATE-BILL-002",
+              message: "Payment required: insufficient credits",
+              billing: {
+                required: true,
+                task_code: "ADD_ITEM",
+              },
+            },
+            corsHeaders,
+            402,
+          );
+        }
+        if (em.includes("INVALID_PAYLOAD")) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-CREATE-008",
+              message: "Invalid owner ID",
+            },
+            corsHeaders,
+            400,
+          );
+        }
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-CREATE-BILL-001",
+            message: "Could not verify billing. Try again.",
+          },
+          corsHeaders,
+          500,
+        );
+      }
     }
 
     /* ================= INSERT ================= */

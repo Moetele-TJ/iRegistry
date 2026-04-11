@@ -7,7 +7,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { logActivity } from "../shared/logActivity.ts";
-import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
+import { checkRateLimit } from "../shared/rateLimit.ts";
 import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
@@ -161,9 +161,12 @@ serve(async (req) => {
     const freePerDay = 2;
     const overFree = (dayCount ?? 0) >= freePerDay;
 
+    let session: { user_id: string } | null = null;
+    let privileged = false;
+
     if (overFree) {
       const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-      const session = await validateSession(supabase, auth);
+      session = await validateSession(supabase, auth);
       if (!session) {
         return respond(
           {
@@ -182,32 +185,35 @@ serve(async (req) => {
         .eq("id", session.user_id)
         .maybeSingle();
       const role = String((spender as any)?.role || "").toLowerCase();
-      const privileged = role === "admin" || role === "cashier";
-      if (!privileged) {
-        const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
-          p_user_id: String(session.user_id),
-          p_task_code: "VERIFY_ITEM_SERIAL",
-          p_reference: String(item.id),
-          p_metadata: { kind: "verify-item", ip },
-        });
-        const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-        const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-        if (spendErr || !ok) {
-          return respond(
-            {
-              success: false,
-              message: msg || "Insufficient credits",
-              billing: { required: true, task_code: "VERIFY_ITEM_SERIAL" },
-            },
-            corsHeaders,
-            402,
-          );
-        }
-      }
+      privileged = role === "admin" || role === "cashier";
     }
 
-    // Record per-item daily attempt after gating
-    await recordAttempt(supabase, { ip, action: actionKey });
+    const applySpend = overFree && !privileged;
+
+    const { error: verifyRpcErr } = await supabase.rpc("verify_item_record_attempt", {
+      p_item_id: item.id,
+      p_ip: ip,
+      p_action_key: actionKey,
+      p_apply_spend: applySpend,
+      p_spender_id: applySpend && session ? session.user_id : null,
+    });
+
+    if (verifyRpcErr) {
+      const em = String(verifyRpcErr.message || "");
+      if (em.includes("INSUFFICIENT_CREDITS")) {
+        return respond(
+          {
+            success: false,
+            message: "Insufficient credits",
+            billing: { required: true, task_code: "VERIFY_ITEM_SERIAL" },
+          },
+          corsHeaders,
+          402,
+        );
+      }
+      console.error("verify_item_record_attempt:", verifyRpcErr);
+      throw verifyRpcErr;
+    }
 
     if (item.status === "Stolen") {
 

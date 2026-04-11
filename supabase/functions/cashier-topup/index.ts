@@ -72,72 +72,54 @@ serve(async (req) => {
       return respond({ success: false, message: "User not found" }, corsHeaders, 404);
     }
 
-    // Create payment record first (id used as reference).
-    const { data: payment, error: payErr } = await supabase
-      .from("payments")
-      .insert({
-        user_id,
-        channel: "CASHIER",
-        status: "CONFIRMED",
-        currency: pkg.currency,
-        amount: pkg.amount,
-        credits_granted: pkg.credits,
-        provider: null,
-        provider_reference: null,
-        cashier_user_id: session.user_id,
-        receipt_no: receipt_no.trim(),
-        confirmed_at: new Date().toISOString(),
-      })
-      .select("id, user_id, credits_granted, currency, amount, receipt_no, created_at, confirmed_at")
-      .single();
-
-    if (payErr || !payment) {
-      return respond(
-        { success: false, message: payErr?.message || "Failed to record payment" },
-        corsHeaders,
-        500,
-      );
-    }
-
-    const { data: addRes, error: addErr } = await supabase.rpc("add_credits", {
-      p_user_id: user_id,
-      p_amount: pkg.credits,
-      p_reference: String(payment.id),
+    // Single DB transaction: payment row + ledger credit (see cashier_confirm_topup migration).
+    const { data: topupRows, error: topupErr } = await supabase.rpc("cashier_confirm_topup", {
+      p_target_user_id: user_id,
+      p_currency: pkg.currency,
+      p_amount: pkg.amount,
+      p_credits_granted: pkg.credits,
+      p_cashier_user_id: session.user_id,
+      p_receipt_no: receipt_no.trim(),
       p_metadata: {
         kind: "cashier-topup",
         package_id: pkg.id,
         receipt_no: receipt_no.trim(),
         note: typeof note === "string" ? note.trim() : null,
       },
-      p_created_by: session.user_id,
     });
 
-    const ok = Array.isArray(addRes) ? addRes[0]?.success : addRes?.success;
-    const newBalance = Array.isArray(addRes) ? addRes[0]?.new_balance : addRes?.new_balance;
-    const msg = Array.isArray(addRes) ? addRes[0]?.message : addRes?.message;
-
-    if (addErr || !ok) {
-      // We already wrote a CONFIRMED payment row; mark it for review rather than silently failing.
-      await supabase
-        .from("payments")
-        .update({
-          status: "FAILED",
-        })
-        .eq("id", payment.id);
-
+    if (topupErr || !topupRows?.length) {
+      const em = String(topupErr?.message || "");
       return respond(
-        { success: false, message: msg || addErr?.message || "Failed to add credits" },
+        {
+          success: false,
+          message: em.includes("ADD_CREDITS_FAILED") || em.includes("INVALID_PAYLOAD")
+            ? "Failed to complete top-up"
+            : em || "Failed to complete top-up",
+        },
         corsHeaders,
         500,
       );
     }
+
+    const row = topupRows[0] as { payment_id: string; new_balance: number };
+    const payment = {
+      id: row.payment_id,
+      user_id,
+      credits_granted: pkg.credits,
+      currency: pkg.currency,
+      amount: pkg.amount,
+      receipt_no: receipt_no.trim(),
+      created_at: new Date().toISOString(),
+      confirmed_at: new Date().toISOString(),
+    };
 
     return respond(
       {
         success: true,
         payment,
         credits_added: pkg.credits,
-        new_balance: newBalance ?? null,
+        new_balance: row.new_balance ?? null,
       },
       corsHeaders,
       200,

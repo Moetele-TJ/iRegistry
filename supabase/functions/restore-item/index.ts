@@ -108,9 +108,7 @@ serve(async (req) => {
       );
     }
 
-    /* ---------------- BILLING ----------------
-     * Privileged actors restoring items on behalf of owners must not charge the owner.
-     */
+    /* ---------------- BILLING + RESTORE (single RPC transaction) ---------------- */
     const { data: ownerRow } = await supabase
       .from("users")
       .select("id, role")
@@ -119,47 +117,47 @@ serve(async (req) => {
     const ownerRole = String((ownerRow as any)?.role || "").toLowerCase();
     const ownerIsPrivileged = ownerRole === "admin" || ownerRole === "cashier";
     const actorIsPrivileged = isPrivilegedRole(actorRole);
-    if (!actorIsPrivileged && !ownerIsPrivileged) {
-      const { data: spendRes, error: spendErr } = await supabase.rpc("spend_credits", {
-        p_user_id: String(existing.ownerid),
-        p_task_code: "RESTORE_ITEM",
-        p_reference: String(existing.id),
-        p_metadata: { kind: "restore-item" },
-      });
-      const ok = Array.isArray(spendRes) ? spendRes[0]?.success : spendRes?.success;
-      const msg = Array.isArray(spendRes) ? spendRes[0]?.message : spendRes?.message;
-      if (spendErr || !ok) {
+    const skipSpend = actorIsPrivileged || ownerIsPrivileged;
+
+    const { error: restoreRpcErr } = await supabase.rpc("restore_soft_deleted_item", {
+      p_item_id: id,
+      p_charge_user_id: String(existing.ownerid),
+      p_skip_spend: skipSpend,
+    });
+
+    if (restoreRpcErr) {
+      const em = String(restoreRpcErr.message || "");
+      if (em.includes("INSUFFICIENT_CREDITS")) {
         return respond(
           {
             success: false,
             diag: "ITEM-RESTORE-BILL-001",
-            message: msg || "Insufficient credits",
+            message: "Insufficient credits",
             billing: { required: true, task_code: "RESTORE_ITEM" },
           },
           corsHeaders,
           402,
         );
       }
-    }
-
-    /* ---------------- RESTORE ---------------- */
-
-    const { error: restoreError, count } = await supabase
-      .from("items")
-      .update({ deletedat: null })
-      .eq("id", id)
-      .not("deletedat", "is", null)
-      .select("id", { count: "exact" });
-
-    if (restoreError || count === 0) {
+      if (em.includes("RESTORE_FAILED")) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-RESTORE-004",
+            message: "Failed to restore item right now, try again",
+          },
+          corsHeaders,
+          409,
+        );
+      }
       return respond(
         {
           success: false,
           diag: "ITEM-RESTORE-004",
-          message: "Failed to restore item right now, try again",
+          message: restoreRpcErr.message || "Failed to restore item",
         },
         corsHeaders,
-        409
+        500,
       );
     }
 
