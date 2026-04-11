@@ -5,5 +5,5 @@ export const PRIVILEGED_ROLES = [
 
 export function isPrivilegedRole(role: string | null | undefined) {
   if (!role) return false;
-  return PRIVILEGED_ROLES.includes(role);
+  return PRIVILEGED_ROLES.includes(String(role).toLowerCase());
 }
