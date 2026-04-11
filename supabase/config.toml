@@ -415,6 +415,12 @@ verify_jwt = false
 import_map = "./functions/identify-user/deno.json"
 entrypoint = "./functions/identify-user/index.ts"
 
+[functions.user-trusted-devices]
+enabled = true
+verify_jwt = true
+import_map = "./functions/user-trusted-devices/deno.json"
+entrypoint = "./functions/user-trusted-devices/index.ts"
+
 [functions.logout]
 enabled = true
 verify_jwt = true

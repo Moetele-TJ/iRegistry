@@ -71,7 +71,7 @@ serve(async (req) => {
     // ----------------------------------
     const { data: otpRecord, error: otpError } = await supabase
       .from("login_otps")
-      .select("id, otp_hash, expires_at, attempts")
+      .select("id, otp_hash, expires_at, attempts, channel")
       .eq("user_id", body.user_id)
       .eq("used", false)
       .order("created_at", { ascending: false })
@@ -386,6 +386,21 @@ serve(async (req) => {
       corsHeaders,
       500
     );
+    }
+
+    // Email OTP on this device unlocks SMS for future logins (trusted browser).
+    if (otpRecord.channel === "email" && deviceId.length >= 8) {
+      const { error: trustErr } = await supabase.from("user_trusted_devices").upsert(
+        {
+          user_id: body.user_id,
+          device_id: deviceId,
+          verified_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,device_id" },
+      );
+      if (trustErr) {
+        console.error("user_trusted_devices upsert:", trustErr);
+      }
     }
 
     // ----------------------------------

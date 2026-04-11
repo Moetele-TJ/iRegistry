@@ -8,6 +8,7 @@ import { sendEmail } from "../shared/email.ts";
 import { logAudit } from "../shared/logAudit.ts";
 import { getCorsHeaders} from "../shared/cors.ts";
 import { respond} from "../shared/respond.ts";
+import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -21,6 +22,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
+
+  const ip =
+    (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
 
   const body = await req.json().catch(() => null);
 
@@ -55,6 +59,45 @@ serve(async (req) => {
   const deviceId = typeof body?.device_id === "string" ? body.device_id.trim() : "";
   const deviceName = typeof body?.device_name === "string" ? body.device_name.trim() : "";
 
+  const hasEmail = !!(user.email && String(user.email).trim());
+  const hasPhone = !!(user.phone && String(user.phone).trim());
+  const phoneOnly = hasPhone && !hasEmail;
+
+  // SMS costs money: only after this browser completed email OTP once (trusted device),
+  // unless the account has no email (SMS is the only option).
+  if (body.channel === "sms" && hasEmail) {
+    if (deviceId.length < 8) {
+      return respond(
+        {
+          success: false,
+          diag: "SMS-TRUST-002",
+          message:
+            "Use email to verify on this device first. If the problem persists, refresh the page and try again.",
+        },
+        corsHeaders,
+        400,
+      );
+    }
+    const { data: trustRow } = await supabase
+      .from("user_trusted_devices")
+      .select("user_id")
+      .eq("user_id", body.user_id)
+      .eq("device_id", deviceId)
+      .maybeSingle();
+    if (!trustRow) {
+      return respond(
+        {
+          success: false,
+          diag: "SMS-TRUST-001",
+          message:
+            "On new devices, sign in with email first (free). After that, SMS is available on this device.",
+        },
+        corsHeaders,
+        403,
+      );
+    }
+  }
+
   // Check if user already has an existing valid OTP before sending a new one.
   // IMPORTANT: Only reuse when the OTP was generated for THIS device.
   // Otherwise, a user logging in on a second device could be blocked from receiving an OTP.
@@ -85,6 +128,28 @@ serve(async (req) => {
     );
   }
 
+  /** Tighter IP cap when sending a new SMS for phone-only accounts (not for OTP reuse). */
+  if (body.channel === "sms" && phoneOnly) {
+    const allowed = await checkRateLimit(supabase, {
+      ip,
+      action: "dispatch_sms_phone_only",
+      limit: 6,
+      windowSeconds: 3600,
+    });
+    if (!allowed) {
+      return respond(
+        {
+          success: false,
+          diag: "RATE-DISPATCH-SMS-P",
+          message:
+            "Too many SMS code requests from this network. Please wait and try again later.",
+        },
+        corsHeaders,
+        429,
+      );
+    }
+  }
+
   // =============create an OTP=====================
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const otpHash = await hashOtp(otp);
@@ -107,36 +172,40 @@ serve(async (req) => {
     );
   }
 
-  const {error : insertError} = await supabase.from("login_otps").insert({
-    user_id: body.user_id,
-    otp_hash: otpHash,
-    channel: body.channel,
-    device_id: deviceId || null,
-    device_name: deviceName || null,
-    
-    ...(body.channel ==="sms" && {contact: user.phone}),
-    ...(body.channel ==="email" && {contact: user.email}),
+  const { data: otpRow, error: insertError } = await supabase
+    .from("login_otps")
+    .insert({
+      user_id: body.user_id,
+      otp_hash: otpHash,
+      channel: body.channel,
+      device_id: deviceId || null,
+      device_name: deviceName || null,
 
-    expires_at: new Date(Date.now() + 5 * 60 * 1000),
-  });
+      ...(body.channel === "sms" && { contact: user.phone }),
+      ...(body.channel === "email" && { contact: user.email }),
 
-  if ( insertError ){
-    //console.error("OTP insert failed:",insertError);
+      expires_at: new Date(Date.now() + 5 * 60 * 1000),
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !otpRow?.id) {
     return respond(
       {
-        success : false,
-        diag : "CHAN-SEND-003",
-        message : "We are unable to process your request any further",
+        success: false,
+        diag: "CHAN-SEND-003",
+        message: "We are unable to process your request any further",
       },
       corsHeaders,
       500
     );
   }
 
-  // 🔔 SEND OTP (SMS)
+  // 🔔 SEND OTP (SMS) — debit credits before provider send; refund if send fails.
   if (body.channel === "sms") {
 
     if (!user.phone) {
+      await supabase.from("login_otps").update({ used: true }).eq("id", otpRow.id);
       return respond({
         success: false,
         diag: "OTP-SMS-002",
@@ -146,6 +215,46 @@ serve(async (req) => {
       400
       );
     }
+
+    const { data: spendRows, error: spendRpcErr } = await supabase.rpc("spend_credits", {
+      p_user_id: body.user_id,
+      p_task_code: "SMS_LOGIN_OTP",
+      p_reference: String(otpRow.id),
+      p_metadata: { channel: "sms" },
+    });
+
+    const spend = spendRows?.[0] as
+      | { success?: boolean; new_balance?: number; message?: string }
+      | undefined;
+
+    if (
+      spendRpcErr ||
+      !spend?.success
+    ) {
+      await supabase.from("login_otps").update({ used: true }).eq("id", otpRow.id);
+      const msg = String(spend?.message || "");
+      const insufficient = msg.toLowerCase().includes("insufficient");
+      return respond(
+        {
+          success: false,
+          diag: "SMS-OTP-BILL",
+          message: insufficient
+            ? "Not enough credits to send an SMS code. Add credits or sign in with email (free) if available."
+            : spend?.message || "Could not debit credits for SMS.",
+          billing: { required: true, task_code: "SMS_LOGIN_OTP" },
+        },
+        corsHeaders,
+        402,
+      );
+    }
+
+    const { data: costRow } = await supabase
+      .from("task_catalog")
+      .select("credits_cost")
+      .eq("code", "SMS_LOGIN_OTP")
+      .eq("active", true)
+      .maybeSingle();
+    const smsCost = typeof costRow?.credits_cost === "number" ? costRow.credits_cost : 1;
 
     try {
 
@@ -174,7 +283,20 @@ serve(async (req) => {
         req
       });
 
-    } catch (err) {
+      if (phoneOnly) {
+        await recordAttempt(supabase, { ip, action: "dispatch_sms_phone_only" });
+      }
+
+    } catch (err: any) {
+
+      await supabase.rpc("add_credits", {
+        p_user_id: body.user_id,
+        p_amount: smsCost,
+        p_reference: `sms_otp_refund:${otpRow.id}`,
+        p_metadata: { reason: "sms_send_failed" },
+      });
+
+      await supabase.from("login_otps").update({ used: true }).eq("id", otpRow.id);
 
       await logAudit({
         supabase,

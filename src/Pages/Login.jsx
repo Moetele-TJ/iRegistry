@@ -45,8 +45,12 @@ export default function Login() {
   const [cooldown, setCooldown] = useState(0);
 
   const [channels, setChannels] = useState([]);
-  const [lastChannel,setLastChannel] = useState(null);
+  const [lastChannel, setLastChannel] = useState(null);
   const [maskedEmail, setMaskedEmail] = useState("");
+  /** After identify-user: has this browser completed email OTP before? */
+  const [deviceTrusted, setDeviceTrusted] = useState(null);
+  /** Account has phone but no email — only SMS is possible */
+  const [phoneOnlyNoEmail, setPhoneOnlyNoEmail] = useState(false);
 
   const [successAnim, setSuccessAnim] = useState(false);
   const [expiry, setExpiry] = useState(300); // 5 minutes (300s)
@@ -182,6 +186,7 @@ export default function Login() {
       const { data, error: invokeError } = await invokePublicFn("identify-user", {
         last_name: ln,
         id_number: idn,
+        device_id: getDeviceId() || undefined,
       });
 
       // 🔴 Transport / system error only
@@ -202,6 +207,8 @@ export default function Login() {
       setMaskedPhone(data.masked_phone);
       setMaskedEmail(data.masked_email);
       setUserId(data.user_id);
+      setDeviceTrusted(data.device_trusted === true);
+      setPhoneOnlyNoEmail(data.phone_only_no_email === true);
       setStep("channel");
 
     } catch (err) {
@@ -254,6 +261,17 @@ export default function Login() {
     setIdentifyingUser(false);
   }
 }
+
+  function dispatchSmsWithGuard() {
+    if (deviceTrusted && channels.includes("sms")) {
+      const ok = window.confirm(
+        "SMS one-time codes may use paid delivery and your account credits. Email is free. Continue with SMS?"
+      );
+      if (!ok) return;
+    }
+    void dispatchOtp("sms");
+  }
+
   // ----------------------------
   // VERIFY OTP
   // ----------------------------
@@ -334,6 +352,8 @@ export default function Login() {
           setMaskedPhone("");
           setMaskedEmail("");
           setChannels([]);
+          setDeviceTrusted(null);
+          setPhoneOnlyNoEmail(false);
           setCooldown(0);
           setExpiry(300);
           setError(msg);
@@ -484,7 +504,11 @@ export default function Login() {
             {step === "identity"
               ? "Login"
               : step === "channel"
-              ? "Choose delivery method"
+              ? phoneOnlyNoEmail
+                ? "SMS verification"
+                : deviceTrusted === false
+                ? "Sign in with email first"
+                : "Choose delivery method"
               : "Verify OTP"}
           </h1>
 
@@ -493,6 +517,12 @@ export default function Login() {
               ? "Enter your details to receive a one-time code"
               : step === "otp"
               ? "Enter the OTP you received"
+              : step === "channel"
+              ? phoneOnlyNoEmail
+                ? "This account does not have email; we will send a code by SMS only."
+                : deviceTrusted === false
+                ? "For security, this browser must verify by email first (free). SMS will be available here after that."
+                : "Choose how you want to receive your OTP"
               : ""}
           </p>
 
@@ -552,13 +582,31 @@ export default function Login() {
 
           {step === "channel" && (
             <>
-              <p className="text-sm text-gray-500 mb-4">
-                Choose how you want to receive your OTP
-              </p>
+              {phoneOnlyNoEmail ? (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                  This account has no email on file. SMS is the only option; delivery may use paid SMS and
+                  account credits where applicable.
+                </div>
+              ) : null}
+
+              {deviceTrusted === false && channels.includes("email") ? (
+                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
+                  <span className="font-semibold">New browser or device.</span> Use email once to trust this
+                  browser; after that you can use SMS here if you prefer.
+                </div>
+              ) : null}
+
+              {deviceTrusted && channels.includes("sms") && channels.includes("email") ? (
+                <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
+                  <span className="font-semibold">Tip:</span> Email delivery is free. SMS may use paid delivery
+                  and credits — you&apos;ll be asked to confirm before sending SMS.
+                </div>
+              ) : null}
 
               {channels.includes("sms") && (
                 <button
-                  onClick={() => dispatchOtp("sms")}
+                  type="button"
+                  onClick={() => dispatchSmsWithGuard()}
                   disabled={IdentifyingUser}
                   className="w-full py-3 mb-3 rounded-lg bg-iregistrygreen text-white font-semibold"
                 >
@@ -568,6 +616,7 @@ export default function Login() {
 
               {channels.includes("email") && (
                 <button
+                  type="button"
                   onClick={() => dispatchOtp("email")}
                   disabled={IdentifyingUser}
                   className="w-full py-3 rounded-lg border border-iregistrygreen text-iregistrygreen font-semibold"

@@ -5,6 +5,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAudit } from "../shared/logAudit.ts";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
+import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
+
+/** Stricter cap for accounts with phone but no email (SMS-only login path). */
+const PHONE_ONLY_IDENTIFY_LIMIT = 10;
+const PHONE_ONLY_IDENTIFY_WINDOW_SEC = 3600;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -12,6 +17,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
+
+  const ip =
+    (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -87,9 +95,77 @@ serve(async (req) => {
     );
   }
 
-  const channels = [];
-  if (user.phone) channels.push("sms");
-  if (user.email) channels.push("email");
+  const deviceId =
+    typeof body.device_id === "string" ? body.device_id.trim() : "";
+  let deviceTrusted = false;
+  if (deviceId.length >= 8) {
+    const { data: trustRow } = await supabase
+      .from("user_trusted_devices")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .eq("device_id", deviceId)
+      .maybeSingle();
+    deviceTrusted = !!trustRow;
+  }
+
+  const hasPhone = !!(user.phone && String(user.phone).trim());
+  const hasEmail = !!(user.email && String(user.email).trim());
+
+  /** Full channel list before trusted-device policy. */
+  const channels: string[] = [];
+  if (hasPhone) channels.push("sms");
+  if (hasEmail) channels.push("email");
+
+  /**
+   * New / unrecognized browsers must prove control of email before SMS (reduces ID+name-only SMS abuse).
+   * Exception: accounts with phone but no email cannot use email — allow SMS only.
+   */
+  let channelsFiltered = [...channels];
+  if (!deviceTrusted) {
+    if (hasEmail) {
+      channelsFiltered = channelsFiltered.filter((c) => c === "email");
+    } else if (hasPhone) {
+      channelsFiltered = ["sms"];
+    } else {
+      channelsFiltered = [];
+    }
+  }
+
+  if (channelsFiltered.length === 0) {
+    return respond(
+      {
+        success: false,
+        diag: "AUT-ID-NO-CHANNEL",
+        message:
+          "This account has no phone or email on file. Contact support to restore access.",
+      },
+      corsHeaders,
+      200
+    );
+  }
+
+  const phoneOnlyNoEmail = hasPhone && !hasEmail;
+  if (phoneOnlyNoEmail) {
+    const allowed = await checkRateLimit(supabase, {
+      ip,
+      action: "identify_user_phone_only",
+      limit: PHONE_ONLY_IDENTIFY_LIMIT,
+      windowSeconds: PHONE_ONLY_IDENTIFY_WINDOW_SEC,
+    });
+    if (!allowed) {
+      return respond(
+        {
+          success: false,
+          diag: "RATE-IDENTIFY-P",
+          message:
+            "Too many sign-in attempts from this network. Please wait and try again later.",
+        },
+        corsHeaders,
+        429,
+      );
+    }
+    await recordAttempt(supabase, { ip, action: "identify_user_phone_only" });
+  }
 
   await logAudit({
     supabase,
@@ -103,7 +179,11 @@ serve(async (req) => {
   return respond(
     {
       success: true,
-      channels,
+      channels: channelsFiltered,
+      /** When false, this browser must use email first (if available) before SMS is offered. */
+      device_trusted: deviceTrusted,
+      /** True when account has no email — only SMS is possible on an untrusted device. */
+      phone_only_no_email: !hasEmail && hasPhone,
       user_id: user.id,
       masked_phone: user.phone
         ? user.phone.slice(0, 4) + "••••" + user.phone.slice(-3)

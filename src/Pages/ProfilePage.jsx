@@ -20,6 +20,7 @@ import {
   Hash,
   Pencil,
   Phone,
+  Smartphone,
 } from "lucide-react";
 
 function fmtDate(iso) {
@@ -122,8 +123,61 @@ export default function ProfilePage() {
   const [sessions, setSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
+
+  const [trustedDevices, setTrustedDevices] = useState([]);
+  const [trustedLoading, setTrustedLoading] = useState(false);
+  const [trustedError, setTrustedError] = useState("");
   const [mobileSessionsMenuOpen, setMobileSessionsMenuOpen] = useState(false);
   const mobileSessionsMenuRef = useRef(null);
+
+  async function loadTrustedDevices() {
+    setTrustedLoading(true);
+    setTrustedError("");
+    try {
+      const { data, error } = await invokeWithAuth("user-trusted-devices", {
+        body: { action: "list" },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to load trusted devices");
+      }
+      setTrustedDevices(Array.isArray(data.devices) ? data.devices : []);
+    } catch (e) {
+      setTrustedDevices([]);
+      setTrustedError(e?.message || "Failed to load trusted devices");
+    } finally {
+      setTrustedLoading(false);
+    }
+  }
+
+  async function revokeTrustedDevice(deviceId) {
+    if (!deviceId) return;
+    const ok = await confirm({
+      title: "Remove trusted browser?",
+      message:
+        "Next time you sign in from that browser, you will need to use email OTP before SMS (if your account has email).",
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+    setTrustedLoading(true);
+    setTrustedError("");
+    try {
+      const { data, error } = await invokeWithAuth("user-trusted-devices", {
+        body: { action: "revoke", device_id: deviceId },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not remove device");
+      }
+      addToast({ type: "success", message: data.message || "Trusted browser removed." });
+      await loadTrustedDevices();
+    } catch (e) {
+      setTrustedError(e?.message || "Could not remove device");
+      addToast({ type: "error", message: e?.message || "Could not remove device" });
+    } finally {
+      setTrustedLoading(false);
+    }
+  }
 
   async function loadSessions() {
     setSessionsLoading(true);
@@ -145,6 +199,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user?.id) return;
     void loadSessions();
+    void loadTrustedDevices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -743,6 +798,63 @@ export default function ProfilePage() {
                             </RippleButton>
                           </div>
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+
+            <Card title="Trusted browsers (SMS login)" icon={Smartphone}>
+              <div className="text-sm text-gray-500 mb-4">
+                Browsers that completed email sign-in can use SMS codes (SMS uses credits). Remove a browser to
+                require email verification there again.
+              </div>
+              {trustedError ? (
+                <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  {trustedError}
+                </div>
+              ) : null}
+              {trustedLoading && trustedDevices.length === 0 ? (
+                <div className="text-sm text-gray-500">Loading…</div>
+              ) : trustedDevices.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  No trusted browsers yet. After you sign in with email on a device, it appears here.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {trustedDevices.map((d) => {
+                    const did = String(d?.device_id || "");
+                    const short =
+                      did.length > 16 ? `${did.slice(0, 8)}…${did.slice(-4)}` : did || "—";
+                    const isHere =
+                      did && getDeviceId() && String(did) === String(getDeviceId());
+                    return (
+                      <div
+                        key={did}
+                        className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3 flex items-start justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-xs break-all">{short}</span>
+                            {isHere ? (
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
+                                this device
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Trusted since {fmtDate(d?.verified_at)}
+                          </div>
+                        </div>
+                        <RippleButton
+                          type="button"
+                          className="shrink-0 px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
+                          disabled={trustedLoading}
+                          onClick={() => void revokeTrustedDevice(did)}
+                        >
+                          Remove
+                        </RippleButton>
                       </div>
                     );
                   })}
