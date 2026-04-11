@@ -10,7 +10,13 @@ import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
 import { normalizePhotos } from "../utils/itemPhotos.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
-import { getEditItemPreviewCharges } from "../lib/billingUx.js";
+import BillingHelpLinks from "../components/BillingHelpLinks.jsx";
+import {
+  getEditItemPreviewCharges,
+  isBalanceBelowMinimumForEdit,
+  getMinimumCreditForAnyEditAction,
+  formatInsufficientCreditsMessage,
+} from "../lib/billingUx.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 
@@ -62,7 +68,7 @@ export default function EditItem() {
     deleteItem,
   } = useItems();
   const { user } = useAuth();
-  const { getCost } = useTaskPricing();
+  const { getCost, loading: tasksLoading } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
 
   const [storedItem, setStoredItem] = useState(null);
@@ -139,6 +145,30 @@ export default function EditItem() {
     }
     return " This save may use credits for theft reports, new photos, or field edits — see the banner below.";
   }, [storedItem, editPreviewCodes, getCost, user?.credit_balance]);
+
+  /** Immediate warning: balance below cheapest billable step (matches pre-click guard on item page). */
+  const showEntryCreditWarning = useMemo(() => {
+    if (!storedItem || !user || tasksLoading) return false;
+    return isBalanceBelowMinimumForEdit(
+      user.credit_balance,
+      storedItem,
+      getCost,
+      user.role
+    );
+  }, [storedItem, user, getCost, tasksLoading]);
+
+  const entryCreditWarningText = useMemo(() => {
+    if (!showEntryCreditWarning || !storedItem || !user) return "";
+    const min = getMinimumCreditForAnyEditAction(storedItem, getCost, user.role);
+    return formatInsufficientCreditsMessage(
+      "Your balance is below the minimum credits usually needed for at least one update (edit details, add photos, or report stolen).",
+      {
+        creditsCost: min ?? undefined,
+        balance: Number(user.credit_balance ?? 0),
+        taskCode: null,
+      }
+    );
+  }, [showEntryCreditWarning, storedItem, user, getCost]);
 
   useEffect(() => {
     return () => {
@@ -728,6 +758,14 @@ export default function EditItem() {
             Delete item
           </RippleButton>
         </div>
+
+        {showEntryCreditWarning ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <div className="font-semibold">Credit balance is low</div>
+            <p className="mt-1 whitespace-pre-line">{entryCreditWarningText}</p>
+            <BillingHelpLinks className="mt-2" />
+          </div>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}

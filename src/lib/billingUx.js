@@ -110,3 +110,64 @@ export function getEditItemPreviewCharges({
 
   return codes;
 }
+
+/** Photos attached to an item (for slot / billing UX). */
+export function getItemPhotoCount(item) {
+  const p = item?.photos;
+  if (!Array.isArray(p)) return 0;
+  return p.filter((x) => x != null).length;
+}
+
+/**
+ * Task codes that could each be billed alone on a future save (user not admin/cashier).
+ * Used to compute the *cheapest* possible paid step so we can warn before opening the editor.
+ */
+export function getEditEntryApplicableTaskCodes(item, actorRole) {
+  const privileged = ["admin", "cashier"].includes(
+    String(actorRole || "").toLowerCase()
+  );
+  if (privileged) return [];
+
+  const codes = [];
+  if (item?.status === "Active") codes.push("MARK_STOLEN");
+  if (getItemPhotoCount(item) < 5) codes.push("UPLOAD_PHOTOS");
+  codes.push("EDIT_ITEM");
+  return codes;
+}
+
+/**
+ * Minimum credits required to perform at least one billable edit action (single step).
+ * Returns null if no charge applies or prices are unknown.
+ */
+export function getMinimumCreditForAnyEditAction(item, getCost, actorRole) {
+  const codes = getEditEntryApplicableTaskCodes(item, actorRole);
+  if (codes.length === 0) return null;
+
+  let min = null;
+  for (const c of codes) {
+    const n = typeof getCost === "function" ? getCost(c) : null;
+    if (n == null || !Number.isFinite(n)) continue;
+    if (min == null || n < min) min = n;
+  }
+  return min;
+}
+
+export function isBalanceBelowMinimumForEdit(balance, item, getCost, actorRole) {
+  const m = getMinimumCreditForAnyEditAction(item, getCost, actorRole);
+  if (m == null) return false;
+  return Number(balance) < m;
+}
+
+/** ADD_ITEM cost after free registrations; null if free or staff. */
+export function getAddItemChargeIfApplicable({ createdByCount, privileged, getCost }) {
+  if (privileged) return null;
+  if (createdByCount < 2) return null;
+  const n = typeof getCost === "function" ? getCost("ADD_ITEM") : null;
+  return n != null && Number.isFinite(n) ? n : null;
+}
+
+export function isBalanceBelowAddItemMinimum(balance, ctx) {
+  const c = getAddItemChargeIfApplicable(ctx);
+  if (c == null) return false;
+  return Number(balance) < c;
+}

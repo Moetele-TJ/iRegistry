@@ -13,6 +13,12 @@ import { useItemActivity } from "../hooks/useItemActivity";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { normalizePhotos } from "../utils/itemPhotos.js";
 import { compressImage } from "../utils/imageCompression.js";
+import {
+  isBalanceBelowMinimumForEdit,
+  getMinimumCreditForAnyEditAction,
+  formatInsufficientCreditsMessage,
+} from "../lib/billingUx.js";
+import { useTaskPricing } from "../hooks/useTaskPricing.js";
 
 const MAX_PHOTOS = 5;
 
@@ -119,6 +125,7 @@ export default function ItemDetails() {
   const { items, deleteItem, updateItem, transferOwnership } = useItems();
   const { user } = useAuth();
   const { confirm } = useModal();
+  const { getCost, loading: tasksLoading } = useTaskPricing();
 
   const [item, setItem] = useState(null);
   const [policeCaseDetail, setPoliceCaseDetail] = useState(null);
@@ -307,6 +314,39 @@ export default function ItemDetails() {
   function showToastMsg(msg, type = "info") {
     setToast({ visible: true, message: msg, type });
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3200);
+  }
+
+  async function goToEdit() {
+    if (!item?.slug) return;
+    const path = `/items/${item.slug}/edit`;
+    const role = user?.role;
+    if (["admin", "cashier"].includes(String(role || "").toLowerCase())) {
+      navigate(path);
+      return;
+    }
+    if (tasksLoading) return;
+
+    const balance = Number(user?.credit_balance ?? 0);
+    if (isBalanceBelowMinimumForEdit(balance, item, getCost, role)) {
+      const min = getMinimumCreditForAnyEditAction(item, getCost, role);
+      const msg = formatInsufficientCreditsMessage(
+        "Your balance is below the minimum credits usually needed for at least one update (edit details, add photos, or report stolen).",
+        {
+          creditsCost: min ?? undefined,
+          balance,
+          taskCode: null,
+        }
+      );
+      const proceed = await confirm({
+        title: "Credit balance is low",
+        message: msg,
+        confirmLabel: "Continue to editor",
+        cancelLabel: "Stay here",
+        variant: "warning",
+      }).catch(() => false);
+      if (!proceed) return;
+    }
+    navigate(path);
   }
 
   function openTransferOwnershipModal() {
@@ -753,8 +793,10 @@ export default function ItemDetails() {
                 ) : null}
 
                 <RippleButton
-                  className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm"
-                  onClick={() => navigate(`/items/${item.slug}/edit`)}
+                  className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
+                  onClick={() => void goToEdit()}
+                  disabled={tasksLoading}
+                  title={tasksLoading ? "Loading credit prices…" : undefined}
                 >
                   Edit
                 </RippleButton>

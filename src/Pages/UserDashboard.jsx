@@ -1,6 +1,5 @@
 // src/Pages/UserDashboard.jsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useNotificationCenter } from "../contexts/NotificationContext";
 import RecentActivityPanel from "../components/RecentActivityPanel";
@@ -9,6 +8,7 @@ import QuickActionsPanel from "../components/QuickActionsPanel";
 import DashboardAlertsPanel from "../components/DashboardAlertsPanel";
 import CreditsSummaryStrip from "../components/CreditsSummaryStrip.jsx";
 import { useDashboard } from "../hooks/useDashboard";
+import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 
 function useCountUp(target = 0, duration = 800) {
   const [value, setValue] = useState(0);
@@ -37,9 +37,9 @@ function useCountUp(target = 0, duration = 800) {
 export default function UserDashboard() {
   
   const [page, setPage] = useState(1);
-  const navigate = useNavigate();
   const { data, loading } = useDashboard({limit: 5, page,});
   const { user } = useAuth();
+  const { goToAddItem, tasksLoading: addPreflightLoading } = useAddItemPreflight();
 
   // ===== Derived Stats =====
   const summary = data?.personal?.summary || {};
@@ -90,8 +90,11 @@ export default function UserDashboard() {
             </p>
 
             <button
-              onClick={() => navigate("/items/add")}
-              className="mt-5 bg-iregistrygreen text-white px-5 py-2 rounded-xl text-sm font-medium hover:shadow-md transition"
+              type="button"
+              onClick={() => void goToAddItem()}
+              disabled={addPreflightLoading}
+              title={addPreflightLoading ? "Loading credit prices…" : undefined}
+              className="mt-5 bg-iregistrygreen text-white px-5 py-2 rounded-xl text-sm font-medium hover:shadow-md transition disabled:opacity-60"
             >
               + Add Your First Item
             </button>

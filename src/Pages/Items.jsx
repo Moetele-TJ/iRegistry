@@ -11,6 +11,7 @@ import { useModal } from "../contexts/ModalContext.jsx";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
+import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -132,6 +133,7 @@ export default function Items() {
   const role = user?.role;
   const { getCost } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
+  const { goToAddItem, tasksLoading: addPreflightLoading } = useAddItemPreflight();
 
   // UI state
   const [query, setQuery] = useState("");
@@ -797,8 +799,10 @@ export default function Items() {
             {/* Right: Actions */}
             <div className="flex items-center gap-3">
               <RippleButton
-                className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:shadow-md transition"
-                onClick={() => navigate("/items/add")}
+                className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:shadow-md transition disabled:opacity-60"
+                onClick={() => void goToAddItem()}
+                disabled={addPreflightLoading}
+                title={addPreflightLoading ? "Loading credit prices…" : undefined}
               >
                 + Add Item
               </RippleButton>
@@ -1431,8 +1435,10 @@ export default function Items() {
 
               {items.length === 0 && (
                 <RippleButton
-                  className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium"
-                  onClick={() => navigate("/items/add")}
+                  className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
+                  onClick={() => void goToAddItem()}
+                  disabled={addPreflightLoading}
+                  title={addPreflightLoading ? "Loading credit prices…" : undefined}
                 >
                   + Add Your First Item
                 </RippleButton>
