@@ -31,7 +31,7 @@ export default function AppSidebar({ sidebar }) {
   return (
     <aside
       className={`
-        fixed left-0 top-[var(--app-header-h)] bottom-auto sm:bottom-0 z-[70]
+        fixed left-0 top-[var(--app-header-h)] bottom-0 z-[70]
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         transition-[width] duration-300 ease-in-out
@@ -43,7 +43,7 @@ export default function AppSidebar({ sidebar }) {
       onMouseLeave={() => (canHover && hoverExpand) && setExpanded(false)}
     >
       <nav
-        className="app-sidebar-nav flex-none sm:flex-1 sm:min-h-0 overflow-visible sm:overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
+        className="app-sidebar-nav min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
         aria-label="Main navigation"
       >
         {items.map((it) => (
