@@ -211,6 +211,27 @@ serve(async (req) => {
 
     }
 
+    /* Deep-compare (same as prune below): billing must not charge EDIT_ITEM for unchanged fields. */
+    function stableStringify(v: any): string {
+      if (v === null) return "null";
+      if (v === undefined) return "undefined";
+      const t = typeof v;
+      if (t !== "object") return JSON.stringify(v);
+
+      if (Array.isArray(v)) {
+        return `[${v.map(stableStringify).join(",")}]`;
+      }
+
+      const keys = Object.keys(v).sort();
+      return `{${keys
+        .map((k) => `${JSON.stringify(k)}:${stableStringify(v[k])}`)
+        .join(",")}}`;
+    }
+
+    function deepEqual(a: any, b: any): boolean {
+      return stableStringify(a) === stableStringify(b);
+    }
+
     /* ---------------- BILLING ----------------
      * - MARK_STOLEN: only when switching Active -> Stolen
      * - UPLOAD_PHOTOS: when new photo entries are introduced
@@ -296,11 +317,16 @@ serve(async (req) => {
       }
     }
 
-    // 3) Edit item billing (any other non-status, non-photo change)
+    // 3) Edit item billing (any other non-status, non-photo change that actually differs from DB)
     if (!actorIsPrivileged && !ownerIsPrivileged) {
       const keys = Object.keys(cleanUpdates);
       const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
-      const hasNonPhotoNonStatusChange = meaningful.some((k) => k !== "photos" && k !== "status");
+      const hasNonPhotoNonStatusChange = meaningful.some((k) => {
+        if (k === "photos" || k === "status") return false;
+        const existingVal = (existing as any)[k];
+        const v = (cleanUpdates as any)[k];
+        return !deepEqual(existingVal, v);
+      });
       if (hasNonPhotoNonStatusChange) {
         const r = await spend("EDIT_ITEM", { kind: "update-item", action: "edit-item" });
         if (!r.ok) {
@@ -502,26 +528,6 @@ serve(async (req) => {
      * To ensure we never write unchanged values (and to keep side effects/activity logs accurate),
      * remove any update keys whose value is deep-equal to the existing DB value.
      */
-
-    function stableStringify(v: any): string {
-      if (v === null) return "null";
-      if (v === undefined) return "undefined";
-      const t = typeof v;
-      if (t !== "object") return JSON.stringify(v);
-
-      if (Array.isArray(v)) {
-        return `[${v.map(stableStringify).join(",")}]`;
-      }
-
-      const keys = Object.keys(v).sort();
-      return `{${keys
-        .map((k) => `${JSON.stringify(k)}:${stableStringify(v[k])}`)
-        .join(",")}}`;
-    }
-
-    function deepEqual(a: any, b: any): boolean {
-      return stableStringify(a) === stableStringify(b);
-    }
 
     const pruned: Record<string, any> = {};
     for (const [k, v] of Object.entries(cleanUpdates)) {
