@@ -803,22 +803,6 @@ export default function EditItem() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-iregistrygreen">Edit item</h1>
-            <p className="text-sm text-gray-500">
-              Update details for {storedItem.name || "this item"}
-            </p>
-          </div>
-          <RippleButton
-            type="button"
-            className="px-4 py-2 rounded-lg border border-red-200 text-red-700 bg-white self-start"
-            onClick={handleDelete}
-          >
-            Delete item
-          </RippleButton>
-        </div>
-
         {showEntryCreditWarning ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             <div className="font-semibold">Owner has insufficient credits</div>
@@ -841,8 +825,25 @@ export default function EditItem() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 space-y-6"
+          className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
         >
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 px-8 pt-8 pb-5 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 border-b border-emerald-100/80">
+            <div>
+              <h1 className="text-2xl font-bold text-iregistrygreen">Edit item</h1>
+              <p className="text-sm text-gray-500">
+                Update details for {storedItem.name || "this item"}
+              </p>
+            </div>
+            <RippleButton
+              type="button"
+              className="px-4 py-2 rounded-lg border border-red-200 text-red-700 bg-white self-start shadow-sm"
+              onClick={handleDelete}
+            >
+              Delete item
+            </RippleButton>
+          </div>
+
+          <div className="p-8 space-y-6">
           <Field label="Category" required>
             <input
               name="category"
@@ -1185,6 +1186,7 @@ export default function EditItem() {
             >
               {isUploading ? `Uploading ${currentUpload}/${totalUploads}` : "Save changes"}
             </RippleButton>
+          </div>
           </div>
         </form>
       </div>
