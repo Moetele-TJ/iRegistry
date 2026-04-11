@@ -7,6 +7,7 @@ import {
   ReceiptText,
   Tag,
   UserCircle,
+  Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 
@@ -21,6 +22,7 @@ export function useUserSidebar({ visible = true } = {}) {
       { to: "/userdashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/userdashboard/activity", icon: <Activity size={20} />, label: "Activity" },
       { to: "/userdashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
+      { to: "/userdashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/userdashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },
     ],
     []

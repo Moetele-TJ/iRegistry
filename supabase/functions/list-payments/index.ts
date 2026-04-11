@@ -28,7 +28,7 @@ serve(async (req) => {
     if (!allow) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
 
     const body = await req.json().catch(() => ({}));
-    const { user_id, limit = 50, offset = 0 } = body ?? {};
+    const { user_id, limit = 50, offset = 0, status } = body ?? {};
 
     let q = supabase
       .from("payments")
@@ -50,6 +50,7 @@ serve(async (req) => {
         reversed_at,
         reversed_by,
         reversed_reason,
+        metadata,
         users!payments_user_id_fkey(first_name,last_name,email,id_number,phone)
       `,
         { count: "exact" },
@@ -59,6 +60,10 @@ serve(async (req) => {
 
     if (user_id && typeof user_id === "string") {
       q = q.eq("user_id", user_id);
+    }
+
+    if (status && typeof status === "string") {
+      q = q.eq("status", status);
     }
 
     const { data, error, count } = await q;

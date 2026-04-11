@@ -421,6 +421,18 @@ verify_jwt = true
 import_map = "./functions/user-trusted-devices/deno.json"
 entrypoint = "./functions/user-trusted-devices/index.ts"
 
+[functions.user-pending-topup]
+enabled = true
+verify_jwt = true
+import_map = "./functions/user-pending-topup/deno.json"
+entrypoint = "./functions/user-pending-topup/index.ts"
+
+[functions.staff-complete-pending-topup]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-complete-pending-topup/deno.json"
+entrypoint = "./functions/staff-complete-pending-topup/index.ts"
+
 [functions.logout]
 enabled = true
 verify_jwt = true
