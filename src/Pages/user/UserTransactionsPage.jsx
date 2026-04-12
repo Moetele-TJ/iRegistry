@@ -107,16 +107,16 @@ export default function UserTransactionsPage() {
       ) : payments.length === 0 ? (
         <div className="px-5 py-6 text-sm text-gray-500">No transactions yet.</div>
       ) : (
-        <div className="overflow-auto">
-          <table className="min-w-full text-sm">
+        <div className="overflow-x-auto px-3 sm:px-4">
+          <table className="text-sm w-max max-w-full border-collapse">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <th className="text-left font-semibold px-4 py-3">Date</th>
-                <th className="text-left font-semibold px-4 py-3">Channel</th>
-                <th className="text-left font-semibold px-4 py-3">Amount</th>
-                <th className="text-left font-semibold px-4 py-3">Credits</th>
-                <th className="text-left font-semibold px-4 py-3">Status</th>
-                <th className="text-right font-semibold px-4 py-3 w-[1%] whitespace-nowrap">Actions</th>
+                <th className="text-left font-semibold pl-0 pr-2 py-2">Date</th>
+                <th className="text-left font-semibold px-2 py-2">Channel</th>
+                <th className="text-left font-semibold px-2 py-2">Amount</th>
+                <th className="text-left font-semibold px-2 py-2">Credits</th>
+                <th className="text-left font-semibold px-2 py-2">Status</th>
+                <th className="text-right font-semibold pl-2 pr-0 py-2 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -124,13 +124,13 @@ export default function UserTransactionsPage() {
                 const showPendingActions = p.status === "PENDING" && !p.reversed_at;
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                    <td className="pl-0 pr-2 py-2 text-gray-700 whitespace-nowrap">
                       {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{p.channel}</td>
-                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
-                    <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2 text-gray-700 whitespace-nowrap">{p.channel}</td>
+                    <td className="px-2 py-2 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
+                    <td className="px-2 py-2 text-gray-700 tabular-nums whitespace-nowrap">{p.credits_granted ?? 0}</td>
+                    <td className="px-2 py-2">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
                           p.reversed_at
@@ -145,9 +145,9 @@ export default function UserTransactionsPage() {
                         {p.reversed_at ? "REVERSED" : p.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="pl-2 pr-0 py-2 text-right">
                       {showPendingActions ? (
-                        <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                        <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
                           <RippleButton
                             type="button"
                             className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-iregistrygreen text-white text-xs font-semibold disabled:opacity-60"
