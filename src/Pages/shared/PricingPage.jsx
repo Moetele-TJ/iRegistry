@@ -64,31 +64,59 @@ export default function PricingPage({
   ) : activeTasks.length === 0 ? (
     <div className="px-5 py-6 text-sm text-gray-500">No pricing configured yet.</div>
   ) : (
-    <div className="overflow-auto">
-      <table className="min-w-full text-sm">
-        <thead className="bg-gray-50 text-gray-600">
-          <tr>
-            <th className="text-left font-semibold px-4 py-3">Task</th>
-            <th className="text-left font-semibold px-4 py-3">Description</th>
-            <th className="text-right font-semibold px-4 py-3">Credits</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {activeTasks.map((t) => (
-            <tr key={t.code} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-gray-900">
-                <div className="font-medium">{t.name}</div>
-                <div className="text-xs text-gray-400 font-mono">{t.code}</div>
-              </td>
-              <td className="px-4 py-3 text-gray-700">{t.description || "—"}</td>
-              <td className="px-4 py-3 text-right text-gray-900 font-semibold tabular-nums">
+    <>
+      {/* Mobile: stacked cards (match Transactions page) */}
+      <div className="md:hidden px-4 pb-4 sm:px-5 space-y-3">
+        {activeTasks.map((t) => (
+          <article
+            key={t.code}
+            className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 shadow-sm space-y-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Task</p>
+                <p className="text-sm text-gray-900 font-medium mt-0.5 break-words">{t.name}</p>
+                <p className="text-xs text-gray-400 font-mono mt-1">{t.code}</p>
+              </div>
+              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-100 tabular-nums shrink-0">
                 {Number(t.credits_cost ?? 0)}
-              </td>
+              </span>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Description</p>
+              <p className="text-sm text-gray-800 mt-0.5 break-words">{t.description || "—"}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* md+: table */}
+      <div className="hidden md:block overflow-x-auto px-4 sm:px-5">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="text-left font-semibold px-4 py-3">Task</th>
+              <th className="text-left font-semibold px-4 py-3">Description</th>
+              <th className="text-right font-semibold px-4 py-3">Credits</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {activeTasks.map((t) => (
+              <tr key={t.code} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-gray-900">
+                  <div className="font-medium">{t.name}</div>
+                  <div className="text-xs text-gray-400 font-mono">{t.code}</div>
+                </td>
+                <td className="px-4 py-3 text-gray-700">{t.description || "—"}</td>
+                <td className="px-4 py-3 text-right text-gray-900 font-semibold tabular-nums">
+                  {Number(t.credits_cost ?? 0)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 
   const footer =
