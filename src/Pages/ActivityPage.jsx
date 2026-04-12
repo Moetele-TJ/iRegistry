@@ -1,10 +1,12 @@
 //  src/Pages/ActivityPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Activity } from "lucide-react";
 import { useDashboard } from "../hooks/useDashboard";
 import TimeAgo from "../components/TimeAgo";
 import { getIcon } from "../utils/iconResolver";
 import { groupActivityByDate } from "../utils/groupActivityByDate";
+import PageSectionCard from "./shared/PageSectionCard.jsx";
 
 export default function ActivityPage() {
 
@@ -43,13 +45,15 @@ export default function ActivityPage() {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <div className="max-w-4xl mx-auto px-4 py-8">
-
-                <h1 className="text-xl font-semibold text-gray-800 mb-6">
-                    Activity History
-                </h1>
-
-                <div className="flex gap-2 mb-4">
+            <div className="w-full py-6 sm:py-8 lg:py-10 pb-12">
+            <PageSectionCard
+                maxWidthClass="max-w-7xl"
+                title="Activity"
+                subtitle="Your registry activity history"
+                icon={<Activity className="w-7 h-7 text-iregistrygreen shrink-0" />}
+            >
+                <div className="p-4 sm:p-6 space-y-6">
+                <div className="flex gap-2 flex-wrap">
 
                     {[
                         { label: "All", value: "all" },
@@ -75,7 +79,7 @@ export default function ActivityPage() {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
 
                     {loading && (
                         <div className="p-6 text-sm text-gray-400">
@@ -150,12 +154,12 @@ export default function ActivityPage() {
 
                 {/* Pagination */}
 
-                <div className="flex justify-between items-center mt-6 text-sm">
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100/80 text-sm">
 
                     <button
                         disabled={page === 1}
                         onClick={() => setPage(p => p - 1)}
-                        className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 disabled:opacity-50"
                     >
                         Previous
                     </button>
@@ -167,11 +171,13 @@ export default function ActivityPage() {
                     <button
                         disabled={page === totalPages}
                         onClick={() => setPage(p => p + 1)}
-                        className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 disabled:opacity-50"
                     >
                         Next
                     </button>
                 </div>
+                </div>
+            </PageSectionCard>
             </div>
         </div>
     );

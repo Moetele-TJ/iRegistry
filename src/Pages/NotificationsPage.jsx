@@ -78,7 +78,7 @@ export default function NotificationsPage() {
 
   return (
     <PageSectionCard
-      maxWidthClass="max-w-4xl"
+      maxWidthClass="max-w-7xl"
       title="Notifications"
       subtitle={
         unreadCount > 0

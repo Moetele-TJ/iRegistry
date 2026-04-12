@@ -34,20 +34,22 @@ export default function CashierHome() {
   const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim();
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-iregistrygreen">
-            <Banknote className="w-6 h-6" />
-          </span>
-          Cashier overview
-        </h1>
-        <p className="text-gray-500 mt-2 max-w-2xl">
-          Financial snapshot of the registry—estimated asset values from registrations, account volumes, and
-          compliance signals. Operations mirror the admin view, tuned for front-desk and treasury workflows.
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
+      <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight flex items-center gap-2 flex-wrap">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 text-iregistrygreen border border-emerald-100 shadow-sm">
+              <Banknote className="w-6 h-6" />
+            </span>
+            Cashier overview
+          </h1>
+          <p className="text-gray-500 mt-2 max-w-2xl text-sm">
+            Financial snapshot of the registry—estimated asset values from registrations, account volumes, and
+            compliance signals. Operations mirror the admin view, tuned for front-desk and treasury workflows.
+          </p>
+        </div>
 
+        <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 bg-gradient-to-b from-white to-gray-50/40">
       {loading && (
         <div className="space-y-4 animate-pulse">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -253,6 +255,8 @@ export default function CashierHome() {
           </div>
         </>
       )}
+        </div>
+      </div>
     </div>
   );
 }

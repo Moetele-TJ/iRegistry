@@ -62,18 +62,15 @@ export default function UserDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-
-        {/* ===== Welcome Section ===== */}
-        <div className="space-y-1 animate-fade-up">
-          <h1 className="text-3xl font-semibold text-gray-900">
-            Welcome back{user?.last_name ? `, ${user.last_name}` : ""} 👋
-          </h1>
-          <p className="text-gray-500 text-sm">
-            Here’s a snapshot of your asset portfolio
-          </p>
-        </div>
-
+      <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight animate-fade-up">
+              Welcome back{user?.last_name ? `, ${user.last_name}` : ""} 👋
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">Here’s a snapshot of your asset portfolio</p>
+          </div>
+          <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 bg-gradient-to-b from-white to-gray-50/40">
         <CreditsSummaryStrip />
 
         {!loading && !hasItems && (
@@ -204,6 +201,8 @@ export default function UserDashboard() {
 
         </div>
 
+          </div>
+        </div>
       </div>
     </div>
   );

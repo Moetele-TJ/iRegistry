@@ -27,7 +27,7 @@ export default function PoliceHome() {
 
   return (
     <PageSectionCard
-      maxWidthClass="max-w-4xl"
+      maxWidthClass="max-w-7xl"
       title="Police dashboard"
       subtitle="Station queue and case activity use your profile's police station name."
       icon={<Shield className="w-7 h-7 text-iregistrygreen shrink-0" />}
