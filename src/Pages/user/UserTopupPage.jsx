@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Wallet, Loader2, Trash2, Save } from "lucide-react";
+import { Wallet, Loader2, Trash2, Save, CreditCard } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -103,6 +103,14 @@ export function UserTopupContent() {
     }
   }
 
+  /** Placeholder until checkout is wired (pass `pending.id` / amount to payment session). */
+  function startOnlinePayment() {
+    addToast({
+      type: "info",
+      message: "Online payment isn't available yet. Complete this top-up in person with staff, or check back soon.",
+    });
+  }
+
   async function cancelPending() {
     const ok = await confirm({
       title: "Delete pending top-up?",
@@ -181,15 +189,27 @@ export function UserTopupContent() {
                   <div className="text-xs text-gray-600">Created {fmtDate(pending.created_at)}</div>
                   <div className="text-xs text-gray-500">Status: {pending.status}</div>
                 </div>
-                <RippleButton
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-700 bg-white font-semibold shrink-0 self-start sm:self-center disabled:opacity-60"
-                  disabled={saving}
-                  onClick={() => void cancelPending()}
-                >
-                  <Trash2 size={18} />
-                  Delete
-                </RippleButton>
+                <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-end">
+                  <RippleButton
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                    disabled={saving}
+                    title="Pay online when checkout is available"
+                    onClick={() => startOnlinePayment()}
+                  >
+                    <CreditCard size={18} />
+                    Pay
+                  </RippleButton>
+                  <RippleButton
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-700 bg-white font-semibold disabled:opacity-60"
+                    disabled={saving}
+                    onClick={() => void cancelPending()}
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </RippleButton>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-gray-600">You have no pending top-up. Choose a package below and tap Submit.</p>
