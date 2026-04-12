@@ -16,8 +16,8 @@ function fmtDate(iso) {
   }
 }
 
-export default function UserTopupPage() {
-  useUserSidebar();
+/** Shared pending top-up UI for user and police dashboards (same API + wallet rules). */
+export function UserTopupContent() {
   const { user, refreshUser } = useAuth();
   const { addToast } = useToast();
 
@@ -110,17 +110,17 @@ export default function UserTopupPage() {
     }
   }
 
-  if (!roleIs(user?.role, "user")) {
+  if (!roleIs(user?.role, "user", "police")) {
     return (
       <div className="min-h-screen bg-gray-100 px-4 py-10">
         <div className="max-w-lg mx-auto bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <p className="text-gray-700">Credit top-up requests are only available for registered user accounts.</p>
+          <p className="text-gray-700">
+            Credit top-up requests are only available for registered user or police accounts.
+          </p>
         </div>
       </div>
     );
   }
-
-  const pkg = packages.find((p) => p.id === packageId) || packages[0];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -216,4 +216,9 @@ export default function UserTopupPage() {
       </div>
     </div>
   );
+}
+
+export default function UserTopupPage() {
+  useUserSidebar();
+  return <UserTopupContent />;
 }

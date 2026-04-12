@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Save, Tag, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Plus, Save, RefreshCw } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import PricingPageShell from "../shared/PricingPageShell.jsx";
 
 export default function AdminPricingPage() {
   useAdminSidebar();
@@ -97,37 +99,40 @@ export default function AdminPricingPage() {
     }
   }
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Tag className="w-6 h-6 text-iregistrygreen" />
-            Pricing & tasks
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">View and manage credit costs per task.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <RippleButton
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm"
-            onClick={() => void load()}
-            disabled={loading}
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </RippleButton>
-          <RippleButton
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm"
-            onClick={startNew}
-          >
-            <Plus size={16} />
-            New task
-          </RippleButton>
-        </div>
-      </div>
+  const headerActions = (
+    <>
+      <Link
+        to="/admindashboard/topup"
+        className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-white/90 px-3 py-2 text-sm font-medium text-emerald-900 shadow-sm hover:bg-white transition"
+      >
+        Top-up
+      </Link>
+      <RippleButton
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+        onClick={() => void load()}
+        disabled={loading}
+      >
+        <RefreshCw size={16} />
+        Refresh
+      </RippleButton>
+      <RippleButton
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+        onClick={startNew}
+      >
+        <Plus size={16} />
+        New task
+      </RippleButton>
+    </>
+  );
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section className="lg:col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+  return (
+    <PricingPageShell
+      title="Pricing & tasks"
+      subtitle="View and manage credit costs per task."
+      actions={headerActions}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+        <section className="lg:col-span-7 p-5 sm:p-6 border-b lg:border-b-0 lg:border-r border-gray-100">
           <div className="text-sm font-semibold text-gray-800 mb-3">Current tasks</div>
 
           {loading ? (
@@ -142,7 +147,7 @@ export default function AdminPricingPage() {
           )}
         </section>
 
-        <section className="lg:col-span-5 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <section className="lg:col-span-5 p-5 sm:p-6 space-y-4">
           <div className="text-sm font-semibold text-gray-800">Add / edit task</div>
 
           <div>
@@ -211,7 +216,7 @@ export default function AdminPricingPage() {
           </RippleButton>
         </section>
       </div>
-    </div>
+    </PricingPageShell>
   );
 }
 
@@ -231,7 +236,7 @@ function TaskTable({ title, tasks, onEdit }) {
                 <th className="text-right font-semibold px-4 py-3">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100">
               {tasks.map((t) => (
                 <tr key={t.code} className="hover:bg-gray-50">
                   <td className="px-4 py-3">

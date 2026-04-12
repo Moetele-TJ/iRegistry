@@ -37,9 +37,12 @@ serve(async (req) => {
       return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
     }
 
-    if (!roleIs(session.role, "user")) {
+    if (!roleIs(session.role, "user") && !roleIs(session.role, "police")) {
       return respond(
-        { success: false, message: "Only registered users can manage pending top-ups here." },
+        {
+          success: false,
+          message: "Only registered user or police accounts can manage pending top-ups here.",
+        },
         corsHeaders,
         403,
       );
