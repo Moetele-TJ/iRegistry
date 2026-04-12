@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
-import { USER_PRICING_PATH, USER_TRANSACTIONS_PATH } from "../lib/billingUx.js";
+import { USER_PRICING_PATH, USER_TOPUP_PATH, USER_TRANSACTIONS_PATH } from "../lib/billingUx.js";
 
 /**
  * Dashboard row: balance, quick links, last top-up line (if any).
@@ -72,6 +72,12 @@ export default function CreditsSummaryStrip() {
           className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100 transition"
         >
           Credit pricing
+        </Link>
+        <Link
+          to={USER_TOPUP_PATH}
+          className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100 transition"
+        >
+          Top-up
         </Link>
         <Link
           to={USER_TRANSACTIONS_PATH}

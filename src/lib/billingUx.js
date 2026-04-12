@@ -2,6 +2,7 @@
 import { roleIs } from "./roleUtils.js";
 
 export const USER_PRICING_PATH = "/userdashboard/pricing";
+export const USER_TOPUP_PATH = "/userdashboard/topup";
 export const USER_TRANSACTIONS_PATH = "/userdashboard/transactions";
 
 export function isPrivilegedRole(role) {
