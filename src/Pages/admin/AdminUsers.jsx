@@ -1,6 +1,6 @@
 // src/Pages/admin/AdminUsers.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
@@ -997,6 +997,13 @@ export default function AdminUsers() {
                       ) : null}
                     </div>
 
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3 shrink-0">
+                      <Link
+                        to={`/admindashboard/profile?user=${encodeURIComponent(u.id)}`}
+                        className="text-sm font-semibold text-iregistrygreen hover:underline whitespace-nowrap"
+                      >
+                        View profile
+                      </Link>
                     <UserRowActionControls
                       key={u.id}
                       userId={u.id}
@@ -1022,6 +1029,7 @@ export default function AdminUsers() {
                       onEdit={() => startEdit(u)}
                       onDelete={() => handleDelete(u.id)}
                     />
+                    </div>
                   </div>
                 );
               })}

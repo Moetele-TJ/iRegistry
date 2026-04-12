@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -360,7 +361,13 @@ export default function CashierUsersPage() {
                     ) : null}
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <Link
+                      to={`/cashierdashboard/profile?user=${encodeURIComponent(u.id)}`}
+                      className="text-sm font-semibold text-iregistrygreen hover:underline whitespace-nowrap"
+                    >
+                      View profile
+                    </Link>
                     <RippleButton
                       type="button"
                       className="px-4 py-2 rounded-lg bg-gray-100 text-sm disabled:opacity-60"

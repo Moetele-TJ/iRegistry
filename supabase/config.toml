@@ -444,6 +444,13 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/validate-session/deno.json"
 entrypoint = "./functions/validate-session/index.ts"
+
+[functions.get-user-profile]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-user-profile/deno.json"
+entrypoint = "./functions/get-user-profile/index.ts"
+
 [functions.stats]
 enabled = true
 verify_jwt = true

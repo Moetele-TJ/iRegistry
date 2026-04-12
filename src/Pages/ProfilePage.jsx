@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import {
@@ -21,6 +21,8 @@ import {
   Pencil,
   Phone,
   Smartphone,
+  Copy,
+  Wallet,
 } from "lucide-react";
 
 function fmtDate(iso) {
@@ -30,6 +32,15 @@ function fmtDate(iso) {
       dateStyle: "medium",
       timeStyle: "short",
     });
+  } catch {
+    return String(iso);
+  }
+}
+
+function fmtDateOnly(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
   } catch {
     return String(iso);
   }
@@ -103,10 +114,16 @@ const inputClass =
   "mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-iregistrygreen focus:outline-none focus:ring-2 focus:ring-iregistrygreen/20";
 
 export default function ProfilePage() {
-  const { user, refreshUser } = useAuth();
+  const { user: sessionUser, refreshUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryUserId = searchParams.get("user");
+
+  const [profileUser, setProfileUser] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -131,6 +148,37 @@ export default function ProfilePage() {
   const mobileSessionsMenuRef = useRef(null);
   /** lg+ desktop: tabbed sections (mobile keeps stacked cards). */
   const [desktopTab, setDesktopTab] = useState("profile");
+
+  /** Admin/cashier opened `/profile?user=<uuid>` to inspect another account. */
+  const viewingOther =
+    !!(queryUserId && sessionUser?.id && String(queryUserId) !== String(sessionUser.id));
+
+  const loadProfile = useCallback(async () => {
+    if (!sessionUser?.id) return;
+    setProfileLoading(true);
+    setProfileError("");
+    try {
+      const body = queryUserId ? { user_id: queryUserId } : {};
+      const { data, error } = await invokeWithAuth("get-user-profile", { body });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not load profile");
+      }
+      setProfileUser(data.user ?? null);
+    } catch (e) {
+      setProfileUser(null);
+      setProfileError(e?.message || "Could not load profile");
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [sessionUser?.id, queryUserId]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  useEffect(() => {
+    if (viewingOther && desktopTab === "security") setDesktopTab("profile");
+  }, [viewingOther, desktopTab]);
 
   async function loadTrustedDevices() {
     setTrustedLoading(true);
@@ -199,10 +247,10 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!sessionUser?.id || viewingOther) return;
     void loadSessions();
     void loadTrustedDevices();
-  }, [user?.id]);
+  }, [sessionUser?.id, viewingOther]);
 
   useEffect(() => {
     if (!mobileSessionsMenuOpen) return;
@@ -220,19 +268,19 @@ export default function ProfilePage() {
   }, [mobileSessionsMenuOpen]);
 
   const openEdit = useCallback(() => {
-    if (!user) return;
+    if (!profileUser || viewingOther) return;
     setFormError("");
     setForm({
-      first_name: user.first_name ?? "",
-      last_name: user.last_name ?? "",
-      email: user.email ?? "",
-      phone: user.phone ?? "",
-      village: user.village ?? "",
-      ward: user.ward ?? "",
-      police_station: user.police_station ?? "",
+      first_name: profileUser.first_name ?? "",
+      last_name: profileUser.last_name ?? "",
+      email: profileUser.email ?? "",
+      phone: profileUser.phone ?? "",
+      village: profileUser.village ?? "",
+      ward: profileUser.ward ?? "",
+      police_station: profileUser.police_station ?? "",
     });
     setEditing(true);
-  }, [user]);
+  }, [profileUser, viewingOther]);
 
   const cancelEdit = useCallback(() => {
     setFormError("");
@@ -240,7 +288,7 @@ export default function ProfilePage() {
   }, []);
 
   async function saveProfile() {
-    if (!user?.id) return;
+    if (!profileUser?.id || viewingOther) return;
     const first_name = String(form.first_name ?? "").trim();
     const last_name = String(form.last_name ?? "").trim();
     const email = String(form.email ?? "").trim();
@@ -270,7 +318,7 @@ export default function ProfilePage() {
 
       const { data, error } = await invokeWithAuth("update-user", {
         body: {
-          id: String(user.id),
+          id: String(profileUser.id),
           updates: {
             first_name: first_name || null,
             last_name,
@@ -290,6 +338,7 @@ export default function ProfilePage() {
         throw new Error(msg);
       }
       await refreshUser();
+      await loadProfile();
       setEditing(false);
       if (String(data?.message || "").toLowerCase().includes("no changes")) {
         addToast({ type: "info", message: "No changes to save." });
@@ -363,7 +412,17 @@ export default function ProfilePage() {
     }
   }
 
-  if (!user) {
+  async function copyText(label, text) {
+    if (text == null || String(text).trim() === "") return;
+    try {
+      await navigator.clipboard.writeText(String(text));
+      addToast({ type: "success", message: `${label} copied to clipboard.` });
+    } catch {
+      addToast({ type: "error", message: "Could not copy." });
+    }
+  }
+
+  if (!sessionUser) {
     return (
       <div className="min-h-[min(100vh,720px)] bg-gradient-to-b from-gray-100 to-gray-50 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-10 text-center">
@@ -381,6 +440,40 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-100 via-gray-50/90 to-gray-100 flex items-center justify-center p-6">
+        <p className="text-sm text-gray-600">Loading profile…</p>
+      </div>
+    );
+  }
+
+  if (profileError || !profileUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-100 via-gray-50/90 to-gray-100">
+        <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4">
+          <p className="text-red-700 text-sm">{profileError || "Could not load this profile."}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <RippleButton
+              className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium"
+              onClick={() => void loadProfile()}
+            >
+              Retry
+            </RippleButton>
+            <RippleButton
+              className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800"
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </RippleButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const user = profileUser;
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
   const displayName = fullName || user.email || "Your account";
@@ -405,6 +498,10 @@ export default function ProfilePage() {
                   {user.phone || "—"}
                 </span>
               </Field>
+              <Field label="National ID / Passport" mono>
+                {user.id_number ? String(user.id_number) : "—"}
+              </Field>
+              <Field label="Date of birth">{fmtDateOnly(user.date_of_birth)}</Field>
               <div className="grid grid-cols-2 gap-4 pt-1">
                 <Field label="Minor account">
                   <span
@@ -460,6 +557,10 @@ export default function ProfilePage() {
                   required
                 />
               </div>
+              <Field label="National ID / Passport" mono>
+                {user.id_number ? String(user.id_number) : "—"}
+              </Field>
+              <Field label="Date of birth">{fmtDateOnly(user.date_of_birth)}</Field>
               <div className="grid grid-cols-2 gap-4 pt-1">
                 <Field label="Minor account">
                   <span
@@ -472,6 +573,9 @@ export default function ProfilePage() {
                   </span>
                 </Field>
               </div>
+              <p className="text-xs text-gray-500 pt-1">
+                National ID and date of birth are verified with administrators—contact support to correct them.
+              </p>
             </>
           )}
         </div>
@@ -529,6 +633,7 @@ export default function ProfilePage() {
   }
 
   function renderAccountCard() {
+    const emailVerified = !!user.email_verified;
     return (
       <Card title="Account & verification" icon={Shield}>
         <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
@@ -543,6 +648,13 @@ export default function ProfilePage() {
                 {user.status ? String(user.status) : "—"}
               </span>
             </Field>
+            <Field label="Credits balance">
+              <span className="inline-flex items-center gap-2">
+                <Wallet size={15} className="text-gray-400 shrink-0" />
+                <span className="tabular-nums font-semibold text-gray-900">{Number(user.credit_balance ?? 0)}</span>
+                <span className="text-gray-500">credits</span>
+              </span>
+            </Field>
           </div>
           <div className="space-y-6">
             <Field label="Identity verified">
@@ -555,28 +667,55 @@ export default function ProfilePage() {
                 {user.identity_verified ? "Verified" : "Not verified"}
               </span>
             </Field>
+            <Field label="Email verified">
+              <span
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                  emailVerified ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-50 text-gray-600 border border-gray-100"
+                }`}
+              >
+                {emailVerified ? "Yes" : "No"}
+              </span>
+            </Field>
           </div>
         </div>
+        {user.suspended_reason ? (
+          <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
+            <Field label="Suspension / restriction reason">{String(user.suspended_reason)}</Field>
+            {user.suspended_at ? <Field label="Effective since">{fmtDate(user.suspended_at)}</Field> : null}
+          </div>
+        ) : null}
       </Card>
     );
   }
 
   function renderActivityCard() {
     return (
-      <Card title="Activity & identifier" icon={Fingerprint}>
+      <Card title="Activity & identifiers" icon={Fingerprint}>
         <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+          <div className="sm:col-span-2 space-y-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Registry account ID (system)</div>
+            <div className="font-mono text-xs text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 flex items-start gap-2 leading-snug break-words">
+              <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
+              <span className="min-w-0 flex-1 break-all">{user.id ? String(user.id) : "—"}</span>
+              {user.id ? (
+                <RippleButton
+                  type="button"
+                  className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200 bg-white text-xs text-gray-700"
+                  onClick={() => void copyText("Registry account ID", user.id)}
+                  title="Copy registry account ID"
+                >
+                  <Copy size={14} />
+                </RippleButton>
+              ) : null}
+            </div>
+          </div>
           <Field label="Last login">
             <span className="inline-flex items-center gap-2 text-gray-800">
               <Clock size={16} className="text-gray-400 shrink-0" />
               {fmtDate(user.last_login_at)}
             </span>
           </Field>
-          <Field label="User ID" mono>
-            <span className="inline-flex items-start gap-2">
-              <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
-              {user.id ? String(user.id) : "—"}
-            </span>
-          </Field>
+          <Field label="Account opened">{fmtDate(user.created_at)}</Field>
         </div>
       </Card>
     );
@@ -765,6 +904,14 @@ export default function ProfilePage() {
   }
 
   function renderAdminFootnote() {
+    if (viewingOther) {
+      return (
+        <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
+          Staff read-only view. Use the Users page to change role, account status, identity verification, or national ID
+          records.
+        </p>
+      );
+    }
     return (
       <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
         Role, verification status, and national ID are managed by administrators. Use Edit profile to change your name, contact details, and location.
@@ -779,10 +926,14 @@ export default function ProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 lg:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Profile</h1>
-            <p className="mt-1 text-sm text-gray-500">Your account details and registry identity</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {viewingOther
+                ? "Staff view — another user’s account details (read-only)"
+                : "Your account details and registry identity"}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            {!editing ? (
+            {!viewingOther && !editing ? (
               <RippleButton
                 type="button"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
@@ -791,7 +942,7 @@ export default function ProfilePage() {
                 <Pencil size={18} />
                 Edit profile
               </RippleButton>
-            ) : (
+            ) : !viewingOther && editing ? (
               <>
                 <RippleButton
                   type="button"
@@ -810,7 +961,7 @@ export default function ProfilePage() {
                   {saving ? "Saving…" : "Save changes"}
                 </RippleButton>
               </>
-            )}
+            ) : null}
             <RippleButton
               type="button"
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
@@ -829,6 +980,14 @@ export default function ProfilePage() {
             className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800"
           >
             {formError}
+          </div>
+        ) : null}
+
+        {viewingOther ? (
+          <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
+            belong to the account holder. Editing is disabled; use Users admin tools for role, status, and verification
+            changes.
           </div>
         ) : null}
 
@@ -858,6 +1017,45 @@ export default function ProfilePage() {
                 {user.email}
               </p>
             ) : null}
+
+            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registry account ID</p>
+                <div className="flex items-start gap-2 mt-1">
+                  <p className="font-mono text-xs text-gray-800 break-all min-w-0 flex-1 leading-snug">{user.id || "—"}</p>
+                  {user.id ? (
+                    <RippleButton
+                      type="button"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                      onClick={() => void copyText("Registry account ID", user.id)}
+                      title="Copy registry account ID"
+                    >
+                      <Copy size={14} />
+                      <span className="hidden sm:inline">Copy</span>
+                    </RippleButton>
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">National ID / Passport</p>
+                <div className="flex items-start gap-2 mt-1">
+                  <p className="text-sm text-gray-900 font-medium tabular-nums min-w-0 flex-1 break-words">
+                    {user.id_number ? String(user.id_number) : "—"}
+                  </p>
+                  {user.id_number ? (
+                    <RippleButton
+                      type="button"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                      onClick={() => void copyText("National ID / Passport", user.id_number)}
+                      title="Copy ID number"
+                    >
+                      <Copy size={14} />
+                      <span className="hidden sm:inline">Copy</span>
+                    </RippleButton>
+                  ) : null}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -867,19 +1065,29 @@ export default function ProfilePage() {
           {renderLocationCard()}
           {renderAccountCard()}
           {renderActivityCard()}
-          {renderSessionsCard()}
-          {renderTrustedCard()}
+          {!viewingOther ? (
+            <>
+              {renderSessionsCard()}
+              {renderTrustedCard()}
+            </>
+          ) : null}
           {renderAdminFootnote()}
         </div>
 
         {/* Desktop lg+: tabbed sections */}
         <div className="hidden lg:block space-y-6">
           <div role="tablist" aria-label="Profile sections" className="flex flex-wrap gap-1 border-b border-gray-200">
-            {[
-              { id: "profile", label: "Personal & location" },
-              { id: "account", label: "Account" },
-              { id: "security", label: "Sessions & devices" },
-            ].map(({ id, label }) => (
+            {(viewingOther
+              ? [
+                  { id: "profile", label: "Personal & location" },
+                  { id: "account", label: "Account" },
+                ]
+              : [
+                  { id: "profile", label: "Personal & location" },
+                  { id: "account", label: "Account" },
+                  { id: "security", label: "Sessions & devices" },
+                ]
+            ).map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
@@ -909,12 +1117,12 @@ export default function ProfilePage() {
               {renderActivityCard()}
             </div>
           )}
-          {desktopTab === "security" && (
+          {!viewingOther && desktopTab === "security" ? (
             <div className="space-y-6">
               {renderSessionsCard()}
               {renderTrustedCard()}
             </div>
-          )}
+          ) : null}
 
           <div className="mt-8 pt-2 border-t border-gray-100/80">{renderAdminFootnote()}</div>
         </div>
