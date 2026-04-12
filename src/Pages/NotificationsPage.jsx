@@ -6,6 +6,7 @@ import TimeAgo from "../components/TimeAgo";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import { groupNotificationsByDate } from "../utils/groupNotificationsByDate";
 import { getIcon } from "../utils/iconResolver";
+import PageSectionCard from "./shared/PageSectionCard.jsx";
 
 export default function NotificationsPage() {
 
@@ -76,27 +77,27 @@ export default function NotificationsPage() {
   }
 
   return (
-
-    <div className="max-w-4xl mx-auto py-8 space-y-6">
-
-      {/* Header */}
-      <div className="flex justify-between items-center">
-
-        <h1 className="text-2xl font-semibold text-gray-800">
-          Notifications
-        </h1>
-
-        {unreadCount > 0 && (
+    <PageSectionCard
+      maxWidthClass="max-w-4xl"
+      title="Notifications"
+      subtitle={
+        unreadCount > 0
+          ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
+          : "Your activity updates"
+      }
+      actions={
+        unreadCount > 0 ? (
           <button
+            type="button"
             onClick={handleMarkAllRead}
-            className="text-sm font-medium text-iregistrygreen hover:underline"
+            className="text-sm font-medium text-emerald-900 hover:underline"
           >
             Mark all as read ({unreadCount})
           </button>
-        )}
-
-      </div>
-
+        ) : null
+      }
+    >
+      <div className="p-4 sm:p-6 space-y-6">
       {/* Empty state */}
       {notifications.length === 0 && (
         <div className="text-gray-400 text-sm text-center py-10">
@@ -206,8 +207,8 @@ export default function NotificationsPage() {
         </div>
 
       ))}
-
-    </div>
+      </div>
+    </PageSectionCard>
 
   );
 }

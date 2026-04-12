@@ -4,6 +4,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 const PACKAGES = [
   { id: "BWP_30", label: "P30", credits: 10, amount: 30, currency: "BWP", usdRef: "2.22" },
@@ -226,21 +227,14 @@ export default function CashierTopupPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-iregistrygreen" />
-            Cashier top-up
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Record a cash/office payment and credit the user’s account.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section className="lg:col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <PageSectionCard
+      maxWidthClass="max-w-6xl"
+      title="Cashier top-up"
+      subtitle="Record a cash/office payment and credit the user's account."
+      icon={<Wallet className="w-6 h-6 text-iregistrygreen shrink-0" />}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6">
+        <section className="lg:col-span-7 rounded-xl border border-gray-100 bg-gray-50/60 p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
               <User size={18} className="text-gray-400" />
@@ -293,7 +287,7 @@ export default function CashierTopupPage() {
           </div>
         </section>
 
-        <section className="lg:col-span-5 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+        <section className="lg:col-span-5 rounded-xl border border-gray-100 bg-gray-50/60 p-5 space-y-5">
           <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
             <Receipt size={18} className="text-gray-400" />
             Top-up details
@@ -426,7 +420,7 @@ export default function CashierTopupPage() {
           </RippleButton>
         </section>
       </div>
-    </div>
+    </PageSectionCard>
   );
 }
 

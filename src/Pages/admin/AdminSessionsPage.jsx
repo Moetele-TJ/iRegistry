@@ -8,6 +8,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function parseJwtSid(token) {
   if (!token || typeof token !== "string") return null;
@@ -233,21 +234,16 @@ export default function AdminSessionsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto w-full">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <MonitorSmartphone className="shrink-0" size={26} />
-            Active sessions
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Non-revoked sessions with a future expiry. The list syncs from the
-            server every minute; time remaining updates every second.
-          </p>
-        </div>
+    <>
+    <PageSectionCard
+      maxWidthClass="max-w-7xl"
+      title="Active sessions"
+      subtitle="Non-revoked sessions with a future expiry. The list syncs from the server every minute; time remaining updates every second."
+      icon={<MonitorSmartphone className="w-6 h-6 text-iregistrygreen shrink-0" />}
+      actions={
         <RippleButton
           type="button"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50"
           onClick={async () => {
             setLoading(true);
             try {
@@ -261,8 +257,9 @@ export default function AdminSessionsPage() {
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           Refresh now
         </RippleButton>
-      </div>
-
+      }
+    >
+      <div className="p-4 sm:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="relative flex-1 max-w-md">
           <Search
@@ -288,7 +285,7 @@ export default function AdminSessionsPage() {
         </div>
       ) : null}
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50/40">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
@@ -302,7 +299,7 @@ export default function AdminSessionsPage() {
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100">
               {loading && sessions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
@@ -417,7 +414,7 @@ export default function AdminSessionsPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border bg-slate-50 px-4 py-3 text-sm text-gray-700 space-y-2">
+      <section className="rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-gray-700 space-y-2">
         <p className="font-medium text-gray-800">What you can do</p>
         <ul className="list-disc pl-5 space-y-1">
           <li>
@@ -435,6 +432,8 @@ export default function AdminSessionsPage() {
           </li>
         </ul>
       </section>
+      </div>
+    </PageSectionCard>
 
       <ConfirmModal
         isOpen={revokeModal.open}
@@ -468,6 +467,6 @@ export default function AdminSessionsPage() {
         confirmLabel="Revoke all"
         danger
       />
-    </div>
+    </>
   );
 }

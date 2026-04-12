@@ -4,8 +4,10 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
 import { roleIs } from "../../lib/roleUtils.js";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function fmtDate(iso) {
   if (!iso) return "—";
@@ -20,6 +22,7 @@ function fmtDate(iso) {
 export function UserTopupContent() {
   const { user, refreshUser } = useAuth();
   const { addToast } = useToast();
+  const { confirm } = useModal();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,6 +94,16 @@ export function UserTopupContent() {
   }
 
   async function cancelPending() {
+    const ok = await confirm({
+      title: "Delete pending top-up?",
+      message:
+        "This removes your pending top-up request. You can submit a new one later. Nothing is refunded because no payment was taken yet.",
+      confirmLabel: "Delete pending",
+      cancelLabel: "Keep",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
     setSaving(true);
     try {
       const { data, error } = await invokeWithAuth("user-pending-topup", {
@@ -123,27 +136,25 @@ export function UserTopupContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Wallet className="w-7 h-7 text-iregistrygreen" />
-            Top up credits
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Create a <strong>pending</strong> top-up. You can have only one at a time. Complete it in person with
-            cashier staff (or later via online payment when available). Email receipts are not required yet—staff
-            will record the payment.
-          </p>
-        </div>
-
+    <PageSectionCard
+      maxWidthClass="max-w-3xl"
+      title="Top up credits"
+      subtitle={
+        <>
+          Create a <strong>pending</strong> top-up. You can have only one at a time. Complete it in person with
+          cashier staff (or later via online payment when available). Email receipts are not required yet—staff will
+          record the payment.
+        </>
+      }
+      icon={<Wallet className="w-7 h-7 text-iregistrygreen shrink-0" />}
+    >
         {loading ? (
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
+          <div className="px-5 py-6 flex items-center gap-2 text-gray-500 text-sm">
             <Loader2 className="w-5 h-5 animate-spin" />
             Loading…
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+          <div className="p-5 sm:p-6 space-y-6">
             <div className="rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
               This does <strong>not</strong> charge your card yet. Credits are added only after staff confirms your
               payment or when online checkout is enabled.
@@ -213,8 +224,7 @@ export function UserTopupContent() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </PageSectionCard>
   );
 }
 

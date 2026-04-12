@@ -4,6 +4,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 export default function UserTransactionsPage() {
   const { addToast } = useToast();
@@ -32,32 +33,27 @@ export default function UserTransactionsPage() {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <ReceiptText className="w-6 h-6 text-iregistrygreen" />
-            Transactions
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Your credit top-ups and payment history.</p>
-        </div>
+    <PageSectionCard
+      maxWidthClass="max-w-6xl"
+      title="Transactions"
+      subtitle="Your credit top-ups and payment history."
+      icon={<ReceiptText className="w-6 h-6 text-iregistrygreen shrink-0" />}
+      actions={
         <RippleButton
-          className="px-3 py-2 rounded-xl border bg-white text-sm"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           onClick={() => void load()}
           disabled={loading}
         >
           Refresh
         </RippleButton>
-      </div>
-
+      }
+    >
       {loading ? (
-        <div className="text-sm text-gray-500">Loading…</div>
+        <div className="px-5 py-6 text-sm text-gray-500">Loading…</div>
       ) : payments.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
-          No transactions yet.
-        </div>
+        <div className="px-5 py-6 text-sm text-gray-500">No transactions yet.</div>
       ) : (
-        <div className="overflow-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
@@ -68,7 +64,7 @@ export default function UserTransactionsPage() {
                 <th className="text-left font-semibold px-4 py-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100">
               {payments.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
@@ -98,7 +94,7 @@ export default function UserTransactionsPage() {
           </table>
         </div>
       )}
-    </div>
+    </PageSectionCard>
   );
 }
 

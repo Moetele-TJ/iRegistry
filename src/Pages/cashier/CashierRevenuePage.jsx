@@ -4,6 +4,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function todayISO() {
   const d = new Date();
@@ -54,16 +55,14 @@ export default function CashierRevenuePage() {
   const tx = report?.transactions || [];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Coins className="w-6 h-6 text-iregistrygreen" />
-          My collections
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Confirmed cashier top-ups within a date range.</p>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-end gap-3">
+    <PageSectionCard
+      maxWidthClass="max-w-5xl"
+      title="My collections"
+      subtitle="Confirmed cashier top-ups within a date range."
+      icon={<Coins className="w-6 h-6 text-iregistrygreen shrink-0" />}
+    >
+      <div className="p-4 sm:p-6 space-y-6">
+      <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-5 flex flex-wrap items-end gap-3">
         <div className="min-w-[180px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <CalendarDays size={14} className="text-gray-400" />
@@ -89,11 +88,11 @@ export default function CashierRevenuePage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6">
           <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">Transactions</div>
           <div className="text-3xl font-bold text-gray-900 mt-1 tabular-nums">{totalCount}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6">
           <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">Totals</div>
           {rows.length === 0 ? (
             <div className="text-sm text-gray-400 mt-2">—</div>
@@ -110,7 +109,7 @@ export default function CashierRevenuePage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
             <List size={16} className="text-gray-400" />
@@ -131,7 +130,7 @@ export default function CashierRevenuePage() {
                   <th className="text-left font-semibold px-4 py-3">Receipt</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-100">
                 {tx.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-gray-700">
@@ -147,7 +146,8 @@ export default function CashierRevenuePage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </PageSectionCard>
   );
 }
 

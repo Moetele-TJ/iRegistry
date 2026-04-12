@@ -671,19 +671,15 @@ export default function AddItem() {
     <div className="min-h-screen bg-gray-100">
       
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-iregistrygreen">
-            Add New Item
-          </h1>
-          <p className="text-sm text-gray-500">
-            Register a new item in your inventory
-          </p>
-        </div>
-
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 space-y-6"
+          className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
         >
+          <div className="px-5 py-4 sm:px-6 sm:py-5 bg-emerald-50/90 border-b border-emerald-100/90">
+            <h1 className="text-2xl font-bold text-gray-900">Add New Item</h1>
+            <p className="text-sm text-gray-600 mt-1">Register a new item in your inventory</p>
+          </div>
+          <div className="p-6 sm:p-8 space-y-6">
 
           {/* Category */}
           <Field label="Category" required>
@@ -1069,6 +1065,7 @@ export default function AddItem() {
                 ? "Saving..."
                 : "Submit"}
             </RippleButton>
+          </div>
           </div>
         </form>
       </div>

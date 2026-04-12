@@ -5,6 +5,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function todayISO() {
   const d = new Date();
@@ -86,18 +87,14 @@ export default function AdminRevenuePage() {
   const tx = report?.transactions || [];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Coins className="w-6 h-6 text-iregistrygreen" />
-          Cashier revenue
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Select a cashier and date range to compute confirmed cashier top-ups.
-        </p>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-end gap-3">
+    <PageSectionCard
+      maxWidthClass="max-w-6xl"
+      title="Cashier revenue"
+      subtitle="Select a cashier and date range to compute confirmed cashier top-ups."
+      icon={<Coins className="w-6 h-6 text-iregistrygreen shrink-0" />}
+    >
+      <div className="p-4 sm:p-6 space-y-6">
+      <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-5 flex flex-wrap items-end gap-3">
         <div className="min-w-[220px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <Users size={14} className="text-gray-400" />
@@ -150,11 +147,11 @@ export default function AdminRevenuePage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6">
           <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">Transactions</div>
           <div className="text-3xl font-bold text-gray-900 mt-1 tabular-nums">{totalCount}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6">
           <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">Totals</div>
           {rows.length === 0 ? (
             <div className="text-sm text-gray-400 mt-2">—</div>
@@ -172,7 +169,7 @@ export default function AdminRevenuePage() {
       </div>
 
       {showTransactions ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
               <List size={16} className="text-gray-400" />
@@ -194,7 +191,7 @@ export default function AdminRevenuePage() {
                     <th className="text-left font-semibold px-4 py-3">Reference</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-100">
                   {tx.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700">
@@ -214,7 +211,8 @@ export default function AdminRevenuePage() {
           )}
         </div>
       ) : null}
-    </div>
+      </div>
+    </PageSectionCard>
   );
 }
 

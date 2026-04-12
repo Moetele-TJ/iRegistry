@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { roleIs } from "../../lib/roleUtils.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 export default function PoliceHome() {
   const navigate = useNavigate();
@@ -25,22 +26,19 @@ export default function PoliceHome() {
     errStr.includes("police station") || errStr.includes("no police station");
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-iregistrygreen flex items-center gap-2">
-          <Shield className="w-7 h-7" />
-          Police dashboard
-        </h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Station queue and case activity use your profile&apos;s police station name.
-        </p>
+    <PageSectionCard
+      maxWidthClass="max-w-4xl"
+      title="Police dashboard"
+      subtitle="Station queue and case activity use your profile's police station name."
+      icon={<Shield className="w-7 h-7 text-iregistrygreen shrink-0" />}
+    >
+      <div className="p-4 sm:p-6 space-y-8">
         {roleIs(user?.role, "admin") && (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             You are signed in as <strong>admin</strong>. Station metrics below are for{" "}
             <strong>police</strong> accounts with a station on their profile.
           </p>
         )}
-      </div>
 
       {loading && (
         <div className="space-y-4 animate-pulse">
@@ -175,6 +173,7 @@ export default function PoliceHome() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </PageSectionCard>
   );
 }

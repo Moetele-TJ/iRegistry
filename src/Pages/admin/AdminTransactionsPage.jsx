@@ -5,6 +5,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -147,7 +148,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <>
       <ConfirmModal
         isOpen={reverseModal.isOpen}
         onClose={closeReverseModal}
@@ -196,18 +197,14 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
           />
         </div>
       </ConfirmModal>
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ReceiptText className="w-6 h-6 text-iregistrygreen" />
-          Transactions
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          View payments and reverse a confirmed top-up (only if the user still has enough unspent credits).
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section className="lg:col-span-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <PageSectionCard
+        maxWidthClass="max-w-7xl"
+        title="Transactions"
+        subtitle="View payments and reverse a confirmed top-up (only if the user still has enough unspent credits)."
+        icon={<ReceiptText className="w-6 h-6 text-iregistrygreen shrink-0" />}
+      >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6">
+        <section className="lg:col-span-4 rounded-xl border border-gray-100 bg-gray-50/60 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
               <Filter size={18} className="text-gray-400" />
@@ -254,7 +251,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
           </div>
         </section>
 
-        <section className="lg:col-span-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <section className="lg:col-span-8 rounded-xl border border-gray-100 bg-gray-50/60 p-5 space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="text-sm font-semibold text-gray-800">Payments</div>
@@ -265,7 +262,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
 
             <div className="flex items-center gap-2">
               <RippleButton
-                className="px-3 py-2 rounded-xl border bg-white text-sm"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
                 onClick={() => void loadPayments(selectedUserId)}
                 disabled={loadingPayments}
               >
@@ -292,7 +289,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                     <th className="text-right font-semibold px-4 py-3">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-100">
                   {payments.map((p) => {
                     const reversible = p.status === "CONFIRMED" && !p.reversed_at;
                     const who = p.users || null;
@@ -344,7 +341,8 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
           )}
         </section>
       </div>
-    </div>
+      </PageSectionCard>
+    </>
   );
 }
 

@@ -31,6 +31,14 @@ export function ModalProvider({ children }) {
               reject(err);
             }
           },
+          afterCancel: () => {
+            try {
+              options.afterCancel?.();
+            } catch (e) {
+              console.error("confirm afterCancel", e);
+            }
+            resolve(false);
+          },
           onClose: close,
         },
       });

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -164,23 +166,23 @@ export default function CashierUsersPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="px-1 py-2 sm:p-6 w-full max-w-none mx-0 sm:max-w-7xl sm:mx-auto">
-        <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-iregistrygreen">Users</h1>
-            <p className="text-sm text-gray-500">
-              Cashier view: search users and update basic profile details. Roles, status, and deletion are admin-only.
-            </p>
-          </div>
-          <RippleButton
-            type="button"
-            className="px-4 py-2 rounded-xl border bg-white text-sm hover:bg-gray-50 disabled:opacity-60"
-            onClick={() => void load()}
-            disabled={loading}
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </RippleButton>
-        </div>
-
+        <PageSectionCard
+          maxWidthClass="max-w-7xl"
+          title="Users"
+          subtitle="Cashier view: search users and update basic profile details. Roles, status, and deletion are admin-only."
+          icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
+          actions={
+            <RippleButton
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+              onClick={() => void load()}
+              disabled={loading}
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </RippleButton>
+          }
+        >
+        <div className="p-4 sm:p-6 space-y-6">
         {error ? (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
@@ -188,7 +190,7 @@ export default function CashierUsersPage() {
         ) : null}
 
         {editingUser ? (
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
+          <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
                 <h2 className="text-lg font-semibold">Edit user</h2>
@@ -296,7 +298,7 @@ export default function CashierUsersPage() {
           </div>
         ) : null}
 
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-4">
           <div className="flex flex-col lg:flex-row gap-3 lg:items-end lg:justify-between mb-4">
             <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end flex-1 min-w-0">
               <div className="flex-1 min-w-[220px]">
@@ -373,6 +375,8 @@ export default function CashierUsersPage() {
             </div>
           )}
         </div>
+        </div>
+        </PageSectionCard>
       </div>
     </div>
   );

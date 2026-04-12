@@ -1,6 +1,7 @@
 // src/Pages/admin/AdminUsers.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -8,6 +9,7 @@ import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -705,21 +707,21 @@ export default function AdminUsers() {
       </ConfirmModal>
 
       <div className="px-1 py-2 sm:p-6 w-full max-w-none mx-0 sm:max-w-7xl sm:mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-iregistrygreen">Manage Users</h1>
-            <p className="text-sm text-gray-500">
-              Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <RippleButton className="py-2 px-3 rounded-lg bg-gray-100 text-gray-800" onClick={() => navigate("/admindashboard")}>
+        <PageSectionCard
+          maxWidthClass="max-w-7xl"
+          title="Manage Users"
+          subtitle="Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
+          icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
+          actions={
+            <RippleButton
+              className="py-2 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+              onClick={() => navigate("/admindashboard")}
+            >
               Back
             </RippleButton>
-          </div>
-        </div>
-
+          }
+        >
+        <div className="p-4 sm:p-6 space-y-6">
         {error ? (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
@@ -1026,6 +1028,8 @@ export default function AdminUsers() {
             </div>
           )}
         </div>
+        </div>
+        </PageSectionCard>
       </div>
     </div>
   );
