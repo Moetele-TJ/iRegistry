@@ -797,3 +797,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/admin-sessions/deno.json"
 entrypoint = "./functions/admin-sessions/index.ts"
+
+[functions.list-audit-logs]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-audit-logs/deno.json"
+entrypoint = "./functions/list-audit-logs/index.ts"
