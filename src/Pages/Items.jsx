@@ -1,6 +1,6 @@
 // src/Pages/Items.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useMatch } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
@@ -127,6 +127,8 @@ function photoEntryPath(entry, preferThumb = true) {
 export default function Items() {
   const { confirm } = useModal();
   const navigate = useNavigate();
+  /** `/items` has no dashboard layout padding; nested `/userdashboard/items` already does. */
+  const standaloneItemsRoute = useMatch({ path: "/items", end: true });
     const {
     items: ctxItems = [],
     loading,
@@ -792,42 +794,42 @@ export default function Items() {
         onClose={() => setToast({ message: "", type: "info", visible: false })}
       />
 
-      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
-        {/* ===== Page Header ===== */}
-        <div className="mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            
-            {/* Left: Title + description */}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-                {showStationQueue ? "Station stolen queue" : "My Items"}
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {showStationQueue
-                  ? "Open cases reported to your station (matched on the case record). Item status and case pipeline are shown below."
-                  : "Manage and monitor your registered assets"}
-              </p>
+      <div
+        className={`max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12 ${
+          standaloneItemsRoute ? "px-4 sm:px-6 lg:px-8" : ""
+        }`}
+      >
+        {/* Page heading — match Profile / dashboard emerald strip */}
+        <div className="mb-6 rounded-3xl border border-gray-100 bg-white shadow-lg overflow-hidden">
+          <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
+                  {showStationQueue ? "Station stolen queue" : "My Items"}
+                </h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  {showStationQueue
+                    ? "Open cases reported to your station (matched on the case record). Item status and case pipeline are shown below."
+                    : "Manage and monitor your registered assets"}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+                <RippleButton
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
+                  onClick={() => void goToAddItem()}
+                  disabled={addPreflightLoading}
+                  title={addPreflightLoading ? "Loading credit prices…" : undefined}
+                >
+                  + Add Item
+                </RippleButton>
+                <RippleButton
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200/80 bg-white/90 text-sm font-medium text-gray-700 shadow-sm hover:bg-white transition-colors"
+                  onClick={handleExportCSV}
+                >
+                  Export CSV
+                </RippleButton>
+              </div>
             </div>
-
-            {/* Right: Actions */}
-            <div className="flex items-center gap-3">
-              <RippleButton
-                className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:shadow-md transition disabled:opacity-60"
-                onClick={() => void goToAddItem()}
-                disabled={addPreflightLoading}
-                title={addPreflightLoading ? "Loading credit prices…" : undefined}
-              >
-                + Add Item
-              </RippleButton>
-
-              <RippleButton
-                className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
-                onClick={handleExportCSV}
-              >
-                Export CSV
-              </RippleButton>
-            </div>
-
           </div>
         </div>
 

@@ -154,7 +154,7 @@ export function UserTopupContent() {
 
   return (
     <PageSectionCard
-      maxWidthClass="max-w-3xl"
+      maxWidthClass="max-w-7xl"
       title="Top up credits"
       subtitle={
         <>
