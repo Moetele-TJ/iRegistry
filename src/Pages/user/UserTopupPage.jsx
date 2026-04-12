@@ -73,6 +73,15 @@ export function UserTopupContent() {
       addToast({ type: "error", message: "Choose a package." });
       return;
     }
+    const ok = await confirm({
+      title: "Submit pending top-up?",
+      message:
+        "This creates a request for staff to confirm when you pay at an office. Your card is not charged yet—credits are added only after confirmation.",
+      confirmLabel: "Submit",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
     setSaving(true);
     try {
       const { data, error } = await invokeWithAuth("user-pending-topup", {
@@ -98,8 +107,8 @@ export function UserTopupContent() {
       title: "Delete pending top-up?",
       message:
         "This removes your pending top-up request. You can submit a new one later. Nothing is refunded because no payment was taken yet.",
-      confirmLabel: "Delete pending",
-      cancelLabel: "Keep",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
       danger: true,
     }).catch(() => false);
     if (!ok) return;
@@ -120,6 +129,14 @@ export function UserTopupContent() {
       addToast({ type: "error", message: e?.message || "Could not cancel" });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function primaryAction() {
+    if (pending) {
+      await cancelPending();
+    } else {
+      await savePending();
     }
   }
 
@@ -171,15 +188,22 @@ export function UserTopupContent() {
                 <div className="text-xs text-gray-500">Status: {pending.status}</div>
               </div>
             ) : (
-              <p className="text-sm text-gray-600">You have no pending top-up. Choose a package below and save.</p>
+              <p className="text-sm text-gray-600">You have no pending top-up. Choose a package below and tap Submit.</p>
             )}
+
+            {pending ? (
+              <p className="text-xs text-gray-500">
+                To change the package or note, delete this request first, then submit a new one.
+              </p>
+            ) : null}
 
             <div>
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Package</label>
               <select
                 value={packageId || ""}
                 onChange={(e) => setPackageId(e.target.value)}
-                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm"
+                disabled={!!pending}
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm disabled:bg-gray-50 disabled:text-gray-600"
               >
                 {packages.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -194,33 +218,27 @@ export function UserTopupContent() {
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm min-h-[88px]"
+                disabled={!!pending}
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm min-h-[88px] disabled:bg-gray-50 disabled:text-gray-600"
                 placeholder="e.g. I will pay at Central office Friday"
                 maxLength={500}
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div>
               <RippleButton
                 type="button"
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
-                disabled={saving || !packages.length}
-                onClick={() => void savePending()}
+                className={
+                  pending
+                    ? "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-red-700 bg-white font-semibold disabled:opacity-60 w-full sm:w-auto"
+                    : "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60 w-full sm:w-auto"
+                }
+                disabled={saving || (!pending && !packages.length)}
+                onClick={() => void primaryAction()}
               >
-                <Save size={18} />
-                {pending ? "Update pending top-up" : "Submit pending top-up"}
+                {pending ? <Trash2 size={18} /> : <Save size={18} />}
+                {pending ? "Delete" : "Submit"}
               </RippleButton>
-              {pending ? (
-                <RippleButton
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-red-700 bg-white font-semibold disabled:opacity-60"
-                  disabled={saving}
-                  onClick={() => void cancelPending()}
-                >
-                  <Trash2 size={18} />
-                  Delete pending
-                </RippleButton>
-              ) : null}
             </div>
           </div>
         )}
