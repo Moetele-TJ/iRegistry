@@ -54,7 +54,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, role, status, deleted_at")
+      .select("id, role, status, deleted_at, id_number, date_of_birth")
       .eq("id", id)
       .maybeSingle();
 
@@ -96,6 +96,76 @@ serve(async (req) => {
     setIfString("police_station", 200);
     setIfString("village", 200);
     setIfString("ward", 200);
+
+    if ("id_number" in updates) {
+      const raw = (updates as { id_number?: unknown }).id_number;
+      if (raw !== null && typeof raw !== "string") {
+        return respond({ success: false, message: "Invalid id_number" }, corsHeaders, 400);
+      }
+      const idn = raw === null ? "" : String(raw).replace(/\s+/g, "").trim();
+      if (!idn) {
+        return respond(
+          { success: false, message: "National ID / Passport is required." },
+          corsHeaders,
+          400,
+        );
+      }
+      const existingIdNorm = String((existing as { id_number?: string | null }).id_number ?? "")
+        .replace(/\s+/g, "")
+        .trim();
+      if (idn !== existingIdNorm) {
+        const { data: other } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id_number", idn)
+          .neq("id", id)
+          .maybeSingle();
+        if (other) {
+          return respond(
+            {
+              success: false,
+              message: "That ID / Passport number is already registered to another account.",
+            },
+            corsHeaders,
+            400,
+          );
+        }
+      }
+      if (idn !== existingIdNorm) {
+        clean.id_number = idn.slice(0, 50);
+      }
+    }
+
+    if ("date_of_birth" in updates) {
+      const v = (updates as { date_of_birth?: unknown }).date_of_birth;
+      let next: string | null = null;
+      if (v === null || v === undefined) {
+        next = null;
+      } else if (typeof v === "string") {
+        const s = v.trim();
+        if (!s) {
+          next = null;
+        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+          return respond(
+            { success: false, message: "Invalid date of birth (use YYYY-MM-DD)." },
+            corsHeaders,
+            400,
+          );
+        } else {
+          next = s;
+        }
+      } else {
+        return respond({ success: false, message: "Invalid date of birth" }, corsHeaders, 400);
+      }
+      const existingRow = existing as { date_of_birth?: string | null };
+      const existingSlice =
+        typeof existingRow.date_of_birth === "string" && existingRow.date_of_birth.length >= 10
+          ? existingRow.date_of_birth.slice(0, 10)
+          : null;
+      if (next !== existingSlice) {
+        clean.date_of_birth = next;
+      }
+    }
 
     if ("role" in updates) {
       const next = String(updates.role ?? "").trim().toLowerCase();
@@ -166,7 +236,9 @@ serve(async (req) => {
       .from("users")
       .update(clean)
       .eq("id", id)
-      .select("id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, status")
+      .select(
+        "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, status, date_of_birth",
+      )
       .single();
 
     if (upErr || !updated) {

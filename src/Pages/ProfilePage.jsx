@@ -24,6 +24,7 @@ import {
   Smartphone,
   Copy,
   Wallet,
+  AlertTriangle,
 } from "lucide-react";
 
 function fmtDate(iso) {
@@ -45,6 +46,24 @@ function fmtDateOnly(iso) {
   } catch {
     return String(iso);
   }
+}
+
+/** YYYY-MM-DD for `<input type="date" />` from DB / ISO value */
+function profileDobForInput(iso) {
+  if (!iso) return "";
+  const s = String(iso);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  try {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return "";
+  }
+}
+
+function normalizeIdNumber(s) {
+  return String(s ?? "").replace(/\s+/g, "").trim();
 }
 
 function roleLabel(role) {
@@ -136,6 +155,8 @@ export default function ProfilePage() {
     village: "",
     ward: "",
     police_station: "",
+    id_number: "",
+    date_of_birth: "",
   });
 
   const [sessions, setSessions] = useState([]);
@@ -279,6 +300,8 @@ export default function ProfilePage() {
       village: profileUser.village ?? "",
       ward: profileUser.ward ?? "",
       police_station: profileUser.police_station ?? "",
+      id_number: profileUser.id_number != null ? String(profileUser.id_number) : "",
+      date_of_birth: profileDobForInput(profileUser.date_of_birth),
     });
     setEditing(true);
   }, [profileUser, viewingOther]);
@@ -294,6 +317,8 @@ export default function ProfilePage() {
     const last_name = String(form.last_name ?? "").trim();
     const email = String(form.email ?? "").trim();
     const phone = String(form.phone ?? "").trim();
+    const id_number = normalizeIdNumber(form.id_number);
+    const dobRaw = String(form.date_of_birth ?? "").trim();
     if (!last_name) {
       const msg = "Last name is required.";
       setFormError(msg);
@@ -306,17 +331,36 @@ export default function ProfilePage() {
       addToast({ type: "error", message: msg });
       return;
     }
-    setSaving(true);
-    setFormError("");
-    try {
-      const ok = await confirm({
-        title: "Confirm",
-        message: "Save these changes to your profile?",
-        confirmLabel: "Save changes",
-        cancelLabel: "Cancel",
-      }).catch(() => false);
-      if (!ok) return;
+    if (!id_number) {
+      const msg = "National ID / Passport is required.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
+    if (dobRaw && !/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
+      const msg = "Please enter date of birth as YYYY-MM-DD.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
 
+    const origId = normalizeIdNumber(profileUser.id_number);
+    const idChanged = id_number !== origId;
+
+    setFormError("");
+    const ok = await confirm({
+      title: idChanged ? "Change national ID?" : "Confirm",
+      message: idChanged
+        ? "Changing your National ID / Passport affects how you sign in. If the number does not match your official ID, you may be unable to log in until support helps you. Only continue if you are correcting a mistake.\n\nSave these changes to your profile?"
+        : "Save these changes to your profile?",
+      confirmLabel: "Save changes",
+      cancelLabel: "Cancel",
+      danger: idChanged,
+    }).catch(() => false);
+    if (!ok) return;
+
+    setSaving(true);
+    try {
       const { data, error } = await invokeWithAuth("update-user", {
         body: {
           id: String(profileUser.id),
@@ -328,6 +372,8 @@ export default function ProfilePage() {
             village: String(form.village ?? "").trim() || null,
             ward: String(form.ward ?? "").trim() || null,
             police_station: String(form.police_station ?? "").trim() || null,
+            id_number,
+            date_of_birth: dobRaw ? dobRaw : null,
           },
         },
       });
@@ -559,10 +605,39 @@ export default function ProfilePage() {
                   required
                 />
               </div>
-              <Field label="National ID / Passport" mono>
-                {user.id_number ? String(user.id_number) : "—"}
-              </Field>
-              <Field label="Date of birth">{fmtDateOnly(user.date_of_birth)}</Field>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  National ID / Passport
+                </label>
+                <input
+                  className={inputClass}
+                  value={form.id_number}
+                  onChange={(e) => setForm((f) => ({ ...f, id_number: e.target.value }))}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                />
+                <div
+                  className="mt-2 flex gap-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2.5 text-xs text-amber-950 leading-snug"
+                  role="note"
+                >
+                  <AlertTriangle className="shrink-0 w-4 h-4 text-amber-600 mt-0.5" aria-hidden />
+                  <span>
+                    Be careful: this number is used to sign in with your last name. Changing it to something that does not
+                    match your official ID can lock you out of your account until support can help.
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Date of birth</label>
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={form.date_of_birth}
+                  onChange={(e) => setForm((f) => ({ ...f, date_of_birth: e.target.value }))}
+                  autoComplete="bday"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4 pt-1">
                 <Field label="Minor account">
                   <span
@@ -576,7 +651,7 @@ export default function ProfilePage() {
                 </Field>
               </div>
               <p className="text-xs text-gray-500 pt-1">
-                National ID and date of birth are verified with administrators—contact support to correct them.
+                Minor status updates when your date of birth changes. Identity verification is managed by administrators.
               </p>
             </>
           )}
@@ -918,7 +993,9 @@ export default function ProfilePage() {
     }
     return (
       <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
-        Role, verification status, and national ID are managed by administrators. Use Edit profile to change your name, contact details, and location.
+        Role and verification status are managed by administrators. Use Edit profile to change your name, contact details,
+        location, date of birth, and national ID—only change your national ID to fix a mistake, or you may not be able to sign
+        in.
       </p>
     );
   }
