@@ -17,13 +17,23 @@ export default function CreditsSummaryStrip() {
     (async () => {
       try {
         const { data, error } = await invokeWithAuth("list-my-payments", {
-          body: { limit: 5, offset: 0 },
+          // Fetch extra rows: pending/failed entries are ignored below.
+          body: { limit: 40, offset: 0 },
         });
         if (cancelled || error || !data?.success) return;
         const rows = data.payments || [];
-        const topUps = rows.filter((p) => Number(p.credits_granted ?? 0) > 0);
+        const topUps = rows.filter((p) => {
+          if (Number(p.credits_granted ?? 0) <= 0) return false;
+          // Only credits that actually landed in this account (not pending requests,
+          // not reversed). Pending rows still carry package credits_granted, which
+          // wrongly looked like a completed top-up next to balance 0.
+          if (p.status !== "CONFIRMED") return false;
+          if (p.reversed_at) return false;
+          return true;
+        });
         const last = topUps[0];
         if (last) setLastTopUp(last);
+        else setLastTopUp(null);
       } catch {
         /* ignore */
       }
@@ -31,7 +41,7 @@ export default function CreditsSummaryStrip() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id]);
 
   return (
     <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
