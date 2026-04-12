@@ -132,14 +132,6 @@ export function UserTopupContent() {
     }
   }
 
-  async function primaryAction() {
-    if (pending) {
-      await cancelPending();
-    } else {
-      await savePending();
-    }
-  }
-
   if (!roleIs(user?.role, "user", "police")) {
     return (
       <div className="min-h-screen bg-gray-100 px-4 py-10">
@@ -178,24 +170,29 @@ export function UserTopupContent() {
             </div>
 
             {pending ? (
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 space-y-2">
-                <div className="text-sm font-semibold text-emerald-900">Current pending request</div>
-                <div className="text-sm text-gray-800">
-                  <span className="tabular-nums font-semibold">{pending.credits_granted}</span> credits •{" "}
-                  <span className="tabular-nums">{Number(pending.amount ?? 0)}</span> {pending.currency || "BWP"}
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="space-y-2 min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-emerald-900">Current pending request</div>
+                  <div className="text-sm text-gray-800">
+                    <span className="tabular-nums font-semibold">{pending.credits_granted}</span> credits •{" "}
+                    <span className="tabular-nums">{Number(pending.amount ?? 0)}</span> {pending.currency || "BWP"}
+                  </div>
+                  <div className="text-xs text-gray-600">Created {fmtDate(pending.created_at)}</div>
+                  <div className="text-xs text-gray-500">Status: {pending.status}</div>
                 </div>
-                <div className="text-xs text-gray-600">Created {fmtDate(pending.created_at)}</div>
-                <div className="text-xs text-gray-500">Status: {pending.status}</div>
+                <RippleButton
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-700 bg-white font-semibold shrink-0 self-start sm:self-center disabled:opacity-60"
+                  disabled={saving}
+                  onClick={() => void cancelPending()}
+                >
+                  <Trash2 size={18} />
+                  Delete
+                </RippleButton>
               </div>
             ) : (
               <p className="text-sm text-gray-600">You have no pending top-up. Choose a package below and tap Submit.</p>
             )}
-
-            {pending ? (
-              <p className="text-xs text-gray-500">
-                To change the package or note, delete this request first, then submit a new one.
-              </p>
-            ) : null}
 
             <div>
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Package</label>
@@ -228,16 +225,13 @@ export function UserTopupContent() {
             <div>
               <RippleButton
                 type="button"
-                className={
-                  pending
-                    ? "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-red-700 bg-white font-semibold disabled:opacity-60 w-full sm:w-auto"
-                    : "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60 w-full sm:w-auto"
-                }
-                disabled={saving || (!pending && !packages.length)}
-                onClick={() => void primaryAction()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60 w-full sm:w-auto"
+                disabled={saving || !!pending || !packages.length}
+                title={pending ? "Delete the pending request above to submit a new one." : undefined}
+                onClick={() => void savePending()}
               >
-                {pending ? <Trash2 size={18} /> : <Save size={18} />}
-                {pending ? "Delete" : "Submit"}
+                <Save size={18} />
+                Submit
               </RippleButton>
             </div>
           </div>
