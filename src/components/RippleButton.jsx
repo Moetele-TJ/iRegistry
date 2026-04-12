@@ -1,7 +1,14 @@
 // src/components/RippleButton.jsx
 import React, { useState } from "react";
 
-export default function RippleButton({ children, onClick, className = "" }) {
+export default function RippleButton({
+  children,
+  onClick,
+  className = "",
+  disabled = false,
+  title,
+  type = "button",
+}) {
   const [rippleArray, setRippleArray] = useState([]);
 
   const createRipple = (event) => {
@@ -21,14 +28,22 @@ export default function RippleButton({ children, onClick, className = "" }) {
   };
 
   const handleClick = (e) => {
+    if (disabled) return;
     createRipple(e);
     if (onClick) onClick(e);
   };
 
   return (
     <button
+      type={type}
+      disabled={disabled}
+      title={title}
       onClick={handleClick}
-      className={`relative overflow-hidden select-none ${className}`}
+      className={`relative overflow-hidden select-none ${className} ${
+        disabled
+          ? "cursor-not-allowed !bg-gray-200 !text-gray-500 !border-gray-300 shadow-none hover:!bg-gray-200 hover:!text-gray-500"
+          : ""
+      }`}
     >
       {children}
 

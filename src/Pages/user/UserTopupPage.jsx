@@ -69,6 +69,7 @@ export function UserTopupContent() {
   }, [addToast]);
 
   async function savePending() {
+    if (pending) return;
     if (!packageId) {
       addToast({ type: "error", message: "Choose a package." });
       return;
