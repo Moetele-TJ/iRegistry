@@ -998,71 +998,80 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            {/* Compact profile summary (replaces full-width hero) */}
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5 shadow-sm">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-iregistrygreen/10 text-iregistrygreen text-lg font-bold ring-2 ring-iregistrygreen/15"
-                aria-hidden
-              >
-                {initials(user)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{roleLabel(user.role)}</span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {user.status ? String(user.status) : "—"}
-                  </span>
+            {/* Compact profile summary: name on top; details in a horizontal band below */}
+            <div className="mb-6 rounded-2xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <div
+                  className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-iregistrygreen/10 text-iregistrygreen text-base sm:text-lg font-bold ring-2 ring-iregistrygreen/15"
+                  aria-hidden
+                >
+                  {initials(user)}
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900 truncate mt-0.5">{displayName}</h2>
-                {user.email ? (
-                  <p className="text-sm text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
-                    <Mail size={15} className="shrink-0 text-gray-400" />
-                    {user.email}
-                  </p>
-                ) : null}
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate min-w-0">{displayName}</h2>
+              </div>
 
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
-                  {canSeeRegistryAccountId ? (
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registry account ID</p>
-                      <div className="flex items-start gap-2 mt-1">
-                        <p className="font-mono text-xs text-gray-800 break-all min-w-0 flex-1 leading-snug">{user.id || "—"}</p>
-                        {user.id ? (
-                          <RippleButton
-                            type="button"
-                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
-                            onClick={() => void copyText("Registry account ID", user.id)}
-                            title="Copy registry account ID"
-                          >
-                            <Copy size={14} />
-                            <span className="hidden sm:inline">Copy</span>
-                          </RippleButton>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">National ID / Passport</p>
-                    <div className="flex items-start gap-2 mt-1">
-                      <p className="text-sm text-gray-900 font-medium tabular-nums min-w-0 flex-1 break-words">
-                        {user.id_number ? String(user.id_number) : "—"}
-                      </p>
-                      {user.id_number ? (
+              <div className="mt-4 pt-4 border-t border-gray-100/90 flex flex-wrap gap-x-6 gap-y-4 sm:gap-x-8 lg:gap-x-10">
+                <div className="min-w-[8rem] sm:min-w-[9rem]">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Role</p>
+                  <p className="text-sm text-gray-900 font-medium mt-1">{roleLabel(user.role)}</p>
+                </div>
+                <div className="min-w-[8rem] sm:min-w-[9rem]">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Status</p>
+                  <div className="mt-1">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {user.status ? String(user.status) : "—"}
+                    </span>
+                  </div>
+                </div>
+                {user.email ? (
+                  <div className="min-w-[12rem] flex-1 sm:flex-none sm:max-w-md">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Email</p>
+                    <p className="text-sm text-gray-800 mt-1 flex items-start gap-1.5 min-w-0">
+                      <Mail size={15} className="shrink-0 text-gray-400 mt-0.5" />
+                      <span className="break-all min-w-0">{user.email}</span>
+                    </p>
+                  </div>
+                ) : null}
+                {canSeeRegistryAccountId ? (
+                  <div className="min-w-[10rem] flex-1 sm:flex-none sm:max-w-xs lg:max-w-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registry account ID</p>
+                    <div className="mt-1 flex items-start gap-2 min-w-0">
+                      <p className="font-mono text-xs text-gray-800 break-all min-w-0 leading-snug">{user.id || "—"}</p>
+                      {user.id ? (
                         <RippleButton
                           type="button"
                           className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
-                          onClick={() => void copyText("National ID / Passport", user.id_number)}
-                          title="Copy ID number"
+                          onClick={() => void copyText("Registry account ID", user.id)}
+                          title="Copy registry account ID"
                         >
                           <Copy size={14} />
                           <span className="hidden sm:inline">Copy</span>
                         </RippleButton>
                       ) : null}
                     </div>
+                  </div>
+                ) : null}
+                <div className="min-w-[10rem] flex-1 sm:flex-none sm:max-w-xs">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">National ID / Passport</p>
+                  <div className="mt-1 flex items-start gap-2 min-w-0">
+                    <p className="text-sm text-gray-900 font-medium tabular-nums min-w-0 break-words">
+                      {user.id_number ? String(user.id_number) : "—"}
+                    </p>
+                    {user.id_number ? (
+                      <RippleButton
+                        type="button"
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                        onClick={() => void copyText("National ID / Passport", user.id_number)}
+                        title="Copy ID number"
+                      >
+                        <Copy size={14} />
+                        <span className="hidden sm:inline">Copy</span>
+                      </RippleButton>
+                    ) : null}
                   </div>
                 </div>
               </div>
