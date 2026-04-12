@@ -799,8 +799,8 @@ export default function Items() {
           standaloneItemsRoute ? "px-4 sm:px-6 lg:px-8" : ""
         }`}
       >
-        {/* Page heading — match Profile / dashboard emerald strip */}
-        <div className="mb-6 rounded-3xl border border-gray-100 bg-white shadow-lg overflow-hidden">
+        {/* Single page container — same shell as Profile */}
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
@@ -831,10 +831,10 @@ export default function Items() {
               </div>
             </div>
           </div>
-        </div>
 
+          <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 bg-gradient-to-b from-white to-gray-50/40">
         {/* filters row */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm mb-6 border border-gray-100">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-5 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
             {/* LEFT SIDE */}
@@ -993,7 +993,7 @@ export default function Items() {
         </div>
 
         {/* table (desktop) */}
-        <div className="hidden sm:block bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+        <div className="hidden sm:block overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
               <tr>
@@ -1463,29 +1463,31 @@ export default function Items() {
         </div>
 
         {/* pagination */}
-        <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center justify-between pt-1 border-t border-gray-100/80">
           <div className="text-sm text-gray-600">
             Showing <strong>{startIndex}</strong> - <strong>{endIndex}</strong> of <strong>{total}</strong>
           </div>
 
           <div className="flex items-center gap-2">
             <RippleButton
-              className="px-3 py-1 rounded-md bg-white border"
+              className="px-3 py-1 rounded-md bg-white border border-gray-200"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Prev
             </RippleButton>
 
-            <div className="px-3 py-1 rounded-md bg-white border text-sm">
+            <div className="px-3 py-1 rounded-md bg-white border border-gray-200 text-sm">
               {page} / {totalPages}
             </div>
 
             <RippleButton
-              className="px-3 py-1 rounded-md bg-white border"
+              className="px-3 py-1 rounded-md bg-white border border-gray-200"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               Next
             </RippleButton>
+          </div>
+        </div>
           </div>
         </div>
       </div>
