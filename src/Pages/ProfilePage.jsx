@@ -129,6 +129,8 @@ export default function ProfilePage() {
   const [trustedError, setTrustedError] = useState("");
   const [mobileSessionsMenuOpen, setMobileSessionsMenuOpen] = useState(false);
   const mobileSessionsMenuRef = useRef(null);
+  /** lg+ desktop: tabbed sections (mobile keeps stacked cards). */
+  const [desktopTab, setDesktopTab] = useState("profile");
 
   async function loadTrustedDevices() {
     setTrustedLoading(true);
@@ -200,7 +202,6 @@ export default function ProfilePage() {
     if (!user?.id) return;
     void loadSessions();
     void loadTrustedDevices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   useEffect(() => {
@@ -385,6 +386,392 @@ export default function ProfilePage() {
   const displayName = fullName || user.email || "Your account";
   const statusActive = String(user.status || "").toLowerCase() === "active";
 
+  function renderPersonalCard() {
+    return (
+      <Card title="Personal" icon={UserRound}>
+        <div className="grid gap-6 sm:gap-7">
+          {!editing ? (
+            <>
+              <Field label="Full name">{fullName || "—"}</Field>
+              <Field label="Email">
+                <span className="inline-flex items-center gap-2">
+                  <Mail size={15} className="text-gray-400 shrink-0" />
+                  {user.email || "—"}
+                </span>
+              </Field>
+              <Field label="Phone">
+                <span className="inline-flex items-center gap-2">
+                  <Phone size={15} className="text-gray-400 shrink-0" />
+                  {user.phone || "—"}
+                </span>
+              </Field>
+              <div className="grid grid-cols-2 gap-4 pt-1">
+                <Field label="Minor account">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
+                      user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
+                    }`}
+                  >
+                    <Baby size={14} />
+                    {user.is_minor ? "Yes" : "No"}
+                  </span>
+                </Field>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">First name</label>
+                <input
+                  className={inputClass}
+                  value={form.first_name}
+                  onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Last name</label>
+                <input
+                  className={inputClass}
+                  value={form.last_name}
+                  onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+                  autoComplete="family-name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</label>
+                <input
+                  type="email"
+                  className={inputClass}
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</label>
+                <input
+                  type="tel"
+                  className={inputClass}
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  autoComplete="tel"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-1">
+                <Field label="Minor account">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
+                      user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
+                    }`}
+                  >
+                    <Baby size={14} />
+                    {user.is_minor ? "Yes" : "No"}
+                  </span>
+                </Field>
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  function renderLocationCard() {
+    return (
+      <Card title="Location" icon={MapPin}>
+        <div className="grid gap-6">
+          {!editing ? (
+            <>
+              <Field label="Town / Village">
+                <span className="inline-flex items-start gap-2">
+                  <Building2 size={15} className="text-gray-400 mt-0.5 shrink-0" />
+                  {user.village || "—"}
+                </span>
+              </Field>
+              <Field label="Ward / Street">{user.ward || "—"}</Field>
+              <Field label="Police station">{user.police_station || "—"}</Field>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Town / Village</label>
+                <input
+                  className={inputClass}
+                  value={form.village}
+                  onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
+                  autoComplete="address-level2"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ward / Street</label>
+                <input
+                  className={inputClass}
+                  value={form.ward}
+                  onChange={(e) => setForm((f) => ({ ...f, ward: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Police station</label>
+                <input
+                  className={inputClass}
+                  value={form.police_station}
+                  onChange={(e) => setForm((f) => ({ ...f, police_station: e.target.value }))}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  function renderAccountCard() {
+    return (
+      <Card title="Account & verification" icon={Shield}>
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+          <div className="space-y-6">
+            <Field label="Role">{roleLabel(user.role)}</Field>
+            <Field label="Account status">
+              <span
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {user.status ? String(user.status) : "—"}
+              </span>
+            </Field>
+          </div>
+          <div className="space-y-6">
+            <Field label="Identity verified">
+              <span
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border ${
+                  user.identity_verified ? "bg-emerald-50 text-emerald-800 border-emerald-100" : "bg-gray-50 text-gray-600 border-gray-100"
+                }`}
+              >
+                <BadgeCheck size={18} className={user.identity_verified ? "text-emerald-600" : "text-gray-400"} />
+                {user.identity_verified ? "Verified" : "Not verified"}
+              </span>
+            </Field>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  function renderActivityCard() {
+    return (
+      <Card title="Activity & identifier" icon={Fingerprint}>
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+          <Field label="Last login">
+            <span className="inline-flex items-center gap-2 text-gray-800">
+              <Clock size={16} className="text-gray-400 shrink-0" />
+              {fmtDate(user.last_login_at)}
+            </span>
+          </Field>
+          <Field label="User ID" mono>
+            <span className="inline-flex items-start gap-2">
+              <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
+              {user.id ? String(user.id) : "—"}
+            </span>
+          </Field>
+        </div>
+      </Card>
+    );
+  }
+
+  function renderSessionsCard() {
+    return (
+      <Card
+        title="Active sessions"
+        icon={Clock}
+        actions={
+          <>
+            <div className="sm:hidden relative" ref={mobileSessionsMenuRef}>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm font-semibold px-3 py-2 shadow-sm hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
+                onClick={() => setMobileSessionsMenuOpen((v) => !v)}
+                disabled={sessionsLoading}
+                aria-haspopup="menu"
+                aria-expanded={mobileSessionsMenuOpen}
+              >
+                Manage sessions
+                <span aria-hidden className="text-emerald-700">
+                  ▾
+                </span>
+              </button>
+
+              {mobileSessionsMenuOpen ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden z-[90]"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+                    onClick={() => {
+                      setMobileSessionsMenuOpen(false);
+                      void logoutOtherDevices();
+                    }}
+                  >
+                    Log out other devices
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+                    onClick={() => {
+                      setMobileSessionsMenuOpen(false);
+                      void loadSessions();
+                    }}
+                  >
+                    Refresh
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2">
+              <RippleButton
+                type="button"
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[0.99] transition"
+                onClick={() => void logoutOtherDevices()}
+              >
+                Log out other devices
+              </RippleButton>
+              <RippleButton
+                type="button"
+                className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
+                onClick={() => void loadSessions()}
+                disabled={sessionsLoading}
+              >
+                {sessionsLoading ? "Refreshing…" : "Refresh"}
+              </RippleButton>
+            </div>
+          </>
+        }
+      >
+        <div className="text-sm text-gray-500 mb-4">Manage where you’re currently signed in.</div>
+        {sessionsError ? (
+          <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{sessionsError}</div>
+        ) : null}
+
+        {sessionsLoading && sessions.length === 0 ? (
+          <div className="text-sm text-gray-500">Loading sessions…</div>
+        ) : sessions.length === 0 ? (
+          <div className="text-sm text-gray-500">No active sessions found.</div>
+        ) : (
+          <div className="space-y-3">
+            {sessions.map((s) => {
+              const thisDevice = s?.device_id && getDeviceId() && String(s.device_id) === String(getDeviceId());
+              const id = s?.id ? String(s.id) : "";
+              const ip = String(s?.ip_address || "").split(",")[0].trim();
+              const ua = String(s?.user_agent || "");
+              return (
+                <div key={id || Math.random()} className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <span className="truncate">{thisDevice ? "This device" : s?.device_name ? String(s.device_name) : "Session"}</span>
+                        {thisDevice ? (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
+                            current
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Started: {fmtDate(s?.created_at)} • Expires: {fmtDate(s?.expires_at)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 break-words">
+                        {ip ? `IP: ${ip}` : "IP: —"}
+                        {ua ? ` • UA: ${ua.slice(0, 120)}` : ""}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <RippleButton
+                        type="button"
+                        className="px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
+                        disabled={sessionsLoading || thisDevice}
+                        title={thisDevice ? "You cannot revoke your current session from this device." : "Revoke session"}
+                        onClick={() => void revokeSession(id)}
+                      >
+                        Revoke
+                      </RippleButton>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    );
+  }
+
+  function renderTrustedCard() {
+    return (
+      <Card title="Trusted browsers (SMS login)" icon={Smartphone}>
+        <div className="text-sm text-gray-500 mb-4">
+          Browsers that completed email sign-in can use SMS codes (SMS uses credits). Remove a browser to require email verification there again.
+        </div>
+        {trustedError ? (
+          <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{trustedError}</div>
+        ) : null}
+        {trustedLoading && trustedDevices.length === 0 ? (
+          <div className="text-sm text-gray-500">Loading…</div>
+        ) : trustedDevices.length === 0 ? (
+          <div className="text-sm text-gray-500">No trusted browsers yet. After you sign in with email on a device, it appears here.</div>
+        ) : (
+          <div className="space-y-3">
+            {trustedDevices.map((d) => {
+              const did = String(d?.device_id || "");
+              const short = did.length > 16 ? `${did.slice(0, 8)}…${did.slice(-4)}` : did || "—";
+              const isHere = did && getDeviceId() && String(did) === String(getDeviceId());
+              return (
+                <div
+                  key={did}
+                  className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3 flex items-start justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs break-all">{short}</span>
+                      {isHere ? (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
+                          this device
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">Trusted since {fmtDate(d?.verified_at)}</div>
+                  </div>
+                  <RippleButton
+                    type="button"
+                    className="shrink-0 px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
+                    disabled={trustedLoading}
+                    onClick={() => void revokeTrustedDevice(did)}
+                  >
+                    Remove
+                  </RippleButton>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    );
+  }
+
+  function renderAdminFootnote() {
+    return (
+      <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
+        Role, verification status, and national ID are managed by administrators. Use Edit profile to change your name, contact details, and location.
+      </p>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 via-gray-50/90 to-gray-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 pb-12">
@@ -445,427 +832,91 @@ export default function ProfilePage() {
           </div>
         ) : null}
 
-        {/* Hero */}
-        <div className="relative mb-6 lg:mb-8 rounded-3xl overflow-hidden border border-emerald-100/80 shadow-lg bg-gradient-to-br from-iregistrygreen via-emerald-600 to-emerald-800 text-white">
-          <div className="absolute inset-0 opacity-[0.12] bg-[radial-gradient(circle_at_30%_20%,white,transparent_55%)]" />
-          <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div className="relative px-6 sm:px-8 lg:px-10 py-8 sm:py-10 lg:py-12 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-10">
-            <div
-              className="flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 items-center justify-center rounded-3xl bg-white/20 backdrop-blur-sm text-3xl sm:text-4xl font-bold ring-4 ring-white/25 shadow-inner"
-              aria-hidden
-            >
-              {initials(user)}
+        {/* Compact profile summary (replaces full-width hero) */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 shadow-sm">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-iregistrygreen/10 text-iregistrygreen text-lg font-bold ring-2 ring-iregistrygreen/15"
+            aria-hidden
+          >
+            {initials(user)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{roleLabel(user.role)}</span>
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {user.status ? String(user.status) : "—"}
+              </span>
             </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide backdrop-blur-sm">
-                  {roleLabel(user.role)}
-                </span>
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                    statusActive ? "bg-emerald-400/30 text-white ring-1 ring-white/40" : "bg-black/20 text-white/90"
-                  }`}
-                >
-                  {user.status ? String(user.status) : "—"}
-                </span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight break-words">{displayName}</h2>
-              {user.email && (
-                <p className="flex items-center gap-2 text-sm sm:text-base text-white/90">
-                  <Mail size={18} className="shrink-0 opacity-80" />
-                  <span className="truncate">{user.email}</span>
-                </p>
-              )}
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900 truncate mt-0.5">{displayName}</h2>
+            {user.email ? (
+              <p className="text-sm text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
+                <Mail size={15} className="shrink-0 text-gray-400" />
+                {user.email}
+              </p>
+            ) : null}
           </div>
         </div>
 
-        {/* Content grid — max width use on large screens */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
-          <div className="lg:col-span-5 space-y-5 lg:space-y-6">
-            <Card title="Personal" icon={UserRound}>
-              <div className="grid gap-6 sm:gap-7">
-                {!editing ? (
-                  <>
-                    <Field label="Full name">{fullName || "—"}</Field>
-                    <Field label="Email">
-                      <span className="inline-flex items-center gap-2">
-                        <Mail size={15} className="text-gray-400 shrink-0" />
-                        {user.email || "—"}
-                      </span>
-                    </Field>
-                    <Field label="Phone">
-                      <span className="inline-flex items-center gap-2">
-                        <Phone size={15} className="text-gray-400 shrink-0" />
-                        {user.phone || "—"}
-                      </span>
-                    </Field>
-                    <div className="grid grid-cols-2 gap-4 pt-1">
-                      <Field label="Minor account">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
-                            user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
-                          }`}
-                        >
-                          <Baby size={14} />
-                          {user.is_minor ? "Yes" : "No"}
-                        </span>
-                      </Field>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">First name</label>
-                      <input
-                        className={inputClass}
-                        value={form.first_name}
-                        onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
-                        autoComplete="given-name"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Last name</label>
-                      <input
-                        className={inputClass}
-                        value={form.last_name}
-                        onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
-                        autoComplete="family-name"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</label>
-                      <input
-                        type="email"
-                        className={inputClass}
-                        value={form.email}
-                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                        autoComplete="email"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</label>
-                      <input
-                        type="tel"
-                        className={inputClass}
-                        value={form.phone}
-                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                        autoComplete="tel"
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 pt-1">
-                      <Field label="Minor account">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${
-                            user.is_minor ? "bg-amber-50 text-amber-800 border border-amber-100" : "bg-gray-50 text-gray-600 border border-gray-100"
-                          }`}
-                        >
-                          <Baby size={14} />
-                          {user.is_minor ? "Yes" : "No"}
-                        </span>
-                      </Field>
-                    </div>
-                  </>
-                )}
-              </div>
-            </Card>
+        {/* Mobile and tablet (below lg): stacked cards — same sections as before */}
+        <div className="lg:hidden space-y-5">
+          {renderPersonalCard()}
+          {renderLocationCard()}
+          {renderAccountCard()}
+          {renderActivityCard()}
+          {renderSessionsCard()}
+          {renderTrustedCard()}
+          {renderAdminFootnote()}
+        </div>
 
-            <Card title="Location" icon={MapPin}>
-              <div className="grid gap-6">
-                {!editing ? (
-                  <>
-                    <Field label="Town / Village">
-                      <span className="inline-flex items-start gap-2">
-                        <Building2 size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                        {user.village || "—"}
-                      </span>
-                    </Field>
-                    <Field label="Ward / Street">{user.ward || "—"}</Field>
-                    <Field label="Police station">{user.police_station || "—"}</Field>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Town / Village</label>
-                      <input
-                        className={inputClass}
-                        value={form.village}
-                        onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
-                        autoComplete="address-level2"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ward / Street</label>
-                      <input
-                        className={inputClass}
-                        value={form.ward}
-                        onChange={(e) => setForm((f) => ({ ...f, ward: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Police station</label>
-                      <input
-                        className={inputClass}
-                        value={form.police_station}
-                        onChange={(e) => setForm((f) => ({ ...f, police_station: e.target.value }))}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            </Card>
+        {/* Desktop lg+: tabbed sections */}
+        <div className="hidden lg:block space-y-6">
+          <div role="tablist" aria-label="Profile sections" className="flex flex-wrap gap-1 border-b border-gray-200">
+            {[
+              { id: "profile", label: "Personal & location" },
+              { id: "account", label: "Account" },
+              { id: "security", label: "Sessions & devices" },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={desktopTab === id}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                  desktopTab === id
+                    ? "border-iregistrygreen text-iregistrygreen"
+                    : "border-transparent text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setDesktopTab(id)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div className="lg:col-span-7 space-y-5 lg:space-y-6">
-            <Card title="Account & verification" icon={Shield}>
-              <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
-                <div className="space-y-6">
-                  <Field label="Role">{roleLabel(user.role)}</Field>
-                  <Field label="Account status">
-                    <span
-                      className={`inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium ${
-                        statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {user.status ? String(user.status) : "—"}
-                    </span>
-                  </Field>
-                </div>
-                <div className="space-y-6">
-                  <Field label="Identity verified">
-                    <span
-                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border ${
-                        user.identity_verified
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-100"
-                          : "bg-gray-50 text-gray-600 border-gray-100"
-                      }`}
-                    >
-                      <BadgeCheck
-                        size={18}
-                        className={user.identity_verified ? "text-emerald-600" : "text-gray-400"}
-                      />
-                      {user.identity_verified ? "Verified" : "Not verified"}
-                    </span>
-                  </Field>
-                </div>
-              </div>
-            </Card>
+          {desktopTab === "profile" && (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              {renderPersonalCard()}
+              {renderLocationCard()}
+            </div>
+          )}
+          {desktopTab === "account" && (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              {renderAccountCard()}
+              {renderActivityCard()}
+            </div>
+          )}
+          {desktopTab === "security" && (
+            <div className="space-y-6">
+              {renderSessionsCard()}
+              {renderTrustedCard()}
+            </div>
+          )}
 
-            <Card title="Activity & identifier" icon={Fingerprint}>
-              <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
-                <Field label="Last login">
-                  <span className="inline-flex items-center gap-2 text-gray-800">
-                    <Clock size={16} className="text-gray-400 shrink-0" />
-                    {fmtDate(user.last_login_at)}
-                  </span>
-                </Field>
-                <Field label="User ID" mono>
-                  <span className="inline-flex items-start gap-2">
-                    <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
-                    {user.id ? String(user.id) : "—"}
-                  </span>
-                </Field>
-              </div>
-            </Card>
-
-            <Card
-              title="Active sessions"
-              icon={Clock}
-              actions={
-                <>
-                  {/* Mobile: compact actions menu (label is NOT an option) */}
-                  <div className="sm:hidden relative" ref={mobileSessionsMenuRef}>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm font-semibold px-3 py-2 shadow-sm hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
-                      onClick={() => setMobileSessionsMenuOpen((v) => !v)}
-                      disabled={sessionsLoading}
-                      aria-haspopup="menu"
-                      aria-expanded={mobileSessionsMenuOpen}
-                    >
-                      Manage sessions
-                      <span aria-hidden className="text-emerald-700">▾</span>
-                    </button>
-
-                    {mobileSessionsMenuOpen ? (
-                      <div
-                        role="menu"
-                        className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden z-[90]"
-                      >
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="w-full text-left px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
-                          onClick={() => {
-                            setMobileSessionsMenuOpen(false);
-                            void logoutOtherDevices();
-                          }}
-                        >
-                          Log out other devices
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="w-full text-left px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
-                          onClick={() => {
-                            setMobileSessionsMenuOpen(false);
-                            void loadSessions();
-                          }}
-                        >
-                          Refresh
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Desktop: buttons */}
-                  <div className="hidden sm:flex items-center gap-2">
-                    <RippleButton
-                      type="button"
-                      className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:bg-emerald-700 active:scale-[0.99] transition"
-                      onClick={() => void logoutOtherDevices()}
-                    >
-                      Log out other devices
-                    </RippleButton>
-                    <RippleButton
-                      type="button"
-                      className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-emerald-100 active:scale-[0.99] transition disabled:opacity-60"
-                      onClick={() => void loadSessions()}
-                      disabled={sessionsLoading}
-                    >
-                      {sessionsLoading ? "Refreshing…" : "Refresh"}
-                    </RippleButton>
-                  </div>
-                </>
-              }
-            >
-              <div className="text-sm text-gray-500 mb-4">
-                Manage where you’re currently signed in.
-              </div>
-              {sessionsError ? (
-                <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
-                  {sessionsError}
-                </div>
-              ) : null}
-
-              {sessionsLoading && sessions.length === 0 ? (
-                <div className="text-sm text-gray-500">Loading sessions…</div>
-              ) : sessions.length === 0 ? (
-                <div className="text-sm text-gray-500">No active sessions found.</div>
-              ) : (
-                <div className="space-y-3">
-                  {sessions.map((s) => {
-                    const thisDevice = s?.device_id && getDeviceId() && String(s.device_id) === String(getDeviceId());
-                    const id = s?.id ? String(s.id) : "";
-                    const ip = String(s?.ip_address || "").split(",")[0].trim();
-                    const ua = String(s?.user_agent || "");
-                    return (
-                      <div
-                        key={id || Math.random()}
-                        className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                              <span className="truncate">
-                                {thisDevice ? "This device" : (s?.device_name ? String(s.device_name) : "Session")}
-                              </span>
-                              {thisDevice ? (
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
-                                  current
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Started: {fmtDate(s?.created_at)} • Expires: {fmtDate(s?.expires_at)}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 break-words">
-                              {ip ? `IP: ${ip}` : "IP: —"}
-                              {ua ? ` • UA: ${ua.slice(0, 120)}` : ""}
-                            </div>
-                          </div>
-                          <div className="shrink-0">
-                            <RippleButton
-                              type="button"
-                              className="px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
-                              disabled={sessionsLoading || thisDevice}
-                              title={thisDevice ? "You cannot revoke your current session from this device." : "Revoke session"}
-                              onClick={() => void revokeSession(id)}
-                            >
-                              Revoke
-                            </RippleButton>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-
-            <Card title="Trusted browsers (SMS login)" icon={Smartphone}>
-              <div className="text-sm text-gray-500 mb-4">
-                Browsers that completed email sign-in can use SMS codes (SMS uses credits). Remove a browser to
-                require email verification there again.
-              </div>
-              {trustedError ? (
-                <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
-                  {trustedError}
-                </div>
-              ) : null}
-              {trustedLoading && trustedDevices.length === 0 ? (
-                <div className="text-sm text-gray-500">Loading…</div>
-              ) : trustedDevices.length === 0 ? (
-                <div className="text-sm text-gray-500">
-                  No trusted browsers yet. After you sign in with email on a device, it appears here.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {trustedDevices.map((d) => {
-                    const did = String(d?.device_id || "");
-                    const short =
-                      did.length > 16 ? `${did.slice(0, 8)}…${did.slice(-4)}` : did || "—";
-                    const isHere =
-                      did && getDeviceId() && String(did) === String(getDeviceId());
-                    return (
-                      <div
-                        key={did}
-                        className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3 flex items-start justify-between gap-3"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-xs break-all">{short}</span>
-                            {isHere ? (
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
-                                this device
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Trusted since {fmtDate(d?.verified_at)}
-                          </div>
-                        </div>
-                        <RippleButton
-                          type="button"
-                          className="shrink-0 px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
-                          disabled={trustedLoading}
-                          onClick={() => void revokeTrustedDevice(did)}
-                        >
-                          Remove
-                        </RippleButton>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-
-            <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
-              Role, verification status, and national ID are managed by administrators. Use Edit profile to change your name, contact details, and location.
-            </p>
-          </div>
+          <div className="mt-8 pt-2 border-t border-gray-100/80">{renderAdminFootnote()}</div>
         </div>
       </div>
     </div>
