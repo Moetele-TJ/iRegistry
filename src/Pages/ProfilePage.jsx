@@ -5,6 +5,7 @@ import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { isPrivilegedRole } from "../lib/billingUx.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import {
   ArrowLeft,
@@ -443,7 +444,7 @@ export default function ProfilePage() {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-100 via-gray-50/90 to-gray-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
         <p className="text-sm text-gray-600">Loading profile…</p>
       </div>
     );
@@ -451,7 +452,7 @@ export default function ProfilePage() {
 
   if (profileError || !profileUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-100 via-gray-50/90 to-gray-100">
+      <div className="min-h-screen bg-gray-100">
         <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4">
           <p className="text-red-700 text-sm">{profileError || "Could not load this profile."}</p>
           <div className="flex flex-wrap justify-center gap-2">
@@ -474,6 +475,7 @@ export default function ProfilePage() {
   }
 
   const user = profileUser;
+  const canSeeRegistryAccountId = isPrivilegedRole(sessionUser.role);
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
   const displayName = fullName || user.email || "Your account";
@@ -692,23 +694,25 @@ export default function ProfilePage() {
     return (
       <Card title="Activity & identifiers" icon={Fingerprint}>
         <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
-          <div className="sm:col-span-2 space-y-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Registry account ID (system)</div>
-            <div className="font-mono text-xs text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 flex items-start gap-2 leading-snug break-words">
-              <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
-              <span className="min-w-0 flex-1 break-all">{user.id ? String(user.id) : "—"}</span>
-              {user.id ? (
-                <RippleButton
-                  type="button"
-                  className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200 bg-white text-xs text-gray-700"
-                  onClick={() => void copyText("Registry account ID", user.id)}
-                  title="Copy registry account ID"
-                >
-                  <Copy size={14} />
-                </RippleButton>
-              ) : null}
+          {canSeeRegistryAccountId ? (
+            <div className="sm:col-span-2 space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Registry account ID (system)</div>
+              <div className="font-mono text-xs text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 flex items-start gap-2 leading-snug break-words">
+                <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <span className="min-w-0 flex-1 break-all">{user.id ? String(user.id) : "—"}</span>
+                {user.id ? (
+                  <RippleButton
+                    type="button"
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200 bg-white text-xs text-gray-700"
+                    onClick={() => void copyText("Registry account ID", user.id)}
+                    title="Copy registry account ID"
+                  >
+                    <Copy size={14} />
+                  </RippleButton>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
           <Field label="Last login">
             <span className="inline-flex items-center gap-2 text-gray-800">
               <Clock size={16} className="text-gray-400 shrink-0" />
@@ -920,211 +924,218 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-100 via-gray-50/90 to-gray-100">
+    <div className="min-h-screen bg-gray-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 pb-12">
-        {/* Top actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 lg:mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Profile</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {viewingOther
-                ? "Staff view — another user’s account details (read-only)"
-                : "Your account details and registry identity"}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            {!viewingOther && !editing ? (
-              <RippleButton
-                type="button"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
-                onClick={openEdit}
-              >
-                <Pencil size={18} />
-                Edit profile
-              </RippleButton>
-            ) : !viewingOther && editing ? (
-              <>
-                <RippleButton
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                  onClick={cancelEdit}
-                  disabled={saving}
-                >
-                  Cancel
-                </RippleButton>
-                <RippleButton
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm disabled:opacity-60"
-                  onClick={() => void saveProfile()}
-                  disabled={saving}
-                >
-                  {saving ? "Saving…" : "Save changes"}
-                </RippleButton>
-              </>
-            ) : null}
-            <RippleButton
-              type="button"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-              onClick={() => navigate(-1)}
-            >
-              <ArrowLeft size={18} className="opacity-70" />
-              Back
-            </RippleButton>
-          </div>
-        </div>
-
-        {formError ? (
-          <div
-            role="alert"
-            aria-live="assertive"
-            className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800"
-          >
-            {formError}
-          </div>
-        ) : null}
-
-        {viewingOther ? (
-          <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
-            belong to the account holder. Editing is disabled; use Users admin tools for role, status, and verification
-            changes.
-          </div>
-        ) : null}
-
-        {/* Compact profile summary (replaces full-width hero) */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 shadow-sm">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-iregistrygreen/10 text-iregistrygreen text-lg font-bold ring-2 ring-iregistrygreen/15"
-            aria-hidden
-          >
-            {initials(user)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{roleLabel(user.role)}</span>
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {user.status ? String(user.status) : "—"}
-              </span>
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900 truncate mt-0.5">{displayName}</h2>
-            {user.email ? (
-              <p className="text-sm text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
-                <Mail size={15} className="shrink-0 text-gray-400" />
-                {user.email}
-              </p>
-            ) : null}
-
-            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registry account ID</p>
-                <div className="flex items-start gap-2 mt-1">
-                  <p className="font-mono text-xs text-gray-800 break-all min-w-0 flex-1 leading-snug">{user.id || "—"}</p>
-                  {user.id ? (
+                <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">Profile</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  {viewingOther
+                    ? "Staff view — another user’s account details (read-only)"
+                    : "Your account details and registry identity"}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                {!viewingOther && !editing ? (
+                  <RippleButton
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
+                    onClick={openEdit}
+                  >
+                    <Pencil size={18} />
+                    Edit profile
+                  </RippleButton>
+                ) : !viewingOther && editing ? (
+                  <>
                     <RippleButton
                       type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
-                      onClick={() => void copyText("Registry account ID", user.id)}
-                      title="Copy registry account ID"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                      onClick={cancelEdit}
+                      disabled={saving}
                     >
-                      <Copy size={14} />
-                      <span className="hidden sm:inline">Copy</span>
+                      Cancel
                     </RippleButton>
-                  ) : null}
-                </div>
+                    <RippleButton
+                      type="button"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm disabled:opacity-60"
+                      onClick={() => void saveProfile()}
+                      disabled={saving}
+                    >
+                      {saving ? "Saving…" : "Save changes"}
+                    </RippleButton>
+                  </>
+                ) : null}
+                <RippleButton
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200/80 bg-white/90 text-sm font-medium text-gray-700 shadow-sm hover:bg-white transition-colors"
+                  onClick={() => navigate(-1)}
+                >
+                  <ArrowLeft size={18} className="opacity-70" />
+                  Back
+                </RippleButton>
               </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">National ID / Passport</p>
-                <div className="flex items-start gap-2 mt-1">
-                  <p className="text-sm text-gray-900 font-medium tabular-nums min-w-0 flex-1 break-words">
-                    {user.id_number ? String(user.id_number) : "—"}
+            </div>
+          </div>
+
+          <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            {formError ? (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800"
+              >
+                {formError}
+              </div>
+            ) : null}
+
+            {viewingOther ? (
+              <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
+                belong to the account holder. Editing is disabled; use Users admin tools for role, status, and verification
+                changes.
+              </div>
+            ) : null}
+
+            {/* Compact profile summary (replaces full-width hero) */}
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5 shadow-sm">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-iregistrygreen/10 text-iregistrygreen text-lg font-bold ring-2 ring-iregistrygreen/15"
+                aria-hidden
+              >
+                {initials(user)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{roleLabel(user.role)}</span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {user.status ? String(user.status) : "—"}
+                  </span>
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 truncate mt-0.5">{displayName}</h2>
+                {user.email ? (
+                  <p className="text-sm text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
+                    <Mail size={15} className="shrink-0 text-gray-400" />
+                    {user.email}
                   </p>
-                  {user.id_number ? (
-                    <RippleButton
-                      type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
-                      onClick={() => void copyText("National ID / Passport", user.id_number)}
-                      title="Copy ID number"
-                    >
-                      <Copy size={14} />
-                      <span className="hidden sm:inline">Copy</span>
-                    </RippleButton>
+                ) : null}
+
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2.5">
+                  {canSeeRegistryAccountId ? (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registry account ID</p>
+                      <div className="flex items-start gap-2 mt-1">
+                        <p className="font-mono text-xs text-gray-800 break-all min-w-0 flex-1 leading-snug">{user.id || "—"}</p>
+                        {user.id ? (
+                          <RippleButton
+                            type="button"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                            onClick={() => void copyText("Registry account ID", user.id)}
+                            title="Copy registry account ID"
+                          >
+                            <Copy size={14} />
+                            <span className="hidden sm:inline">Copy</span>
+                          </RippleButton>
+                        ) : null}
+                      </div>
+                    </div>
                   ) : null}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">National ID / Passport</p>
+                    <div className="flex items-start gap-2 mt-1">
+                      <p className="text-sm text-gray-900 font-medium tabular-nums min-w-0 flex-1 break-words">
+                        {user.id_number ? String(user.id_number) : "—"}
+                      </p>
+                      {user.id_number ? (
+                        <RippleButton
+                          type="button"
+                          className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                          onClick={() => void copyText("National ID / Passport", user.id_number)}
+                          title="Copy ID number"
+                        >
+                          <Copy size={14} />
+                          <span className="hidden sm:inline">Copy</span>
+                        </RippleButton>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Mobile and tablet (below lg): stacked cards — same sections as before */}
-        <div className="lg:hidden space-y-5">
-          {renderPersonalCard()}
-          {renderLocationCard()}
-          {renderAccountCard()}
-          {renderActivityCard()}
-          {!viewingOther ? (
-            <>
-              {renderSessionsCard()}
-              {renderTrustedCard()}
-            </>
-          ) : null}
-          {renderAdminFootnote()}
-        </div>
-
-        {/* Desktop lg+: tabbed sections */}
-        <div className="hidden lg:block space-y-6">
-          <div role="tablist" aria-label="Profile sections" className="flex flex-wrap gap-1 border-b border-gray-200">
-            {(viewingOther
-              ? [
-                  { id: "profile", label: "Personal & location" },
-                  { id: "account", label: "Account" },
-                ]
-              : [
-                  { id: "profile", label: "Personal & location" },
-                  { id: "account", label: "Account" },
-                  { id: "security", label: "Sessions & devices" },
-                ]
-            ).map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={desktopTab === id}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-                  desktopTab === id
-                    ? "border-iregistrygreen text-iregistrygreen"
-                    : "border-transparent text-gray-500 hover:text-gray-800"
-                }`}
-                onClick={() => setDesktopTab(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {desktopTab === "profile" && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+            {/* Mobile and tablet (below lg): stacked cards — same sections as before */}
+            <div className="lg:hidden space-y-5">
               {renderPersonalCard()}
               {renderLocationCard()}
-            </div>
-          )}
-          {desktopTab === "account" && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
               {renderAccountCard()}
               {renderActivityCard()}
+              {!viewingOther ? (
+                <>
+                  {renderSessionsCard()}
+                  {renderTrustedCard()}
+                </>
+              ) : null}
+              {renderAdminFootnote()}
             </div>
-          )}
-          {!viewingOther && desktopTab === "security" ? (
-            <div className="space-y-6">
-              {renderSessionsCard()}
-              {renderTrustedCard()}
-            </div>
-          ) : null}
 
-          <div className="mt-8 pt-2 border-t border-gray-100/80">{renderAdminFootnote()}</div>
+            {/* Desktop lg+: tabbed sections */}
+            <div className="hidden lg:block space-y-6">
+              <div role="tablist" aria-label="Profile sections" className="flex flex-wrap gap-1 border-b border-gray-200">
+                {(viewingOther
+                  ? [
+                      { id: "profile", label: "Personal & location" },
+                      { id: "account", label: "Account" },
+                    ]
+                  : [
+                      { id: "profile", label: "Personal & location" },
+                      { id: "account", label: "Account" },
+                      { id: "security", label: "Sessions & devices" },
+                    ]
+                ).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={desktopTab === id}
+                    className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                      desktopTab === id
+                        ? "border-iregistrygreen text-iregistrygreen"
+                        : "border-transparent text-gray-500 hover:text-gray-800"
+                    }`}
+                    onClick={() => setDesktopTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {desktopTab === "profile" && (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                  {renderPersonalCard()}
+                  {renderLocationCard()}
+                </div>
+              )}
+              {desktopTab === "account" && (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                  {renderAccountCard()}
+                  {renderActivityCard()}
+                </div>
+              )}
+              {!viewingOther && desktopTab === "security" ? (
+                <div className="space-y-6">
+                  {renderSessionsCard()}
+                  {renderTrustedCard()}
+                </div>
+              ) : null}
+
+              <div className="mt-8 pt-2 border-t border-gray-100/80">{renderAdminFootnote()}</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
