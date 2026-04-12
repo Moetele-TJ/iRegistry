@@ -13,9 +13,13 @@ export default function AppLayout() {
     <TransferProvider>
       <NotificationProvider>
         <SidebarProvider>
-          <Header />
-          <LayoutBody />
-          <Footer />
+          <div className="min-h-dvh min-h-screen flex flex-col bg-gray-100">
+            <Header />
+            <div className="flex flex-1 flex-col min-h-0 pt-[var(--app-header-h)]">
+              <LayoutBody />
+            </div>
+            <Footer />
+          </div>
         </SidebarProvider>
       </NotificationProvider>
     </TransferProvider>
@@ -30,7 +34,7 @@ function LayoutBody() {
     <>
       <AppSidebar sidebar={sidebar} />
       <main
-        className={`bg-gray-100 pt-[var(--app-header-h)] pl-0 ${
+        className={`flex flex-1 flex-col min-h-0 bg-gray-100 pl-0 ${
           showSidebar
             ? "pl-[calc(var(--app-sidebar-collapsed-w)+4px)] sm:pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
             : ""
