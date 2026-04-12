@@ -3,7 +3,6 @@ import { CalendarDays, Coins, RefreshCw, Users, List } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
@@ -16,7 +15,6 @@ function todayISO() {
 }
 
 export default function AdminRevenuePage() {
-  useAdminSidebar();
   const { addToast } = useToast();
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());

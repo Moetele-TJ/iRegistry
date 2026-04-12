@@ -5,7 +5,6 @@ import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -53,8 +52,6 @@ function UserRowActionControls({
   self,
   rowBusy,
   loading,
-  mobileRole,
-  setMobileRole,
   onRoleChange,
   onMobileAction,
   onSuspend,
@@ -206,7 +203,6 @@ export default function AdminUsers() {
   const { user: currentUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
-  useAdminSidebar();
 
   const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(null); // user being edited or null
@@ -1012,8 +1008,6 @@ export default function AdminUsers() {
                       self={self}
                       rowBusy={rowBusy}
                       loading={loading}
-                      mobileRole={roleNext}
-                      setMobileRole={setRoleNext}
                       onRoleChange={(next) => void quickChangeRole(u, next)}
                       onMobileAction={(action) => {
                         if (action === "change_role") return openRoleModal(u);

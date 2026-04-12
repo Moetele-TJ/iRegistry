@@ -16,7 +16,7 @@ export function useUserSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/userdashboard", icon: <LayoutDashboard size={20} />, label: "Overview" },
+      { to: "/userdashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/userdashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/userdashboard/items", icon: <Package size={20} />, label: "Items" },
       { to: "/userdashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },

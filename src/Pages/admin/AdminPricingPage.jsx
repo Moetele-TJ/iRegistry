@@ -4,12 +4,10 @@ import { Plus, Save, RefreshCw } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import PricingPageShell from "../shared/PricingPageShell.jsx";
 
 export default function AdminPricingPage() {
-  useAdminSidebar();
   const { addToast } = useToast();
   const { confirm } = useModal();
 

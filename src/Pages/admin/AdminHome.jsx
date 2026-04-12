@@ -2,13 +2,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle } from "lucide-react";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
 import PendingTransferRequests from "../../components/PendingTransferRequests.jsx";
 
 export default function AdminHome() {
-  useAdminSidebar();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null); // from stats(mode=admin)
@@ -97,9 +95,6 @@ export default function AdminHome() {
 
   const roleActivity = dashboard?.roleData?.roleActivity?.data || [];
   const alerts = dashboard?.personal?.alerts || [];
-  const pendingPaymentsCount = paymentAttention.pending.length;
-  const failedPaymentsCount = paymentAttention.failed.length;
-  const suspendedUsersCount = suspendedUsers.length;
 
   const statCards = useMemo(() => {
     const fallbackUsers = dashboard?.roleData?.adminOverview?.totalUsers;

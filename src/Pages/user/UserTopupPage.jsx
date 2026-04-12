@@ -5,7 +5,6 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
-import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
 import { roleIs } from "../../lib/roleUtils.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
@@ -262,6 +261,5 @@ export function UserTopupContent() {
 }
 
 export default function UserTopupPage() {
-  useUserSidebar();
   return <UserTopupContent />;
 }

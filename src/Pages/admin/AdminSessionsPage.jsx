@@ -5,7 +5,6 @@ import { MonitorSmartphone, RefreshCw, Search } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
-import { useAdminSidebar } from "../../hooks/useAdminSidebar";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
@@ -56,7 +55,6 @@ const EXTEND_PRESETS = [
 ];
 
 export default function AdminSessionsPage() {
-  useAdminSidebar();
   const { addToast } = useToast();
   const { logout } = useAuth();
   const navigate = useNavigate();
