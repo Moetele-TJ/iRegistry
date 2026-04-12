@@ -8,6 +8,20 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
+function TransactionStatusBadge({ payment: p }) {
+  const label = p.reversed_at ? "REVERSED" : p.status;
+  const tone = p.reversed_at
+    ? "bg-gray-50 text-gray-700 border border-gray-100"
+    : p.status === "CONFIRMED"
+      ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+      : p.status === "FAILED"
+        ? "bg-red-50 text-red-700 border border-red-100"
+        : "bg-gray-50 text-gray-700 border border-gray-100";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>
+  );
+}
+
 export default function UserTransactionsPage() {
   const { addToast } = useToast();
   const { confirm } = useModal();
@@ -107,7 +121,71 @@ export default function UserTransactionsPage() {
       ) : payments.length === 0 ? (
         <div className="px-5 py-6 text-sm text-gray-500">No transactions yet.</div>
       ) : (
-        <div className="overflow-x-auto px-4 sm:px-5">
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="md:hidden px-4 pb-4 sm:px-5 space-y-3">
+            {payments.map((p) => {
+              const showPendingActions = p.status === "PENDING" && !p.reversed_at;
+              return (
+                <article
+                  key={p.id}
+                  className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 shadow-sm space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</p>
+                      <p className="text-sm text-gray-900 mt-0.5 break-words">
+                        {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
+                      </p>
+                    </div>
+                    <TransactionStatusBadge payment={p} />
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-gray-500">Channel</dt>
+                      <dd className="text-gray-800 font-medium mt-0.5">{p.channel}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500">Credits</dt>
+                      <dd className="text-gray-800 font-medium tabular-nums mt-0.5">{p.credits_granted ?? 0}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs text-gray-500">Amount</dt>
+                      <dd className="text-gray-800 font-medium mt-0.5 tabular-nums">
+                        {formatMoneyAmount(p.currency, p.amount)}
+                      </dd>
+                    </div>
+                  </dl>
+                  {showPendingActions ? (
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100/90">
+                      <RippleButton
+                        type="button"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60 w-full"
+                        disabled={loading || actingId != null}
+                        title="Pay online when checkout is available"
+                        onClick={() => void confirmPay()}
+                      >
+                        <CreditCard className="w-4 h-4 shrink-0" />
+                        Pay
+                      </RippleButton>
+                      <RippleButton
+                        type="button"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-red-200 text-red-700 bg-white text-sm font-semibold disabled:opacity-60 w-full"
+                        disabled={loading || actingId != null}
+                        onClick={() => void confirmDeletePending()}
+                      >
+                        <Trash2 className="w-4 h-4 shrink-0" />
+                        Delete
+                      </RippleButton>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+
+          {/* md+: table */}
+          <div className="hidden md:block overflow-x-auto px-4 sm:px-5">
           <table className="w-full min-w-[44rem] table-fixed border-collapse text-sm">
             <colgroup>
               <col className="w-[28%]" />
@@ -139,19 +217,7 @@ export default function UserTransactionsPage() {
                     <td className="px-3 py-2.5 text-gray-700 whitespace-nowrap align-middle">{formatMoneyAmount(p.currency, p.amount)}</td>
                     <td className="px-3 py-2.5 text-gray-700 tabular-nums whitespace-nowrap align-middle">{p.credits_granted ?? 0}</td>
                     <td className="px-3 py-2.5 align-middle">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          p.reversed_at
-                            ? "bg-gray-50 text-gray-700 border border-gray-100"
-                            : p.status === "CONFIRMED"
-                              ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
-                              : p.status === "FAILED"
-                                ? "bg-red-50 text-red-700 border border-red-100"
-                                : "bg-gray-50 text-gray-700 border border-gray-100"
-                        }`}
-                      >
-                        {p.reversed_at ? "REVERSED" : p.status}
-                      </span>
+                      <TransactionStatusBadge payment={p} />
                     </td>
                     <td className="px-3 py-2.5 text-right align-middle">
                       {showPendingActions ? (
@@ -186,6 +252,7 @@ export default function UserTransactionsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </PageSectionCard>
   );
