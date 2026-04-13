@@ -76,6 +76,8 @@ serve(async (req) => {
       user_id: filterUserId,
       actor_user_id: actorUserId,
       target_user_id: targetUserId,
+      event: eventExact,
+      diag: diagExact,
       event_q: rawEventQ,
       success: rawSuccess,
       severity: rawSeverity,
@@ -127,6 +129,14 @@ serve(async (req) => {
         "\\_",
       );
       q = q.or(`event.ilike.%${esc}%,diag.ilike.%${esc}%`);
+    }
+
+    if (eventExact && typeof eventExact === "string" && eventExact.trim()) {
+      q = q.eq("event", eventExact.trim());
+    }
+
+    if (diagExact && typeof diagExact === "string" && diagExact.trim()) {
+      q = q.eq("diag", diagExact.trim());
     }
 
     const { data: rows, error, count } = await q;

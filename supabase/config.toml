@@ -803,3 +803,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/list-audit-logs/deno.json"
 entrypoint = "./functions/list-audit-logs/index.ts"
+
+[functions.list-audit-facets]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-audit-facets/deno.json"
+entrypoint = "./functions/list-audit-facets/index.ts"

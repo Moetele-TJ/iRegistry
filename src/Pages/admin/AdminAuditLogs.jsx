@@ -42,8 +42,7 @@ export default function AdminAuditLogs() {
   const { addToast } = useToast();
 
   const [page, setPage] = useState(1);
-  const [eventQ, setEventQ] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
+  const [eventOrCode, setEventOrCode] = useState("");
   const [successFilter, setSuccessFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("");
   const [userIdFilter, setUserIdFilter] = useState("");
@@ -56,14 +55,9 @@ export default function AdminAuditLogs() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(eventQ.trim()), 300);
-    return () => window.clearTimeout(t);
-  }, [eventQ]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQ]);
+  const [facetLoading, setFacetLoading] = useState(false);
+  const [facetEvents, setFacetEvents] = useState([]);
+  const [facetCodes, setFacetCodes] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,6 +83,32 @@ export default function AdminAuditLogs() {
     };
   }, [addToast]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFacets() {
+      setFacetLoading(true);
+      try {
+        const { data, error } = await invokeWithAuth("list-audit-facets", {
+          body: { limit: 2000 },
+        });
+        if (cancelled) return;
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load facets");
+        setFacetEvents(Array.isArray(data.events) ? data.events : []);
+        setFacetCodes(Array.isArray(data.codes) ? data.codes : []);
+      } catch (e) {
+        // facets are optional; don't hard-fail the page
+        setFacetEvents([]);
+        setFacetCodes([]);
+      } finally {
+        if (!cancelled) setFacetLoading(false);
+      }
+    }
+    void loadFacets();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const offset = (page - 1) * PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -99,8 +119,11 @@ export default function AdminAuditLogs() {
       const body = {
         limit: PAGE_SIZE,
         offset,
-        event_q: debouncedQ || undefined,
       };
+      if (eventOrCode) {
+        if (eventOrCode.startsWith("event:")) body.event = eventOrCode.slice("event:".length);
+        if (eventOrCode.startsWith("code:")) body.diag = eventOrCode.slice("code:".length);
+      }
       if (uid) {
         if (userMatch === "actor") body.actor_user_id = uid;
         else if (userMatch === "target") body.target_user_id = uid;
@@ -125,7 +148,7 @@ export default function AdminAuditLogs() {
     }
   }, [
     addToast,
-    debouncedQ,
+    eventOrCode,
     offset,
     successFilter,
     severityFilter,
@@ -152,15 +175,38 @@ export default function AdminAuditLogs() {
         <div className="p-4 sm:p-6 space-y-6">
           <div className="flex flex-col xl:flex-row gap-4 flex-wrap xl:items-end">
             <div className="flex-1 min-w-[200px]">
-              <label className="text-xs font-medium text-gray-600">Search event or code</label>
+              <label className="text-xs font-medium text-gray-600">Event or code</label>
               <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
                 <Search size={18} className="text-gray-400 shrink-0" />
-                <input
-                  value={eventQ}
-                  onChange={(e) => setEventQ(e.target.value)}
+                <select
+                  value={eventOrCode}
+                  onChange={(e) => {
+                    setEventOrCode(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full outline-none text-sm bg-transparent"
-                  placeholder="e.g. OTP_, ADMIN_SESSION…"
-                />
+                  disabled={facetLoading}
+                >
+                  <option value="">{facetLoading ? "Loading…" : "All events/codes"}</option>
+                  {facetEvents.length ? (
+                    <optgroup label="Events">
+                      {facetEvents.map((ev) => (
+                        <option key={`event:${ev}`} value={`event:${ev}`}>
+                          {ev}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {facetCodes.length ? (
+                    <optgroup label="Codes">
+                      {facetCodes.map((c) => (
+                        <option key={`code:${c}`} value={`code:${c}`}>
+                          {c}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                </select>
               </div>
             </div>
 
