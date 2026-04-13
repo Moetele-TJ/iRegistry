@@ -202,15 +202,14 @@ export function ItemsProvider({ children }) {
     [user?.id]
   );
 
-  /* Initial load */
+  /* Clear list when logged out / user changes. Do not auto-fetch active items here — it races
+     `Items` (deleted/legacy/active) on hard reload and the slower request could overwrite the
+     correct tab. Item list loads from `Items.jsx` (and other callers) via `refreshItems`. */
   useEffect(() => {
     if (!user?.id) {
       dispatch({ type: "SET_ITEMS", payload: [] });
-      return;
     }
-
-    refreshItems({ ownerId: user.id });
-  }, [user?.id, refreshItems]);
+  }, [user?.id]);
 
   /* ---------------- ADD ITEM ---------------- */
   

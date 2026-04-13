@@ -18,8 +18,14 @@ import {
 
 export default function AddItem() {
   const navigate = useNavigate();
-  const { addItem, loading, items = [] } = useItems();
+  const { addItem, loading, items = [], refreshItems } = useItems();
   const { user } = useAuth();
+
+  // Active list for created-by / pricing when opening Add Item directly (no provider prefetch).
+  useEffect(() => {
+    if (!user?.id) return;
+    void refreshItems({ ownerId: user.id, includeDeleted: false, includeLegacy: false });
+  }, [user?.id, refreshItems]);
   const { getCost } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
 
