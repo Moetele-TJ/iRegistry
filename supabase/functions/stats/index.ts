@@ -75,7 +75,9 @@ serve(async (req) => {
         supabase
           .from("users")
           .select("*", { count: "exact", head: true })
-          .eq("status", "active"),
+          .is("deleted_at", null)
+          .is("suspended_at", null)
+          .is("disabled_at", null),
         supabase.from("items").select("*", { count: "exact", head: true }),
         supabase
           .from("items")

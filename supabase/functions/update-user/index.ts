@@ -8,6 +8,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -55,7 +56,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, role, status, deleted_at, id_number, date_of_birth")
+      .select("id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth")
       .eq("id", id)
       .maybeSingle();
 
@@ -196,14 +197,25 @@ serve(async (req) => {
         return respond({ success: false, message: "You cannot deactivate your own account" }, corsHeaders, 400);
       }
 
-      const statusChanged = String(existing.status || "").toLowerCase() !== next;
+      const statusChanged = deriveUserStatus(existing) !== next;
       if (statusChanged) {
-        const reason =
+        const suspendedReason =
           typeof (updates as { suspended_reason?: unknown }).suspended_reason === "string"
             ? String((updates as { suspended_reason: string }).suspended_reason).trim()
             : "";
+        const disabledReason =
+          typeof (updates as { disabled_reason?: unknown }).disabled_reason === "string"
+            ? String((updates as { disabled_reason: string }).disabled_reason).trim()
+            : "";
 
-        if (next !== "active" && !reason) {
+        if (next === "suspended" && !suspendedReason) {
+          return respond(
+            { success: false, message: "A reason is required to change status." },
+            corsHeaders,
+            400,
+          );
+        }
+        if (next === "disabled" && !disabledReason) {
           return respond(
             { success: false, message: "A reason is required to change status." },
             corsHeaders,
@@ -211,14 +223,25 @@ serve(async (req) => {
           );
         }
 
-        clean.status = next;
-
         if (next === "active") {
           clean.suspended_reason = null;
           clean.suspended_at = null;
+          clean.disabled_reason = null;
+          clean.disabled_at = null;
         } else {
-          clean.suspended_reason = reason;
-          clean.suspended_at = new Date().toISOString();
+          const now = new Date().toISOString();
+          if (next === "suspended") {
+            clean.suspended_reason = suspendedReason;
+            clean.suspended_at = now;
+            clean.disabled_reason = null;
+            clean.disabled_at = null;
+          }
+          if (next === "disabled") {
+            clean.disabled_reason = disabledReason;
+            clean.disabled_at = now;
+            clean.suspended_reason = null;
+            clean.suspended_at = null;
+          }
         }
       }
     }
@@ -235,17 +258,15 @@ serve(async (req) => {
 
     const oldRole = String((existing as any)?.role || "").trim().toLowerCase();
     const newRole = roleWillChange ? String((clean as any).role || "").trim().toLowerCase() : "";
-    const oldStatus = String((existing as any)?.status || "").trim().toLowerCase();
-    const newStatus = typeof (clean as any)?.status === "string"
-      ? String((clean as any).status).trim().toLowerCase()
-      : "";
+    const oldStatus = deriveUserStatus(existing);
+    const newStatus = deriveUserStatus({ ...(existing as any), ...(clean as any) });
 
     const { data: updated, error: upErr } = await supabase
       .from("users")
       .update(clean)
       .eq("id", id)
       .select(
-        "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, status, date_of_birth",
+        "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, date_of_birth",
       )
       .single();
 
@@ -255,7 +276,7 @@ serve(async (req) => {
 
     // If an admin changes a user's role, revoke all existing sessions so they must log in again.
     // This prevents a stale session from continuing with the old role.
-    if (roleWillChange) {
+    if (roleWillChange || newStatus !== oldStatus) {
       const { error: revokeErr } = await supabase
         .from("sessions")
         .update({ revoked: true })
@@ -291,9 +312,16 @@ serve(async (req) => {
     }
 
     if (roleIs(session.role, "admin") && newStatus && newStatus !== oldStatus) {
-      const reason = typeof (clean as any)?.suspended_reason === "string"
-        ? String((clean as any).suspended_reason).trim().slice(0, 500)
-        : "";
+      const reason =
+        newStatus === "suspended"
+          ? (typeof (clean as any)?.suspended_reason === "string"
+              ? String((clean as any).suspended_reason).trim().slice(0, 500)
+              : "")
+          : newStatus === "disabled"
+          ? (typeof (clean as any)?.disabled_reason === "string"
+              ? String((clean as any).disabled_reason).trim().slice(0, 500)
+              : "")
+          : "";
       await logAudit({
         supabase,
         event: "USER_STATUS_CHANGED",
@@ -315,7 +343,17 @@ serve(async (req) => {
       });
     }
 
-    return respond({ success: true, user: updated }, corsHeaders, 200);
+    return respond(
+      {
+        success: true,
+        user: {
+          ...updated,
+          status: deriveUserStatus(updated),
+        },
+      },
+      corsHeaders,
+      200,
+    );
   } catch (err: any) {
     // Treat our explicit validation errors as 400s.
     const msg = err?.message || "Unexpected server error";

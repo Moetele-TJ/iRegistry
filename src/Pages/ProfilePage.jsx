@@ -6,6 +6,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { isPrivilegedRole } from "../lib/billingUx.js";
+import { deriveUserStatus } from "../lib/userState.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import {
   ArrowLeft,
@@ -526,7 +527,8 @@ export default function ProfilePage() {
 
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
   const displayName = fullName || user.email || "Your account";
-  const statusActive = String(user.status || "").toLowerCase() === "active";
+  const derivedStatus = deriveUserStatus(user);
+  const statusActive = derivedStatus === "active";
 
   function renderPersonalCard() {
     return (
@@ -723,7 +725,7 @@ export default function ProfilePage() {
                   statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
                 }`}
               >
-                {user.status ? String(user.status) : "—"}
+                {derivedStatus || "—"}
               </span>
             </Field>
             <Field label="Credits balance">
@@ -756,10 +758,21 @@ export default function ProfilePage() {
             </Field>
           </div>
         </div>
-        {user.suspended_reason ? (
+        {user.suspended_reason || user.disabled_reason || user.deleted_at ? (
           <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
-            <Field label="Suspension / restriction reason">{String(user.suspended_reason)}</Field>
-            {user.suspended_at ? <Field label="Effective since">{fmtDate(user.suspended_at)}</Field> : null}
+            {user.suspended_reason ? (
+              <>
+                <Field label="Suspension reason">{String(user.suspended_reason)}</Field>
+                {user.suspended_at ? <Field label="Suspended since">{fmtDate(user.suspended_at)}</Field> : null}
+              </>
+            ) : null}
+            {user.disabled_reason ? (
+              <>
+                <Field label="Disabled reason">{String(user.disabled_reason)}</Field>
+                {user.disabled_at ? <Field label="Disabled since">{fmtDate(user.disabled_at)}</Field> : null}
+              </>
+            ) : null}
+            {user.deleted_at ? <Field label="Deleted at">{fmtDate(user.deleted_at)}</Field> : null}
           </div>
         ) : null}
       </Card>
@@ -1101,7 +1114,7 @@ export default function ProfilePage() {
                         statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {user.status ? String(user.status) : "—"}
+                      {derivedStatus || "—"}
                     </span>
                   </div>
                 </div>

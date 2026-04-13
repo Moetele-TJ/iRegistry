@@ -9,6 +9,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { deriveUserStatus } from "../../lib/userState.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -284,7 +285,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       email: u.email || "",
       phone: u.phone || "",
       role: u.role || "user",
-      status: u.status || "active",
+      status: deriveUserStatus(u) || "active",
       status_reason: u.suspended_reason || "",
       police_station: u.police_station || "",
       village: u.village || "",
@@ -348,7 +349,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     return (users || []).filter((u) => {
       if (!u) return false;
       if (roleQ !== "all" && String(u.role || "").toLowerCase() !== roleQ) return false;
-      if (statusQ !== "all" && String(u.status || "").toLowerCase() !== statusQ) return false;
+      if (statusQ !== "all" && deriveUserStatus(u) !== statusQ) return false;
 
       if (stationQ) {
         const st = String(u.police_station || "").toLowerCase();
@@ -362,7 +363,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         u.id || "",
         u.id_number || "",
         u.phone || "",
-        u.status || "",
+        deriveUserStatus(u) || "",
         u.police_station || "",
       ]
         .join(" ")
@@ -581,7 +582,9 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     const status = suspendStatus === "disabled" ? "disabled" : "suspended";
     const ok = await quickUpdateUser(
       u.id,
-      { status, suspended_reason: reason },
+      status === "disabled"
+        ? { status, disabled_reason: reason }
+        : { status, suspended_reason: reason },
       status === "disabled" ? "User disabled." : "User suspended.",
     );
     if (ok) closeSuspendModal();
@@ -589,7 +592,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   async function quickReactivate(u) {
     if (isSelf(u.id)) return;
-    const st = String(u.status || "").toLowerCase();
+    const st = deriveUserStatus(u);
     if (st === "active") {
       addToast({ type: "info", message: "User is already active." });
       return;
@@ -1030,7 +1033,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           ) : (
             <div className="space-y-2">
               {filteredUsers.map((u) => {
-                const st = String(u.status || "").toLowerCase();
+                const st = deriveUserStatus(u);
                 const rowBusy = quickRowId === String(u.id);
                 const self = isSelf(u.id);
                 return (
@@ -1041,12 +1044,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
                       </div>
                       <div className="text-xs text-gray-500">
-                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {u.status || "—"} • ID / Passport: {u.id_number || "—"} • Last login: {fmtDateTime(u.last_login_at)} • ID: {u.id}
+                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {st || "—"} • ID / Passport: {u.id_number || "—"} • Last login: {fmtDateTime(u.last_login_at)} • ID: {u.id}
                         {u.police_station ? ` • Station: ${u.police_station}` : ""}
                       </div>
-                      {u.suspended_reason && st !== "active" ? (
+                      {(u.suspended_reason || u.disabled_reason) && st !== "active" ? (
                         <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1 mt-2 max-w-xl">
-                          Reason: {u.suspended_reason}
+                          Reason: {u.suspended_reason || u.disabled_reason}
                         </div>
                       ) : null}
                     </div>

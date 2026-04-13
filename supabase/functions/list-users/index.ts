@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -42,9 +43,8 @@ serve(async (req) => {
     const { data: users, error } = await supabase
       .from("users")
       .select(
-        "id, first_name, last_name, id_number, phone, email, role, police_station, status, suspended_reason, suspended_at, user_credits(balance)",
+        "id, first_name, last_name, id_number, phone, email, role, police_station, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, user_credits(balance)",
       )
-      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -84,7 +84,8 @@ serve(async (req) => {
     const normalized = list.map((u: any) => {
       const bal = typeof u?.user_credits?.balance === "number" ? u.user_credits.balance : 0;
       const lastLogin = lastLoginByUserId.get(String(u?.id || "")) || null;
-      return { ...u, credit_balance: bal, last_login_at: lastLogin, user_credits: undefined };
+      const status = deriveUserStatus(u);
+      return { ...u, status, credit_balance: bal, last_login_at: lastLogin, user_credits: undefined };
     });
 
     return respond({ success: true, users: normalized }, corsHeaders, 200);

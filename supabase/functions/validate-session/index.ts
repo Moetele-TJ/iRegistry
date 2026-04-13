@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -58,7 +59,11 @@ serve(async (req) => {
         phone,
         email,
         role,
-        status,
+        suspended_reason,
+        suspended_at,
+        disabled_reason,
+        disabled_at,
+        deleted_at,
         identity_verified,
         is_minor,
         village,
@@ -68,7 +73,6 @@ serve(async (req) => {
       `,
       )
       .eq("id", session.user_id)
-      .is("deleted_at", null)
       .maybeSingle();
 
     if (userError || !user) {
@@ -86,7 +90,8 @@ serve(async (req) => {
     // ----------------------------------
     //  Enforce account status
     // ----------------------------------
-    if (user.status !== "active") {
+    const derived = deriveUserStatus(user);
+    if (derived !== "active") {
       // revoke session immediately
       await supabase
         .from("sessions")
@@ -98,6 +103,7 @@ serve(async (req) => {
           success: false,
           diag: "VAL-SESS-004",
           message: "Account is not active",
+          status: derived,
         },
         corsHeaders,
         403

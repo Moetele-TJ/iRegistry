@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -57,20 +58,21 @@ serve(async (req) => {
         email,
         email_verified,
         role,
-        status,
+        suspended_reason,
+        suspended_at,
+        disabled_reason,
+        disabled_at,
+        deleted_at,
         identity_verified,
         is_minor,
         village,
         ward,
         police_station,
         created_at,
-        suspended_reason,
-        suspended_at,
         user_credits(balance)
       `,
       )
       .eq("id", targetId)
-      .is("deleted_at", null)
       .maybeSingle();
 
     if (error || !row) {
@@ -97,6 +99,7 @@ serve(async (req) => {
 
     const normalizedUser = {
       ...(row as any),
+      status: deriveUserStatus(row),
       credit_balance,
       last_login_at,
     };

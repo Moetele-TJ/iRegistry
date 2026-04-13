@@ -214,8 +214,9 @@ serve(async (req) => {
       const { count: activeUsers } = await supabase
         .from("users")
         .select("id", { count: "exact", head: true })
-        .eq("status", "active")
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .is("suspended_at", null)
+        .is("disabled_at", null);
 
       const { data: estRows } = await supabase
         .from("items")
