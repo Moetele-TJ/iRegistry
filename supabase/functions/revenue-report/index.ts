@@ -82,13 +82,25 @@ serve(async (req) => {
       .gte("confirmed_at", start.toISOString())
       .lt("confirmed_at", end.toISOString());
 
-    if (finalChannels.length === 1) {
-      q = q.eq("channel", finalChannels[0]);
-    } else {
-      q = q.in("channel", finalChannels);
-    }
+    const wantsCashier = finalChannels.includes("CASHIER");
+    const wantsOnline = finalChannels.includes("ONLINE");
 
-    if (cashierId) q = q.eq("cashier_user_id", cashierId);
+    if (wantsCashier && wantsOnline) {
+      // When including ONLINE + CASHIER together, cashier filtering should only affect CASHIER rows.
+      // (ONLINE payments don't have a cashier_user_id.)
+      if (cashierId) {
+        q = q.or(`channel.eq.ONLINE,and(channel.eq.CASHIER,cashier_user_id.eq.${cashierId})`);
+      } else {
+        q = q.in("channel", ["ONLINE", "CASHIER"]);
+      }
+    } else if (finalChannels.length === 1) {
+      q = q.eq("channel", finalChannels[0]);
+      if (cashierId && finalChannels[0] === "CASHIER") q = q.eq("cashier_user_id", cashierId);
+    } else {
+      // Defensive fallback (shouldn't happen due to validation above)
+      q = q.in("channel", finalChannels);
+      if (cashierId && wantsCashier && !wantsOnline) q = q.eq("cashier_user_id", cashierId);
+    }
 
     q = q.order("confirmed_at", { ascending: false }).limit(Math.min(Number(limit) || 200, 5000));
 
@@ -97,13 +109,25 @@ serve(async (req) => {
 
     // aggregate in code (small volume; can move to SQL later)
     const byCurrency: Record<string, { amount: number; count: number }> = {};
+    const byChannel: Record<string, { amount: number; count: number }> = {};
+    const byChannelCurrency: Record<string, Record<string, { amount: number; count: number }>> = {};
     for (const row of data || []) {
+      const ch = String((row as any).channel || "").toUpperCase() || "—";
       const cur = String((row as any).currency || "BWP").toUpperCase();
       const amt = Number((row as any).amount ?? 0);
       if (!Number.isFinite(amt)) continue;
       if (!byCurrency[cur]) byCurrency[cur] = { amount: 0, count: 0 };
       byCurrency[cur].amount += amt;
       byCurrency[cur].count += 1;
+
+      if (!byChannel[ch]) byChannel[ch] = { amount: 0, count: 0 };
+      byChannel[ch].amount += amt;
+      byChannel[ch].count += 1;
+
+      if (!byChannelCurrency[ch]) byChannelCurrency[ch] = {};
+      if (!byChannelCurrency[ch][cur]) byChannelCurrency[ch][cur] = { amount: 0, count: 0 };
+      byChannelCurrency[ch][cur].amount += amt;
+      byChannelCurrency[ch][cur].count += 1;
     }
 
     return respond(
@@ -118,6 +142,8 @@ serve(async (req) => {
         totals: {
           count: count ?? (data || []).length,
           by_currency: byCurrency,
+          by_channel: byChannel,
+          by_channel_currency: byChannelCurrency,
         },
         transactions: include_transactions ? (data || []) : undefined,
       },

@@ -22,7 +22,7 @@ export default function AdminRevenuePage() {
   const [report, setReport] = useState(null);
   const [users, setUsers] = useState([]);
   const [cashierId, setCashierId] = useState("");
-  const [channel, setChannel] = useState("CASHIER"); // CASHIER | ONLINE | BOTH
+  const [channel, setChannel] = useState("BOTH"); // CASHIER | ONLINE | BOTH
   const [showTransactions] = useState(true);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function AdminRevenuePage() {
         body: {
           from,
           to,
-          cashier_user_id: channel === "CASHIER" ? (cashierId || null) : null,
+          cashier_user_id: channel === "ONLINE" ? null : (cashierId || null),
           channels: channel === "BOTH" ? ["CASHIER", "ONLINE"] : [channel],
           include_transactions: showTransactions,
           limit: 500,
@@ -83,12 +83,33 @@ export default function AdminRevenuePage() {
 
   const totalCount = report?.totals?.count ?? 0;
   const tx = report?.transactions || [];
+  const byChannel = report?.totals?.by_channel || {};
+  const byChCur = report?.totals?.by_channel_currency || {};
+
+  const breakdownRows = useMemo(() => {
+    const picks = [
+      { channel: "CASHIER", label: "Cashier" },
+      { channel: "ONLINE", label: "Online" },
+    ];
+    return picks
+      .filter((p) => byChannel?.[p.channel])
+      .map((p) => {
+        const totals = byChannel[p.channel] || { amount: 0, count: 0 };
+        const curMap = byChCur?.[p.channel] || {};
+        const curList = Object.entries(curMap).map(([cur, v]) => ({
+          currency: cur,
+          amount: v?.amount ?? 0,
+          count: v?.count ?? 0,
+        }));
+        return { ...p, totals, currencies: curList };
+      });
+  }, [byChannel, byChCur]);
 
   return (
     <PageSectionCard
       maxWidthClass="max-w-6xl"
-      title="Cashier revenue"
-      subtitle="Select a cashier and date range to compute confirmed cashier top-ups."
+      title="Revenue"
+      subtitle="Confirmed top-ups by date, with breakdown of Cashier vs Online."
       icon={<Coins className="w-6 h-6 text-iregistrygreen shrink-0" />}
     >
       <div className="p-4 sm:p-6 space-y-6">
@@ -102,7 +123,7 @@ export default function AdminRevenuePage() {
             value={cashierId}
             onChange={(e) => setCashierId(e.target.value)}
             className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-            disabled={channel !== "CASHIER"}
+            disabled={channel === "ONLINE"}
           >
             <option value="">All cashier actors</option>
             {users.map((u) => (
@@ -144,7 +165,7 @@ export default function AdminRevenuePage() {
         </RippleButton>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6">
           <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">Transactions</div>
           <div className="text-3xl font-bold text-gray-900 mt-1 tabular-nums">{totalCount}</div>
@@ -159,6 +180,37 @@ export default function AdminRevenuePage() {
                 <div key={r.currency} className="flex items-center justify-between gap-3">
                   <div className="text-sm text-gray-700">{r.currency}</div>
                   <div className="text-sm font-semibold text-gray-900 tabular-nums">{formatMoneyAmount(r.currency, r.amount)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6">
+          <div className="text-xs uppercase tracking-wide text-gray-500 font-medium">Breakdown</div>
+          {breakdownRows.length === 0 ? (
+            <div className="text-sm text-gray-400 mt-2">—</div>
+          ) : (
+            <div className="mt-2 space-y-3">
+              {breakdownRows.map((b) => (
+                <div key={b.channel} className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900">{b.label}</div>
+                    <div className="text-xs text-gray-500 tabular-nums">{b.totals.count} tx</div>
+                  </div>
+                  {b.currencies?.length ? (
+                    <div className="mt-1 space-y-1">
+                      {b.currencies.map((c) => (
+                        <div key={c.currency} className="flex items-center justify-between gap-3">
+                          <div className="text-xs text-gray-600">{c.currency}</div>
+                          <div className="text-xs font-semibold text-gray-900 tabular-nums">
+                            {formatMoneyAmount(c.currency, c.amount)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-400 mt-1">—</div>
+                  )}
                 </div>
               ))}
             </div>
