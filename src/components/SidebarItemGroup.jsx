@@ -4,8 +4,11 @@ import { NavLink, useLocation } from "react-router-dom";
 
 const FLYOUT_Z = 90;
 const LEAVE_MS = 160;
-const SUBMENU_ENTER_MS = 200;
-const SUBMENU_EXIT_MS = 200;
+/** Slow enough to read; paired with ease curve below */
+const SUBMENU_ENTER_MS = 480;
+const SUBMENU_EXIT_MS = 420;
+/** Slightly larger travel so motion is visible (was 6px) */
+const SUBMENU_SLIDE_PX = 14;
 
 /**
  * Flyout sub-links in a portal; coordinates with AppSidebar width transition + collapse order.
@@ -105,7 +108,7 @@ export default function SidebarItemGroup({
       setInHoverZone(false);
       setPos(null);
       onFlyoutExitComplete?.();
-    }, SUBMENU_EXIT_MS);
+    }, SUBMENU_EXIT_MS + 40);
 
     return () => window.clearTimeout(t);
   }, [flyoutCloseNonce, pos, onFlyoutExitComplete, onFlyoutOpenChange]);
@@ -140,19 +143,25 @@ export default function SidebarItemGroup({
       aria-label={`${label} views`}
       className={[
         "flex flex-col overflow-hidden rounded-xl border border-white/15 bg-iregistrygreen shadow-lg min-w-[11.5rem]",
-        "transition-[opacity,transform] ease-out",
+        "transition-[opacity,transform]",
         exiting
-          ? "opacity-0 translate-x-[-6px]"
+          ? "opacity-0"
           : enterVisible
             ? "opacity-100 translate-x-0"
-            : "opacity-0 translate-x-[-6px]",
+            : "opacity-0",
       ].join(" ")}
       style={{
         position: "fixed",
         top: pos?.top,
         left: pos?.left,
         zIndex: FLYOUT_Z,
+        transform: exiting || !enterVisible ? `translateX(-${SUBMENU_SLIDE_PX}px)` : "translateX(0)",
+        transitionProperty: "opacity, transform",
         transitionDuration: `${exiting ? SUBMENU_EXIT_MS : SUBMENU_ENTER_MS}ms`,
+        transitionTimingFunction: exiting
+          ? "cubic-bezier(0.4, 0, 1, 1)"
+          : "cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "opacity, transform",
       }}
       onMouseEnter={() => {
         enterZone();
