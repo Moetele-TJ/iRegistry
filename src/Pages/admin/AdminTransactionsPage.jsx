@@ -322,21 +322,23 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                           </span>
                           <span className="text-xs text-gray-500">{p.channel || "—"}</span>
                         </div>
+                      </div>
 
-                        <div className="flex items-center gap-2">
-                          {canReverse ? (
-                            <RippleButton
-                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm disabled:opacity-50"
-                              disabled={!reversible || reversingId === p.id}
-                              onClick={() => openReverseModal(p)}
-                            >
-                              <RotateCcw size={16} />
-                              {reversingId === p.id ? "Reversing…" : "Reverse"}
-                            </RippleButton>
-                          ) : (
-                            <span className="text-xs text-gray-400">Read only</span>
-                          )}
-                        </div>
+                      <div className="mt-3">
+                        {canReverse ? (
+                          <RippleButton
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border bg-white text-sm disabled:opacity-50"
+                            disabled={!reversible || reversingId === p.id}
+                            onClick={() => openReverseModal(p)}
+                          >
+                            <RotateCcw size={16} />
+                            {reversingId === p.id ? "Reversing…" : "Reverse payment"}
+                          </RippleButton>
+                        ) : (
+                          <div className="w-full text-center text-xs text-gray-400 border border-gray-100 rounded-xl bg-gray-50 px-3 py-2.5">
+                            Read only
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
