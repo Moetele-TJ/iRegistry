@@ -484,6 +484,30 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       return;
     }
 
+    if (isAdding || isEditing) {
+      if (!normStr(form.last_name)) {
+        const msg = "Last name is required.";
+        setError(msg);
+        addToast({ type: "error", message: msg });
+        return;
+      }
+      if (!normStr(form.phone)) {
+        const msg = "Phone number is required.";
+        setError(msg);
+        addToast({ type: "error", message: msg });
+        return;
+      }
+      if (isAdding) {
+        const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
+        if (!idn) {
+          const msg = "National ID / Passport is required.";
+          setError(msg);
+          addToast({ type: "error", message: msg });
+          return;
+        }
+      }
+    }
+
     if (isEditing && row && !adminEditHasChanges(row, form, canAdminister)) {
       addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
       return;
@@ -511,6 +535,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
     setLoading(true);
     try {
+      let rowIdToHighlight = null;
+
       if (isAdding) {
         if (!canAdminister) return;
         const ok = await confirm({
@@ -521,6 +547,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         }).catch(() => false);
         if (!ok) return;
 
+        const reasonTrim = String(form.status_reason || "").trim();
         const { data, error } = await invokeWithAuth("admin-create-user", {
           body: {
             first_name: form.first_name,
@@ -530,13 +557,20 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             phone: form.phone,
             role: form.role,
             status: form.status,
-            suspended_reason: statusNeedsReason ? String(form.status_reason || "").trim() : undefined,
-            police_station: form.police_station,
+            ...(form.status === "suspended" && reasonTrim
+              ? { suspended_reason: reasonTrim }
+              : {}),
+            ...(form.status === "disabled" && reasonTrim
+              ? { disabled_reason: reasonTrim }
+              : {}),
           },
         });
 
         if (error || !data?.success) {
           throw new Error(data?.message || error?.message || "Failed to create user");
+        }
+        if (data?.user?.id != null) {
+          rowIdToHighlight = String(data.user.id);
         }
         addToast({ type: "success", message: "User was created successfully." });
       } else if (isEditing) {
@@ -583,18 +617,17 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           await refresh();
           return;
         }
+        rowIdToHighlight = String(editing);
         addToast({ type: "success", message: "User was updated successfully." });
       } else {
         return;
       }
 
-      const editedRowId = isEditing && editing ? String(editing) : null;
-
       await refresh();
       closeForm();
 
-      if (editedRowId) {
-        setHighlightUserId(editedRowId);
+      if (rowIdToHighlight) {
+        setHighlightUserId(rowIdToHighlight);
       }
     } catch (e) {
       const msg = e.message || "Failed to save user";
@@ -988,10 +1021,17 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             tabIndex={-1}
             className="bg-white rounded-lg p-4 shadow-sm mb-6 scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 focus-visible:ring-offset-2"
           >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">
-                {isAdding ? "Add user" : "Edit user"}
-              </h2>
+            <div className="flex items-center justify-between mb-3 gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {isAdding ? "Add user" : "Edit user"}
+                </h2>
+                {isAdding ? (
+                  <p className="text-xs text-gray-500 mt-1 max-w-xl">
+                    Station, village, and ward can be added later via Edit or the user&apos;s profile.
+                  </p>
+                ) : null}
+              </div>
               <button
                 type="button"
                 className="text-sm text-gray-500 hover:text-gray-700"
@@ -1104,38 +1144,42 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 </>
               ) : null}
 
-              <div>
-                <label className="text-xs text-gray-600">Police station</label>
-                <input
-                  value={form.police_station}
-                  onChange={(e) => setForm((s) => ({ ...s, police_station: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="(optional)"
-                  disabled={loading}
-                />
-              </div>
+              {isEditing ? (
+                <>
+                  <div>
+                    <label className="text-xs text-gray-600">Police station</label>
+                    <input
+                      value={form.police_station}
+                      onChange={(e) => setForm((s) => ({ ...s, police_station: e.target.value }))}
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                      placeholder="(optional)"
+                      disabled={loading}
+                    />
+                  </div>
 
-              <div>
-                <label className="text-xs text-gray-600">Village</label>
-                <input
-                  value={form.village}
-                  onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="(optional)"
-                  disabled={loading}
-                />
-              </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Village</label>
+                    <input
+                      value={form.village}
+                      onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                      placeholder="(optional)"
+                      disabled={loading}
+                    />
+                  </div>
 
-              <div>
-                <label className="text-xs text-gray-600">Ward</label>
-                <input
-                  value={form.ward}
-                  onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="(optional)"
-                  disabled={loading}
-                />
-              </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Ward</label>
+                    <input
+                      value={form.ward}
+                      onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                      placeholder="(optional)"
+                      disabled={loading}
+                    />
+                  </div>
+                </>
+              ) : null}
 
               {canAdminister && form.status !== "active" ? (
                 <div className="sm:col-span-3">

@@ -1,4 +1,9 @@
 // supabase/functions/admin-create-user/index.ts
+//
+// public.users NOT NULL columns (besides id, defaults):
+//   last_name, id_number, phone, role (DB default 'user' — we always set role explicitly).
+// Nullable on insert: first_name, email, date_of_birth, location columns, auth_user_id, etc.
+// Lockout state uses suspended_* and/or disabled_* (mutually exclusive per users_derived_status_check).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -47,7 +52,7 @@ serve(async (req) => {
       role,
       status,
       suspended_reason,
-      police_station,
+      disabled_reason,
     } = body ?? {};
 
     const fn = typeof first_name === "string" ? first_name.trim() : "";
@@ -59,9 +64,10 @@ serve(async (req) => {
     const ph = typeof phone === "string" ? phone.trim() : "";
     const rl = typeof role === "string" ? role.trim().toLowerCase() : "user";
     const stt = typeof status === "string" ? status.trim().toLowerCase() : "active";
-    const reason =
+    const suspReason =
       typeof suspended_reason === "string" ? suspended_reason.trim() : "";
-    const st = typeof police_station === "string" ? police_station.trim() : "";
+    const disReason =
+      typeof disabled_reason === "string" ? disabled_reason.trim() : "";
 
     if (!ln || !idn || !ph) {
       return respond(
@@ -79,9 +85,16 @@ serve(async (req) => {
       return respond({ success: false, message: "Invalid status" }, corsHeaders, 400);
     }
 
-    if (stt !== "active" && !reason) {
+    if (stt === "suspended" && !suspReason) {
       return respond(
-        { success: false, message: "A reason is required to set status to suspended/disabled." },
+        { success: false, message: "A reason is required to create a suspended account." },
+        corsHeaders,
+        400,
+      );
+    }
+    if (stt === "disabled" && !disReason) {
+      return respond(
+        { success: false, message: "A reason is required to create a disabled account." },
         corsHeaders,
         400,
       );
@@ -136,22 +149,28 @@ serve(async (req) => {
       );
     }
 
+    const now = new Date().toISOString();
+    const baseRow: Record<string, unknown> = {
+      first_name: fn || null,
+      last_name: ln,
+      id_number: idn,
+      email: em || null,
+      phone: ph,
+      role: rl,
+      identity_verified: false,
+      email_verified: false,
+    };
+    if (stt === "suspended") {
+      baseRow.suspended_at = now;
+      baseRow.suspended_reason = suspReason;
+    } else if (stt === "disabled") {
+      baseRow.disabled_at = now;
+      baseRow.disabled_reason = disReason;
+    }
+
     const { data: created, error: insErr } = await supabase
       .from("users")
-      .insert({
-        first_name: fn || null,
-        last_name: ln,
-        id_number: idn,
-        email: em || null,
-        phone: ph,
-        role: rl,
-        police_station: st || null,
-        status: stt,
-        suspended_reason: stt === "active" ? null : reason,
-        suspended_at: stt === "active" ? null : new Date().toISOString(),
-        identity_verified: false,
-        email_verified: false,
-      })
+      .insert(baseRow)
       .select("id, first_name, last_name, email, role, police_station")
       .single();
 
