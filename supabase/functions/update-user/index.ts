@@ -247,7 +247,7 @@ serve(async (req) => {
     }
 
     const targetStatus = deriveUserStatus(existing);
-    if (targetStatus === "suspended") {
+    if (targetStatus === "suspended" || targetStatus === "disabled") {
       const blocked = [
         "first_name",
         "last_name",
@@ -265,7 +265,7 @@ serve(async (req) => {
           {
             success: false,
             message:
-              "This account is suspended. Profile details and roles cannot be changed until the account is reactivated.",
+              "This account is suspended or disabled. Profile details and roles cannot be changed until the account is reactivated.",
           },
           corsHeaders,
           403,

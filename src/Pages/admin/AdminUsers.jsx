@@ -9,7 +9,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
-import { deriveUserStatus } from "../../lib/userState.js";
+import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -64,8 +64,9 @@ function UserRowActionControls({
   const btnRowRef = useRef(null);
   const [actionsWidthPx, setActionsWidthPx] = useState(null);
   const [mobileAction, setMobileAction] = useState("");
-  /** Suspended accounts: no edit / role change — only reactivate or delete. */
-  const suspendedRestricted = statusLower === "suspended";
+  /** Suspended or disabled: no edit / role change — only reactivate or delete. */
+  const lockoutRestricted =
+    statusLower === "suspended" || statusLower === "disabled";
 
   useLayoutEffect(() => {
     const el = btnRowRef.current;
@@ -113,7 +114,7 @@ function UserRowActionControls({
           disabled={loading || rowBusy}
         >
           <option value="">Select…</option>
-          {suspendedRestricted ? (
+          {lockoutRestricted ? (
             <>
               <option value="reactivate">Reactivate</option>
               <option value="delete">Delete…</option>
@@ -136,7 +137,7 @@ function UserRowActionControls({
         </select>
       </div>
 
-      {!suspendedRestricted ? (
+      {!lockoutRestricted ? (
         <div
           className={
             measured ? "min-w-0 hidden sm:block" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
@@ -193,7 +194,7 @@ function UserRowActionControls({
             </RippleButton>
           </>
         ) : null}
-        {!suspendedRestricted ? (
+        {!lockoutRestricted ? (
           <RippleButton
             className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
             onClick={onEdit}
@@ -291,10 +292,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }, [addToast]);
 
   function startEdit(u) {
-    if (deriveUserStatus(u) === "suspended") {
+    if (isInactiveLockout(u)) {
       addToast({
         type: "error",
-        message: "Suspended users cannot be edited. Reactivate the account first.",
+        message: "Suspended or disabled accounts cannot be edited. Reactivate the account first.",
       });
       return;
     }
@@ -411,8 +412,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     try {
       if (isEditing && editing) {
         const row = users.find((u) => String(u.id) === String(editing));
-        if (row && deriveUserStatus(row) === "suspended") {
-          throw new Error("Suspended users cannot be edited. Reactivate the account first.");
+        if (row && isInactiveLockout(row)) {
+          throw new Error("Suspended or disabled accounts cannot be edited. Reactivate the account first.");
         }
       }
 
@@ -543,10 +544,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   function openRoleModal(u) {
     if (!u?.id) return;
-    if (deriveUserStatus(u) === "suspended") {
+    if (isInactiveLockout(u)) {
       addToast({
         type: "error",
-        message: "Cannot change role for a suspended user. Reactivate the account first.",
+        message: "Cannot change role while the account is suspended or disabled. Reactivate first.",
       });
       return;
     }
@@ -567,10 +568,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   async function submitRoleChange() {
     const u = roleModal.user;
     if (!u?.id) return;
-    if (deriveUserStatus(u) === "suspended") {
+    if (isInactiveLockout(u)) {
       addToast({
         type: "error",
-        message: "Cannot change role for a suspended user. Reactivate the account first.",
+        message: "Cannot change role while the account is suspended or disabled. Reactivate first.",
       });
       return;
     }
@@ -581,10 +582,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }
 
   async function quickChangeRole(u, nextRole) {
-    if (deriveUserStatus(u) === "suspended") {
+    if (isInactiveLockout(u)) {
       addToast({
         type: "error",
-        message: "Cannot change role for a suspended user. Reactivate the account first.",
+        message: "Cannot change role while the account is suspended or disabled. Reactivate first.",
       });
       return;
     }

@@ -6,7 +6,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { isPrivilegedRole } from "../lib/billingUx.js";
-import { deriveUserStatus } from "../lib/userState.js";
+import { deriveUserStatus, isInactiveLockout } from "../lib/userState.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import {
   ArrowLeft,
@@ -292,11 +292,11 @@ export default function ProfilePage() {
 
   const openEdit = useCallback(() => {
     if (!profileUser || viewingOther) return;
-    if (deriveUserStatus(profileUser) === "suspended") {
+    if (isInactiveLockout(profileUser)) {
       addToast({
         type: "error",
         message:
-          "Your account is suspended. An administrator must reactivate it before you can edit your profile.",
+          "Your account is suspended or disabled. An administrator must reactivate it before you can edit your profile.",
       });
       return;
     }
@@ -323,11 +323,11 @@ export default function ProfilePage() {
 
   async function saveProfile() {
     if (!profileUser?.id || viewingOther) return;
-    if (deriveUserStatus(profileUser) === "suspended") {
+    if (isInactiveLockout(profileUser)) {
       addToast({
         type: "error",
         message:
-          "Your account is suspended. An administrator must reactivate it before you can edit your profile.",
+          "Your account is suspended or disabled. An administrator must reactivate it before you can edit your profile.",
       });
       return;
     }
@@ -1045,7 +1045,7 @@ export default function ProfilePage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                {!viewingOther && !editing && derivedStatus !== "suspended" ? (
+                {!viewingOther && !editing && !isInactiveLockout(user) ? (
                   <RippleButton
                     type="button"
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
@@ -1105,9 +1105,10 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            {!viewingOther && derivedStatus === "suspended" ? (
+            {!viewingOther && isInactiveLockout(user) ? (
               <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                Your account is suspended. Profile editing is disabled until an administrator reactivates your account.
+                Your account is suspended or disabled. Profile editing is disabled until an administrator reactivates your
+                account.
               </div>
             ) : null}
 
