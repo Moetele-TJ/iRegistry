@@ -21,6 +21,15 @@ function shortenIp(ip) {
   return ip.length > 32 ? `${ip.slice(0, 29)}…` : ip;
 }
 
+function fmtTimeCell(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return String(iso);
+  }
+}
+
 export default function AdminAuditLogs() {
   const { addToast } = useToast();
 
@@ -207,86 +216,170 @@ export default function AdminAuditLogs() {
           ) : logs.length === 0 ? (
             <div className="text-sm text-gray-500 py-8">No matching entries.</div>
           ) : (
-            <div className="overflow-auto rounded-xl border border-gray-100 shadow-sm">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Time</th>
-                    <th className="text-left font-semibold px-4 py-3">Event</th>
-                    <th className="text-left font-semibold px-4 py-3">User</th>
-                    <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Result</th>
-                    <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Channel</th>
-                    <th className="text-left font-semibold px-4 py-3">Code</th>
-                    <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">IP</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {logs.map((row) => {
-                    const name = displayUser(row.user);
-                    const uid = row.user_id;
-                    const who =
-                      name ||
-                      (typeof uid === "string"
-                        ? uid.length > 14
-                          ? `${uid.slice(0, 8)}…`
-                          : uid
-                        : "—");
-                    const sev = row.severity;
-                    return (
-                      <tr
-                        key={row.id}
-                        className="hover:bg-gray-50/80 align-top"
-                        title={row.user_agent ? String(row.user_agent) : undefined}
-                      >
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                          {row.created_at ? (
-                            <span title={new Date(row.created_at).toLocaleString()}>
-                              <TimeAgo date={row.created_at} />
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-900">
-                          <div className="font-medium">{row.event || "—"}</div>
+            <>
+              {/* Mobile cards (match Transactions style) */}
+              <div className="md:hidden space-y-3 -mx-1">
+                {logs.map((row) => {
+                  const name = displayUser(row.user);
+                  const uid = row.user_id;
+                  const who =
+                    name ||
+                    (typeof uid === "string"
+                      ? uid.length > 14
+                        ? `${uid.slice(0, 8)}…`
+                        : uid
+                      : "—");
+                  const sev = row.severity;
+                  const ok = !!row.success;
+                  const badgeClass = ok
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                    : "bg-red-50 text-red-700 border border-red-100";
+
+                  return (
+                    <div
+                      key={row.id}
+                      className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                      title={row.user_agent ? String(row.user_agent) : undefined}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 break-words">
+                            {row.event || "—"}
+                          </div>
                           {sev ? (
-                            <div className="text-xs text-amber-700 mt-0.5">Severity: {sev}</div>
+                            <div className="text-xs text-amber-700 mt-0.5">
+                              Severity: {sev}
+                            </div>
                           ) : null}
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          <div className="break-all">{who}</div>
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                            {who}
+                          </div>
                           {name && typeof uid === "string" ? (
-                            <div className="text-xs text-gray-400 font-mono truncate max-w-[200px]">
+                            <div className="text-[11px] text-gray-400 font-mono truncate max-w-full">
                               {uid}
                             </div>
                           ) : null}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              row.success
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
-                                : "bg-red-50 text-red-700 border border-red-100"
-                            }`}
-                          >
-                            {row.success ? "OK" : "Fail"}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border ${badgeClass}`}>
+                            {ok ? "OK" : "Fail"}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                          {row.channel ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 font-mono text-xs break-all">
-                          {row.diag ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 font-mono text-xs" title={row.ip_address}>
-                          {shortenIp(row.ip_address)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="text-gray-500">Time</div>
+                          <div className="text-gray-800 mt-0.5">
+                            {row.created_at ? (
+                              <span title={fmtTimeCell(row.created_at)}>
+                                <TimeAgo date={row.created_at} />
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="text-gray-500">Channel</div>
+                          <div className="text-gray-800 mt-0.5">{row.channel ?? "—"}</div>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 col-span-2">
+                          <div className="text-gray-500">Code</div>
+                          <div className="text-gray-800 mt-0.5 font-mono break-all">{row.diag ?? "—"}</div>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 col-span-2">
+                          <div className="text-gray-500">IP</div>
+                          <div className="text-gray-800 mt-0.5 font-mono break-all">{row.ip_address ?? "—"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-auto rounded-xl border border-gray-100 shadow-sm">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Time</th>
+                      <th className="text-left font-semibold px-4 py-3">Event</th>
+                      <th className="text-left font-semibold px-4 py-3">User</th>
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Result</th>
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Channel</th>
+                      <th className="text-left font-semibold px-4 py-3">Code</th>
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">IP</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {logs.map((row) => {
+                      const name = displayUser(row.user);
+                      const uid = row.user_id;
+                      const who =
+                        name ||
+                        (typeof uid === "string"
+                          ? uid.length > 14
+                            ? `${uid.slice(0, 8)}…`
+                            : uid
+                          : "—");
+                      const sev = row.severity;
+                      return (
+                        <tr
+                          key={row.id}
+                          className="hover:bg-gray-50/80 align-top"
+                          title={row.user_agent ? String(row.user_agent) : undefined}
+                        >
+                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                            {row.created_at ? (
+                              <span title={new Date(row.created_at).toLocaleString()}>
+                                <TimeAgo date={row.created_at} />
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-gray-900">
+                            <div className="font-medium">{row.event || "—"}</div>
+                            {sev ? (
+                              <div className="text-xs text-amber-700 mt-0.5">Severity: {sev}</div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 text-gray-800">
+                            <div className="break-all">{who}</div>
+                            {name && typeof uid === "string" ? (
+                              <div className="text-xs text-gray-400 font-mono truncate max-w-[200px]">
+                                {uid}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                row.success
+                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                                  : "bg-red-50 text-red-700 border border-red-100"
+                              }`}
+                            >
+                              {row.success ? "OK" : "Fail"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                            {row.channel ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 font-mono text-xs break-all">
+                            {row.diag ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 font-mono text-xs" title={row.ip_address}>
+                            {shortenIp(row.ip_address)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {!loading && logs.length > 0 ? (
