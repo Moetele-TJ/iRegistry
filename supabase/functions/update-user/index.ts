@@ -410,8 +410,8 @@ serve(async (req) => {
       summarizeUserRecordUpdate(clean);
     const selfEdit = String(session.user_id) === String(id);
     const uaMessage = selfEdit
-      ? `You updated your account (${uaDetail})`
-      : `Account updated (${uaDetail})`;
+      ? uaDetail
+      : `Administrator update: ${uaDetail}`;
     await logUserActivity(supabase, {
       actorId: session.user_id,
       actorRole: String(session.role || "user"),

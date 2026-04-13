@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { logUserActivity } from "../shared/logUserActivity.ts";
 import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
@@ -24,6 +25,28 @@ function isUuid(s: unknown): s is string {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       s,
     )
+  );
+}
+
+async function userDisplayName(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<string> {
+  const { data: u } = await supabase
+    .from("users")
+    .select("first_name, last_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!u) return "User";
+  const row = u as {
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+  };
+  return (
+    [row.first_name, row.last_name].filter(Boolean).join(" ").trim() ||
+    String(row.email || "").trim() ||
+    "User"
   );
 }
 
@@ -183,6 +206,18 @@ serve(async (req) => {
         req,
       });
 
+      const displayName = await userDisplayName(supabase, target.user_id);
+      await logUserActivity(supabase, {
+        actorId: caller.user_id,
+        actorRole: String(caller.role || "admin"),
+        targetUserId: target.user_id,
+        targetDisplayName: displayName,
+        action: "USER_SESSIONS_REVOKED",
+        message:
+          "An administrator ended one of your active sessions. Sign in again on that device if needed.",
+        metadata: { scope: "single", revoked_session_id: sessionId },
+      });
+
       return respond(
         { success: true, message: "Session revoked" },
         corsHeaders,
@@ -331,6 +366,22 @@ serve(async (req) => {
         diag: `ADM-SES-REVALL-${count}`,
         req,
       });
+
+      if (count > 0) {
+        const displayName = await userDisplayName(supabase, userId);
+        await logUserActivity(supabase, {
+          actorId: caller.user_id,
+          actorRole: String(caller.role || "admin"),
+          targetUserId: userId,
+          targetDisplayName: displayName,
+          action: "USER_SESSIONS_REVOKED",
+          message:
+            count === 1
+              ? "An administrator signed this account out of 1 active session."
+              : `An administrator signed this account out of ${count} active sessions.`,
+          metadata: { scope: "all_for_user", revoked_count: count },
+        });
+      }
 
       return respond(
         {

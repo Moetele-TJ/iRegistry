@@ -23,6 +23,46 @@ const STATUS_KEYS = new Set([
   "disabled_reason",
 ]);
 
+/** Short labels for registry roles in user-facing timeline copy. */
+const ROLE_LABELS: Record<string, string> = {
+  user: "Registry user",
+  admin: "Administrator",
+  police: "Police",
+  cashier: "Cashier",
+};
+
+export function humanizeRole(role: string): string {
+  const k = String(role || "").trim().toLowerCase();
+  return ROLE_LABELS[k] || k;
+}
+
+function statusChangeFragment(
+  clean: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  const touchesStatus = keys.some((k) => STATUS_KEYS.has(k));
+  if (!touchesStatus) return null;
+
+  const clearingLockout =
+    ("suspended_at" in clean || "disabled_at" in clean) &&
+    clean.suspended_at === null &&
+    clean.disabled_at === null;
+
+  if (clearingLockout) return "Account reactivated";
+
+  if (clean.disabled_at) return "Account disabled";
+  if (clean.suspended_at) return "Account suspended";
+
+  if ("suspended_reason" in clean && !("suspended_at" in clean)) {
+    return "Suspension details updated";
+  }
+  if ("disabled_reason" in clean && !("disabled_at" in clean)) {
+    return "Disable details updated";
+  }
+
+  return "Account status updated";
+}
+
 /**
  * Build timeline message and action code from `clean` payload applied in `update-user`.
  */
@@ -40,28 +80,27 @@ export function summarizeUserRecordUpdate(
     (k) => !STATUS_KEYS.has(k) && k !== "role",
   );
 
+  /* Status changes are always explicit in the timeline, even with role/profile in the same save. */
   let action = "USER_UPDATED";
-  if (hasRole && !hasStatus && profileKeys.length === 0) {
-    action = "USER_ROLE_CHANGED";
-  } else if (hasStatus && !hasRole && profileKeys.length === 0) {
+  if (hasStatus) {
     action = "USER_STATUS_CHANGED";
+  } else if (hasRole && profileKeys.length === 0) {
+    action = "USER_ROLE_CHANGED";
   }
 
   const parts: string[] = [];
   if (hasRole && clean.role !== undefined) {
-    parts.push(`role → ${String(clean.role)}`);
-  }
-  if (hasStatus) {
-    parts.push("account status / lockout");
-  }
-  for (const k of profileKeys) {
-    const label = FIELD_LABELS[k] || k;
-    parts.push(label);
+    parts.push(`Role set to ${humanizeRole(String(clean.role))}`);
   }
 
-  const summary = parts.length
-    ? parts.join(", ")
-    : "Record updated";
+  const statusFrag = statusChangeFragment(clean, keys);
+  if (statusFrag) parts.push(statusFrag);
+
+  for (const k of profileKeys) {
+    parts.push(FIELD_LABELS[k] || k);
+  }
+
+  const summary = parts.length ? parts.join(" · ") : "Record updated";
 
   return {
     action,

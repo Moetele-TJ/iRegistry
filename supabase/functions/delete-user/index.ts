@@ -102,7 +102,7 @@ serve(async (req) => {
       targetUserId: id,
       targetDisplayName: displayName,
       action: "USER_DELETED",
-      message: "Account marked deleted (soft delete by admin)",
+      message: "This registry account was closed by an administrator.",
       metadata: { soft_delete: true },
     });
 

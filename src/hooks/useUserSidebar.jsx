@@ -18,9 +18,16 @@ export function useUserSidebar({ visible = true } = {}) {
     () => [
       { to: "/userdashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/userdashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
-      { to: "/userdashboard/items", icon: <Package size={20} />, label: "Items" },
-      { to: "/userdashboard/items/deleted", icon: <Package size={20} />, label: "Deleted items" },
-      { to: "/userdashboard/items/legacy", icon: <Package size={20} />, label: "Legacy items" },
+      {
+        to: "/userdashboard/items",
+        icon: <Package size={20} />,
+        label: "Items",
+        subItems: [
+          { to: "/userdashboard/items", label: "Active Items", end: true },
+          { to: "/userdashboard/items/deleted", label: "Deleted Items", end: true },
+          { to: "/userdashboard/items/legacy", label: "Legacy items", end: true },
+        ],
+      },
       { to: "/userdashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/userdashboard/activity", icon: <Activity size={20} />, label: "Activity" },
       { to: "/userdashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },

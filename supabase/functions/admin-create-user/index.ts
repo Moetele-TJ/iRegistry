@@ -13,6 +13,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { roleIs } from "../shared/roles.ts";
 import { logUserActivity } from "../shared/logUserActivity.ts";
+import { humanizeRole } from "../shared/userActivityMessages.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -216,6 +217,8 @@ serve(async (req) => {
       String((created as { email?: string }).email || "").trim() ||
       "New user";
 
+    const roleLabel = humanizeRole(rl);
+    const statusLabel = stt.charAt(0).toUpperCase() + stt.slice(1);
     await logUserActivity(supabase, {
       actorId: session.user_id,
       actorRole: String(session.role || "admin"),
@@ -224,8 +227,8 @@ serve(async (req) => {
       action: "USER_CREATED",
       message:
         stt === "active"
-          ? `Account created (${rl})`
-          : `Account created as ${stt} (${rl})`,
+          ? `New account created — ${roleLabel} role`
+          : `New account created (${statusLabel}) — ${roleLabel} role`,
       metadata: { initial_status: stt, role: rl },
     });
 

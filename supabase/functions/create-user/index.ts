@@ -4,6 +4,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
+import { logUserActivity } from "../shared/logUserActivity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,34 +76,38 @@ serve(async (req) => {
       : typeof body.address_line === "string" ? body.address_line.trim()
       : null;
 
-    const { error } = await supabase.from("users").insert({
-    // STEP 1
-    first_name: body.first_name?.trim() || null,
-    last_name: body.last_name?.trim(),
-    id_number,
-    date_of_birth: body.date_of_birth || null,
-    country: body.country?.trim() || null,
-    phone: body.phone?.trim() || null,
-    email: email || null,
+    const { data: created, error } = await supabase
+      .from("users")
+      .insert({
+        // STEP 1
+        first_name: body.first_name?.trim() || null,
+        last_name: body.last_name?.trim(),
+        id_number,
+        date_of_birth: body.date_of_birth || null,
+        country: body.country?.trim() || null,
+        phone: body.phone?.trim() || null,
+        email: email || null,
 
-    // STEP 2
-    state: body.state?.trim() || null,
-    city: body.city?.trim() || null,
-    postal_code: body.postal_code?.trim() || null,
-    address_line: body.address_line?.trim() || null,
-    village,
-    ward,
-    alt_phone: body.alt_phone?.trim() || null,
-    landline: body.landline?.trim() || null,
-    police_station: body.police_station?.trim() || null,
+        // STEP 2
+        state: body.state?.trim() || null,
+        city: body.city?.trim() || null,
+        postal_code: body.postal_code?.trim() || null,
+        address_line: body.address_line?.trim() || null,
+        village,
+        ward,
+        alt_phone: body.alt_phone?.trim() || null,
+        landline: body.landline?.trim() || null,
+        police_station: body.police_station?.trim() || null,
 
-    // SYSTEM
-    role: "user",
-    status: "active",
-    identity_verified: false,
-    email_verified: false,
-    created_at: new Date().toISOString(),
-  });
+        // SYSTEM
+        role: "user",
+        status: "active",
+        identity_verified: false,
+        email_verified: false,
+        created_at: new Date().toISOString(),
+      })
+      .select("id, first_name, last_name, email")
+      .single();
 
     if (error) {
       return new Response(
@@ -113,6 +118,20 @@ serve(async (req) => {
         { status: 400, headers: corsHeaders }
       );
     }
+
+    const displayName =
+      [created.first_name, created.last_name].filter(Boolean).join(" ").trim() ||
+      String(created.email || "").trim() ||
+      "New user";
+    await logUserActivity(supabase, {
+      actorId: String(created.id),
+      actorRole: "user",
+      targetUserId: String(created.id),
+      targetDisplayName: displayName,
+      action: "USER_CREATED",
+      message: "Self-registration completed",
+      metadata: { source: "public_signup" },
+    });
 
     return new Response(
       JSON.stringify({

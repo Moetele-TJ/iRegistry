@@ -5,15 +5,17 @@ import {
   Shield,
   AlertTriangle,
   Pencil,
+  LogOut,
 } from "lucide-react";
 
 function titleFor(event) {
   const a = String(event?.action || "");
   const map = {
     USER_CREATED: "Account created",
-    USER_UPDATED: "Profile updated",
+    USER_UPDATED: "Account updated",
     USER_ROLE_CHANGED: "Role changed",
     USER_STATUS_CHANGED: "Status changed",
+    USER_SESSIONS_REVOKED: "Sessions ended",
     USER_DELETED: "Account deleted",
   };
   return map[a] || a.replace(/_/g, " ") || "Activity";
@@ -25,6 +27,7 @@ function iconFor(action) {
   if (a === "USER_DELETED") return <Trash2 size={14} />;
   if (a === "USER_ROLE_CHANGED") return <Shield size={14} />;
   if (a === "USER_STATUS_CHANGED") return <AlertTriangle size={14} />;
+  if (a === "USER_SESSIONS_REVOKED") return <LogOut size={14} />;
   if (a === "USER_UPDATED") return <Pencil size={14} />;
   return <Clock size={14} />;
 }
