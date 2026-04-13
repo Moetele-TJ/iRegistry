@@ -6,6 +6,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { logAudit } from "../shared/logAudit.ts";
 import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
@@ -70,6 +71,24 @@ serve(async (req) => {
     if (delErr) {
       return respond({ success: false, message: delErr.message || "Failed to delete user" }, corsHeaders, 500);
     }
+
+    await logAudit({
+      supabase,
+      event: "USER_DELETED",
+      user_id: id,
+      channel: "ADMIN",
+      actor_user_id: session.user_id,
+      target_user_id: id,
+      success: true,
+      severity: "high",
+      diag: "USR-DEL",
+      metadata: {
+        actor_user_id: session.user_id,
+        target_user_id: id,
+        reason: "Deleted by admin",
+      },
+      req,
+    });
 
     return respond({ success: true }, corsHeaders, 200);
   } catch (err: any) {

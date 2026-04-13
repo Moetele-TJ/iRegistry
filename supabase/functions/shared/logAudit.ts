@@ -10,7 +10,11 @@ export async function logAudit(
     channel = null,
     success,
     diag,
-    req
+    req,
+    actor_user_id = null,
+    target_user_id = null,
+    severity = null,
+    metadata = null,
   }
 ) {
   const ip =
@@ -19,6 +23,11 @@ export async function logAudit(
     "unknown";
 
   const ua = req.headers.get("user-agent") || "unknown";
+  const requestId =
+    req.headers.get("x-request-id") ||
+    req.headers.get("cf-ray") ||
+    req.headers.get("x-vercel-id") ||
+    null;
 
   await supabase.from("audit_logs").insert({
     event,
@@ -27,6 +36,11 @@ export async function logAudit(
     ip_address: ip,
     user_agent: ua,
     success,
-    diag
+    diag,
+    actor_user_id,
+    target_user_id,
+    severity,
+    metadata,
+    request_id: requestId,
   });
 }

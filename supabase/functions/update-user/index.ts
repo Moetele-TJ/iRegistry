@@ -7,6 +7,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
+import { logAudit } from "../shared/logAudit.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -232,6 +233,13 @@ serve(async (req) => {
       typeof (clean as any).role === "string" &&
       String((clean as any).role).toLowerCase() !== String(existing.role || "").toLowerCase();
 
+    const oldRole = String((existing as any)?.role || "").trim().toLowerCase();
+    const newRole = roleWillChange ? String((clean as any).role || "").trim().toLowerCase() : "";
+    const oldStatus = String((existing as any)?.status || "").trim().toLowerCase();
+    const newStatus = typeof (clean as any)?.status === "string"
+      ? String((clean as any).status).trim().toLowerCase()
+      : "";
+
     const { data: updated, error: upErr } = await supabase
       .from("users")
       .update(clean)
@@ -258,6 +266,53 @@ serve(async (req) => {
         console.error("update-user: failed to revoke sessions after role change", revokeErr.message);
         // Do not fail the role change if revocation fails; client can still force re-login.
       }
+    }
+
+    // AUDIT: only for privileged changes (admin actions).
+    if (roleIs(session.role, "admin") && roleWillChange) {
+      await logAudit({
+        supabase,
+        event: "USER_ROLE_CHANGED",
+        user_id: id,
+        channel: "ADMIN",
+        actor_user_id: session.user_id,
+        target_user_id: id,
+        success: true,
+        severity: "high",
+        diag: "USR-ROLE",
+        metadata: {
+          actor_user_id: session.user_id,
+          target_user_id: id,
+          from: oldRole || null,
+          to: newRole || null,
+        },
+        req,
+      });
+    }
+
+    if (roleIs(session.role, "admin") && newStatus && newStatus !== oldStatus) {
+      const reason = typeof (clean as any)?.suspended_reason === "string"
+        ? String((clean as any).suspended_reason).trim().slice(0, 500)
+        : "";
+      await logAudit({
+        supabase,
+        event: "USER_STATUS_CHANGED",
+        user_id: id,
+        channel: "ADMIN",
+        actor_user_id: session.user_id,
+        target_user_id: id,
+        success: true,
+        severity: newStatus === "active" ? "medium" : "high",
+        diag: "USR-STATUS",
+        metadata: {
+          actor_user_id: session.user_id,
+          target_user_id: id,
+          from: oldStatus || null,
+          to: newStatus || null,
+          reason: reason || null,
+        },
+        req,
+      });
     }
 
     return respond({ success: true, user: updated }, corsHeaders, 200);

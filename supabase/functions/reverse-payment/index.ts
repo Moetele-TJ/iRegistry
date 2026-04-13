@@ -5,6 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { logAudit } from "../shared/logAudit.ts";
 import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
@@ -47,6 +48,22 @@ serve(async (req) => {
         409,
       );
     }
+
+    await logAudit({
+      supabase,
+      event: "PAYMENT_REVERSED",
+      user_id: String(session.user_id),
+      channel: "ADMIN",
+      actor_user_id: session.user_id,
+      success: true,
+      severity: "high",
+      diag: "PAY-REV",
+      metadata: {
+        payment_id,
+        reason: typeof reason === "string" ? reason.trim().slice(0, 500) : null,
+      },
+      req,
+    });
 
     return respond(
       {

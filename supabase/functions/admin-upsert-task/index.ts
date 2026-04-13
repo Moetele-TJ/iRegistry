@@ -5,6 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { logAudit } from "../shared/logAudit.ts";
 import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
@@ -65,6 +66,23 @@ serve(async (req) => {
     if (error || !data) {
       return respond({ success: false, message: error?.message || "Failed to save task" }, corsHeaders, 500);
     }
+
+    await logAudit({
+      supabase,
+      event: "TASK_UPSERTED",
+      user_id: String(session.user_id),
+      channel: "ADMIN",
+      actor_user_id: session.user_id,
+      success: true,
+      severity: "medium",
+      diag: "TASK-UP",
+      metadata: {
+        code: data.code,
+        credits_cost: data.credits_cost,
+        active: data.active,
+      },
+      req,
+    });
 
     return respond({ success: true, task: data }, corsHeaders, 200);
   } catch (err: any) {

@@ -21,6 +21,14 @@ function shortenIp(ip) {
   return ip.length > 32 ? `${ip.slice(0, 29)}…` : ip;
 }
 
+function fmtPerson(u, fallback) {
+  if (!u) return fallback || "—";
+  const first = String(u.first_name || "").trim();
+  const last = String(u.last_name || "").trim();
+  const full = `${first} ${last}`.trim();
+  return full || u.email || fallback || "—";
+}
+
 function fmtTimeCell(iso) {
   if (!iso) return "—";
   try {
@@ -39,6 +47,7 @@ export default function AdminAuditLogs() {
   const [successFilter, setSuccessFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("");
   const [userIdFilter, setUserIdFilter] = useState("");
+  const [userMatch, setUserMatch] = useState("any"); // any | actor | target
 
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -86,12 +95,17 @@ export default function AdminAuditLogs() {
   const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
+      const uid = userIdFilter || undefined;
       const body = {
         limit: PAGE_SIZE,
         offset,
         event_q: debouncedQ || undefined,
-        user_id: userIdFilter || undefined,
       };
+      if (uid) {
+        if (userMatch === "actor") body.actor_user_id = uid;
+        else if (userMatch === "target") body.target_user_id = uid;
+        else body.user_id = uid; // any (legacy/actor/target)
+      }
       if (successFilter === "ok") body.success = true;
       else if (successFilter === "fail") body.success = false;
       if (severityFilter) body.severity = severityFilter;
@@ -116,6 +130,7 @@ export default function AdminAuditLogs() {
     successFilter,
     severityFilter,
     userIdFilter,
+    userMatch,
   ]);
 
   useEffect(() => {
@@ -182,22 +197,38 @@ export default function AdminAuditLogs() {
 
             <div className="flex-1 min-w-[220px]">
               <label className="text-xs font-medium text-gray-600">User</label>
-              <select
-                value={userIdFilter}
-                onChange={(e) => {
-                  setUserIdFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm"
-                disabled={loadingUsers}
-              >
-                <option value="">All users</option>
-                {userOptions.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {displayUser(u) || u.id}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1 flex flex-col sm:flex-row gap-2">
+                <select
+                  value={userMatch}
+                  onChange={(e) => {
+                    setUserMatch(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full sm:w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm"
+                  disabled={loadingUsers}
+                  title="Filter logs by actor vs target"
+                >
+                  <option value="any">Any</option>
+                  <option value="actor">Actor</option>
+                  <option value="target">Target</option>
+                </select>
+                <select
+                  value={userIdFilter}
+                  onChange={(e) => {
+                    setUserIdFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm"
+                  disabled={loadingUsers}
+                >
+                  <option value="">All users</option>
+                  {userOptions.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {displayUser(u) || u.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <RippleButton
@@ -220,15 +251,15 @@ export default function AdminAuditLogs() {
               {/* Mobile cards (match Transactions style) */}
               <div className="md:hidden space-y-3 -mx-1">
                 {logs.map((row) => {
-                  const name = displayUser(row.user);
-                  const uid = row.user_id;
-                  const who =
-                    name ||
-                    (typeof uid === "string"
-                      ? uid.length > 14
-                        ? `${uid.slice(0, 8)}…`
-                        : uid
-                      : "—");
+                  const legacyUid = row.user_id;
+                  const actorId = row.actor_user_id;
+                  const targetId = row.target_user_id;
+
+                  const actorLabel = fmtPerson(row.actor_user, typeof actorId === "string" ? actorId : "—");
+                  const targetLabel = fmtPerson(row.target_user, typeof targetId === "string" ? targetId : "—");
+                  const legacyLabel = fmtPerson(row.user, typeof legacyUid === "string" ? legacyUid : "—");
+
+                  const who = targetId ? targetLabel : (actorId ? actorLabel : legacyLabel);
                   const sev = row.severity;
                   const ok = !!row.success;
                   const badgeClass = ok
@@ -251,12 +282,21 @@ export default function AdminAuditLogs() {
                               Severity: {sev}
                             </div>
                           ) : null}
-                          <div className="text-xs text-gray-500 mt-1 truncate">
-                            {who}
-                          </div>
-                          {name && typeof uid === "string" ? (
-                            <div className="text-[11px] text-gray-400 font-mono truncate max-w-full">
-                              {uid}
+                          <div className="text-xs text-gray-500 mt-1 truncate">{who}</div>
+                          {actorId || targetId ? (
+                            <div className="text-[11px] text-gray-400 mt-1 space-y-0.5">
+                              {targetId ? (
+                                <div className="truncate">
+                                  Target:{" "}
+                                  <span className="font-mono">{String(targetId).slice(0, 8)}…</span>
+                                </div>
+                              ) : null}
+                              {actorId ? (
+                                <div className="truncate">
+                                  Actor:{" "}
+                                  <span className="font-mono">{String(actorId).slice(0, 8)}…</span>
+                                </div>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
@@ -314,15 +354,15 @@ export default function AdminAuditLogs() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {logs.map((row) => {
-                      const name = displayUser(row.user);
-                      const uid = row.user_id;
-                      const who =
-                        name ||
-                        (typeof uid === "string"
-                          ? uid.length > 14
-                            ? `${uid.slice(0, 8)}…`
-                            : uid
-                          : "—");
+                      const legacyUid = row.user_id;
+                      const actorId = row.actor_user_id;
+                      const targetId = row.target_user_id;
+
+                      const actorLabel = fmtPerson(row.actor_user, typeof actorId === "string" ? actorId : "—");
+                      const targetLabel = fmtPerson(row.target_user, typeof targetId === "string" ? targetId : "—");
+                      const legacyLabel = fmtPerson(row.user, typeof legacyUid === "string" ? legacyUid : "—");
+
+                      const who = targetId ? targetLabel : (actorId ? actorLabel : legacyLabel);
                       const sev = row.severity;
                       return (
                         <tr
@@ -347,9 +387,14 @@ export default function AdminAuditLogs() {
                           </td>
                           <td className="px-4 py-3 text-gray-800">
                             <div className="break-all">{who}</div>
-                            {name && typeof uid === "string" ? (
-                              <div className="text-xs text-gray-400 font-mono truncate max-w-[200px]">
-                                {uid}
+                            {targetId ? (
+                              <div className="text-xs text-gray-400 truncate">
+                                Target: <span className="font-mono">{String(targetId).slice(0, 8)}…</span>
+                              </div>
+                            ) : null}
+                            {actorId ? (
+                              <div className="text-xs text-gray-400 truncate">
+                                Actor: <span className="font-mono">{String(actorId).slice(0, 8)}…</span>
                               </div>
                             ) : null}
                           </td>

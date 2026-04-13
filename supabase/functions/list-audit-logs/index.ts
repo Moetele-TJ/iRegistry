@@ -74,6 +74,8 @@ serve(async (req) => {
       limit: rawLimit,
       offset: rawOffset,
       user_id: filterUserId,
+      actor_user_id: actorUserId,
+      target_user_id: targetUserId,
       event_q: rawEventQ,
       success: rawSuccess,
       severity: rawSeverity,
@@ -93,8 +95,22 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
+    // Explicit actor/target filters (uuid-only)
+    if (actorUserId && typeof actorUserId === "string" && isUuid(actorUserId)) {
+      q = q.eq("actor_user_id", actorUserId);
+    }
+
+    if (targetUserId && typeof targetUserId === "string" && isUuid(targetUserId)) {
+      q = q.eq("target_user_id", targetUserId);
+    }
+
     if (filterUserId && typeof filterUserId === "string" && filterUserId) {
-      q = q.eq("user_id", filterUserId);
+      // Backward-compat: match legacy user_id (text) OR new target/actor uuids.
+      if (isUuid(filterUserId)) {
+        q = q.or(`target_user_id.eq.${filterUserId},actor_user_id.eq.${filterUserId},user_id.eq.${filterUserId}`);
+      } else {
+        q = q.eq("user_id", filterUserId);
+      }
     }
 
     if (rawSuccess === true || rawSuccess === false) {
@@ -127,7 +143,9 @@ serve(async (req) => {
     const list = rows || [];
     const uuids = [
       ...new Set(
-        list.map((r: { user_id?: unknown }) => r.user_id).filter(isUuid),
+        list
+          .flatMap((r: any) => [r?.target_user_id, r?.actor_user_id, r?.user_id])
+          .filter(isUuid),
       ),
     ];
 
@@ -152,17 +170,31 @@ serve(async (req) => {
       }
     }
 
-    const logs = list.map((row: Record<string, unknown>) => {
-      const uid = row.user_id;
-      let user: {
-        first_name: string | null;
-        last_name: string | null;
-        email: string | null;
-      } | null = null;
-      if (typeof uid === "string" && userById.has(uid)) {
-        user = userById.get(uid)!;
-      }
-      return { ...row, user };
+    const logs = list.map((row: any) => {
+      const legacyId = row?.user_id;
+      const actorId = row?.actor_user_id;
+      const targetId = row?.target_user_id;
+
+      const legacy_user =
+        typeof legacyId === "string" && userById.has(legacyId)
+          ? userById.get(legacyId)!
+          : null;
+      const actor_user =
+        typeof actorId === "string" && userById.has(actorId)
+          ? userById.get(actorId)!
+          : null;
+      const target_user =
+        typeof targetId === "string" && userById.has(targetId)
+          ? userById.get(targetId)!
+          : null;
+
+      return {
+        ...row,
+        // Back-compat for UI: keep `user` pointing at legacy user_id match
+        user: legacy_user,
+        actor_user,
+        target_user,
+      };
     });
 
     return respond(

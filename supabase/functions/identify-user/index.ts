@@ -33,9 +33,13 @@ serve(async (req) => {
     await logAudit({
       supabase,
       event: "OTP_MISSING_CREDENTIALS",
-      id_number: "MISSING",
+      user_id: null,
       success: false,
-      diag: "OTP-SEND-FAIL",
+      diag: "OTP-MISSING-CREDS",
+      severity: "medium",
+      metadata: {
+        reason: "missing_credentials",
+      },
       req
     });
 
@@ -77,10 +81,15 @@ serve(async (req) => {
 
     await logAudit({
       supabase,
-      event: "OTP_REQUEST_FAILED",
-      user_id: ID,
+      event: "IDENTIFY_USER_NOT_FOUND",
+      user_id: null,
       success: false,
-      diag: "OTP-SEND-FAIL",
+      diag: `AUT-ID-NOT-FOUND id_number=${ID || "—"} last_name=${String(lastName || "").slice(0, 40)}`,
+      severity: "medium",
+      metadata: {
+        id_number: ID || null,
+        last_name: lastName || null,
+      },
       req
     });
 
