@@ -14,6 +14,52 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function toISODateOnlyLocal(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function startOfDayLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function addDaysLocal(d, days) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+}
+
+// Monday-based week (Mon..Sun)
+function startOfWeekLocal(d) {
+  const x = startOfDayLocal(d);
+  const day = x.getDay(); // 0 Sun ... 6 Sat
+  const diff = (day + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+  return addDaysLocal(x, -diff);
+}
+
+function endOfWeekLocal(d) {
+  const s = startOfWeekLocal(d);
+  return addDaysLocal(s, 6);
+}
+
+function startOfMonthLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function endOfMonthLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 0, 0, 0, 0);
+}
+
+function startOfYearLocal(d) {
+  return new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0);
+}
+
+function endOfYearLocal(d) {
+  return new Date(d.getFullYear(), 11, 31, 0, 0, 0, 0);
+}
+
 export default function AdminRevenuePage() {
   const { addToast } = useToast();
   const [from, setFrom] = useState(todayISO());
@@ -23,6 +69,7 @@ export default function AdminRevenuePage() {
   const [users, setUsers] = useState([]);
   const [cashierId, setCashierId] = useState("");
   const [channel, setChannel] = useState("BOTH"); // CASHIER | ONLINE | BOTH
+  const [quickDate, setQuickDate] = useState("TODAY");
   const [showTransactions] = useState(true);
 
   useEffect(() => {
@@ -66,6 +113,67 @@ export default function AdminRevenuePage() {
       setLoading(false);
     }
   }
+
+  function applyQuickDate(preset) {
+    const now = new Date();
+    const today = startOfDayLocal(now);
+
+    let rangeFrom = today;
+    let rangeTo = today;
+
+    switch (preset) {
+      case "TODAY":
+        rangeFrom = today;
+        rangeTo = today;
+        break;
+      case "YESTERDAY": {
+        const y = addDaysLocal(today, -1);
+        rangeFrom = y;
+        rangeTo = y;
+        break;
+      }
+      case "THIS_WEEK":
+        rangeFrom = startOfWeekLocal(today);
+        rangeTo = today;
+        break;
+      case "LAST_WEEK": {
+        const last = addDaysLocal(today, -7);
+        rangeFrom = startOfWeekLocal(last);
+        rangeTo = endOfWeekLocal(last);
+        break;
+      }
+      case "THIS_MONTH":
+        rangeFrom = startOfMonthLocal(today);
+        rangeTo = today;
+        break;
+      case "LAST_MONTH": {
+        const last = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        rangeFrom = startOfMonthLocal(last);
+        rangeTo = endOfMonthLocal(last);
+        break;
+      }
+      case "THIS_YEAR":
+        rangeFrom = startOfYearLocal(today);
+        rangeTo = today;
+        break;
+      case "LAST_YEAR": {
+        const last = new Date(today.getFullYear() - 1, 0, 1);
+        rangeFrom = startOfYearLocal(last);
+        rangeTo = endOfYearLocal(last);
+        break;
+      }
+      default:
+        return;
+    }
+
+    setFrom(toISODateOnlyLocal(rangeFrom));
+    setTo(toISODateOnlyLocal(rangeTo));
+  }
+
+  useEffect(() => {
+    applyQuickDate(quickDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     void load();
@@ -142,18 +250,55 @@ export default function AdminRevenuePage() {
           </select>
         </div>
         <div className="min-w-[180px]">
+          <label className="text-xs text-gray-600">Quick date</label>
+          <select
+            value={quickDate}
+            onChange={(e) => {
+              const v = e.target.value;
+              setQuickDate(v);
+              applyQuickDate(v);
+            }}
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+          >
+            <option value="TODAY">Today</option>
+            <option value="YESTERDAY">Yesterday</option>
+            <option value="THIS_WEEK">This Week</option>
+            <option value="LAST_WEEK">Last Week</option>
+            <option value="THIS_MONTH">This Month</option>
+            <option value="LAST_MONTH">Last Month</option>
+            <option value="THIS_YEAR">This Year</option>
+            <option value="LAST_YEAR">Last Year</option>
+          </select>
+        </div>
+        <div className="min-w-[180px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <CalendarDays size={14} className="text-gray-400" />
             From
           </label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm" />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setQuickDate("");
+              setFrom(e.target.value);
+            }}
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+          />
         </div>
         <div className="min-w-[180px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <CalendarDays size={14} className="text-gray-400" />
             To
           </label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm" />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setQuickDate("");
+              setTo(e.target.value);
+            }}
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+          />
         </div>
         <RippleButton
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
