@@ -64,6 +64,8 @@ function UserRowActionControls({
   const btnRowRef = useRef(null);
   const [actionsWidthPx, setActionsWidthPx] = useState(null);
   const [mobileAction, setMobileAction] = useState("");
+  /** Suspended accounts: no edit / role change — only reactivate or delete. */
+  const suspendedRestricted = statusLower === "suspended";
 
   useLayoutEffect(() => {
     const el = btnRowRef.current;
@@ -111,52 +113,55 @@ function UserRowActionControls({
           disabled={loading || rowBusy}
         >
           <option value="">Select…</option>
-          {statusLower !== "suspended" ? (
-            <option value="change_role">Change role…</option>
-          ) : null}
-          {statusLower === "active" ? (
+          {suspendedRestricted ? (
             <>
-              <option value="suspend">Suspend…</option>
-              <option value="disable">Disable…</option>
+              <option value="reactivate">Reactivate</option>
+              <option value="delete">Delete…</option>
             </>
           ) : (
-            <option value="reactivate">Reactivate</option>
+            <>
+              <option value="change_role">Change role…</option>
+              {statusLower === "active" ? (
+                <>
+                  <option value="suspend">Suspend…</option>
+                  <option value="disable">Disable…</option>
+                </>
+              ) : (
+                <option value="reactivate">Reactivate</option>
+              )}
+              <option value="edit">Edit</option>
+              <option value="delete">Delete…</option>
+            </>
           )}
-          {statusLower !== "suspended" ? <option value="edit">Edit</option> : null}
-          <option value="delete">Delete…</option>
         </select>
       </div>
 
-      <div
-        className={
-          measured ? "min-w-0 hidden sm:block" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
-        }
-        aria-hidden={!measured}
-      >
-        <label className="text-xs text-gray-600" htmlFor={`user-role-${userId}`}>
-          Change role
-        </label>
-        <select
-          id={`user-role-${userId}`}
-          value={role || "user"}
-          onChange={(e) => onRoleChange(e.target.value)}
-          className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-1.5 text-sm disabled:opacity-50 box-border"
-          disabled={loading || rowBusy || self || statusLower === "suspended"}
-          title={
-            self
-              ? "Cannot change your own role"
-              : statusLower === "suspended"
-                ? "Suspended users cannot have their role changed. Reactivate first."
-                : "Change role"
+      {!suspendedRestricted ? (
+        <div
+          className={
+            measured ? "min-w-0 hidden sm:block" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
           }
+          aria-hidden={!measured}
         >
-          {ROLE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <label className="text-xs text-gray-600" htmlFor={`user-role-${userId}`}>
+            Change role
+          </label>
+          <select
+            id={`user-role-${userId}`}
+            value={role || "user"}
+            onChange={(e) => onRoleChange(e.target.value)}
+            className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-1.5 text-sm disabled:opacity-50 box-border"
+            disabled={loading || rowBusy || self}
+            title={self ? "Cannot change your own role" : "Change role"}
+          >
+            {ROLE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <div ref={btnRowRef} className="hidden sm:flex flex-row flex-nowrap items-center gap-2 self-start">
         {statusLower !== "active" ? (
           <RippleButton
@@ -188,18 +193,15 @@ function UserRowActionControls({
             </RippleButton>
           </>
         ) : null}
-        <RippleButton
-          className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
-          onClick={onEdit}
-          disabled={loading || rowBusy || statusLower === "suspended"}
-          title={
-            statusLower === "suspended"
-              ? "Suspended users cannot be edited. Reactivate first."
-              : undefined
-          }
-        >
-          Edit
-        </RippleButton>
+        {!suspendedRestricted ? (
+          <RippleButton
+            className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
+            onClick={onEdit}
+            disabled={loading || rowBusy}
+          >
+            Edit
+          </RippleButton>
+        ) : null}
         <RippleButton
           className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
           onClick={onDelete}
