@@ -74,7 +74,22 @@ serve(async (req) => {
     let q = supabase
       .from("payments")
       .select(
-        "id, user_id, channel, status, currency, amount, credits_granted, receipt_no, provider, provider_reference, cashier_user_id, confirmed_at, created_at",
+        `
+        id,
+        user_id,
+        channel,
+        status,
+        currency,
+        amount,
+        credits_granted,
+        receipt_no,
+        provider,
+        provider_reference,
+        cashier_user_id,
+        confirmed_at,
+        created_at,
+        users!payments_user_id_fkey(first_name,last_name,email,id_number,phone)
+      `,
         { count: "exact" },
       )
       .eq("status", "CONFIRMED")

@@ -385,6 +385,7 @@ export default function AdminRevenuePage() {
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="text-left font-semibold px-4 py-3">Confirmed</th>
+                    <th className="text-left font-semibold px-4 py-3">User</th>
                     <th className="text-left font-semibold px-4 py-3">Channel</th>
                     <th className="text-left font-semibold px-4 py-3">Amount</th>
                     <th className="text-left font-semibold px-4 py-3">Credits</th>
@@ -396,6 +397,20 @@ export default function AdminRevenuePage() {
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                         {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-800">
+                        <div className="font-medium">
+                          {p.users
+                            ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                              p.users.email ||
+                              p.user_id
+                            : (p.user_id || "—")}
+                        </div>
+                        {p.users ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.users.email || p.users.phone || p.users.id_number || ""}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-gray-700">{p.channel}</td>
                       <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
