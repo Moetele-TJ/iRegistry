@@ -57,6 +57,30 @@ function normEmail(v) {
   return s === "" ? null : s;
 }
 
+function normIdNumber(v) {
+  return String(v ?? "").replace(/\s+/g, "").trim();
+}
+
+function dobInputStr(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
+}
+
+function dobFromRow(row) {
+  const v = row?.date_of_birth;
+  if (typeof v === "string" && v.length >= 10) return v.slice(0, 10);
+  return "";
+}
+
+function toDateInputValue(v) {
+  if (v == null || v === "") return "";
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
+
 /** True when the edit form differs from the server row (user management). */
 function adminEditHasChanges(row, form, canAdminister) {
   if (!row) return true;
@@ -67,6 +91,8 @@ function adminEditHasChanges(row, form, canAdminister) {
   if (normStr(form.police_station) !== normStr(row.police_station)) return true;
   if (normStr(form.village) !== normStr(row.village)) return true;
   if (normStr(form.ward) !== normStr(row.ward)) return true;
+  if (normIdNumber(form.id_number) !== normIdNumber(row.id_number)) return true;
+  if (dobInputStr(form.date_of_birth) !== dobFromRow(row)) return true;
   if (!canAdminister) return false;
 
   const prev = deriveUserStatus(row);
@@ -92,6 +118,7 @@ function UserRowActionControls({
   self,
   rowBusy,
   loading,
+  canAdminister,
   onRoleChange,
   onMobileAction,
   onSuspend,
@@ -107,6 +134,9 @@ function UserRowActionControls({
   const lockoutRestricted =
     statusLower === "suspended" || statusLower === "disabled";
 
+  /** Cashiers may only open Edit; suspend/reactivate/delete/role are admin-only on the server. */
+  const showAdminActions = !!canAdminister;
+
   useLayoutEffect(() => {
     const el = btnRowRef.current;
     if (!el) return;
@@ -118,7 +148,7 @@ function UserRowActionControls({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [statusLower, self, rowBusy, loading]);
+  }, [statusLower, self, rowBusy, loading, canAdminister]);
 
   const measured = actionsWidthPx != null;
 
@@ -135,48 +165,59 @@ function UserRowActionControls({
     >
       {/* Mobile: single action dropdown (no buttons/role dropdown) */}
       <div className="sm:hidden">
-        <label className="text-xs text-gray-600" htmlFor={`user-actions-${userId}`}>
-          Actions
-        </label>
-        <select
-          id={`user-actions-${userId}`}
-          value={mobileAction}
-          onChange={(e) => {
-            const v = e.target.value;
-            setMobileAction(v);
-            if (!v) return;
-            onMobileAction?.(v);
-            // reset so the same action can be selected again
-            setTimeout(() => setMobileAction(""), 0);
-          }}
-          className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-2 text-sm disabled:opacity-50 box-border bg-white"
-          disabled={loading || rowBusy}
-        >
-          <option value="">Select…</option>
-          {lockoutRestricted ? (
-            <>
-              <option value="reactivate">Reactivate</option>
-              <option value="delete">Delete…</option>
-            </>
-          ) : (
-            <>
-              <option value="change_role">Change role…</option>
-              {statusLower === "active" ? (
+        {lockoutRestricted && !showAdminActions ? (
+          <p className="text-xs text-gray-500 mt-1 max-w-[18rem] leading-snug">
+            Suspended or disabled accounts can only be reactivated or removed by an administrator.
+          </p>
+        ) : (
+          <>
+            <label className="text-xs text-gray-600" htmlFor={`user-actions-${userId}`}>
+              Actions
+            </label>
+            <select
+              id={`user-actions-${userId}`}
+              value={mobileAction}
+              onChange={(e) => {
+                const v = e.target.value;
+                setMobileAction(v);
+                if (!v) return;
+                onMobileAction?.(v);
+                setTimeout(() => setMobileAction(""), 0);
+              }}
+              className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-2 text-sm disabled:opacity-50 box-border bg-white"
+              disabled={loading || rowBusy}
+            >
+              <option value="">Select…</option>
+              {lockoutRestricted ? (
                 <>
-                  <option value="suspend">Suspend…</option>
-                  <option value="disable">Disable…</option>
+                  <option value="reactivate">Reactivate</option>
+                  <option value="delete">Delete…</option>
                 </>
               ) : (
-                <option value="reactivate">Reactivate</option>
+                <>
+                  {showAdminActions ? (
+                    <>
+                      <option value="change_role">Change role…</option>
+                      {statusLower === "active" ? (
+                        <>
+                          <option value="suspend">Suspend…</option>
+                          <option value="disable">Disable…</option>
+                        </>
+                      ) : (
+                        <option value="reactivate">Reactivate</option>
+                      )}
+                      <option value="delete">Delete…</option>
+                    </>
+                  ) : null}
+                  <option value="edit">Edit</option>
+                </>
               )}
-              <option value="edit">Edit</option>
-              <option value="delete">Delete…</option>
-            </>
-          )}
-        </select>
+            </select>
+          </>
+        )}
       </div>
 
-      {!lockoutRestricted ? (
+      {!lockoutRestricted && showAdminActions ? (
         <div
           className={
             measured ? "min-w-0 hidden sm:block" : "h-0 overflow-hidden opacity-0 pointer-events-none m-0 p-0 border-0"
@@ -203,7 +244,7 @@ function UserRowActionControls({
         </div>
       ) : null}
       <div ref={btnRowRef} className="hidden sm:flex flex-row flex-nowrap items-center gap-2 self-start">
-        {statusLower !== "active" ? (
+        {showAdminActions && statusLower !== "active" ? (
           <RippleButton
             type="button"
             className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50 whitespace-nowrap"
@@ -213,7 +254,7 @@ function UserRowActionControls({
             Reactivate
           </RippleButton>
         ) : null}
-        {statusLower === "active" ? (
+        {showAdminActions && statusLower === "active" ? (
           <>
             <RippleButton
               type="button"
@@ -242,13 +283,20 @@ function UserRowActionControls({
             Edit
           </RippleButton>
         ) : null}
-        <RippleButton
-          className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
-          onClick={onDelete}
-          disabled={loading || rowBusy || self}
-        >
-          Delete
-        </RippleButton>
+        {showAdminActions ? (
+          <RippleButton
+            className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
+            onClick={onDelete}
+            disabled={loading || rowBusy || self}
+          >
+            Delete
+          </RippleButton>
+        ) : null}
+        {lockoutRestricted && !showAdminActions ? (
+          <span className="text-xs text-gray-500 max-w-[14rem] leading-snug">
+            Reactivation requires an administrator.
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -269,6 +317,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     first_name: "",
     last_name: "",
     id_number: "",
+    date_of_birth: "",
     email: "",
     phone: "",
     role: "user",
@@ -372,6 +421,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       first_name: u.first_name || "",
       last_name: u.last_name || "",
       id_number: u.id_number || "",
+      date_of_birth: toDateInputValue(u.date_of_birth),
       email: u.email || "",
       phone: u.phone || "",
       role: u.role || "user",
@@ -392,6 +442,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       first_name: "",
       last_name: "",
       id_number: "",
+      date_of_birth: "",
       email: "",
       phone: "",
       role: "user",
@@ -410,6 +461,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       first_name: "",
       last_name: "",
       id_number: "",
+      date_of_birth: "",
       email: "",
       phone: "",
       role: "user",
@@ -477,6 +529,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     setError("");
 
     const row = isEditing && editing ? users.find((u) => String(u.id) === String(editing)) : null;
+    if (isEditing && editing && !row) {
+      const msg = "This user is not in the current list. Refresh the page and try again.";
+      setError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
     if (row && isInactiveLockout(row)) {
       const msg = "Suspended or disabled accounts cannot be edited. Reactivate the account first.";
       setError(msg);
@@ -498,6 +556,15 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         return;
       }
       if (isAdding) {
+        const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
+        if (!idn) {
+          const msg = "National ID / Passport is required.";
+          setError(msg);
+          addToast({ type: "error", message: msg });
+          return;
+        }
+      }
+      if (isEditing) {
         const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
         if (!idn) {
           const msg = "National ID / Passport is required.";
@@ -557,6 +624,9 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             phone: form.phone,
             role: form.role,
             status: form.status,
+            ...(dobInputStr(form.date_of_birth)
+              ? { date_of_birth: dobInputStr(form.date_of_birth) }
+              : {}),
             ...(form.status === "suspended" && reasonTrim
               ? { suspended_reason: reasonTrim }
               : {}),
@@ -583,6 +653,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         if (!ok) return;
 
         const reasonTrim = String(form.status_reason || "").trim();
+        const idn = normIdNumber(form.id_number);
+        const rowIdNorm = normIdNumber(row.id_number);
+        const rowDob = dobFromRow(row);
+        const formDob = dobInputStr(form.date_of_birth);
         const updates = {
           first_name: form.first_name,
           last_name: form.last_name,
@@ -591,6 +665,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           police_station: form.police_station,
           village: form.village,
           ward: form.ward,
+          ...(idn !== rowIdNorm ? { id_number: idn } : {}),
+          ...(formDob !== rowDob ? { date_of_birth: formDob || null } : {}),
           ...(canAdminister
             ? {
                 role: form.role,
@@ -814,7 +890,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       }
       addToast({ type: "success", message: "User was deleted successfully." });
       await refresh();
-      if (editing === id) closeForm();
+      if (editing != null && String(editing) === String(id)) closeForm();
     } catch (e) {
       const msg = e.message || "Failed to delete user";
       setError(msg);
@@ -1066,7 +1142,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 />
               </div>
 
-              {isAdding ? (
+              {isAdding || isEditing ? (
                 <div>
                   <label className="text-xs text-gray-600">ID / Passport *</label>
                   <input
@@ -1077,6 +1153,24 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     required
                     disabled={loading}
                   />
+                </div>
+              ) : null}
+
+              {isAdding || isEditing ? (
+                <div>
+                  <label className="text-xs text-gray-600">Date of birth</label>
+                  <input
+                    type="date"
+                    value={form.date_of_birth}
+                    onChange={(e) => setForm((s) => ({ ...s, date_of_birth: e.target.value }))}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {isAdding
+                      ? "Optional."
+                      : "Optional. Clear the field to remove stored date of birth."}
+                  </p>
                 </div>
               ) : null}
 
@@ -1274,6 +1368,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         self={self}
                         rowBusy={rowBusy}
                         loading={loading}
+                        canAdminister={canAdminister}
                         onRoleChange={(next) => void quickChangeRole(u, next)}
                         onMobileAction={(action) => {
                           if (action === "change_role") return openRoleModal(u);

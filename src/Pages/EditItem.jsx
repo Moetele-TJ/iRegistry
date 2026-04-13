@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
-import { useItems } from "../contexts/ItemsContext.jsx";
+import { useItems, normalizeItemFromDB } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
@@ -75,8 +75,58 @@ export default function EditItem() {
   const { getCost, loading: tasksLoading } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
 
-  const [storedItem, setStoredItem] = useState(null);
   const [heldAtResidence, setHeldAtResidence] = useState(false);
+  const [fetchedItem, setFetchedItem] = useState(null);
+  const [lookupResolved, setLookupResolved] = useState(false);
+
+  const itemFromList = useMemo(
+    () =>
+      (items || []).find(
+        (it) =>
+          String(it.id) === String(routeParam) || String(it.slug) === String(routeParam)
+      ) || null,
+    [items, routeParam]
+  );
+
+  const storedItem = itemFromList || fetchedItem;
+
+  useEffect(() => {
+    setFetchedItem(null);
+    setLookupResolved(false);
+  }, [routeParam]);
+
+  useEffect(() => {
+    if (itemsLoading) return;
+    if (itemFromList) {
+      setLookupResolved(true);
+      setFetchedItem(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await invokeWithAuth("get-items", {
+        body: {
+          itemLookup: routeParam,
+          includeDeleted: true,
+          includeLegacy: true,
+          page: 1,
+          pageSize: 1,
+        },
+      });
+      if (cancelled) return;
+      if (error || !data?.success || !data.items?.[0]) {
+        setFetchedItem(null);
+      } else {
+        setFetchedItem(normalizeItemFromDB(data.items[0]));
+      }
+      setLookupResolved(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeParam, itemsLoading, itemFromList]);
+
+  const itemPageLoading = itemsLoading || (!itemFromList && !lookupResolved);
 
   const [form, setForm] = useState({
     category: "",
@@ -238,46 +288,64 @@ export default function EditItem() {
   }, [photoPreviews]);
 
   useEffect(() => {
-    if (itemsLoading) return;
-
-    const matchParam = (it) =>
-      String(it.id) === String(routeParam) || String(it.slug) === String(routeParam);
-
-    const found = (items || []).find(matchParam) || null;
-    setStoredItem(found);
-
-    if (found) {
-      const v = String(found.village || "").trim();
-      const w = String(found.ward || "").trim();
-      const st = String(found.station || found.location || "").trim();
-      const uv = String(user?.village || "").trim();
-      const uw = String(user?.ward || "").trim();
-      const atHome = (!v && !w) || (uv && uw && v === uv && w === uw);
-      setHeldAtResidence(!!atHome && !!uv);
+    if (!storedItem) {
       setForm({
-        category: found.category || "",
-        make: found.make || "",
-        model: found.model || "",
-        serial1: found.serial1 || "",
-        serial2: found.serial2 || "",
-        village: v || uv,
-        ward: w || uw,
-        station: st,
-        purchaseDate: toDateInputValue(found.purchaseDate || found.lastSeen),
-        estimatedValue:
-          found.estimatedValue != null && found.estimatedValue !== ""
-            ? String(found.estimatedValue)
-            : "",
-        shop: found.shop || "",
-        warrantyExpiry: toDateInputValue(found.warrantyExpiry),
-        notes: found.notes || "",
-        status: isItemReportedStolen(found) ? "Stolen" : "Active",
+        category: "",
+        make: "",
+        model: "",
+        serial1: "",
+        serial2: "",
+        village: "",
+        ward: "",
+        station: "",
+        purchaseDate: "",
+        estimatedValue: "",
+        shop: "",
+        warrantyExpiry: "",
+        notes: "",
+        status: "Active",
       });
-      setExistingPhotos(normalizePhotos(found.photos));
-      setPhotoPreviews([]);
+      setHeldAtResidence(false);
+      setExistingPhotos([]);
+      setPhotoPreviews((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.url));
+        return [];
+      });
       setPoliceStation("");
+      return;
     }
-  }, [routeParam, items, itemsLoading, user?.village, user?.ward]);
+
+    const found = storedItem;
+    const v = String(found.village || "").trim();
+    const w = String(found.ward || "").trim();
+    const st = String(found.station || found.location || "").trim();
+    const uv = String(user?.village || "").trim();
+    const uw = String(user?.ward || "").trim();
+    const atHome = (!v && !w) || (uv && uw && v === uv && w === uw);
+    setHeldAtResidence(!!atHome && !!uv);
+    setForm({
+      category: found.category || "",
+      make: found.make || "",
+      model: found.model || "",
+      serial1: found.serial1 || "",
+      serial2: found.serial2 || "",
+      village: v || uv,
+      ward: w || uw,
+      station: st,
+      purchaseDate: toDateInputValue(found.purchaseDate || found.lastSeen),
+      estimatedValue:
+        found.estimatedValue != null && found.estimatedValue !== ""
+          ? String(found.estimatedValue)
+          : "",
+      shop: found.shop || "",
+      warrantyExpiry: toDateInputValue(found.warrantyExpiry),
+      notes: found.notes || "",
+      status: isItemReportedStolen(found) ? "Stolen" : "Active",
+    });
+    setExistingPhotos(normalizePhotos(found.photos));
+    setPhotoPreviews([]);
+    setPoliceStation("");
+  }, [storedItem, user?.village, user?.ward]);
 
   useEffect(() => {
     if (!heldAtResidence) return;
@@ -772,7 +840,7 @@ export default function EditItem() {
     }
   }
 
-  if (itemsLoading) {
+  if (itemPageLoading) {
     return (
       <div className="min-h-screen bg-gray-100">
         <div className="p-6 max-w-3xl mx-auto">
@@ -832,6 +900,16 @@ export default function EditItem() {
           </div>
         ) : null}
 
+        {isItemFrozen(storedItem) ? (
+          <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
+            <div className="font-semibold">Read only</div>
+            <p className="mt-1">
+              This item is deleted or legacy. Restore it from the item page before
+              you can change details or photos.
+            </p>
+          </div>
+        ) : null}
+
         <form
           onSubmit={handleSubmit}
           className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
@@ -845,14 +923,19 @@ export default function EditItem() {
             </div>
             <RippleButton
               type="button"
-              className="px-4 py-2 rounded-lg border border-red-200 text-red-700 bg-white self-start shadow-sm"
+              className="px-4 py-2 rounded-lg border border-red-200 text-red-700 bg-white self-start shadow-sm disabled:opacity-50"
               onClick={handleDelete}
+              disabled={isItemFrozen(storedItem)}
             >
               Delete item
             </RippleButton>
           </div>
 
           <div className="p-8 space-y-6">
+          <fieldset
+            disabled={isItemFrozen(storedItem)}
+            className="border-0 p-0 m-0 min-w-0 space-y-6 disabled:opacity-[0.72]"
+          >
           <Field label="Category" required>
             <input
               name="category"
@@ -1150,6 +1233,7 @@ export default function EditItem() {
               )}
             </Field>
           </div>
+          </fieldset>
 
           {isUploading && (
             <div className="mb-4 space-y-3">
@@ -1190,8 +1274,13 @@ export default function EditItem() {
             </RippleButton>
             <RippleButton
               type="submit"
-              disabled={isFormInvalid || isUploading || itemsLoading}
-              className="px-5 py-2 rounded-lg bg-iregistrygreen text-white"
+              disabled={
+                isFormInvalid ||
+                isUploading ||
+                itemPageLoading ||
+                isItemFrozen(storedItem)
+              }
+              className="px-5 py-2 rounded-lg bg-iregistrygreen text-white disabled:opacity-50"
             >
               {isUploading ? `Uploading ${currentUpload}/${totalUploads}` : "Save changes"}
             </RippleButton>

@@ -92,6 +92,8 @@ serve(async (req) => {
       createdFrom,
       createdTo,
       search,
+      /** Exact match by primary key or public slug (detail/edit pages when the item is not in the current list). */
+      itemLookup,
     } = body ?? {};
 
     /* ================= PAGINATION ================= */
@@ -227,6 +229,17 @@ serve(async (req) => {
       query = query.eq("ownerid", ownerId);
     }
 
+    if (typeof itemLookup === "string" && itemLookup.trim()) {
+      const raw = itemLookup.trim();
+      const uuidRe =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRe.test(raw)) {
+        query = query.eq("id", raw);
+      } else {
+        query = query.eq("slug", raw);
+      }
+    }
+
     /* ================= FILTERS ================= */
 
     query = applyItemFilters(query, {
@@ -243,9 +256,6 @@ serve(async (req) => {
       createdTo,
       search,
     });
-
-    console.log("createdFrom:", createdFrom);
-    console.log("createdTo:", createdTo);
 
     /* ================= EXECUTE ================= */
 

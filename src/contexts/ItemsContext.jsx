@@ -47,15 +47,19 @@ function itemsReducer(state, action) {
         ),
       };
 
-    case "REPLACE_ITEM":
+    case "REPLACE_ITEM": {
+      const next = action.payload;
+      const idx = state.items.findIndex((item) => item.id === next.id);
+      if (idx === -1) {
+        return { ...state, items: [next, ...state.items] };
+      }
       return {
         ...state,
         items: state.items.map((item) =>
-          item.id === action.payload.id
-            ? action.payload
-            : item
+          item.id === next.id ? next : item
         ),
       };
+    }
 
     default:
       return state;
@@ -82,7 +86,7 @@ function normalizePoliceCase(pc) {
   };
 }
 
-function normalizeFromDB(row) {
+export function normalizeItemFromDB(row) {
   return {
     id: row.id,
     ownerId: row.ownerid,
@@ -184,7 +188,7 @@ export function ItemsProvider({ children }) {
 
         dispatch({
           type: "SET_ITEMS",
-          payload: (data.items || []).map(normalizeFromDB),
+          payload: (data.items || []).map(normalizeItemFromDB),
         });
       } catch (err) {
         dispatch({
@@ -231,7 +235,7 @@ export function ItemsProvider({ children }) {
         );
       }
       
-      const newItem = normalizeFromDB(data.item);
+      const newItem = normalizeItemFromDB(data.item);
       dispatch({
         type: "ADD_ITEM",
         payload: newItem,
@@ -270,7 +274,7 @@ export function ItemsProvider({ children }) {
     }
 
     if (data.item) {
-      const updatedItem = normalizeFromDB(data.item);
+      const updatedItem = normalizeItemFromDB(data.item);
 
       dispatch({
         type: "REPLACE_ITEM",

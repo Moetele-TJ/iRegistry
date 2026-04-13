@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
-import { useItems } from "../contexts/ItemsContext.jsx";
+import { useItems, normalizeItemFromDB } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
@@ -130,15 +130,23 @@ function normalizePoliceCaseRow(row) {
 export default function ItemDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { items, deleteItem, updateItem, transferOwnership, restoreItem, restoreLegacyItem } = useItems();
+  const {
+    items,
+    deleteItem,
+    updateItem,
+    transferOwnership,
+    restoreItem,
+    restoreLegacyItem,
+    loading: itemsLoading,
+  } = useItems();
   const { user } = useAuth();
   const { confirm, alert } = useModal();
   const { getCost, loading: tasksLoading } = useTaskPricing();
 
-  const [item, setItem] = useState(null);
+  const [fetchedItem, setFetchedItem] = useState(null);
+  const [lookupResolved, setLookupResolved] = useState(false);
   const [policeCaseDetail, setPoliceCaseDetail] = useState(null);
   const [policeCaseLoading, setPoliceCaseLoading] = useState(false);
-  const { activity } = useItemActivity(item?.id);
   const [confirmOpen, setConfirmOpen] = useState(false); // modal state
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -170,6 +178,57 @@ export default function ItemDetails() {
   const uploadCancelledRef = useRef(false);
   const photoInputRef = useRef(null);
 
+  const itemFromList = useMemo(
+    () =>
+      (items || []).find(
+        (it) =>
+          String(it.slug) === String(slug) || String(it.id) === String(slug)
+      ) || null,
+    [items, slug]
+  );
+
+  const item = itemFromList || fetchedItem;
+
+  const itemPageLoading = itemsLoading || (!itemFromList && !lookupResolved);
+
+  const { activity } = useItemActivity(item?.id);
+
+  useEffect(() => {
+    setFetchedItem(null);
+    setLookupResolved(false);
+  }, [slug]);
+
+  useEffect(() => {
+    if (itemsLoading) return;
+    if (itemFromList) {
+      setLookupResolved(true);
+      setFetchedItem(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await invokeWithAuth("get-items", {
+        body: {
+          itemLookup: slug,
+          includeDeleted: true,
+          includeLegacy: true,
+          page: 1,
+          pageSize: 1,
+        },
+      });
+      if (cancelled) return;
+      if (error || !data?.success || !data.items?.[0]) {
+        setFetchedItem(null);
+      } else {
+        setFetchedItem(normalizeItemFromDB(data.items[0]));
+      }
+      setLookupResolved(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, itemsLoading, itemFromList]);
+
   const photosNormalized = useMemo(() => normalizePhotos(item?.photos), [item?.photos]);
 
   const isDeleted = !!item?.deletedAt;
@@ -186,10 +245,8 @@ export default function ItemDetails() {
     (isPrivilegedRole(user.role) || String(user.id) === String(item.ownerId));
 
   useEffect(() => {
-    const found = (items || []).find((it) => String(it.slug) === String(slug));
-    setItem(found || null);
     setPhotoIndex(0);
-  }, [slug, items]);
+  }, [slug, item?.id]);
 
   // If `item-photos` is not public, we need signed URLs for <img src>.
   // This keeps the page working regardless of bucket visibility.
@@ -799,13 +856,27 @@ export default function ItemDetails() {
 
   const photoRoom = MAX_PHOTOS - photosNormalized.length;
 
+  if (itemPageLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="p-6 max-w-3xl mx-auto">
+          <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+            Loading…
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!item) {
     return (
       <div className="min-h-screen bg-gray-100">
         <div className="p-6 max-w-3xl mx-auto">
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">
             <h2 className="text-lg font-semibold">Item not found</h2>
-            <p className="text-sm text-gray-500 mt-2">The requested item does not exist.</p>
+            <p className="text-sm text-gray-500 mt-2">
+              The requested item does not exist or you do not have access to it.
+            </p>
             <div className="mt-4 flex gap-2 justify-center">
               <RippleButton className="px-4 py-2 rounded border bg-white" onClick={() => navigate("/items")}>
                 Back to items

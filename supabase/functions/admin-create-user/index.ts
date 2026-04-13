@@ -53,6 +53,7 @@ serve(async (req) => {
       status,
       suspended_reason,
       disabled_reason,
+      date_of_birth: dateOfBirthRaw,
     } = body ?? {};
 
     const fn = typeof first_name === "string" ? first_name.trim() : "";
@@ -95,6 +96,30 @@ serve(async (req) => {
     if (stt === "disabled" && !disReason) {
       return respond(
         { success: false, message: "A reason is required to create a disabled account." },
+        corsHeaders,
+        400,
+      );
+    }
+
+    let dateOfBirth: string | null = null;
+    if (dateOfBirthRaw === undefined || dateOfBirthRaw === null || dateOfBirthRaw === "") {
+      dateOfBirth = null;
+    } else if (typeof dateOfBirthRaw === "string") {
+      const ds = dateOfBirthRaw.trim();
+      if (!ds) {
+        dateOfBirth = null;
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) {
+        return respond(
+          { success: false, message: "Invalid date of birth (use YYYY-MM-DD)." },
+          corsHeaders,
+          400,
+        );
+      } else {
+        dateOfBirth = ds;
+      }
+    } else {
+      return respond(
+        { success: false, message: "Invalid date of birth" },
         corsHeaders,
         400,
       );
@@ -160,6 +185,9 @@ serve(async (req) => {
       identity_verified: false,
       email_verified: false,
     };
+    if (dateOfBirth) {
+      baseRow.date_of_birth = dateOfBirth;
+    }
     if (stt === "suspended") {
       baseRow.suspended_at = now;
       baseRow.suspended_reason = suspReason;
