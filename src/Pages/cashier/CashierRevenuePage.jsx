@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Coins, RefreshCw, List } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -14,14 +14,62 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function toISODateOnlyLocal(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function startOfDayLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function addDaysLocal(d, days) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+}
+
+// Monday-based week (Mon..Sun)
+function startOfWeekLocal(d) {
+  const x = startOfDayLocal(d);
+  const day = x.getDay(); // 0 Sun ... 6 Sat
+  const diff = (day + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+  return addDaysLocal(x, -diff);
+}
+
+function endOfWeekLocal(d) {
+  const s = startOfWeekLocal(d);
+  return addDaysLocal(s, 6);
+}
+
+function startOfMonthLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function endOfMonthLocal(d) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 0, 0, 0, 0);
+}
+
+function startOfYearLocal(d) {
+  return new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0);
+}
+
+function endOfYearLocal(d) {
+  return new Date(d.getFullYear(), 11, 31, 0, 0, 0, 0);
+}
+
 export default function CashierRevenuePage() {
   const { addToast } = useToast();
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
+  const [quickDate, setQuickDate] = useState("TODAY");
+  const didAutoRun = useRef(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("revenue-report", {
@@ -35,12 +83,76 @@ export default function CashierRevenuePage() {
     } finally {
       setLoading(false);
     }
+  }, [addToast, from, to]);
+
+  function applyQuickDate(preset) {
+    const now = new Date();
+    const today = startOfDayLocal(now);
+
+    let rangeFrom = today;
+    let rangeTo = today;
+
+    switch (preset) {
+      case "TODAY":
+        rangeFrom = today;
+        rangeTo = today;
+        break;
+      case "YESTERDAY": {
+        const y = addDaysLocal(today, -1);
+        rangeFrom = y;
+        rangeTo = y;
+        break;
+      }
+      case "THIS_WEEK":
+        rangeFrom = startOfWeekLocal(today);
+        rangeTo = today;
+        break;
+      case "LAST_WEEK": {
+        const last = addDaysLocal(today, -7);
+        rangeFrom = startOfWeekLocal(last);
+        rangeTo = endOfWeekLocal(last);
+        break;
+      }
+      case "THIS_MONTH":
+        rangeFrom = startOfMonthLocal(today);
+        rangeTo = today;
+        break;
+      case "LAST_MONTH": {
+        const last = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        rangeFrom = startOfMonthLocal(last);
+        rangeTo = endOfMonthLocal(last);
+        break;
+      }
+      case "THIS_YEAR":
+        rangeFrom = startOfYearLocal(today);
+        rangeTo = today;
+        break;
+      case "LAST_YEAR": {
+        const last = new Date(today.getFullYear() - 1, 0, 1);
+        rangeFrom = startOfYearLocal(last);
+        rangeTo = endOfYearLocal(last);
+        break;
+      }
+      default:
+        return;
+    }
+
+    setFrom(toISODateOnlyLocal(rangeFrom));
+    setTo(toISODateOnlyLocal(rangeTo));
   }
 
   useEffect(() => {
-    void load();
+    applyQuickDate(quickDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      didAutoRun.current = true;
+      void load();
+    }, didAutoRun.current ? 200 : 0);
+    return () => window.clearTimeout(t);
+  }, [from, load, to]);
 
   const rows = useMemo(() => {
     const by = report?.totals?.by_currency || {};
@@ -64,18 +176,55 @@ export default function CashierRevenuePage() {
       <div className="p-4 sm:p-6 space-y-6">
       <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-5 flex flex-wrap items-end gap-3">
         <div className="min-w-[180px]">
+          <label className="text-xs text-gray-600">Quick date</label>
+          <select
+            value={quickDate}
+            onChange={(e) => {
+              const v = e.target.value;
+              setQuickDate(v);
+              applyQuickDate(v);
+            }}
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+          >
+            <option value="TODAY">Today</option>
+            <option value="YESTERDAY">Yesterday</option>
+            <option value="THIS_WEEK">This Week</option>
+            <option value="LAST_WEEK">Last Week</option>
+            <option value="THIS_MONTH">This Month</option>
+            <option value="LAST_MONTH">Last Month</option>
+            <option value="THIS_YEAR">This Year</option>
+            <option value="LAST_YEAR">Last Year</option>
+          </select>
+        </div>
+        <div className="min-w-[180px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <CalendarDays size={14} className="text-gray-400" />
             From
           </label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm" />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setQuickDate("");
+              setFrom(e.target.value);
+            }}
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+          />
         </div>
         <div className="min-w-[180px]">
           <label className="text-xs text-gray-600 flex items-center gap-2">
             <CalendarDays size={14} className="text-gray-400" />
             To
           </label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm" />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setQuickDate("");
+              setTo(e.target.value);
+            }}
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+          />
         </div>
         <RippleButton
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
@@ -83,7 +232,7 @@ export default function CashierRevenuePage() {
           disabled={loading}
         >
           <RefreshCw size={16} />
-          {loading ? "Loading…" : "Run report"}
+          {loading ? "Loading…" : "Refresh"}
         </RippleButton>
       </div>
 
@@ -120,30 +269,95 @@ export default function CashierRevenuePage() {
         {tx.length === 0 ? (
           <div className="text-sm text-gray-500">No transactions for this filter.</div>
         ) : (
-          <div className="overflow-auto rounded-xl border border-gray-100">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
-                <tr>
-                  <th className="text-left font-semibold px-4 py-3">Confirmed</th>
-                  <th className="text-left font-semibold px-4 py-3">Amount</th>
-                  <th className="text-left font-semibold px-4 py-3">Credits</th>
-                  <th className="text-left font-semibold px-4 py-3">Receipt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {tx.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
-                      {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
-                    <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
-                    <td className="px-4 py-3 text-gray-700">{p.receipt_no || "—"}</td>
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {tx.map((p) => {
+                const name = p.users
+                  ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                    p.users.email ||
+                    p.user_id
+                  : (p.user_id || "—");
+
+                return (
+                  <div key={p.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">{name}</div>
+                        {p.users ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.users.email || p.users.phone || p.users.id_number || ""}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-semibold text-gray-900 tabular-nums">
+                          {formatMoneyAmount(p.currency, p.amount)}
+                        </div>
+                        <div className="text-xs text-gray-500 tabular-nums">
+                          {p.credits_granted ?? 0} credits
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <div className="text-gray-500">Confirmed</div>
+                        <div className="text-gray-800 mt-0.5">
+                          {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <div className="text-gray-500">Receipt</div>
+                        <div className="text-gray-800 mt-0.5 break-all">{p.receipt_no || "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-auto rounded-xl border border-gray-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="text-left font-semibold px-4 py-3">Confirmed</th>
+                    <th className="text-left font-semibold px-4 py-3">User</th>
+                    <th className="text-left font-semibold px-4 py-3">Amount</th>
+                    <th className="text-left font-semibold px-4 py-3">Credits</th>
+                    <th className="text-left font-semibold px-4 py-3">Receipt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {tx.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                        {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-800">
+                        <div className="font-medium">
+                          {p.users
+                            ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                              p.users.email ||
+                              p.user_id
+                            : (p.user_id || "—")}
+                        </div>
+                        {p.users ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.users.email || p.users.phone || p.users.id_number || ""}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
+                      <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
+                      <td className="px-4 py-3 text-gray-700">{p.receipt_no || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
       </div>

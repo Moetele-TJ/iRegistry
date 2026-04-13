@@ -380,49 +380,105 @@ export default function AdminRevenuePage() {
           {tx.length === 0 ? (
             <div className="text-sm text-gray-500">No transactions for this filter.</div>
           ) : (
-            <div className="overflow-auto rounded-xl border border-gray-100">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="text-left font-semibold px-4 py-3">Confirmed</th>
-                    <th className="text-left font-semibold px-4 py-3">User</th>
-                    <th className="text-left font-semibold px-4 py-3">Channel</th>
-                    <th className="text-left font-semibold px-4 py-3">Amount</th>
-                    <th className="text-left font-semibold px-4 py-3">Credits</th>
-                    <th className="text-left font-semibold px-4 py-3">Reference</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {tx.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">
-                        {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        <div className="font-medium">
-                          {p.users
-                            ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
-                              p.users.email ||
-                              p.user_id
-                            : (p.user_id || "—")}
+            <>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {tx.map((p) => {
+                  const name = p.users
+                    ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                      p.users.email ||
+                      p.user_id
+                    : (p.user_id || "—");
+                  const ref = p.channel === "CASHIER"
+                    ? (p.receipt_no || "—")
+                    : (p.provider_reference || p.provider || "—");
+                  return (
+                    <div key={p.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{name}</div>
+                          {p.users ? (
+                            <div className="text-xs text-gray-500 truncate">
+                              {p.users.email || p.users.phone || p.users.id_number || ""}
+                            </div>
+                          ) : null}
                         </div>
-                        {p.users ? (
-                          <div className="text-xs text-gray-500 truncate">
-                            {p.users.email || p.users.phone || p.users.id_number || ""}
+                        <div className="text-right shrink-0">
+                          <div className="text-sm font-semibold text-gray-900 tabular-nums">
+                            {formatMoneyAmount(p.currency, p.amount)}
                           </div>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">{p.channel}</td>
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
-                      <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {p.channel === "CASHIER" ? (p.receipt_no || "—") : (p.provider_reference || p.provider || "—")}
-                      </td>
+                          <div className="text-xs text-gray-500 tabular-nums">
+                            {p.credits_granted ?? 0} credits
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="text-gray-500">Confirmed</div>
+                          <div className="text-gray-800 mt-0.5">
+                            {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="text-gray-500">Channel</div>
+                          <div className="text-gray-800 mt-0.5">{p.channel || "—"}</div>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 col-span-2">
+                          <div className="text-gray-500">Reference</div>
+                          <div className="text-gray-800 mt-0.5 break-all">{ref}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-auto rounded-xl border border-gray-100">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="text-left font-semibold px-4 py-3">Confirmed</th>
+                      <th className="text-left font-semibold px-4 py-3">User</th>
+                      <th className="text-left font-semibold px-4 py-3">Channel</th>
+                      <th className="text-left font-semibold px-4 py-3">Amount</th>
+                      <th className="text-left font-semibold px-4 py-3">Credits</th>
+                      <th className="text-left font-semibold px-4 py-3">Reference</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {tx.map((p) => (
+                      <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                          {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-gray-800">
+                          <div className="font-medium">
+                            {p.users
+                              ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                                p.users.email ||
+                                p.user_id
+                              : (p.user_id || "—")}
+                          </div>
+                          {p.users ? (
+                            <div className="text-xs text-gray-500 truncate">
+                              {p.users.email || p.users.phone || p.users.id_number || ""}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">{p.channel}</td>
+                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>
+                        <td className="px-4 py-3 text-gray-700 tabular-nums">{p.credits_granted ?? 0}</td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {p.channel === "CASHIER" ? (p.receipt_no || "—") : (p.provider_reference || p.provider || "—")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       ) : null}
