@@ -1116,6 +1116,36 @@ export default function ItemDetails() {
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Purchased</div>
                       <div className="mt-0.5 font-semibold text-gray-900 truncate">{item.purchaseDate || "—"}</div>
                     </div>
+                    {isStolen && item.reportedStolenAt ? (
+                      <div className="rounded-2xl bg-red-50 border border-red-100 p-3 col-span-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                          Declared stolen
+                        </div>
+                        <div className="mt-0.5 font-semibold text-red-900 truncate">
+                          {fmtDate(item.reportedStolenAt) || "—"}
+                        </div>
+                      </div>
+                    ) : null}
+                    {isDeleted && item.deletedAt ? (
+                      <div className="rounded-2xl bg-gray-50 border border-gray-200 p-3 col-span-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                          Deleted
+                        </div>
+                        <div className="mt-0.5 font-semibold text-gray-900 truncate">
+                          {fmtDate(item.deletedAt) || "—"}
+                        </div>
+                      </div>
+                    ) : null}
+                    {isLegacy && item.legacyAt ? (
+                      <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3 col-span-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                          Moved to legacy
+                        </div>
+                        <div className="mt-0.5 font-semibold text-slate-900 truncate">
+                          {fmtDate(item.legacyAt) || "—"}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
