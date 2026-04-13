@@ -7,6 +7,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { logUserActivity } from "../shared/logUserActivity.ts";
 import { roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
@@ -48,7 +49,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, deleted_at")
+      .select("id, deleted_at, first_name, last_name, email")
       .eq("id", id)
       .maybeSingle();
 
@@ -88,6 +89,21 @@ serve(async (req) => {
         reason: "Deleted by admin",
       },
       req,
+    });
+
+    const displayName =
+      [existing.first_name, existing.last_name].filter(Boolean).join(" ").trim() ||
+      String((existing as { email?: string | null }).email || "").trim() ||
+      "User";
+
+    await logUserActivity(supabase, {
+      actorId: session.user_id,
+      actorRole: String(session.role || "admin"),
+      targetUserId: id,
+      targetDisplayName: displayName,
+      action: "USER_DELETED",
+      message: "Account marked deleted (soft delete by admin)",
+      metadata: { soft_delete: true },
     });
 
     return respond({ success: true }, corsHeaders, 200);

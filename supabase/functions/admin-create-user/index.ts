@@ -12,6 +12,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { roleIs } from "../shared/roles.ts";
+import { logUserActivity } from "../shared/logUserActivity.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -209,6 +210,24 @@ serve(async (req) => {
         500,
       );
     }
+
+    const displayName =
+      [created.first_name, created.last_name].filter(Boolean).join(" ").trim() ||
+      String((created as { email?: string }).email || "").trim() ||
+      "New user";
+
+    await logUserActivity(supabase, {
+      actorId: session.user_id,
+      actorRole: String(session.role || "admin"),
+      targetUserId: String(created.id),
+      targetDisplayName: displayName,
+      action: "USER_CREATED",
+      message:
+        stt === "active"
+          ? `Account created (${rl})`
+          : `Account created as ${stt} (${rl})`,
+      metadata: { initial_status: stt, role: rl },
+    });
 
     return respond({ success: true, user: created }, corsHeaders, 200);
   } catch (err: any) {

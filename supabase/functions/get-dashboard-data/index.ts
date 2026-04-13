@@ -109,7 +109,7 @@ serve(async (req) => {
     const itemIds = (userItems || []).map(i => i.id);
 
     let activityQuery = supabase
-      .from("activity_logs")
+      .from("unified_activity_feed")
       .select(
         `
           id,
@@ -181,7 +181,7 @@ serve(async (req) => {
       };
 
       const { data: roleActivity, count: roleCount } = await supabase
-        .from("activity_logs")
+        .from("unified_activity_feed")
         .select(
           `
             id,

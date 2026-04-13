@@ -26,7 +26,10 @@ import {
   Copy,
   Wallet,
   AlertTriangle,
+  History,
 } from "lucide-react";
+import UserActivityTimeline from "../components/UserActivityTimeline.jsx";
+import { useUserActivity } from "../hooks/useUserActivity.js";
 
 function fmtDate(iso) {
   if (!iso) return "—";
@@ -222,6 +225,12 @@ export default function ProfilePage() {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  const {
+    activity: userRegistryActivity,
+    loading: userRegistryActivityLoading,
+    refresh: refreshUserRegistryActivity,
+  } = useUserActivity(profileUser?.id);
 
   useEffect(() => {
     if (viewingOther && desktopTab === "security") setDesktopTab("profile");
@@ -433,6 +442,7 @@ export default function ProfilePage() {
       }
       await refreshUser();
       await loadProfile();
+      await refreshUserRegistryActivity();
       setEditing(false);
       if (String(data?.message || "").toLowerCase().includes("no changes")) {
         addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
@@ -820,6 +830,17 @@ export default function ProfilePage() {
             {user.deleted_at ? <Field label="Deleted at">{fmtDate(user.deleted_at)}</Field> : null}
           </div>
         ) : null}
+      </Card>
+    );
+  }
+
+  function renderRegistryHistoryCard() {
+    return (
+      <Card title="Registry history" icon={History}>
+        <UserActivityTimeline
+          events={userRegistryActivity}
+          loading={userRegistryActivityLoading}
+        />
       </Card>
     );
   }
@@ -1226,6 +1247,7 @@ export default function ProfilePage() {
               {renderLocationCard()}
               {renderAccountCard()}
               {renderActivityCard()}
+              {renderRegistryHistoryCard()}
               {!viewingOther ? (
                 <>
                   {renderSessionsCard()}
@@ -1273,9 +1295,12 @@ export default function ProfilePage() {
                 </div>
               )}
               {desktopTab === "account" && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                  {renderAccountCard()}
-                  {renderActivityCard()}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                    {renderAccountCard()}
+                    {renderActivityCard()}
+                  </div>
+                  {renderRegistryHistoryCard()}
                 </div>
               )}
               {!viewingOther && desktopTab === "security" ? (

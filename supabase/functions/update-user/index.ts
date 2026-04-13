@@ -8,6 +8,8 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { logUserActivity } from "../shared/logUserActivity.ts";
+import { summarizeUserRecordUpdate } from "../shared/userActivityMessages.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
@@ -397,6 +399,31 @@ serve(async (req) => {
         req,
       });
     }
+
+    /* Profile timeline (user_activity_logs). */
+    const u = updated as Record<string, unknown>;
+    const displayName =
+      [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+      String(u.email || "").trim() ||
+      "User";
+    const { action: uaAction, message: uaDetail, changedKeys } =
+      summarizeUserRecordUpdate(clean);
+    const selfEdit = String(session.user_id) === String(id);
+    const uaMessage = selfEdit
+      ? `You updated your account (${uaDetail})`
+      : `Account updated (${uaDetail})`;
+    await logUserActivity(supabase, {
+      actorId: session.user_id,
+      actorRole: String(session.role || "user"),
+      targetUserId: id,
+      targetDisplayName: displayName,
+      action: uaAction,
+      message: uaMessage,
+      metadata: {
+        changed_keys: changedKeys,
+        self_edit: selfEdit,
+      },
+    });
 
     return respond(
       {

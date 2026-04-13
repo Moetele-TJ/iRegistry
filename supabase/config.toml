@@ -671,6 +671,12 @@ entrypoint = "./functions/get-item-activity/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/get-item-activity/*.html" ]
 
+[functions.get-user-activity]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-user-activity/deno.json"
+entrypoint = "./functions/get-user-activity/index.ts"
+
 [functions.mark-notifications-read]
 enabled = true
 verify_jwt = true
