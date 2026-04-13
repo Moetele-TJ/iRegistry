@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 /**
- * Primary nav row + flyout sub-links (routes unchanged).
- * Flyout extends to the right when the sidebar is expanded and the group is hovered
- * or a child route is active.
+ * Primary nav row + sub-links directly under it (same routes as before).
+ * Shown when the rail is expanded and the row is hovered, a child route is active,
+ * or on touch/coarse pointers where hover does not exist.
  */
 export default function SidebarItemGroup({
   to: baseTo,
@@ -24,7 +24,10 @@ export default function SidebarItemGroup({
     return p === baseTo || p.startsWith(`${baseTo}/`);
   }, [location.pathname, baseTo]);
 
-  const showSub = expanded && (hover || groupPathActive);
+  /* Touch / no-hover: show submenu whenever rail is expanded so links are reachable. */
+  const showSub =
+    expanded &&
+    (touchMode || hover || groupPathActive);
 
   return (
     <div
@@ -74,28 +77,26 @@ export default function SidebarItemGroup({
 
       {showSub && subItems.length > 0 ? (
         <div
-          className="absolute left-full top-0 z-[80] ml-0 pl-1.5 py-0"
+          className="mt-1.5 ml-2 border-l border-white/25 pl-3 space-y-0.5 pb-0.5"
           role="group"
           aria-label={`${label} views`}
         >
-          <div className="min-w-[11.5rem] rounded-xl border border-white/15 bg-iregistrygreen py-1.5 shadow-lg">
-            {subItems.map((sub) => (
-              <NavLink
-                key={sub.to}
-                to={sub.to}
-                end={sub.end !== false}
-                onClick={() => onNavigate?.()}
-                className={({ isActive }) => {
-                  const base =
-                    "block px-3 py-2 text-sm transition-colors duration-200 text-left whitespace-nowrap";
-                  const bg = isActive ? "bg-white/15 font-medium" : "hover:bg-white/10 text-white/95";
-                  return `${base} ${bg}`;
-                }}
-              >
-                {sub.label}
-              </NavLink>
-            ))}
-          </div>
+          {subItems.map((sub) => (
+            <NavLink
+              key={sub.to}
+              to={sub.to}
+              end={sub.end !== false}
+              onClick={() => onNavigate?.()}
+              className={({ isActive }) => {
+                const base =
+                  "block rounded-lg py-1.5 px-2 text-sm transition-colors duration-200 text-left";
+                const bg = isActive ? "bg-white/15 font-medium" : "hover:bg-white/10 text-white/95";
+                return `${base} ${bg}`;
+              }}
+            >
+              {sub.label}
+            </NavLink>
+          ))}
         </div>
       ) : null}
     </div>
