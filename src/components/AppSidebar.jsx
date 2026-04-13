@@ -3,16 +3,18 @@ import SidebarItem from "./SidebarItem";
 import SidebarItemGroup from "./SidebarItemGroup";
 import { useLocation } from "react-router-dom";
 
-/** Matches `transition-[width] duration-300` on the aside */
-const SIDEBAR_WIDTH_MS = 300;
-/** Delay before treating aside mouse leave as real (lets pointer reach portaled flyout) */
+/** Width transition when opening (matches submenu unlock) */
+const SIDEBAR_EXPAND_MS = 320;
+/** Slower ease-out when collapsing so the rail doesn’t feel like it snaps shut */
+const SIDEBAR_COLLAPSE_MS = 520;
 const ASIDE_LEAVE_DELAY_MS = 180;
 
 export default function AppSidebar({ sidebar }) {
-  const [expanded, setExpanded] = useState(false);
-  /** After width transition finishes so submenu can animate in */
+  /** Drives aside `width` only — can animate while labels stay visible during collapse */
+  const [railExpanded, setRailExpanded] = useState(false);
+  /** Labels + icon layout; stays true until width collapse finishes */
+  const [contentExpanded, setContentExpanded] = useState(false);
   const [expandAnimationComplete, setExpandAnimationComplete] = useState(false);
-  /** Bump to request flyout close + exit animation before collapsing rail */
   const [flyoutCloseNonce, setFlyoutCloseNonce] = useState(0);
   const location = useLocation();
 
@@ -25,6 +27,7 @@ export default function AppSidebar({ sidebar }) {
   const asideRef = useRef(null);
   const flyoutOpenRef = useRef(false);
   const expandFallbackTimer = useRef(null);
+  const collapseContentTimer = useRef(null);
   const asideLeaveTimer = useRef(null);
   const pendingCollapseRef = useRef(false);
 
@@ -32,6 +35,13 @@ export default function AppSidebar({ sidebar }) {
     if (asideLeaveTimer.current != null) {
       window.clearTimeout(asideLeaveTimer.current);
       asideLeaveTimer.current = null;
+    }
+  }, []);
+
+  const clearCollapseContentTimer = useCallback(() => {
+    if (collapseContentTimer.current != null) {
+      window.clearTimeout(collapseContentTimer.current);
+      collapseContentTimer.current = null;
     }
   }, []);
 
@@ -44,8 +54,9 @@ export default function AppSidebar({ sidebar }) {
     return () => mq.removeEventListener?.("change", update);
   }, []);
 
+  // Opening: after width finishes expanding, submenu may animate in.
   useEffect(() => {
-    if (!expanded) {
+    if (!railExpanded) {
       setExpandAnimationComplete(false);
       if (expandFallbackTimer.current != null) {
         window.clearTimeout(expandFallbackTimer.current);
@@ -71,7 +82,7 @@ export default function AppSidebar({ sidebar }) {
     };
 
     el?.addEventListener("transitionend", onTransitionEnd);
-    expandFallbackTimer.current = window.setTimeout(finish, SIDEBAR_WIDTH_MS + 40);
+    expandFallbackTimer.current = window.setTimeout(finish, SIDEBAR_EXPAND_MS + 50);
 
     return () => {
       el?.removeEventListener("transitionend", onTransitionEnd);
@@ -80,10 +91,40 @@ export default function AppSidebar({ sidebar }) {
         expandFallbackTimer.current = null;
       }
     };
-  }, [expanded]);
+  }, [railExpanded]);
+
+  // Collapsing: keep labels until width ease-out finishes, then hide text (no instant pop).
+  useEffect(() => {
+    clearCollapseContentTimer();
+
+    if (railExpanded) {
+      setContentExpanded(true);
+      return;
+    }
+
+    const el = asideRef.current;
+    const finishContent = () => {
+      setContentExpanded(false);
+      clearCollapseContentTimer();
+    };
+
+    const onTransitionEnd = (e) => {
+      if (e.propertyName === "width" && e.target === el) finishContent();
+    };
+
+    el?.addEventListener("transitionend", onTransitionEnd);
+    collapseContentTimer.current = window.setTimeout(finishContent, SIDEBAR_COLLAPSE_MS + 80);
+
+    return () => {
+      el?.removeEventListener("transitionend", onTransitionEnd);
+      clearCollapseContentTimer();
+    };
+  }, [railExpanded, clearCollapseContentTimer]);
 
   useEffect(() => {
-    setExpanded(false);
+    setRailExpanded(false);
+    setContentExpanded(false);
+    setExpandAnimationComplete(false);
     pendingCollapseRef.current = false;
     clearAsideLeaveTimer();
   }, [location.pathname, clearAsideLeaveTimer]);
@@ -96,7 +137,8 @@ export default function AppSidebar({ sidebar }) {
     if (!canHover || !hoverExpand) return;
     clearAsideLeaveTimer();
     pendingCollapseRef.current = false;
-    setExpanded(true);
+    setRailExpanded(true);
+    setContentExpanded(true);
   };
 
   const handleAsideMouseLeave = () => {
@@ -108,7 +150,7 @@ export default function AppSidebar({ sidebar }) {
         pendingCollapseRef.current = true;
         setFlyoutCloseNonce((n) => n + 1);
       } else {
-        setExpanded(false);
+        setRailExpanded(false);
       }
     }, ASIDE_LEAVE_DELAY_MS);
   };
@@ -121,8 +163,10 @@ export default function AppSidebar({ sidebar }) {
     if (!pendingCollapseRef.current) return;
     pendingCollapseRef.current = false;
     flyoutOpenRef.current = false;
-    setExpanded(false);
+    setRailExpanded(false);
   }, []);
+
+  const childExpanded = contentExpanded && hoverExpand;
 
   if (!visible) return null;
 
@@ -133,10 +177,13 @@ export default function AppSidebar({ sidebar }) {
         fixed left-0 top-[var(--app-header-h)] bottom-auto z-[70]
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
-        transition-[width] duration-300 ease-in-out
-        ${expanded && hoverExpand ? "w-[var(--app-sidebar-expanded-w)]" : "w-[var(--app-sidebar-collapsed-w)]"}
-        rounded-br-3xl
-        shadow-lg
+        rounded-br-3xl shadow-lg
+        transition-[width] ease-out
+        ${
+          railExpanded && hoverExpand
+            ? "w-[var(--app-sidebar-expanded-w)] duration-[320ms]"
+            : "w-[var(--app-sidebar-collapsed-w)] duration-[520ms]"
+        }
       `}
       onMouseEnter={handleAsideMouseEnter}
       onMouseLeave={handleAsideMouseLeave}
@@ -153,15 +200,18 @@ export default function AppSidebar({ sidebar }) {
               icon={it.icon}
               label={it.label}
               subItems={it.subItems}
-              expanded={expanded && hoverExpand}
+              expanded={childExpanded}
               expandAnimationComplete={expandAnimationComplete}
               flyoutCloseNonce={flyoutCloseNonce}
               onFlyoutExitComplete={handleFlyoutExitComplete}
               onFlyoutOpenChange={setFlyoutOpenFromChild}
               onFlyoutPointerEnter={handleFlyoutPointerEnter}
-              onNavigate={() => setExpanded(false)}
+              onNavigate={() => setRailExpanded(false)}
               touchMode={touchMode}
-              onTouchExpand={() => setExpanded(true)}
+              onTouchExpand={() => {
+                setRailExpanded(true);
+                setContentExpanded(true);
+              }}
             />
           ) : (
             <SidebarItem
@@ -169,10 +219,13 @@ export default function AppSidebar({ sidebar }) {
               to={it.to}
               icon={it.icon}
               label={it.label}
-              expanded={expanded && hoverExpand}
-              onNavigate={() => setExpanded(false)}
+              expanded={childExpanded}
+              onNavigate={() => setRailExpanded(false)}
               touchMode={touchMode}
-              onTouchExpand={() => setExpanded(true)}
+              onTouchExpand={() => {
+                setRailExpanded(true);
+                setContentExpanded(true);
+              }}
             />
           ),
         )}
