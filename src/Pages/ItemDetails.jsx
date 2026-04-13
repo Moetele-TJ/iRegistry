@@ -21,6 +21,10 @@ import {
   willUpdateItemChargeOwnerWallet,
   isPrivilegedRole,
 } from "../lib/billingUx.js";
+import {
+  getItemDerivedState,
+  isItemReportedStolen,
+} from "../lib/itemState.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { roleIs } from "../lib/roleUtils.js";
 
@@ -126,7 +130,7 @@ function normalizePoliceCaseRow(row) {
 export default function ItemDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { items, deleteItem, updateItem, transferOwnership } = useItems();
+  const { items, deleteItem, updateItem, transferOwnership, restoreItem, restoreLegacyItem } = useItems();
   const { user } = useAuth();
   const { confirm, alert } = useModal();
   const { getCost, loading: tasksLoading } = useTaskPricing();
@@ -168,10 +172,17 @@ export default function ItemDetails() {
 
   const photosNormalized = useMemo(() => normalizePhotos(item?.photos), [item?.photos]);
 
+  const isDeleted = !!item?.deletedAt;
+  const isLegacy = !!item?.legacyAt;
+  const isFrozen = isDeleted || isLegacy;
+  const isStolen = !isFrozen && isItemReportedStolen(item);
+  const derivedState = getItemDerivedState(item);
+
   // Admins/cashiers may edit photos on any item. All other roles (including police) only on items they own.
   const canManagePhotos =
     !!user &&
     !!item &&
+    !isFrozen &&
     (isPrivilegedRole(user.role) || String(user.id) === String(item.ownerId));
 
   useEffect(() => {
@@ -240,7 +251,7 @@ export default function ItemDetails() {
   }, [item?.id, item?.photos]);
 
   useEffect(() => {
-    if (!item?.id || item.status !== "Stolen") {
+    if (!item?.id || !isStolen) {
       setPoliceCaseDetail(null);
       return;
     }
@@ -273,7 +284,7 @@ export default function ItemDetails() {
     return () => {
       cancelled = true;
     };
-  }, [item?.id, item?.status]);
+  }, [item?.id, isStolen]);
 
   function openDeleteModal() {
     setConfirmOpen(true);
@@ -285,6 +296,7 @@ export default function ItemDetails() {
 
   async function performDelete() {
     if (!item) return;
+    if (isFrozen) return;
     try {
       setWorking(true);
       const res = deleteItem(item.id);
@@ -320,6 +332,7 @@ export default function ItemDetails() {
 
   async function goToEdit() {
     if (!item?.slug) return;
+    if (isFrozen) return;
     const path = `/items/${item.slug}/edit`;
     if (tasksLoading) return;
 
@@ -377,6 +390,7 @@ export default function ItemDetails() {
 
   function openTransferOwnershipModal() {
     if (!item?.id) return;
+    if (isFrozen) return;
     setTransferErr("");
     setNewOwnerId("");
     setEvidenceType("ADMIN_TRANSFER");
@@ -389,6 +403,42 @@ export default function ItemDetails() {
   function closeTransferOwnershipModal() {
     if (transferBusy) return;
     setTransferOpen(false);
+  }
+
+  async function restoreFrozenItem() {
+    if (!item?.id) return;
+    setWorking(true);
+    try {
+      if (isDeleted) {
+        await restoreItem(item.id);
+        showToastMsg("Item restored.", "success");
+      } else if (isLegacy) {
+        await restoreLegacyItem(item.id);
+        showToastMsg("Item restored from legacy.", "success");
+      }
+      setTimeout(() => navigate("/items"), 600);
+    } catch (e) {
+      showToastMsg(e?.message || "Restore failed", "error");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function confirmRestoreFrozen() {
+    if (!item?.id) return;
+    const label = isDeleted ? "Restore deleted item" : "Restore legacy item";
+    const msg = isDeleted
+      ? `Restore "${item.name || item.id}" back to active items?`
+      : `Restore "${item.name || item.id}" from legacy back to active items?`;
+    const ok = await confirm({
+      title: "Confirm",
+      message: msg,
+      confirmLabel: "Restore",
+      cancelLabel: "Cancel",
+      variant: "default",
+    }).catch(() => false);
+    if (!ok) return;
+    await restoreFrozenItem();
   }
 
   async function submitTransferOwnership() {
@@ -779,14 +829,23 @@ export default function ItemDetails() {
                   <h1 className="text-xl sm:text-2xl font-extrabold text-iregistrygreen truncate">
                     {item.name || "Untitled"}
                   </h1>
+                  {isDeleted ? (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-200">
+                      Deleted
+                    </span>
+                  ) : isLegacy ? (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-slate-50 text-slate-700 border-slate-200">
+                      Legacy
+                    </span>
+                  ) : null}
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${
-                      item.status === "Stolen"
+                      derivedState === "Stolen"
                         ? "bg-red-50 text-red-700 border-red-100"
                         : "bg-emerald-50 text-emerald-800 border-emerald-100"
                     }`}
                   >
-                    {item.status || "—"}
+                    {isFrozen ? "—" : derivedState}
                   </span>
                   {item.category ? (
                     <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-100">
@@ -809,7 +868,15 @@ export default function ItemDetails() {
                   Back
                 </RippleButton>
 
-                {roleIs(user?.role, "admin") ? (
+                {isFrozen ? (
+                  <RippleButton
+                    className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:opacity-95 disabled:opacity-60"
+                    onClick={() => void confirmRestoreFrozen()}
+                    disabled={working}
+                  >
+                    {working ? "Restoring…" : "Restore"}
+                  </RippleButton>
+                ) : roleIs(user?.role, "admin") ? (
                   <RippleButton
                     className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm"
                     onClick={openTransferOwnershipModal}
@@ -818,21 +885,25 @@ export default function ItemDetails() {
                   </RippleButton>
                 ) : null}
 
-                <RippleButton
-                  className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
-                  onClick={() => void goToEdit()}
-                  disabled={tasksLoading}
-                  title={tasksLoading ? "Loading credit prices…" : undefined}
-                >
-                  Edit
-                </RippleButton>
+                {!isFrozen ? (
+                  <>
+                    <RippleButton
+                      className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
+                      onClick={() => void goToEdit()}
+                      disabled={tasksLoading}
+                      title={tasksLoading ? "Loading credit prices…" : undefined}
+                    >
+                      Edit
+                    </RippleButton>
 
-                <RippleButton
-                  className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm"
-                  onClick={openDeleteModal}
-                >
-                  Delete
-                </RippleButton>
+                    <RippleButton
+                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm"
+                      onClick={openDeleteModal}
+                    >
+                      Delete
+                    </RippleButton>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1051,7 +1122,7 @@ export default function ItemDetails() {
 
               {/* Details + activity */}
               <div className="lg:col-span-7 space-y-4">
-                {item.status === "Stolen" ? (
+                {isStolen ? (
                   <div className="rounded-3xl border border-slate-200 bg-slate-50/90 shadow-sm p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-600 mb-3">
                       Police recovery case

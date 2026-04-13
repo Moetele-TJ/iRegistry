@@ -129,7 +129,7 @@ export function getEditItemPreviewCharges({
   if (!willUpdateItemChargeOwnerWallet(actorRole, ownerRole)) return [];
 
   const codes = [];
-  if (storedItem?.status === "Active" && form?.status === "Stolen") {
+  if (!storedItem?.deletedAt && !storedItem?.legacyAt && !storedItem?.reportedStolenAt && form?.status === "Stolen") {
     codes.push("MARK_STOLEN");
   }
   if (Array.isArray(photoPreviews) && photoPreviews.length > 0) {
@@ -179,7 +179,7 @@ export function getEditEntryApplicableTaskCodes(item, actorRole, ownerRole) {
   if (!willUpdateItemChargeOwnerWallet(actorRole, ownerRole)) return [];
 
   const codes = [];
-  if (item?.status === "Active") codes.push("MARK_STOLEN");
+  if (!item?.deletedAt && !item?.legacyAt && !item?.reportedStolenAt) codes.push("MARK_STOLEN");
   if (getItemPhotoCount(item) < 5) codes.push("UPLOAD_PHOTOS");
   codes.push("EDIT_ITEM");
   return codes;

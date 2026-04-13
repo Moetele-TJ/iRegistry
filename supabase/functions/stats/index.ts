@@ -80,7 +80,9 @@ serve(async (req) => {
         supabase
           .from("items")
           .select("*", { count: "exact", head: true })
-          .eq("status", "Stolen"),
+          .not("reportedstolenat", "is", null)
+          .is("deletedat", null)
+          .is("legacyat", null),
         /*supabase
           .from("audit_logs")
           .select("*", { count: "exact", head: true })

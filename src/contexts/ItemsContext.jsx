@@ -103,7 +103,6 @@ function normalizeFromDB(row) {
     // Legacy: keep `location` mapped for older UI bits (treated as station historically).
     location: row.location ?? row.station ?? null,
     lastSeen: row.lastseen,
-    status: row.status,
     reportedStolenAt: row.reportedstolenat,
 
     photos: row.photos || [],

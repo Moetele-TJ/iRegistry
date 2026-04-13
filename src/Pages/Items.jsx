@@ -18,6 +18,11 @@ import {
   isPrivilegedRole,
 } from "../lib/billingUx.js";
 import { roleIs } from "../lib/roleUtils.js";
+import {
+  getItemDerivedState,
+  isItemFrozen,
+  isItemReportedStolen,
+} from "../lib/itemState.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -399,7 +404,9 @@ export default function Items({ view = "active" } = {}) {
   const filtered = useMemo(() => {
     let list = items.slice();
 
-    if (statusFilter !== "All") list = list.filter((i) => i.status === statusFilter);
+    if (statusFilter !== "All") {
+      list = list.filter((i) => getItemDerivedState(i) === statusFilter);
+    }
     if (categoryFilter !== "All") list = list.filter((i) => i.category === categoryFilter);
 
     const qTrim = (query || "").trim();
@@ -430,7 +437,9 @@ export default function Items({ view = "active" } = {}) {
         if (!da && db) return 1;
         return 0;
       }
-      if (sortBy === "status") return (a.status || "").localeCompare(b.status || "");
+      if (sortBy === "status") {
+        return getItemDerivedState(a).localeCompare(getItemDerivedState(b));
+      }
       return 0;
     });
 
@@ -505,8 +514,8 @@ export default function Items({ view = "active" } = {}) {
 
   const stats = useMemo(() => {
     const totalItems = items.length;
-    const activeItems = items.filter((i) => i.status === "Active").length;
-    const stolenItems = items.filter((i) => i.status === "Stolen").length;
+    const activeItems = items.filter((i) => getItemDerivedState(i) === "Active").length;
+    const stolenItems = items.filter((i) => getItemDerivedState(i) === "Stolen").length;
     return { totalItems, activeItems, stolenItems };
   }, [items]);
 
@@ -570,7 +579,7 @@ export default function Items({ view = "active" } = {}) {
     const it = items.find((x) => x.id === id);
     if (!it) return;
 
-    const next = it.status === "Stolen" ? "Active" : "Stolen";
+    const next = isItemReportedStolen(it) ? "Active" : "Stolen";
 
     try {
       if (next === "Stolen") {
@@ -626,7 +635,7 @@ export default function Items({ view = "active" } = {}) {
   function confirmToggleStatus(id) {
     const it = items.find((x) => x.id === id);
     if (!it) return;
-    const next = it.status === "Stolen" ? "Active" : "Stolen";
+    const next = isItemReportedStolen(it) ? "Active" : "Stolen";
 
     if (next === "Stolen") {
       const ownerRole = it.ownerRole ?? null;
@@ -735,7 +744,7 @@ export default function Items({ view = "active" } = {}) {
         i.category || "",
         i.make || "",
         i.model || "",
-        i.status || "",
+        getItemDerivedState(i) || "",
         i.lastSeen || "",
         i.village || "",
         i.ward || "",
@@ -1176,22 +1185,31 @@ export default function Items({ view = "active" } = {}) {
                       <td className="py-4 px-5 text-gray-600">{item.category}</td>
                       <td className="py-4 px-5">
                         <div className="flex flex-col items-start gap-1">
+                          {(() => {
+                            const st = getItemDerivedState(item);
+                            const stolen = st === "Stolen";
+                            return (
+                              <>
 
-                          <span
-                            className={
-                              "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
-                              statusBadge(item.status)
-                            }
-                          >
-                            {item.status || "—"}
-                          </span>
+                                <span
+                                  className={
+                                    "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
+                                    statusBadge(st)
+                                  }
+                                >
+                                  {st || "—"}
+                                </span>
 
-                          {item.status === "Stolen" && item.reportedStolenAt && (
-                            <div className="text-xs text-red-500">
-                              Reported {new Date(item.reportedStolenAt).toLocaleDateString("en-BW")}
-                            </div>
-                          )}
+                                {stolen && item.reportedStolenAt && (
+                                  <div className="text-xs text-red-500">
+                                    Reported{" "}
+                                    {new Date(item.reportedStolenAt).toLocaleDateString("en-BW")}
+                                  </div>
+                                )}
 
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                       {showStationQueue ? (
@@ -1260,16 +1278,18 @@ export default function Items({ view = "active" } = {}) {
 
                           {!queueRowReadOnly(item) ? (
                             <>
-                              <RippleButton
-                                className={`px-3 py-1 rounded-md text-xs ${
-                                  item.status === "Stolen"
-                                    ? "bg-emerald-600 text-white"
-                                    : "bg-red-600 text-white"
-                                }`}
-                                onClick={() => confirmToggleStatus(item.id)}
-                              >
-                                {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
-                              </RippleButton>
+                              {view === "active" && !isItemFrozen(item) ? (
+                                <RippleButton
+                                  className={`px-3 py-1 rounded-md text-xs ${
+                                    isItemReportedStolen(item)
+                                      ? "bg-emerald-600 text-white"
+                                      : "bg-red-600 text-white"
+                                  }`}
+                                  onClick={() => confirmToggleStatus(item.id)}
+                                >
+                                  {isItemReportedStolen(item) ? "Mark Active" : "Mark Stolen"}
+                                </RippleButton>
+                              ) : null}
 
                               {view === "active" ? (
                                 <>
@@ -1329,7 +1349,8 @@ export default function Items({ view = "active" } = {}) {
         {/* ===== Mobile Cards ===== */}
         <div className="sm:hidden space-y-4 active:scale-[0.99] active:shadow-inner">
           {pageItems.map((item) => {
-            const isStolen = item.status === "Stolen";
+            const st = getItemDerivedState(item);
+            const isStolen = st === "Stolen";
             const isSelected = statusFilter !== "All";
 
             return (
@@ -1409,10 +1430,10 @@ export default function Items({ view = "active" } = {}) {
                               : "bg-emerald-100 text-emerald-700 border-emerald-200"}
                           `}
                         >
-                          {item.status}
+                          {st}
                         </span>
 
-                        {item.status === "Stolen" && item.reportedStolenAt && (
+                        {isStolen && item.reportedStolenAt && (
                           <div className="text-[11px] text-red-500 mt-1">
                             Reported {new Date(item.reportedStolenAt).toLocaleDateString("en-BW")}
                           </div>
@@ -1467,7 +1488,7 @@ export default function Items({ view = "active" } = {}) {
                               day: "2-digit",
                               month: "short",
                             })
-                          : item.status === "Stolen"
+                          : isStolen
                             ? "Never"
                             : "—"}
                       </div>

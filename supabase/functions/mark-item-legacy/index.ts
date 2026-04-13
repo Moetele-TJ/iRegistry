@@ -36,7 +36,7 @@ serve(async (req) => {
 
     const { data: item, error: fetchErr } = await supabase
       .from("items")
-      .select("id, ownerid, name, deletedat, legacyat")
+      .select("id, ownerid, name, deletedat, legacyat, reportedstolenat")
       .eq("id", id)
       .maybeSingle();
 
@@ -52,6 +52,10 @@ serve(async (req) => {
       return respond({ success: false, message: "Item is already in legacy" }, corsHeaders, 409);
     }
 
+    if (item.reportedstolenat) {
+      return respond({ success: false, message: "Cannot legacy a stolen item" }, corsHeaders, 409);
+    }
+
     const isOwner = String(item.ownerid) === actorUserId;
     const privileged = isPrivilegedRole(actorRole);
     if (!isOwner && !privileged) {
@@ -65,6 +69,8 @@ serve(async (req) => {
         legacyat: now,
         legacy_reason: reason,
         legacy_by: actorUserId,
+        // defensive: ensure legacy items are never also stolen
+        reportedstolenat: null,
       })
       .eq("id", id)
       .is("deletedat", null)
@@ -84,6 +90,12 @@ serve(async (req) => {
       message: `Moved "${item.name || "item"}" to legacy`,
       metadata: { reason },
     });
+
+    // Keep embedding flags consistent if this item was ever marked stolen previously.
+    await supabase
+      .from("image_embeddings")
+      .update({ is_stolen: false })
+      .eq("item_id", id);
 
     return respond({ success: true }, corsHeaders, 200);
   } catch (err: any) {

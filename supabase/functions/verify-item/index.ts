@@ -127,11 +127,12 @@ serve(async (req) => {
 
     const { data: item, error } = await supabase
       .from("items")
-      .select("id, status, ownerid")
+      .select("id, ownerid, reportedstolenat")
       .or(
         `serial1_normalized.eq.${cleaned},serial2_normalized.eq.${cleaned}`
       )
       .is("deletedat", null)
+      .is("legacyat", null)
       .limit(1)
       .maybeSingle();
 
@@ -215,7 +216,7 @@ serve(async (req) => {
       throw verifyRpcErr;
     }
 
-    if (item.status === "Stolen") {
+    if (item.reportedstolenat) {
 
       const geo = await getGeoInfo(ip);
 

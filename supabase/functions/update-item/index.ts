@@ -120,6 +120,18 @@ serve(async (req) => {
       );
     }
 
+    if (existing.legacyat) {
+      return respond(
+        {
+          success: false,
+          diag: "ITEM-UPDATE-LEGACY-001",
+          message: "Cannot update a legacy item",
+        },
+        corsHeaders,
+        409
+      );
+    }
+
     /* ---------------- SANITIZE UPDATES ---------------- */
 
     const fieldMap: Record<string, string> = {
@@ -177,15 +189,15 @@ serve(async (req) => {
       if (st) cleanUpdates.location = st;
     }
 
-    /* ---------------- STATUS HANDLING ---------------- */
-
-    const initialStatusChange =
-      "status" in cleanUpdates && cleanUpdates.status !== existing.status;
+    /* ---------------- DERIVED STATE (NO items.status) ----------------
+     * We treat "stolen" as derived from `reportedstolenat`.
+     * Back-compat: accept legacy `status` ("Active"/"Stolen") but translate it into `reportedstolenat`
+     * and do not persist `status` to the DB anymore.
+     */
 
     if ("status" in cleanUpdates) {
-      const newStatus = cleanUpdates.status;
-
-      if (!["Active", "Stolen"].includes(newStatus)) {
+      const legacy = cleanUpdates.status;
+      if (!["Active", "Stolen"].includes(legacy)) {
         return respond(
           {
             success: false,
@@ -197,18 +209,50 @@ serve(async (req) => {
         );
       }
 
-      // Only mutate reportedstolenat when status actually changes.
-      // This prevents "resetting" timestamps and side effects when UI sends the same status again.
-      if (initialStatusChange) {
-        if (newStatus === "Stolen") {
+      // Translate legacy `status` to `reportedstolenat` intent.
+      if (legacy === "Stolen") {
+        if (existing.reportedstolenat == null && !("reportedstolenat" in cleanUpdates)) {
           cleanUpdates.reportedstolenat = new Date().toISOString();
         }
-
-        if (newStatus === "Active") {
-          cleanUpdates.reportedstolenat = null;
-        }
+      }
+      if (legacy === "Active") {
+        cleanUpdates.reportedstolenat = null;
       }
 
+      // Never persist status column going forward.
+      delete cleanUpdates.status;
+    }
+
+    if ("reportedstolenat" in cleanUpdates) {
+      const v = cleanUpdates.reportedstolenat;
+      if (v === null) {
+        // ok (becoming active)
+      } else if (typeof v === "string") {
+        const trimmed = v.trim();
+        const parsed = Date.parse(trimmed);
+        if (!trimmed || Number.isNaN(parsed)) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-UPDATE-STOLENAT-001",
+              message: "Invalid reportedStolenAt value",
+            },
+            corsHeaders,
+            400
+          );
+        }
+        cleanUpdates.reportedstolenat = new Date(parsed).toISOString();
+      } else {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-STOLENAT-001",
+            message: "Invalid reportedStolenAt value",
+          },
+          corsHeaders,
+          400
+        );
+      }
     }
 
     /* Deep-compare (same as prune below): billing must not charge EDIT_ITEM for unchanged fields. */
@@ -445,11 +489,16 @@ serve(async (req) => {
     }
 
     /* ---------------- POLICE CASE RULES (before update) ---------------- */
-    /* Use pruned cleanUpdates so status/field intent matches what we will persist */
-    const statusChanged =
-      "status" in cleanUpdates && cleanUpdates.status !== existing.status;
-    const becomingStolen = statusChanged && cleanUpdates.status === "Stolen";
-    const becomingActive = statusChanged && cleanUpdates.status === "Active";
+    /* Use pruned cleanUpdates so intent matches what we will persist */
+    const existingStolen = existing.reportedstolenat !== null;
+    const nextReportedStolenAt =
+      "reportedstolenat" in cleanUpdates
+        ? cleanUpdates.reportedstolenat
+        : existing.reportedstolenat;
+    const nextStolen = nextReportedStolenAt !== null;
+    const stolenFlagChanged = existingStolen !== nextStolen;
+    const becomingStolen = stolenFlagChanged && nextStolen;
+    const becomingActive = stolenFlagChanged && !nextStolen;
 
     if (becomingStolen) {
       const { data: openCase } = await supabase
@@ -519,7 +568,7 @@ serve(async (req) => {
     let needEditItem = false;
 
     if (!actorIsPrivileged && !ownerIsPrivileged) {
-      needMarkStolen = Boolean(statusChanged && cleanUpdates.status === "Stolen");
+      needMarkStolen = Boolean(becomingStolen);
 
       if ("photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
         const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
@@ -543,7 +592,7 @@ serve(async (req) => {
       const keys = Object.keys(cleanUpdates);
       const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
       const hasNonPhotoNonStatusChange = meaningful.some((k) => {
-        if (k === "photos" || k === "status") return false;
+        if (k === "photos") return false;
         const existingVal = (existing as any)[k];
         const v = (cleanUpdates as any)[k];
         return !deepEqual(existingVal, v);
@@ -623,7 +672,7 @@ serve(async (req) => {
 
     /* ---------------- SYNC EMBEDDING STATUS ---------------- */
 
-    if (statusChanged) {
+    if (stolenFlagChanged) {
 
       const isStolen = updatedItem.reportedstolenat !== null;
 
@@ -639,14 +688,13 @@ serve(async (req) => {
     let action = "ITEM_UPDATED";
     let message = `Updated item ${updatedItem.name}`;
 
-    if (statusChanged) {
-
-      if (cleanUpdates.status === "Stolen") {
+    if (stolenFlagChanged) {
+      if (becomingStolen) {
         action = "ITEM_REPORTED_STOLEN";
         message = `${updatedItem.name} was reported stolen`;
       }
 
-      if (cleanUpdates.status === "Active") {
+      if (becomingActive) {
         action = "ITEM_MARKED_ACTIVE";
         message = `${updatedItem.name} was marked active`;
       }
@@ -691,7 +739,6 @@ serve(async (req) => {
         await supabase
           .from("items")
           .update({
-            status: existing.status,
             reportedstolenat: existing.reportedstolenat,
           })
           .eq("id", id);

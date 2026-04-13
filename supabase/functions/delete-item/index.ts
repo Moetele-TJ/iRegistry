@@ -75,7 +75,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchError } = await supabase
       .from("items")
-      .select("id, ownerid, name, deletedat")
+      .select("id, ownerid, name, deletedat, legacyat, reportedstolenat")
       .eq("id", id)
       .is("deletedat",null)
       .maybeSingle();
@@ -127,7 +127,14 @@ serve(async (req) => {
 
     const { error: deleteError } = await supabase
       .from("items")
-      .update({ deletedat: deletedAt})
+      .update({
+        deletedat: deletedAt,
+        // defensive: deleted items should not also be legacy or stolen
+        legacyat: null,
+        legacy_reason: null,
+        legacy_by: null,
+        reportedstolenat: null,
+      })
       .eq("id", id);
 
     if (deleteError) {
@@ -156,6 +163,12 @@ serve(async (req) => {
         deletedAt,
       },
     });
+
+    // Keep embedding flags consistent.
+    await supabase
+      .from("image_embeddings")
+      .update({ is_stolen: false })
+      .eq("item_id", id);
 
     /* ---------------- RESPONSE ---------------- */
 

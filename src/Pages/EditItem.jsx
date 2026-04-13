@@ -20,6 +20,7 @@ import {
   willUpdateItemChargeOwnerWallet,
   isPrivilegedRole,
 } from "../lib/billingUx.js";
+import { isItemFrozen, isItemReportedStolen } from "../lib/itemState.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 
@@ -270,7 +271,7 @@ export default function EditItem() {
         shop: found.shop || "",
         warrantyExpiry: toDateInputValue(found.warrantyExpiry),
         notes: found.notes || "",
-        status: found.status === "Stolen" ? "Stolen" : "Active",
+        status: isItemReportedStolen(found) ? "Stolen" : "Active",
       });
       setExistingPhotos(normalizePhotos(found.photos));
       setPhotoPreviews([]);
@@ -516,6 +517,14 @@ export default function EditItem() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!storedItem) return;
+    if (isItemFrozen(storedItem)) {
+      await alert({
+        title: "Read only",
+        message: "This item is deleted or legacy and can only be restored.",
+        variant: "warning",
+      });
+      return;
+    }
 
     if (serialError) {
       await alert({
@@ -699,7 +708,7 @@ export default function EditItem() {
       const extra = {};
       if (
         form.status === "Stolen" &&
-        storedItem.status === "Active" &&
+        !isItemReportedStolen(storedItem) &&
         policeStation.trim()
       ) {
         extra.policeStation = policeStation.trim();
@@ -968,7 +977,7 @@ export default function EditItem() {
             </select>
           </Field>
 
-          {form.status === "Stolen" && storedItem.status === "Active" && (
+          {form.status === "Stolen" && !isItemReportedStolen(storedItem) && (
             <Field label="Reporting station (optional)">
               <input
                 value={policeStation}

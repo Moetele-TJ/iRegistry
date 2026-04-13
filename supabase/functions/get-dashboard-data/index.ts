@@ -57,16 +57,17 @@ serve(async (req) => {
 
     const { data: itemStats } = await supabase
       .from("items")
-      .select("status")
+      .select("reportedstolenat")
       .eq("ownerid", userId)
-      .is("deletedat", null);
+      .is("deletedat", null)
+      .is("legacyat", null);
 
     let activeItems = 0;
     let stolenItems = 0;
 
-    (itemStats || []).forEach((item) => {
-      if (item.status === "Active") activeItems++;
-      if (item.status === "Stolen") stolenItems++;
+    (itemStats || []).forEach((item: any) => {
+      if (item.reportedstolenat) stolenItems++;
+      else activeItems++;
     });
 
     const { data: notificationStats } = await supabase
