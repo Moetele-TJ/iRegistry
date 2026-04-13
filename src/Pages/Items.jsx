@@ -124,7 +124,7 @@ function photoEntryPath(entry, preferThumb = true) {
   return null;
 }
 
-export default function Items() {
+export default function Items({ view = "active" } = {}) {
   const { confirm } = useModal();
   const navigate = useNavigate();
   /** `/items` has no dashboard layout padding; nested `/userdashboard/items` already does. */
@@ -134,6 +134,9 @@ export default function Items() {
     loading,
     updateItem,
     deleteItem,
+    restoreItem,
+    markLegacyItem,
+    restoreLegacyItem,
     refreshItems,
   } = useItems();
 
@@ -169,6 +172,20 @@ export default function Items() {
     setPoliceShowStolenAtStation(false);
     setSelectedOwnerId(user?.id || "");
   }, [user?.id, role]);
+
+  useEffect(() => {
+    // When used as a dedicated page (deleted/legacy), refresh the backing list accordingly.
+    // The main ItemsProvider initial load fetches active items; this overrides it when needed.
+    if (!user?.id) return;
+    if (view === "deleted") {
+      void refreshItems({ ownerId: user.id, includeDeleted: true, deletedOnly: true, includeLegacy: true });
+    } else if (view === "legacy") {
+      void refreshItems({ ownerId: user.id, includeLegacy: true, legacyOnly: true, includeDeleted: true });
+    } else {
+      void refreshItems({ ownerId: user.id, includeDeleted: false, includeLegacy: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, user?.id]);
 
   useEffect(() => {
     if (!isPrivileged) return;
@@ -492,6 +509,61 @@ export default function Items() {
     return { totalItems, activeItems, stolenItems };
   }, [items]);
 
+  async function doRestoreDeleted(id) {
+    await restoreItem(id);
+  }
+
+  async function doMarkLegacy(id, reason = null) {
+    await markLegacyItem(id, { reason });
+  }
+
+  async function doRestoreLegacy(id) {
+    await restoreLegacyItem(id);
+  }
+
+  function confirmRestoreDeleted(id) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    openConfirm({
+      title: "Restore item",
+      message: `Restore "${it.name || it.id}" back to your active items?`,
+      confirmLabel: "Restore",
+      cancelLabel: "Cancel",
+      danger: false,
+      action: doRestoreDeleted,
+      arg: id,
+      afterConfirmMessage: `${it.name || it.id} restored`,
+    });
+  }
+
+  function confirmLegacy(id) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    openConfirm({
+      title: "Move to legacy",
+      message: `Move "${it.name || it.id}" to legacy? It will no longer appear in active items, but you can restore it later.`,
+      confirmLabel: "Move to legacy",
+      cancelLabel: "Cancel",
+      danger: false,
+      action: () => doMarkLegacy(id, null),
+      afterConfirmMessage: `${it.name || it.id} moved to legacy`,
+    });
+  }
+
+  function confirmRestoreLegacy(id) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    openConfirm({
+      title: "Restore from legacy",
+      message: `Restore "${it.name || it.id}" back to your active items?`,
+      confirmLabel: "Restore",
+      cancelLabel: "Cancel",
+      danger: false,
+      action: () => doRestoreLegacy(id),
+      afterConfirmMessage: `${it.name || it.id} restored`,
+    });
+  }
+
   // ----------Mark Stolen/Active............................
   async function doToggleStatus(id, getPoliceStation) {
     const it = items.find((x) => x.id === id);
@@ -805,23 +877,35 @@ export default function Items() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
-                  {showStationQueue ? "Station stolen queue" : "My Items"}
+                  {showStationQueue
+                    ? "Station stolen queue"
+                    : view === "deleted"
+                      ? "Deleted items"
+                      : view === "legacy"
+                        ? "Legacy items"
+                        : "My Items"}
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
                   {showStationQueue
                     ? "Open cases reported to your station (matched on the case record). Item status and case pipeline are shown below."
-                    : "Manage and monitor your registered assets"}
+                    : view === "deleted"
+                      ? "Soft-deleted items you can restore back to active."
+                      : view === "legacy"
+                        ? "Obsolete items kept for reference (read-only). Restore to bring them back to active."
+                        : "Manage and monitor your registered assets"}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-                <RippleButton
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
-                  onClick={() => void goToAddItem()}
-                  disabled={addPreflightLoading}
-                  title={addPreflightLoading ? "Loading credit prices…" : undefined}
-                >
-                  + Add Item
-                </RippleButton>
+                {view === "active" ? (
+                  <RippleButton
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
+                    onClick={() => void goToAddItem()}
+                    disabled={addPreflightLoading}
+                    title={addPreflightLoading ? "Loading credit prices…" : undefined}
+                  >
+                    + Add Item
+                  </RippleButton>
+                ) : null}
                 <RippleButton
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200/80 bg-white/90 text-sm font-medium text-gray-700 shadow-sm hover:bg-white transition-colors"
                   onClick={handleExportCSV}
@@ -890,18 +974,20 @@ export default function Items() {
 
               {/* Filters */}
               <div className="flex gap-3 flex-wrap">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="border rounded-xl px-3 py-2"
-                >
-                  <option value="All">All statuses</option>
-                  <option value="Active">Active</option>
-                  <option value="Stolen">Stolen</option>
-                </select>
+                {view === "active" ? (
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="border rounded-xl px-3 py-2"
+                  >
+                    <option value="All">All statuses</option>
+                    <option value="Active">Active</option>
+                    <option value="Stolen">Stolen</option>
+                  </select>
+                ) : null}
 
                 <select
                   value={categoryFilter}
@@ -1184,12 +1270,36 @@ export default function Items() {
                                 {item.status === "Stolen" ? "Mark Active" : "Mark Stolen"}
                               </RippleButton>
 
-                              <RippleButton
-                                className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
-                                onClick={() => confirmDelete(item.id)}
-                              >
-                                Delete
-                              </RippleButton>
+                              {view === "active" ? (
+                                <>
+                                  <RippleButton
+                                    className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
+                                    onClick={() => confirmLegacy(item.id)}
+                                  >
+                                    Legacy
+                                  </RippleButton>
+                                  <RippleButton
+                                    className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
+                                    onClick={() => confirmDelete(item.id)}
+                                  >
+                                    Delete
+                                  </RippleButton>
+                                </>
+                              ) : view === "deleted" ? (
+                                <RippleButton
+                                  className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
+                                  onClick={() => confirmRestoreDeleted(item.id)}
+                                >
+                                  Restore
+                                </RippleButton>
+                              ) : view === "legacy" ? (
+                                <RippleButton
+                                  className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
+                                  onClick={() => confirmRestoreLegacy(item.id)}
+                                >
+                                  Restore
+                                </RippleButton>
+                              ) : null}
                             </>
                           ) : (
                             <span className="text-xs text-gray-400">View only</span>

@@ -809,3 +809,15 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/list-audit-facets/deno.json"
 entrypoint = "./functions/list-audit-facets/index.ts"
+
+[functions.mark-item-legacy]
+enabled = true
+verify_jwt = true
+import_map = "./functions/mark-item-legacy/deno.json"
+entrypoint = "./functions/mark-item-legacy/index.ts"
+
+[functions.restore-legacy-item]
+enabled = true
+verify_jwt = true
+import_map = "./functions/restore-legacy-item/deno.json"
+entrypoint = "./functions/restore-legacy-item/index.ts"

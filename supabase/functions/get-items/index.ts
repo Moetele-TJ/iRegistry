@@ -81,6 +81,9 @@ serve(async (req) => {
       page,
       pageSize,
       includeDeleted,
+      deletedOnly,
+      includeLegacy,
+      legacyOnly,
       category,
       make,
       model,
@@ -228,6 +231,9 @@ serve(async (req) => {
 
     query = applyItemFilters(query, {
       includeDeleted,
+      deletedOnly,
+      includeLegacy,
+      legacyOnly,
       category,
       make,
       model,

@@ -24,6 +24,8 @@ import AppLayout from "./Layouts/AppLayout.jsx";
 import UserDashboard from "./Pages/UserDashboard.jsx";
 import UserLayout from "./Pages/user/UserLayout.jsx";
 import UserItemsPage from "./Pages/user/UserItemsPage.jsx";
+import UserDeletedItemsPage from "./Pages/user/UserDeletedItemsPage.jsx";
+import UserLegacyItemsPage from "./Pages/user/UserLegacyItemsPage.jsx";
 import UserNotificationsPage from "./Pages/user/UserNotificationsPage.jsx";
 import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
 import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
@@ -107,6 +109,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route index element={<UserDashboard />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<UserItemsPage />} />
+                    <Route path="items/deleted" element={<UserDeletedItemsPage />} />
+                    <Route path="items/legacy" element={<UserLegacyItemsPage />} />
                     <Route path="notifications" element={<UserNotificationsPage />} />
                     <Route path="activity" element={<UserActivityPage />} />
                     <Route path="transactions" element={<UserTransactionsPage />} />

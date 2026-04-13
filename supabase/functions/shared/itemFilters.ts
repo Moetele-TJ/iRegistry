@@ -3,6 +3,9 @@
 export function applyItemFilters(query: any, filters: any) {
   const {
     includeDeleted,
+    deletedOnly,
+    includeLegacy,
+    legacyOnly,
     category,
     make,
     model,
@@ -15,8 +18,19 @@ export function applyItemFilters(query: any, filters: any) {
 
   /* ================= DELETED ================= */
 
-  if (!includeDeleted) {
+  if (deletedOnly) {
+    query = query.not("deletedat", "is", null);
+  } else if (!includeDeleted) {
     query = query.is("deletedat", null);
+  }
+
+  /* ================= LEGACY / OBSOLETE ================= */
+
+  if (legacyOnly) {
+    // Legacy items are a separate bucket; do not mix with deleted.
+    query = query.not("legacyat", "is", null).is("deletedat", null);
+  } else if (!includeLegacy) {
+    query = query.is("legacyat", null);
   }
 
   /* ================= BASIC FILTERS ================= */

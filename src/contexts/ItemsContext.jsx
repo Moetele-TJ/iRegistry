@@ -117,6 +117,9 @@ function normalizeFromDB(row) {
     createdOn: row.createdon,
     updatedOn: row.updatedon,
     deletedAt: row.deletedat,
+    legacyAt: row.legacyat ?? null,
+    legacyReason: row.legacy_reason ?? null,
+    legacyBy: row.legacy_by ?? null,
 
     policeCase: normalizePoliceCase(row.police_case),
 
@@ -162,6 +165,9 @@ export function ItemsProvider({ children }) {
             ownerId: filters.ownerId ?? user.id,
             policeStationStolenView: filters.policeStationStolenView,
             includeDeleted: filters.includeDeleted,
+            deletedOnly: filters.deletedOnly,
+            includeLegacy: filters.includeLegacy,
+            legacyOnly: filters.legacyOnly,
             category: filters.category,
             make: filters.make,
             model: filters.model,
@@ -346,6 +352,48 @@ export function ItemsProvider({ children }) {
     }
   }
 
+  /* ---------------- LEGACY (OBSOLETE) ---------------- */
+
+  async function markLegacyItem(id, { reason = null } = {}) {
+    dispatch({ type: "SET_ERROR", payload: null });
+    dispatch({ type: "SET_LOADING", payload: true });
+    try {
+      const { data, error } = await invokeWithAuth("mark-item-legacy", {
+        body: { id, reason },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to move item to legacy");
+      }
+      await refreshItems({ includeLegacy: true });
+      return true;
+    } catch (err) {
+      dispatch({ type: "SET_ERROR", payload: err.message || "Failed to move item to legacy" });
+      throw err;
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
+  async function restoreLegacyItem(id) {
+    dispatch({ type: "SET_ERROR", payload: null });
+    dispatch({ type: "SET_LOADING", payload: true });
+    try {
+      const { data, error } = await invokeWithAuth("restore-legacy-item", {
+        body: { id },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to restore legacy item");
+      }
+      await refreshItems({ includeLegacy: true });
+      return true;
+    } catch (err) {
+      dispatch({ type: "SET_ERROR", payload: err.message || "Failed to restore legacy item" });
+      throw err;
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
+    }
+  }
+
   /* ---------------- HARD DELETE ITEM ---------------- */
   async function hardDeleteItem(id) {
 
@@ -417,6 +465,8 @@ export function ItemsProvider({ children }) {
           updateItem,
           deleteItem,
           restoreItem,
+          markLegacyItem,
+          restoreLegacyItem,
           hardDeleteItem,
           transferOwnership,
         }}
@@ -449,6 +499,8 @@ export function useItems() {
     deleteItem: actions.deleteItem,
     refreshItems: actions.refreshItems,
     restoreItem: actions.restoreItem,
+    markLegacyItem: actions.markLegacyItem,
+    restoreLegacyItem: actions.restoreLegacyItem,
     hardDeleteItem: actions.hardDeleteItem,
     transferOwnership: actions.transferOwnership,
   };
