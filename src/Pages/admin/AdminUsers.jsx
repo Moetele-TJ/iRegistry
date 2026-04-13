@@ -222,6 +222,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const { confirm } = useModal();
 
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
+  const profileListBase = canAdminister ? "/admindashboard/profile" : "/cashierdashboard/profile";
 
   const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(null); // user being edited or null
@@ -1090,8 +1091,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 return (
                   <div key={u.id} className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 lg:gap-8 border rounded-lg p-3">
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-gray-900">
-                        {displayName(u)}{" "}
+                      <div className="font-medium text-gray-900 min-w-0">
+                        <Link
+                          to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
+                          className="text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
+                        >
+                          {displayName(u)}
+                        </Link>
                         <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
                       </div>
                       <div className="text-xs text-gray-500">
@@ -1106,35 +1112,29 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3 shrink-0">
-                      <Link
-                        to={`/admindashboard/profile?user=${encodeURIComponent(u.id)}`}
-                        className="text-sm font-semibold text-iregistrygreen hover:underline whitespace-nowrap"
-                      >
-                        View profile
-                      </Link>
-                    <UserRowActionControls
-                      key={u.id}
-                      userId={u.id}
-                      role={u.role}
-                      statusLower={st}
-                      self={self}
-                      rowBusy={rowBusy}
-                      loading={loading}
-                      onRoleChange={(next) => void quickChangeRole(u, next)}
-                      onMobileAction={(action) => {
-                        if (action === "change_role") return openRoleModal(u);
-                        if (action === "suspend") return openSuspendModal(u, "suspended");
-                        if (action === "disable") return openSuspendModal(u, "disabled");
-                        if (action === "reactivate") return void quickReactivate(u);
-                        if (action === "edit") return startEdit(u);
-                        if (action === "delete") return void handleDelete(u.id);
-                      }}
-                      onSuspend={() => openSuspendModal(u, "suspended")}
-                      onDisable={() => openSuspendModal(u, "disabled")}
-                      onReactivate={() => void quickReactivate(u)}
-                      onEdit={() => startEdit(u)}
-                      onDelete={() => handleDelete(u.id)}
-                    />
+                      <UserRowActionControls
+                        key={u.id}
+                        userId={u.id}
+                        role={u.role}
+                        statusLower={st}
+                        self={self}
+                        rowBusy={rowBusy}
+                        loading={loading}
+                        onRoleChange={(next) => void quickChangeRole(u, next)}
+                        onMobileAction={(action) => {
+                          if (action === "change_role") return openRoleModal(u);
+                          if (action === "suspend") return openSuspendModal(u, "suspended");
+                          if (action === "disable") return openSuspendModal(u, "disabled");
+                          if (action === "reactivate") return void quickReactivate(u);
+                          if (action === "edit") return startEdit(u);
+                          if (action === "delete") return void handleDelete(u.id);
+                        }}
+                        onSuspend={() => openSuspendModal(u, "suspended")}
+                        onDisable={() => openSuspendModal(u, "disabled")}
+                        onReactivate={() => void quickReactivate(u)}
+                        onEdit={() => startEdit(u)}
+                        onDelete={() => handleDelete(u.id)}
+                      />
                     </div>
                   </div>
                 );
