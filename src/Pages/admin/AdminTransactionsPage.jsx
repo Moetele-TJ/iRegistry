@@ -327,7 +327,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                       <div className="mt-3">
                         {canReverse ? (
                           <RippleButton
-                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-red-600 bg-red-600 text-white text-sm font-semibold shadow-md hover:bg-red-700 hover:border-red-700 active:shadow-sm active:translate-y-[1px] disabled:opacity-60"
                             disabled={!reversible || reversingId === p.id}
                             onClick={() => openReverseModal(p)}
                           >
