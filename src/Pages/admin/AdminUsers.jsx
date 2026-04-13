@@ -43,6 +43,45 @@ const SUSPEND_REASONS = [
   "Other",
 ];
 
+const MSG_NOTHING_TO_SUBMIT =
+  "Nothing to submit — you have not changed any information.";
+
+const ROW_HIGHLIGHT_MS = 4500;
+
+function normStr(v) {
+  return String(v ?? "").trim();
+}
+
+function normEmail(v) {
+  const s = String(v ?? "").trim();
+  return s === "" ? null : s;
+}
+
+/** True when the edit form differs from the server row (user management). */
+function adminEditHasChanges(row, form, canAdminister) {
+  if (!row) return true;
+  if (normStr(form.first_name) !== normStr(row.first_name)) return true;
+  if (normStr(form.last_name) !== normStr(row.last_name)) return true;
+  if (normEmail(form.email) !== normEmail(row.email ?? "")) return true;
+  if (normStr(form.phone) !== normStr(row.phone)) return true;
+  if (normStr(form.police_station) !== normStr(row.police_station)) return true;
+  if (normStr(form.village) !== normStr(row.village)) return true;
+  if (normStr(form.ward) !== normStr(row.ward)) return true;
+  if (!canAdminister) return false;
+
+  const prev = deriveUserStatus(row);
+  if (String(form.role || "user").toLowerCase() !== String(row.role || "user").toLowerCase()) {
+    return true;
+  }
+  if (String(form.status || "active") !== prev) return true;
+
+  const reason = normStr(form.status_reason);
+  if (prev === "suspended" && reason !== normStr(row.suspended_reason)) return true;
+  if (prev === "disabled" && reason !== normStr(row.disabled_reason)) return true;
+
+  return false;
+}
+
 /**
  * Role dropdown width matches the combined width of the action buttons (measured).
  */
@@ -259,6 +298,9 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [roleModal, setRoleModal] = useState({ isOpen: false, user: null });
   const [roleNext, setRoleNext] = useState("");
 
+  const editFormSectionRef = useRef(null);
+  const [highlightUserId, setHighlightUserId] = useState(null);
+
   const isEditing = mode === "edit" && !!editing;
   const isAdding = mode === "add";
   const currentUserId = currentUser?.id != null ? String(currentUser.id) : "";
@@ -292,6 +334,29 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     };
   }, [addToast]);
 
+  useLayoutEffect(() => {
+    if (mode === "idle") return;
+    const el = editFormSectionRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (typeof el.focus === "function") {
+      try {
+        el.focus({ preventScroll: true });
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [mode, editing]);
+
+  useEffect(() => {
+    if (!highlightUserId) return;
+    const id = String(highlightUserId);
+    const t = window.setTimeout(() => setHighlightUserId(null), ROW_HIGHLIGHT_MS);
+    const row = document.getElementById(`admin-user-row-${id}`);
+    row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return () => clearTimeout(t);
+  }, [highlightUserId]);
+
   function startEdit(u) {
     if (isInactiveLockout(u)) {
       addToast({
@@ -300,6 +365,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       });
       return;
     }
+    setHighlightUserId(null);
     setMode("edit");
     setEditing(u.id);
     setForm({
@@ -310,7 +376,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       phone: u.phone || "",
       role: u.role || "user",
       status: deriveUserStatus(u) || "active",
-      status_reason: u.suspended_reason || "",
+      status_reason: u.suspended_reason || u.disabled_reason || "",
       police_station: u.police_station || "",
       village: u.village || "",
       ward: u.ward || "",
@@ -319,6 +385,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   function startAdd() {
     if (!canAdminister) return;
+    setHighlightUserId(null);
     setMode("add");
     setEditing(null);
     setForm({
@@ -407,31 +474,43 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   async function handleSave(e) {
     e.preventDefault();
+    setError("");
+
+    const row = isEditing && editing ? users.find((u) => String(u.id) === String(editing)) : null;
+    if (row && isInactiveLockout(row)) {
+      const msg = "Suspended or disabled accounts cannot be edited. Reactivate the account first.";
+      setError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
+
+    if (isEditing && row && !adminEditHasChanges(row, form, canAdminister)) {
+      addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
+      return;
+    }
+
+    const prevDerived = row ? deriveUserStatus(row) : undefined;
+    const statusIsChanging =
+      isAdding ||
+      (isEditing && typeof prevDerived === "string" && form.status !== prevDerived);
+    const statusNeedsReason = form.status !== "active";
+
+    if (canAdminister) {
+      if (
+        (isAdding || isEditing) &&
+        statusIsChanging &&
+        statusNeedsReason &&
+        !String(form.status_reason || "").trim()
+      ) {
+        const msg = "A reason is required when setting status to suspended/disabled.";
+        setError(msg);
+        addToast({ type: "error", message: msg });
+        return;
+      }
+    }
 
     setLoading(true);
-    setError("");
     try {
-      if (isEditing && editing) {
-        const row = users.find((u) => String(u.id) === String(editing));
-        if (row && isInactiveLockout(row)) {
-          throw new Error("Suspended or disabled accounts cannot be edited. Reactivate the account first.");
-        }
-      }
-
-      const prevStatus =
-        isEditing && editing
-          ? users.find((u) => String(u.id) === String(editing))?.status
-          : undefined;
-      const statusIsChanging =
-        isAdding || (isEditing && typeof prevStatus === "string" && form.status !== prevStatus);
-      const statusNeedsReason = form.status !== "active";
-
-      if (canAdminister) {
-        if ((isAdding || isEditing) && statusIsChanging && statusNeedsReason && !String(form.status_reason || "").trim()) {
-          throw new Error("A reason is required when setting status to suspended/disabled.");
-        }
-      }
-
       if (isAdding) {
         if (!canAdminister) return;
         const ok = await confirm({
@@ -469,6 +548,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         }).catch(() => false);
         if (!ok) return;
 
+        const reasonTrim = String(form.status_reason || "").trim();
         const updates = {
           first_name: form.first_name,
           last_name: form.last_name,
@@ -479,10 +559,15 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           ward: form.ward,
           ...(canAdminister
             ? {
-              role: form.role,
-              status: form.status,
-              suspended_reason: statusNeedsReason ? String(form.status_reason || "").trim() : undefined,
-            }
+                role: form.role,
+                status: form.status,
+                ...(form.status === "suspended" && reasonTrim
+                  ? { suspended_reason: reasonTrim }
+                  : {}),
+                ...(form.status === "disabled" && reasonTrim
+                  ? { disabled_reason: reasonTrim }
+                  : {}),
+              }
             : {}),
         };
 
@@ -494,16 +579,23 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           throw new Error(data?.message || error?.message || "Failed to update user");
         }
         if (String(data?.message || "").toLowerCase().includes("no changes")) {
-          addToast({ type: "info", message: "No changes to save." });
-        } else {
-          addToast({ type: "success", message: "User was updated successfully." });
+          addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
+          await refresh();
+          return;
         }
+        addToast({ type: "success", message: "User was updated successfully." });
       } else {
         return;
       }
 
+      const editedRowId = isEditing && editing ? String(editing) : null;
+
       await refresh();
       closeForm();
+
+      if (editedRowId) {
+        setHighlightUserId(editedRowId);
+      }
     } catch (e) {
       const msg = e.message || "Failed to save user";
       setError(msg);
@@ -526,6 +618,11 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       });
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Update failed");
+      }
+      if (String(data?.message || "").toLowerCase().includes("no changes")) {
+        addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
+        await refresh();
+        return true;
       }
       addToast({
         type: "success",
@@ -886,7 +983,11 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
         {/* Add/Edit form (shown only when active) */}
         {mode !== "idle" ? (
-          <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
+          <div
+            ref={editFormSectionRef}
+            tabIndex={-1}
+            className="bg-white rounded-lg p-4 shadow-sm mb-6 scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 focus-visible:ring-offset-2"
+          >
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">
                 {isAdding ? "Add user" : "Edit user"}
@@ -1088,8 +1189,17 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 const st = deriveUserStatus(u);
                 const rowBusy = quickRowId === String(u.id);
                 const self = isSelf(u.id);
+                const rowHighlighted = highlightUserId != null && String(u.id) === String(highlightUserId);
                 return (
-                  <div key={u.id} className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 lg:gap-8 border rounded-lg p-3">
+                  <div
+                    key={u.id}
+                    id={`admin-user-row-${u.id}`}
+                    className={`flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 lg:gap-8 border rounded-lg p-3 transition-[box-shadow,background-color] duration-500 ${
+                      rowHighlighted
+                        ? "ring-2 ring-iregistrygreen shadow-md bg-emerald-50/70"
+                        : ""
+                    }`}
+                  >
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-gray-900 min-w-0">
                         <Link

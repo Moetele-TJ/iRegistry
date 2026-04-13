@@ -181,7 +181,12 @@ serve(async (req) => {
       if (String(session.user_id) === String(id) && next !== existing.role) {
         return respond({ success: false, message: "You cannot change your own role" }, corsHeaders, 400);
       }
-      clean.role = next;
+      const existingRole = String((existing as { role?: string | null }).role ?? "")
+        .trim()
+        .toLowerCase();
+      if (next !== existingRole) {
+        clean.role = next;
+      }
     }
 
     if ("status" in updates) {
@@ -241,6 +246,29 @@ serve(async (req) => {
             clean.disabled_at = now;
             clean.suspended_reason = null;
             clean.suspended_at = null;
+          }
+        }
+      }
+    }
+
+    // Allow admins to update suspension/disable reason text without a status transition.
+    if (roleIs(session.role, "admin")) {
+      const der = deriveUserStatus(existing);
+      if (der === "suspended" && "suspended_reason" in updates) {
+        const raw = (updates as { suspended_reason?: unknown }).suspended_reason;
+        if (typeof raw === "string") {
+          const sr = raw.trim();
+          if (sr !== String((existing as { suspended_reason?: string | null }).suspended_reason ?? "").trim()) {
+            clean.suspended_reason = sr.slice(0, 500);
+          }
+        }
+      }
+      if (der === "disabled" && "disabled_reason" in updates) {
+        const raw = (updates as { disabled_reason?: unknown }).disabled_reason;
+        if (typeof raw === "string") {
+          const dr = raw.trim();
+          if (dr !== String((existing as { disabled_reason?: string | null }).disabled_reason ?? "").trim()) {
+            clean.disabled_reason = dr.slice(0, 500);
           }
         }
       }

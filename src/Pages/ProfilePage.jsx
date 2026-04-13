@@ -67,6 +67,30 @@ function normalizeIdNumber(s) {
   return String(s ?? "").replace(/\s+/g, "").trim();
 }
 
+const MSG_NOTHING_TO_SUBMIT =
+  "Nothing to submit — you have not changed any information.";
+
+function profileFormMatchesServer(profileUser, form) {
+  if (!profileUser) return false;
+  const ns = (v) => String(v ?? "").trim();
+  const ne = (v) => {
+    const s = String(v ?? "").trim();
+    return s === "" ? null : s;
+  };
+  if (ns(form.first_name) !== ns(profileUser.first_name)) return false;
+  if (ns(form.last_name) !== ns(profileUser.last_name)) return false;
+  if (ne(form.email) !== ne(profileUser.email ?? "")) return false;
+  if (ns(form.phone) !== ns(profileUser.phone)) return false;
+  if (ns(form.village) !== ns(profileUser.village)) return false;
+  if (ns(form.ward) !== ns(profileUser.ward)) return false;
+  if (ns(form.police_station) !== ns(profileUser.police_station)) return false;
+  if (normalizeIdNumber(form.id_number) !== normalizeIdNumber(profileUser.id_number)) return false;
+  const dobForm = String(form.date_of_birth ?? "").trim();
+  const dobSaved = profileDobForInput(profileUser.date_of_birth);
+  if (dobForm !== dobSaved) return false;
+  return true;
+}
+
 function roleLabel(role) {
   const map = {
     user: "Registered user",
@@ -365,6 +389,11 @@ export default function ProfilePage() {
     const origId = normalizeIdNumber(profileUser.id_number);
     const idChanged = id_number !== origId;
 
+    if (profileFormMatchesServer(profileUser, form)) {
+      addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
+      return;
+    }
+
     setFormError("");
     const ok = await confirm({
       title: idChanged ? "Change national ID?" : "Confirm",
@@ -406,7 +435,7 @@ export default function ProfilePage() {
       await loadProfile();
       setEditing(false);
       if (String(data?.message || "").toLowerCase().includes("no changes")) {
-        addToast({ type: "info", message: "No changes to save." });
+        addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
       } else {
         addToast({
           type: "success",
