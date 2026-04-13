@@ -369,7 +369,7 @@ export default function AdminRevenuePage() {
       </div>
 
       {showTransactions ? (
-        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-5">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 sm:p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
               <List size={16} className="text-gray-400" />
@@ -382,7 +382,7 @@ export default function AdminRevenuePage() {
           ) : (
             <>
               {/* Mobile cards */}
-              <div className="md:hidden space-y-3">
+              <div className="md:hidden space-y-3 -mx-1">
                 {tx.map((p) => {
                   const name = p.users
                     ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
@@ -393,7 +393,7 @@ export default function AdminRevenuePage() {
                     ? (p.receipt_no || "—")
                     : (p.provider_reference || p.provider || "—");
                   return (
-                    <div key={p.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div key={p.id} className="w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-gray-900 truncate">{name}</div>

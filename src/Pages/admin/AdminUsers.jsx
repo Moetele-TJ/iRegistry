@@ -198,11 +198,13 @@ function UserRowActionControls({
   );
 }
 
-export default function AdminUsers() {
+export default function AdminUsers({ variant = "admin" } = {}) {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
+
+  const canAdminister = String(variant || "admin").toLowerCase() === "admin";
 
   const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(null); // user being edited or null
@@ -216,6 +218,8 @@ export default function AdminUsers() {
     status: "active",
     status_reason: "",
     police_station: "",
+    village: "",
+    ward: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -283,10 +287,13 @@ export default function AdminUsers() {
       status: u.status || "active",
       status_reason: u.suspended_reason || "",
       police_station: u.police_station || "",
+      village: u.village || "",
+      ward: u.ward || "",
     });
   }
 
   function startAdd() {
+    if (!canAdminister) return;
     setMode("add");
     setEditing(null);
     setForm({
@@ -299,6 +306,8 @@ export default function AdminUsers() {
       status: "active",
       status_reason: "",
       police_station: "",
+      village: "",
+      ward: "",
     });
   }
 
@@ -315,6 +324,8 @@ export default function AdminUsers() {
       status: "active",
       status_reason: "",
       police_station: "",
+      village: "",
+      ward: "",
     });
   }
 
@@ -383,11 +394,14 @@ export default function AdminUsers() {
         isAdding || (isEditing && typeof prevStatus === "string" && form.status !== prevStatus);
       const statusNeedsReason = form.status !== "active";
 
-      if ((isAdding || isEditing) && statusIsChanging && statusNeedsReason && !String(form.status_reason || "").trim()) {
-        throw new Error("A reason is required when setting status to suspended/disabled.");
+      if (canAdminister) {
+        if ((isAdding || isEditing) && statusIsChanging && statusNeedsReason && !String(form.status_reason || "").trim()) {
+          throw new Error("A reason is required when setting status to suspended/disabled.");
+        }
       }
 
       if (isAdding) {
+        if (!canAdminister) return;
         const ok = await confirm({
           title: "Confirm",
           message: "Create this user? This will add a new user record.",
@@ -429,9 +443,15 @@ export default function AdminUsers() {
           email: form.email,
           phone: form.phone,
           police_station: form.police_station,
-          role: form.role,
-          status: form.status,
-          suspended_reason: statusNeedsReason ? String(form.status_reason || "").trim() : undefined,
+          village: form.village,
+          ward: form.ward,
+          ...(canAdminister
+            ? {
+              role: form.role,
+              status: form.status,
+              suspended_reason: statusNeedsReason ? String(form.status_reason || "").trim() : undefined,
+            }
+            : {}),
         };
 
         const { data, error } = await invokeWithAuth("update-user", {
@@ -705,13 +725,17 @@ export default function AdminUsers() {
       <div className="px-1 py-2 sm:p-6 w-full max-w-none mx-0 sm:max-w-7xl sm:mx-auto">
         <PageSectionCard
           maxWidthClass="max-w-7xl"
-          title="Manage Users"
-          subtitle="Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
+          title={canAdminister ? "Manage Users" : "Users"}
+          subtitle={
+            canAdminister
+              ? "Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
+              : "Search users and update basic profile details. Roles, status, and deletion are admin-only."
+          }
           icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
           actions={
             <RippleButton
               className="py-2 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
-              onClick={() => navigate("/admindashboard")}
+              onClick={() => navigate(canAdminister ? "/admindashboard" : "/cashierdashboard")}
             >
               Back
             </RippleButton>
@@ -737,33 +761,37 @@ export default function AdminUsers() {
                   placeholder="Name, email, ID…"
                 />
               </div>
-              <div className="sm:w-44 min-w-[170px]">
-                <label className="text-xs text-gray-600">Role</label>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="all">All</option>
-                  <option value="user">User</option>
-                  <option value="police">Police</option>
-                  <option value="cashier">Cashier</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="sm:w-44 min-w-[170px]">
-                <label className="text-xs text-gray-600">Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="suspended">Suspended</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
+              {canAdminister ? (
+                <>
+                  <div className="sm:w-44 min-w-[170px]">
+                    <label className="text-xs text-gray-600">Role</label>
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                    >
+                      <option value="all">All</option>
+                      <option value="user">User</option>
+                      <option value="police">Police</option>
+                      <option value="cashier">Cashier</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="sm:w-44 min-w-[170px]">
+                    <label className="text-xs text-gray-600">Status</label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                    >
+                      <option value="all">All</option>
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="disabled">Disabled</option>
+                    </select>
+                  </div>
+                </>
+              ) : null}
               <div className="sm:w-56 min-w-[220px]">
                 <label className="text-xs text-gray-600">Station</label>
                 <input
@@ -778,22 +806,26 @@ export default function AdminUsers() {
                 className="px-3 py-2 rounded border bg-white shrink-0"
                 onClick={() => {
                   setQ("");
-                  setRoleFilter("all");
-                  setStatusFilter("all");
+                  if (canAdminister) {
+                    setRoleFilter("all");
+                    setStatusFilter("all");
+                  }
                   setStationFilter("");
                 }}
               >
                 Clear
               </RippleButton>
             </div>
-            <RippleButton
-              type="button"
-              className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60 shrink-0"
-              onClick={startAdd}
-              disabled={loading}
-            >
-              Add user
-            </RippleButton>
+            {canAdminister ? (
+              <RippleButton
+                type="button"
+                className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60 shrink-0"
+                onClick={startAdd}
+                disabled={loading}
+              >
+                Add user
+              </RippleButton>
+            ) : null}
           </div>
         </div>
 
@@ -875,42 +907,46 @@ export default function AdminUsers() {
                 />
               </div>
 
-              <div>
-                <label className="text-xs text-gray-600">Role</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  disabled={loading || (isEditing && isSelf(editing))}
-                >
-                  <option value="user">User</option>
-                  <option value="police">Police</option>
-                  <option value="cashier">Cashier</option>
-                  <option value="admin">Admin</option>
-                </select>
-                {isEditing && isSelf(editing) ? (
-                  <p className="text-xs text-gray-400 mt-1">You cannot change your own role.</p>
-                ) : null}
-              </div>
+              {canAdminister ? (
+                <>
+                  <div>
+                    <label className="text-xs text-gray-600">Role</label>
+                    <select
+                      value={form.role}
+                      onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                      disabled={loading || (isEditing && isSelf(editing))}
+                    >
+                      <option value="user">User</option>
+                      <option value="police">Police</option>
+                      <option value="cashier">Cashier</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    {isEditing && isSelf(editing) ? (
+                      <p className="text-xs text-gray-400 mt-1">You cannot change your own role.</p>
+                    ) : null}
+                  </div>
 
-              <div>
-                <label className="text-xs text-gray-600">Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, status: e.target.value }))
-                  }
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  disabled={loading || (isEditing && isSelf(editing))}
-                >
-                  <option value="active">Active</option>
-                  <option value="suspended">Suspended</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-                {isEditing && isSelf(editing) ? (
-                  <p className="text-xs text-gray-400 mt-1">Use another admin account to change your status.</p>
-                ) : null}
-              </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Status</label>
+                    <select
+                      value={form.status}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, status: e.target.value }))
+                      }
+                      className="mt-1 w-full border rounded-lg px-3 py-2"
+                      disabled={loading || (isEditing && isSelf(editing))}
+                    >
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="disabled">Disabled</option>
+                    </select>
+                    {isEditing && isSelf(editing) ? (
+                      <p className="text-xs text-gray-400 mt-1">Use another admin account to change your status.</p>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
 
               <div>
                 <label className="text-xs text-gray-600">Police station</label>
@@ -923,7 +959,29 @@ export default function AdminUsers() {
                 />
               </div>
 
-              {form.status !== "active" ? (
+              <div>
+                <label className="text-xs text-gray-600">Village</label>
+                <input
+                  value={form.village}
+                  onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="(optional)"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-600">Ward</label>
+                <input
+                  value={form.ward}
+                  onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  placeholder="(optional)"
+                  disabled={loading}
+                />
+              </div>
+
+              {canAdminister && form.status !== "active" ? (
                 <div className="sm:col-span-3">
                   <label className="text-xs text-gray-600">
                     Reason for {form.status}
