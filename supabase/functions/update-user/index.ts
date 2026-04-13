@@ -246,6 +246,33 @@ serve(async (req) => {
       }
     }
 
+    const targetStatus = deriveUserStatus(existing);
+    if (targetStatus === "suspended") {
+      const blocked = [
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "police_station",
+        "village",
+        "ward",
+        "id_number",
+        "date_of_birth",
+        "role",
+      ];
+      if (blocked.some((k) => k in clean)) {
+        return respond(
+          {
+            success: false,
+            message:
+              "This account is suspended. Profile details and roles cannot be changed until the account is reactivated.",
+          },
+          corsHeaders,
+          403,
+        );
+      }
+    }
+
     // prune no-op / undefined
     const entries = Object.entries(clean).filter(([, v]) => typeof v !== "undefined");
     if (entries.length === 0) {

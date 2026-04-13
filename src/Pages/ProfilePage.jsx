@@ -292,6 +292,14 @@ export default function ProfilePage() {
 
   const openEdit = useCallback(() => {
     if (!profileUser || viewingOther) return;
+    if (deriveUserStatus(profileUser) === "suspended") {
+      addToast({
+        type: "error",
+        message:
+          "Your account is suspended. An administrator must reactivate it before you can edit your profile.",
+      });
+      return;
+    }
     setDesktopTab("profile");
     setFormError("");
     setForm({
@@ -306,7 +314,7 @@ export default function ProfilePage() {
       date_of_birth: profileDobForInput(profileUser.date_of_birth),
     });
     setEditing(true);
-  }, [profileUser, viewingOther]);
+  }, [profileUser, viewingOther, addToast]);
 
   const cancelEdit = useCallback(() => {
     setFormError("");
@@ -315,6 +323,14 @@ export default function ProfilePage() {
 
   async function saveProfile() {
     if (!profileUser?.id || viewingOther) return;
+    if (deriveUserStatus(profileUser) === "suspended") {
+      addToast({
+        type: "error",
+        message:
+          "Your account is suspended. An administrator must reactivate it before you can edit your profile.",
+      });
+      return;
+    }
     const first_name = String(form.first_name ?? "").trim();
     const last_name = String(form.last_name ?? "").trim();
     const email = String(form.email ?? "").trim();
@@ -1029,7 +1045,7 @@ export default function ProfilePage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                {!viewingOther && !editing ? (
+                {!viewingOther && !editing && derivedStatus !== "suspended" ? (
                   <RippleButton
                     type="button"
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
@@ -1086,6 +1102,12 @@ export default function ProfilePage() {
                 You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
                 belong to the account holder. Editing is disabled; use Users admin tools for role, status, and verification
                 changes.
+              </div>
+            ) : null}
+
+            {!viewingOther && derivedStatus === "suspended" ? (
+              <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                Your account is suspended. Profile editing is disabled until an administrator reactivates your account.
               </div>
             ) : null}
 

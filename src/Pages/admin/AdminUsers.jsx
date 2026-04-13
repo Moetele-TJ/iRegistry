@@ -111,7 +111,9 @@ function UserRowActionControls({
           disabled={loading || rowBusy}
         >
           <option value="">Select…</option>
-          <option value="change_role">Change role…</option>
+          {statusLower !== "suspended" ? (
+            <option value="change_role">Change role…</option>
+          ) : null}
           {statusLower === "active" ? (
             <>
               <option value="suspend">Suspend…</option>
@@ -120,7 +122,7 @@ function UserRowActionControls({
           ) : (
             <option value="reactivate">Reactivate</option>
           )}
-          <option value="edit">Edit</option>
+          {statusLower !== "suspended" ? <option value="edit">Edit</option> : null}
           <option value="delete">Delete…</option>
         </select>
       </div>
@@ -139,8 +141,14 @@ function UserRowActionControls({
           value={role || "user"}
           onChange={(e) => onRoleChange(e.target.value)}
           className="mt-1 w-full min-w-0 max-w-full border rounded-lg px-2 py-1.5 text-sm disabled:opacity-50 box-border"
-          disabled={loading || rowBusy || self}
-          title={self ? "Cannot change your own role" : "Change role"}
+          disabled={loading || rowBusy || self || statusLower === "suspended"}
+          title={
+            self
+              ? "Cannot change your own role"
+              : statusLower === "suspended"
+                ? "Suspended users cannot have their role changed. Reactivate first."
+                : "Change role"
+          }
         >
           {ROLE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -183,7 +191,12 @@ function UserRowActionControls({
         <RippleButton
           className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
           onClick={onEdit}
-          disabled={loading || rowBusy}
+          disabled={loading || rowBusy || statusLower === "suspended"}
+          title={
+            statusLower === "suspended"
+              ? "Suspended users cannot be edited. Reactivate first."
+              : undefined
+          }
         >
           Edit
         </RippleButton>
@@ -276,6 +289,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }, [addToast]);
 
   function startEdit(u) {
+    if (deriveUserStatus(u) === "suspended") {
+      addToast({
+        type: "error",
+        message: "Suspended users cannot be edited. Reactivate the account first.",
+      });
+      return;
+    }
     setMode("edit");
     setEditing(u.id);
     setForm({
@@ -387,6 +407,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     setLoading(true);
     setError("");
     try {
+      if (isEditing && editing) {
+        const row = users.find((u) => String(u.id) === String(editing));
+        if (row && deriveUserStatus(row) === "suspended") {
+          throw new Error("Suspended users cannot be edited. Reactivate the account first.");
+        }
+      }
+
       const prevStatus =
         isEditing && editing
           ? users.find((u) => String(u.id) === String(editing))?.status
@@ -514,6 +541,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   function openRoleModal(u) {
     if (!u?.id) return;
+    if (deriveUserStatus(u) === "suspended") {
+      addToast({
+        type: "error",
+        message: "Cannot change role for a suspended user. Reactivate the account first.",
+      });
+      return;
+    }
     if (isSelf(u.id)) {
       addToast({ type: "error", message: "You cannot change your own role." });
       return;
@@ -531,6 +565,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   async function submitRoleChange() {
     const u = roleModal.user;
     if (!u?.id) return;
+    if (deriveUserStatus(u) === "suspended") {
+      addToast({
+        type: "error",
+        message: "Cannot change role for a suspended user. Reactivate the account first.",
+      });
+      return;
+    }
     const next = String(roleNext || "").toLowerCase();
     if (!next || next === String(u.role || "").toLowerCase()) return;
     const label = roleLabel[next] || next;
@@ -538,6 +579,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }
 
   async function quickChangeRole(u, nextRole) {
+    if (deriveUserStatus(u) === "suspended") {
+      addToast({
+        type: "error",
+        message: "Cannot change role for a suspended user. Reactivate the account first.",
+      });
+      return;
+    }
     if (isSelf(u.id)) {
       addToast({ type: "error", message: "You cannot change your own role." });
       return;
