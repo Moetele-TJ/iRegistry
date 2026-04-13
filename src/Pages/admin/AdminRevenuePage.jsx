@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Coins, RefreshCw, Users, List } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -71,6 +71,7 @@ export default function AdminRevenuePage() {
   const [channel, setChannel] = useState("BOTH"); // CASHIER | ONLINE | BOTH
   const [quickDate, setQuickDate] = useState("TODAY");
   const [showTransactions] = useState(true);
+  const didAutoRun = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +92,7 @@ export default function AdminRevenuePage() {
     };
   }, [addToast]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("revenue-report", {
@@ -112,7 +113,7 @@ export default function AdminRevenuePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [addToast, cashierId, channel, from, showTransactions, to]);
 
   function applyQuickDate(preset) {
     const now = new Date();
@@ -176,9 +177,13 @@ export default function AdminRevenuePage() {
   }, []);
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Auto-run any time a filter changes (debounced slightly to avoid spam while typing/picking).
+    const t = window.setTimeout(() => {
+      didAutoRun.current = true;
+      void load();
+    }, didAutoRun.current ? 200 : 0);
+    return () => window.clearTimeout(t);
+  }, [cashierId, channel, from, load, to]);
 
   const rows = useMemo(() => {
     const by = report?.totals?.by_currency || {};
@@ -306,7 +311,7 @@ export default function AdminRevenuePage() {
           disabled={loading}
         >
           <RefreshCw size={16} />
-          {loading ? "Loading…" : "Run report"}
+          {loading ? "Loading…" : "Refresh"}
         </RippleButton>
       </div>
 
