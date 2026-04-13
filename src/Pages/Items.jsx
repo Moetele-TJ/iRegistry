@@ -172,6 +172,28 @@ export default function Items({ view = "active" } = {}) {
 
   const isPrivileged = isPrivilegedRole(role);
 
+  /** Keep get-items flags aligned with the current tab (active / deleted / legacy). */
+  function fetchParamsForItemsView(ownerId) {
+    const oid = ownerId || user?.id;
+    if (view === "deleted") {
+      return {
+        ownerId: oid,
+        includeDeleted: true,
+        deletedOnly: true,
+        includeLegacy: true,
+      };
+    }
+    if (view === "legacy") {
+      return {
+        ownerId: oid,
+        includeLegacy: true,
+        legacyOnly: true,
+        includeDeleted: true,
+      };
+    }
+    return { ownerId: oid, includeDeleted: false, includeLegacy: false };
+  }
+
   useEffect(() => {
     // Reset scope defaults when switching sessions/roles.
     setPoliceShowStolenAtStation(false);
@@ -182,14 +204,8 @@ export default function Items({ view = "active" } = {}) {
     // When used as a dedicated page (deleted/legacy), refresh the backing list accordingly.
     // The main ItemsProvider initial load fetches active items; this overrides it when needed.
     if (!user?.id) return;
-    const oid = isPrivileged ? (selectedOwnerId || user.id) : user.id;
-    if (view === "deleted") {
-      void refreshItems({ ownerId: oid, includeDeleted: true, deletedOnly: true, includeLegacy: true });
-    } else if (view === "legacy") {
-      void refreshItems({ ownerId: oid, includeLegacy: true, legacyOnly: true, includeDeleted: true });
-    } else {
-      void refreshItems({ ownerId: oid, includeDeleted: false, includeLegacy: false });
-    }
+    const oid = isPrivileged ? selectedOwnerId || user.id : user.id;
+    void refreshItems(fetchParamsForItemsView(oid));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, user?.id, selectedOwnerId, isPrivileged]);
 
@@ -391,7 +407,7 @@ export default function Items({ view = "active" } = {}) {
 
   async function handlePrivilegedOwnerChange(nextOwnerId) {
     setSelectedOwnerId(nextOwnerId);
-    await refreshItems({ ownerId: nextOwnerId });
+    await refreshItems(fetchParamsForItemsView(nextOwnerId));
     setStatusFilter("All");
     setPage(1);
   }

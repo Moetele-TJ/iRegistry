@@ -3,10 +3,12 @@ import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 
 const FLYOUT_Z = 90;
-const LEAVE_MS = 140;
+const LEAVE_MS = 160;
+const SUBMENU_ENTER_MS = 200;
+const SUBMENU_EXIT_MS = 200;
 
 /**
- * Primary row + flyout sub-links rendered in a portal (avoids sidebar overflow clipping).
+ * Flyout sub-links in a portal; coordinates with AppSidebar width transition + collapse order.
  */
 export default function SidebarItemGroup({
   to: baseTo,
@@ -14,23 +16,32 @@ export default function SidebarItemGroup({
   label,
   subItems = [],
   expanded,
+  expandAnimationComplete = false,
+  flyoutCloseNonce = 0,
+  onFlyoutExitComplete,
+  onFlyoutOpenChange,
   onNavigate,
   touchMode,
   onTouchExpand,
+  onFlyoutPointerEnter,
 }) {
   const location = useLocation();
   const anchorRef = useRef(null);
   const leaveTimer = useRef(null);
+  const prevCloseNonce = useRef(0);
   const [inHoverZone, setInHoverZone] = useState(false);
   const [pos, setPos] = useState(null);
+  const [enterVisible, setEnterVisible] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   const groupPathActive = useMemo(() => {
     const p = location.pathname;
     return p === baseTo || p.startsWith(`${baseTo}/`);
   }, [location.pathname, baseTo]);
 
-  const showFlyout =
+  const wantShow =
     expanded &&
+    expandAnimationComplete &&
     subItems.length > 0 &&
     (touchMode || groupPathActive || inHoverZone);
 
@@ -52,7 +63,9 @@ export default function SidebarItemGroup({
   };
 
   useLayoutEffect(() => {
-    if (!showFlyout || !anchorRef.current) {
+    if (exiting) return;
+
+    if (!wantShow) {
       setPos(null);
       return;
     }
@@ -61,7 +74,7 @@ export default function SidebarItemGroup({
       const el = anchorRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setPos({ top: r.top, left: r.right + 6 });
+      setPos({ top: r.top, left: r.right });
     };
 
     update();
@@ -71,43 +84,108 @@ export default function SidebarItemGroup({
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [showFlyout, expanded, location.pathname]);
+  }, [wantShow, exiting, expanded, location.pathname]);
 
-  useEffect(() => () => clearLeaveTimer(), []);
+  // Parent: close submenu first, then collapse rail.
+  useEffect(() => {
+    if (flyoutCloseNonce === prevCloseNonce.current) return;
+    prevCloseNonce.current = flyoutCloseNonce;
 
-  const flyout =
-    showFlyout && pos ? (
-      <div
-        role="group"
-        aria-label={`${label} views`}
-        className="min-w-[11.5rem] rounded-xl border border-white/15 bg-iregistrygreen py-1.5 shadow-lg"
-        style={{
-          position: "fixed",
-          top: pos.top,
-          left: pos.left,
-          zIndex: FLYOUT_Z,
-        }}
-        onMouseEnter={enterZone}
-        onMouseLeave={leaveZone}
-      >
-        {subItems.map((sub) => (
-          <NavLink
-            key={sub.to}
-            to={sub.to}
-            end={sub.end !== false}
-            onClick={() => onNavigate?.()}
-            className={({ isActive }) => {
-              const base =
-                "block px-3 py-2 text-sm transition-colors duration-200 text-left whitespace-nowrap";
-              const bg = isActive ? "bg-white/15 font-medium" : "hover:bg-white/10 text-white/95";
-              return `${base} ${bg}`;
-            }}
-          >
-            {sub.label}
-          </NavLink>
-        ))}
-      </div>
-    ) : null;
+    if (!pos) {
+      onFlyoutExitComplete?.();
+      return;
+    }
+
+    setExiting(true);
+    onFlyoutOpenChange?.(false);
+
+    const t = window.setTimeout(() => {
+      setExiting(false);
+      setEnterVisible(false);
+      setInHoverZone(false);
+      setPos(null);
+      onFlyoutExitComplete?.();
+    }, SUBMENU_EXIT_MS);
+
+    return () => window.clearTimeout(t);
+  }, [flyoutCloseNonce, pos, onFlyoutExitComplete, onFlyoutOpenChange]);
+
+  const showPanel = Boolean(pos && (wantShow || exiting));
+
+  useEffect(() => {
+    if (!showPanel || exiting) {
+      if (!exiting) setEnterVisible(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setEnterVisible(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [showPanel, exiting]);
+
+  useEffect(() => {
+    return () => clearLeaveTimer();
+  }, []);
+
+  const flyoutVisible =
+    showPanel && !exiting && enterVisible;
+
+  useEffect(() => {
+    onFlyoutOpenChange?.(flyoutVisible);
+  }, [flyoutVisible, onFlyoutOpenChange]);
+
+  const flyout = showPanel ? (
+    <div
+      role="group"
+      aria-label={`${label} views`}
+      className={[
+        "flex flex-col overflow-hidden rounded-xl border border-white/15 bg-iregistrygreen shadow-lg min-w-[11.5rem]",
+        "transition-[opacity,transform] ease-out",
+        exiting
+          ? "opacity-0 translate-x-[-6px]"
+          : enterVisible
+            ? "opacity-100 translate-x-0"
+            : "opacity-0 translate-x-[-6px]",
+      ].join(" ")}
+      style={{
+        position: "fixed",
+        top: pos?.top,
+        left: pos?.left,
+        zIndex: FLYOUT_Z,
+        transitionDuration: `${exiting ? SUBMENU_EXIT_MS : SUBMENU_ENTER_MS}ms`,
+      }}
+      onMouseEnter={() => {
+        enterZone();
+        onFlyoutPointerEnter?.();
+      }}
+      onMouseLeave={leaveZone}
+    >
+      {subItems.map((sub, idx) => (
+        <NavLink
+          key={sub.to}
+          to={sub.to}
+          end={sub.end !== false}
+          onClick={() => onNavigate?.()}
+          className={({ isActive }) => {
+            const base =
+              "block w-full px-3 py-2.5 text-sm text-left whitespace-nowrap border-b border-white/15 last:border-b-0 transition-colors duration-200";
+            const bg = isActive ? "bg-white/15 font-medium" : "hover:bg-white/10 text-white/95";
+            const corners =
+              subItems.length === 1
+                ? " rounded-[10px]"
+                : idx === 0
+                  ? " rounded-t-[10px]"
+                  : idx === subItems.length - 1
+                    ? " rounded-b-[10px]"
+                    : "";
+            return `${base} ${bg}${corners}`;
+          }}
+        >
+          {sub.label}
+        </NavLink>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <>
