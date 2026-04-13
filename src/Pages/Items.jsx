@@ -177,15 +177,16 @@ export default function Items({ view = "active" } = {}) {
     // When used as a dedicated page (deleted/legacy), refresh the backing list accordingly.
     // The main ItemsProvider initial load fetches active items; this overrides it when needed.
     if (!user?.id) return;
+    const oid = isPrivileged ? (selectedOwnerId || user.id) : user.id;
     if (view === "deleted") {
-      void refreshItems({ ownerId: user.id, includeDeleted: true, deletedOnly: true, includeLegacy: true });
+      void refreshItems({ ownerId: oid, includeDeleted: true, deletedOnly: true, includeLegacy: true });
     } else if (view === "legacy") {
-      void refreshItems({ ownerId: user.id, includeLegacy: true, legacyOnly: true, includeDeleted: true });
+      void refreshItems({ ownerId: oid, includeLegacy: true, legacyOnly: true, includeDeleted: true });
     } else {
-      void refreshItems({ ownerId: user.id, includeDeleted: false, includeLegacy: false });
+      void refreshItems({ ownerId: oid, includeDeleted: false, includeLegacy: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, user?.id]);
+  }, [view, user?.id, selectedOwnerId, isPrivileged]);
 
   useEffect(() => {
     if (!isPrivileged) return;

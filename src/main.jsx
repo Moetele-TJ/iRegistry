@@ -37,6 +37,8 @@ import AdminUsers from "./Pages/admin/AdminUsers.jsx";
 import AdminAuditLogs from "./Pages/admin/AdminAuditLogs.jsx";
 import AdminSettings from "./Pages/admin/AdminSettings.jsx";
 import AdminItemsPage from "./Pages/admin/AdminItemsPage.jsx";
+import AdminDeletedItemsPage from "./Pages/admin/AdminDeletedItemsPage.jsx";
+import AdminLegacyItemsPage from "./Pages/admin/AdminLegacyItemsPage.jsx";
 import AdminNotificationsPage from "./Pages/admin/AdminNotificationsPage.jsx";
 import AdminActivityPage from "./Pages/admin/AdminActivityPage.jsx";
 import AdminSessionsPage from "./Pages/admin/AdminSessionsPage.jsx";
@@ -47,6 +49,8 @@ import AdminRevenuePage from "./Pages/admin/AdminRevenuePage.jsx";
 import PoliceLayout from "./Pages/police/PoliceLayout.jsx";
 import PoliceHome from "./Pages/police/PoliceHome.jsx";
 import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
+import PoliceDeletedItemsPage from "./Pages/police/PoliceDeletedItemsPage.jsx";
+import PoliceLegacyItemsPage from "./Pages/police/PoliceLegacyItemsPage.jsx";
 import PoliceNotificationsPage from "./Pages/police/PoliceNotificationsPage.jsx";
 import PoliceActivityPage from "./Pages/police/PoliceActivityPage.jsx";
 import PolicePricingPage from "./Pages/police/PolicePricingPage.jsx";
@@ -54,6 +58,8 @@ import PoliceTopupPage from "./Pages/police/PoliceTopupPage.jsx";
 import CashierLayout from "./Pages/cashier/CashierLayout.jsx";
 import CashierHome from "./Pages/cashier/CashierHome.jsx";
 import CashierItemsPage from "./Pages/cashier/CashierItemsPage.jsx";
+import CashierDeletedItemsPage from "./Pages/cashier/CashierDeletedItemsPage.jsx";
+import CashierLegacyItemsPage from "./Pages/cashier/CashierLegacyItemsPage.jsx";
 import CashierNotificationsPage from "./Pages/cashier/CashierNotificationsPage.jsx";
 import CashierActivityPage from "./Pages/cashier/CashierActivityPage.jsx";
 import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
@@ -136,6 +142,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route path="pricing" element={<AdminPricingPage />} />
                   <Route path="revenue" element={<AdminRevenuePage />} />
                     <Route path="items" element={<AdminItemsPage />} />
+                    <Route path="items/deleted" element={<AdminDeletedItemsPage />} />
+                    <Route path="items/legacy" element={<AdminLegacyItemsPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />
                     <Route path="sessions" element={<AdminSessionsPage />} />
@@ -152,6 +160,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route index element={<PoliceHome />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<PoliceItemsPage />} />
+                    <Route path="items/deleted" element={<PoliceDeletedItemsPage />} />
+                    <Route path="items/legacy" element={<PoliceLegacyItemsPage />} />
                     <Route path="notifications" element={<PoliceNotificationsPage />} />
                     <Route path="activity" element={<PoliceActivityPage />} />
                     <Route path="topup" element={<PoliceTopupPage />} />
@@ -169,6 +179,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route index element={<CashierHome />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="items" element={<CashierItemsPage />} />
+                    <Route path="items/deleted" element={<CashierDeletedItemsPage />} />
+                    <Route path="items/legacy" element={<CashierLegacyItemsPage />} />
                     <Route path="users" element={<CashierUsersPage />} />
                     <Route path="topup" element={<CashierTopupPage />} />
                     <Route path="transactions" element={<CashierTransactionsPage />} />

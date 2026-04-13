@@ -10,6 +10,8 @@ export function usePoliceSidebar({ visible = true } = {}) {
       { to: "/policedashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/policedashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/policedashboard/items", icon: <Package size={20} />, label: "Items" },
+      { to: "/policedashboard/items/deleted", icon: <Package size={20} />, label: "Deleted items" },
+      { to: "/policedashboard/items/legacy", icon: <Package size={20} />, label: "Legacy items" },
       { to: "/policedashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/policedashboard/activity", icon: <Activity size={20} />, label: "Activity" },
       { to: "/policedashboard/topup", icon: <Wallet size={20} />, label: "Top up" },

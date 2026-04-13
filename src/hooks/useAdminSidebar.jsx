@@ -31,6 +31,8 @@ export function useAdminSidebar({ visible = true } = {}) {
       { to: "/admindashboard/revenue", icon: <Coins size={20} />, label: "Revenue" },
       { to: "/admindashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
       { to: "/admindashboard/items", icon: <Package size={20} />, label: "Items" },
+      { to: "/admindashboard/items/deleted", icon: <Package size={20} />, label: "Deleted items" },
+      { to: "/admindashboard/items/legacy", icon: <Package size={20} />, label: "Legacy items" },
       { to: "/admindashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/admindashboard/activity", icon: <Activity size={20} />, label: "Activity" },
       { to: "/admindashboard/sessions", icon: <MonitorSmartphone size={20} />, label: "Sessions" },

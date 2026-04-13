@@ -21,6 +21,8 @@ export function useCashierSidebar({ visible = true } = {}) {
       { to: "/cashierdashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/cashierdashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/cashierdashboard/items", icon: <Package size={20} />, label: "Items" },
+      { to: "/cashierdashboard/items/deleted", icon: <Package size={20} />, label: "Deleted items" },
+      { to: "/cashierdashboard/items/legacy", icon: <Package size={20} />, label: "Legacy items" },
       { to: "/cashierdashboard/users", icon: <Users size={20} />, label: "Users" },
       { to: "/cashierdashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/cashierdashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
