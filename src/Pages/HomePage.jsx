@@ -98,7 +98,7 @@ export default function HomePage() {
   
             {/* LEFT SIDE */}
             {!user && (
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3 items-center">
                 <RippleButton
                   className="px-6 py-2 rounded-xl bg-white text-iregistrygreen font-semibold"
                   onClick={() => navigate("/login")}
@@ -112,27 +112,42 @@ export default function HomePage() {
                 >
                   Create Account
                 </RippleButton>
+
+                <RippleButton
+                  className="px-6 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
+                  onClick={() => navigate("/userdashboard/manual")}
+                >
+                  User guide
+                </RippleButton>
               </div>
             )}
 
             {/* RIGHT SIDE */}
             {user && (
-              <div className="flex items-center gap-3 ml-auto">
-                <div className="text-white text-lg font-medium text-right">
-                  Welcome back,{" "}
-                  <span className="font-semibold">
-                    {user.last_name}
-                  </span>{" "}
-                  👋
-                </div>
-
-                <div
-                  className="w-10 h-10 rounded-full bg-white/20 backdrop-blur 
-                  flex items-center justify-center text-white font-semibold"
+              <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+                <RippleButton
+                  className="px-5 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
+                  onClick={() => navigate("/userdashboard/manual")}
                 >
-                  {(user.last_name || user.email)
-                    ?.charAt(0)
-                    .toUpperCase()}
+                  User guide
+                </RippleButton>
+                <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                  <div className="text-white text-lg font-medium text-right">
+                    Welcome back,{" "}
+                    <span className="font-semibold">
+                      {user.last_name}
+                    </span>{" "}
+                    👋
+                  </div>
+
+                  <div
+                    className="w-10 h-10 rounded-full bg-white/20 backdrop-blur 
+                    flex items-center justify-center text-white font-semibold"
+                  >
+                    {(user.last_name || user.email)
+                      ?.charAt(0)
+                      .toUpperCase()}
+                  </div>
                 </div>
               </div>
             )}
