@@ -115,7 +115,7 @@ export default function HomePage() {
 
                 <RippleButton
                   className="px-6 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
-                  onClick={() => navigate("/userdashboard/manual")}
+                  onClick={() => navigate("/guide")}
                 >
                   User guide
                 </RippleButton>
@@ -127,7 +127,7 @@ export default function HomePage() {
               <div className="flex flex-wrap items-center justify-between gap-4 w-full">
                 <RippleButton
                   className="px-5 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
-                  onClick={() => navigate("/userdashboard/manual")}
+                  onClick={() => navigate("/guide")}
                 >
                   User guide
                 </RippleButton>

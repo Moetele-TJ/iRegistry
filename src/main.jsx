@@ -97,6 +97,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   {/* Public */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
+                  <Route path="/guide" element={<UserManualPage />} />
+                  <Route
+                    path="/userdashboard/manual"
+                    element={<Navigate to="/guide" replace />}
+                  />
 
                   <Route path="/redirect" element={<RoleRedirect />} />
 
@@ -123,7 +128,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="transactions" element={<UserTransactionsPage />} />
                     <Route path="pricing" element={<UserPricingPage />} />
                     <Route path="topup" element={<UserTopupPage />} />
-                    <Route path="manual" element={<UserManualPage />} />
                   </Route>
 
                   <Route
