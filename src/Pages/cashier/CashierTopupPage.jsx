@@ -6,11 +6,12 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
-const PACKAGES = [
-  { id: "BWP_30", label: "P30", credits: 10, amount: 30, currency: "BWP", usdRef: "2.22" },
-  { id: "BWP_50", label: "P50", credits: 20, amount: 50, currency: "BWP", usdRef: "3.70" },
-  { id: "BWP_100", label: "P100", credits: 50, amount: 100, currency: "BWP", usdRef: "7.40" },
-];
+function pkgLabel(p) {
+  const cur = p?.currency || "BWP";
+  const amt = Number(p?.amount ?? 0);
+  if (cur === "BWP") return `P${amt}`;
+  return `${cur} ${amt}`;
+}
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -26,7 +27,9 @@ export default function CashierTopupPage() {
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [packageId, setPackageId] = useState(PACKAGES[0].id);
+  const [packages, setPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [packageId, setPackageId] = useState("");
   const [receiptNo, setReceiptNo] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +60,33 @@ export default function CashierTopupPage() {
     return () => {
       cancelled = true;
     };
+  }, [addToast]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPackages() {
+      setLoadingPackages(true);
+      try {
+        const { data, error } = await invokeWithAuth("list-credit-packages");
+        if (cancelled) return;
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load packages");
+        const rows = Array.isArray(data.packages) ? data.packages : [];
+        setPackages(rows);
+        if (!packageId && rows[0]?.id) setPackageId(String(rows[0].id));
+      } catch (e) {
+        if (!cancelled) {
+          addToast({ type: "error", message: e.message || "Failed to load packages" });
+          setPackages([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingPackages(false);
+      }
+    }
+    void loadPackages();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast]);
 
   useEffect(() => {
@@ -119,7 +149,7 @@ export default function CashierTopupPage() {
     });
   }, [users, q]);
 
-  const pkg = PACKAGES.find((p) => p.id === packageId) || PACKAGES[0];
+  const pkg = (packages || []).find((p) => p.id === packageId) || packages[0] || null;
 
   async function submitTopup() {
     const rid = String(receiptNo || "").trim();
@@ -134,7 +164,7 @@ export default function CashierTopupPage() {
 
     const ok = await confirm({
       title: "Confirm",
-      message: `Credit ${selectedUser ? displayName(selectedUser) : "this user"} with ${pkg.credits} credits for ${pkg.label}?`,
+      message: `Credit ${selectedUser ? displayName(selectedUser) : "this user"} with ${Number(pkg?.credits ?? 0)} credits for ${pkgLabel(pkg)}?`,
       confirmLabel: "Confirm top-up",
       cancelLabel: "Cancel",
       danger: false,
@@ -156,7 +186,7 @@ export default function CashierTopupPage() {
       }
       addToast({
         type: "success",
-        message: `Top up successful: +${pkg.credits} credits. New balance: ${data.new_balance ?? "—"}.`,
+        message: `Top up successful: +${Number(pkg?.credits ?? 0)} credits. New balance: ${data.new_balance ?? "—"}.`,
       });
       if (typeof data.new_balance === "number") {
         setUsers((prev) =>
@@ -378,15 +408,16 @@ export default function CashierTopupPage() {
               value={packageId}
               onChange={(e) => setPackageId(e.target.value)}
               className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+              disabled={loadingPackages || packages.length === 0}
             >
-              {PACKAGES.map((p) => (
+              {packages.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.label} → {p.credits} credits (USD {p.usdRef})
+                  {pkgLabel(p)} → {Number(p.credits ?? 0)} credits ({Number(p.amount ?? 0)} {p.currency || "BWP"})
                 </option>
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-2">
-              Will credit <strong>{pkg.credits}</strong> credits for <strong>{pkg.label}</strong>.
+              Will credit <strong>{Number(pkg?.credits ?? 0)}</strong> credits for <strong>{pkgLabel(pkg)}</strong>.
             </p>
           </div>
 
@@ -413,10 +444,10 @@ export default function CashierTopupPage() {
           <RippleButton
             type="button"
             className="w-full px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
-            disabled={submitting}
+            disabled={submitting || !pkg || !packageId}
             onClick={() => void submitTopup()}
           >
-            {submitting ? "Processing…" : `Confirm top-up (+${pkg.credits} credits)`}
+            {submitting ? "Processing…" : `Confirm top-up (+${Number(pkg?.credits ?? 0)} credits)`}
           </RippleButton>
         </section>
       </div>

@@ -28,6 +28,7 @@ export function useAdminSidebar({ visible = true } = {}) {
       { to: "/admindashboard/settings", icon: <Settings size={20} />, label: "Settings" },
       { to: "/admindashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/admindashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },
+      { to: "/admindashboard/packages", icon: <Tag size={20} />, label: "Packages" },
       { to: "/admindashboard/revenue", icon: <Coins size={20} />, label: "Revenue" },
       { to: "/admindashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
       {

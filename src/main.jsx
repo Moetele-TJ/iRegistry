@@ -49,6 +49,7 @@ import AdminTopupPage from "./Pages/admin/AdminTopupPage.jsx";
 import AdminTransactionsPage from "./Pages/admin/AdminTransactionsPage.jsx";
 import AdminPricingPage from "./Pages/admin/AdminPricingPage.jsx";
 import AdminRevenuePage from "./Pages/admin/AdminRevenuePage.jsx";
+import AdminPackagesPage from "./Pages/admin/AdminPackagesPage.jsx";
 import PoliceLayout from "./Pages/police/PoliceLayout.jsx";
 import PoliceHome from "./Pages/police/PoliceHome.jsx";
 import PoliceItemsPage from "./Pages/police/PoliceItemsPage.jsx";
@@ -150,6 +151,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route path="topup" element={<AdminTopupPage />} />
                   <Route path="transactions" element={<AdminTransactionsPage />} />
                   <Route path="pricing" element={<AdminPricingPage />} />
+                  <Route path="packages" element={<AdminPackagesPage />} />
                   <Route path="revenue" element={<AdminRevenuePage />} />
                     <Route path="items" element={<AdminItemsPage />} />
                     <Route path="items/deleted" element={<AdminDeletedItemsPage />} />

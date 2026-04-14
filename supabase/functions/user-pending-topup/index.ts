@@ -12,14 +12,21 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const PACKAGES = [
-  { id: "BWP_30", currency: "BWP", amount: 30.0, credits: 10 },
-  { id: "BWP_50", currency: "BWP", amount: 50.0, credits: 20 },
-  { id: "BWP_100", currency: "BWP", amount: 100.0, credits: 50 },
-] as const;
+async function loadPackages() {
+  const { data, error } = await supabase
+    .from("credit_packages")
+    .select("id, currency, amount, credits, active, sort_order, updated_at")
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("amount", { ascending: true });
 
-function pkgById(id: string) {
-  return PACKAGES.find((p) => p.id === id) ?? null;
+  if (error) throw new Error(error.message || "Failed to load packages");
+  return (data || []).map((p) => ({
+    id: p.id,
+    currency: p.currency,
+    amount: Number(p.amount ?? 0),
+    credits: Number(p.credits ?? 0),
+  }));
 }
 
 serve(async (req) => {
@@ -58,6 +65,10 @@ serve(async (req) => {
     const action = typeof body?.action === "string" ? body.action.trim() : "get";
 
     if (action === "get") {
+      const packages = await loadPackages().catch((e) => {
+        console.error("user-pending-topup packages:", e?.message || e);
+        return [];
+      });
       const { data: row, error } = await supabase
         .from("payments")
         .select(
@@ -72,7 +83,7 @@ serve(async (req) => {
         return respond({ success: false, message: "Failed to load pending top-up" }, corsHeaders, 500);
       }
 
-      return respond({ success: true, pending: row || null, packages: [...PACKAGES] }, corsHeaders, 200);
+      return respond({ success: true, pending: row || null, packages }, corsHeaders, 200);
     }
 
     if (action === "cancel") {
@@ -97,8 +108,9 @@ serve(async (req) => {
       return respond({ success: false, message: "Unknown action" }, corsHeaders, 400);
     }
 
+    const packages = await loadPackages();
     const packageId = typeof body?.package_id === "string" ? body.package_id.trim() : "";
-    const pkg = pkgById(packageId);
+    const pkg = packages.find((p) => p.id === packageId) ?? null;
     if (!pkg) {
       return respond({ success: false, message: "Invalid package" }, corsHeaders, 400);
     }
@@ -138,7 +150,7 @@ serve(async (req) => {
       if (uerr || !upd) {
         return respond({ success: false, message: "Could not update pending top-up" }, corsHeaders, 500);
       }
-      return respond({ success: true, pending: upd, packages: [...PACKAGES] }, corsHeaders, 200);
+      return respond({ success: true, pending: upd, packages }, corsHeaders, 200);
     }
 
     const { data: ins, error: ierr } = await supabase
@@ -171,7 +183,7 @@ serve(async (req) => {
       return respond({ success: false, message: "Could not create pending top-up" }, corsHeaders, 500);
     }
 
-    return respond({ success: true, pending: ins, packages: [...PACKAGES] }, corsHeaders, 200);
+    return respond({ success: true, pending: ins, packages }, corsHeaders, 200);
   } catch (err: unknown) {
     console.error("user-pending-topup crash:", err);
     return respond(

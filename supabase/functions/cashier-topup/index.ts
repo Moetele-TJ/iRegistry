@@ -12,11 +12,22 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const PACKAGES = [
-  { id: "BWP_30", currency: "BWP", amount: 30.0, credits: 10 },
-  { id: "BWP_50", currency: "BWP", amount: 50.0, credits: 20 },
-  { id: "BWP_100", currency: "BWP", amount: 100.0, credits: 50 },
-] as const;
+async function loadPackages() {
+  const { data, error } = await supabase
+    .from("credit_packages")
+    .select("id, currency, amount, credits, active, sort_order, updated_at")
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("amount", { ascending: true });
+
+  if (error) throw new Error(error.message || "Failed to load packages");
+  return (data || []).map((p) => ({
+    id: p.id,
+    currency: p.currency,
+    amount: Number(p.amount ?? 0),
+    credits: Number(p.credits ?? 0),
+  }));
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -50,7 +61,8 @@ serve(async (req) => {
       return respond({ success: false, message: "receipt_no is required" }, corsHeaders, 400);
     }
 
-    const pkg = PACKAGES.find((p) => p.id === package_id);
+    const packages = await loadPackages();
+    const pkg = packages.find((p) => p.id === package_id) ?? null;
     if (!pkg) {
       return respond({ success: false, message: "Invalid package_id" }, corsHeaders, 400);
     }
