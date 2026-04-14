@@ -31,6 +31,7 @@ import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
 import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
 import UserPricingPage from "./Pages/user/UserPricingPage.jsx";
 import UserTopupPage from "./Pages/user/UserTopupPage.jsx";
+import UserManualPage from "./Pages/user/UserManualPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
@@ -122,6 +123,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="transactions" element={<UserTransactionsPage />} />
                     <Route path="pricing" element={<UserPricingPage />} />
                     <Route path="topup" element={<UserTopupPage />} />
+                    <Route path="manual" element={<UserManualPage />} />
                   </Route>
 
                   <Route

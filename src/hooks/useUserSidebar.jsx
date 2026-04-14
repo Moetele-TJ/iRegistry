@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import {
   Activity,
   Bell,
+  BookOpen,
   LayoutDashboard,
   Package,
   ReceiptText,
@@ -33,6 +34,7 @@ export function useUserSidebar({ visible = true } = {}) {
       { to: "/userdashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
       { to: "/userdashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/userdashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },
+      { to: "/userdashboard/manual", icon: <BookOpen size={20} />, label: "User guide" },
     ],
     []
   );
