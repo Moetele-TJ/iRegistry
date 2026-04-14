@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { invokeWithAuth } from "../lib/invokeWithAuth";
+import { invokeFn } from "../lib/invokeFn";
 
 let cachedTasks = null;
 let loadPromise = null;
@@ -8,7 +8,7 @@ async function loadTasksOnce() {
   if (cachedTasks) return cachedTasks;
   if (!loadPromise) {
     loadPromise = (async () => {
-      const { data, error: invErr } = await invokeWithAuth("list-tasks");
+      const { data, error: invErr } = await invokeFn("list-tasks", {}, { withAuth: false });
       if (invErr || !data?.success) {
         throw new Error(data?.message || invErr?.message || "Failed to load pricing");
       }

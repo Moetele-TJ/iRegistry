@@ -4,8 +4,6 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { validateSession } from "../shared/validateSession.ts";
-
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -19,11 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    // Auth required (pricing should be visible inside dashboards)
-    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-    const session = await validateSession(supabase, auth);
-    if (!session) return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-
+    // Public read: `task_catalog` is pricing metadata only. The client loads it on the home page
+    // (useTaskPricing / VerificationPanel) before sign-in — a session must not be required.
     const { data, error } = await supabase
       .from("task_catalog")
       .select("code, name, description, credits_cost, active, updated_at")
