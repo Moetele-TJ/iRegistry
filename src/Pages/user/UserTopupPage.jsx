@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { Wallet, Loader2, Trash2, Save, CreditCard } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -140,16 +141,9 @@ export function UserTopupContent() {
     }
   }
 
-  if (!roleIs(user?.role, "user", "police")) {
-    return (
-      <div className="min-h-screen bg-gray-100 px-4 py-10">
-        <div className="max-w-lg mx-auto bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <p className="text-gray-700">
-            Credit top-up requests are only available for registered user or police accounts.
-          </p>
-        </div>
-      </div>
-    );
+  // Staff roles should use the staff top-up workflow (top up other users).
+  if (roleIs(user?.role, "admin")) {
+    return <Navigate to="/admindashboard/topup" replace />;
   }
 
   return (
