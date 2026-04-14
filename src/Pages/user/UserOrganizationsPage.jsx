@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Building2, Check, X, RefreshCw } from "lucide-react";
+import { Building2, Check, X, RefreshCw, Wallet } from "lucide-react";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { useOrganizations } from "../../hooks/useOrganizations.js";
@@ -109,12 +109,21 @@ export default function UserOrganizationsPage() {
                         Your role: <span className="font-mono">{m.role}</span>
                       </div>
                     </div>
-                    <Link
-                      to={`/organizations/${m.org.id}/items`}
-                      className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
-                    >
-                      View items
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
+                      <Link
+                        to={`/organizations/${m.org.id}/wallet`}
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-semibold hover:bg-gray-50"
+                      >
+                        <Wallet size={16} />
+                        Wallet
+                      </Link>
+                      <Link
+                        to={`/organizations/${m.org.id}/items`}
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+                      >
+                        View items
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}

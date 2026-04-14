@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -34,7 +34,26 @@ export default function OrganizationItemsPage() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [reviewBusyId, setReviewBusyId] = useState("");
 
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+
   const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER";
+
+  async function loadWallet() {
+    if (!orgId) return;
+    setWalletLoading(true);
+    try {
+      const { data, error } = await invokeWithAuth("get-org-wallet", {
+        body: { org_id: orgId },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load wallet");
+      setWalletBalance(typeof data.balance === "number" ? data.balance : 0);
+    } catch {
+      setWalletBalance(null);
+    } finally {
+      setWalletLoading(false);
+    }
+  }
 
   async function loadItems() {
     setLoading(true);
@@ -118,6 +137,7 @@ export default function OrganizationItemsPage() {
 
   useEffect(() => {
     void loadItems();
+    void loadWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
@@ -225,20 +245,53 @@ export default function OrganizationItemsPage() {
       subtitle={isPrivileged ? "Manage organization-owned items and assignments." : "Your assigned organization items."}
       icon={<Building2 className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
-        <RippleButton
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
-          onClick={() => void loadItems()}
-          disabled={loading}
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </RippleButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to={`/organizations/${orgId}/wallet`}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+          >
+            <Wallet size={16} />
+            Organization wallet
+          </Link>
+          <RippleButton
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+            onClick={() => {
+              void loadItems();
+              void loadWallet();
+            }}
+            disabled={loading}
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </RippleButton>
+        </div>
       }
     >
       <div className="p-4 sm:p-6 space-y-5">
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">{error}</div>
         ) : null}
+
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="rounded-xl bg-white border border-emerald-100 p-2 text-emerald-800 shrink-0">
+              <Wallet size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-emerald-900/80 uppercase tracking-wide">Organization wallet</div>
+              <div className="text-lg font-bold text-emerald-950 tabular-nums">
+                {walletLoading ? "…" : walletBalance === null ? "—" : walletBalance.toLocaleString()}{" "}
+                <span className="text-sm font-semibold text-emerald-900/70">credits</span>
+              </div>
+            </div>
+          </div>
+          <Link
+            to={`/organizations/${orgId}/wallet`}
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50 shrink-0"
+          >
+            View details
+          </Link>
+        </div>
 
         {isPrivileged ? (
           <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 flex flex-col lg:flex-row lg:items-end gap-3">

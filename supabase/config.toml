@@ -523,6 +523,24 @@ verify_jwt = true
 import_map = "./functions/cashier-org-topup/deno.json"
 entrypoint = "./functions/cashier-org-topup/index.ts"
 
+[functions.get-org-wallet]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-org-wallet/deno.json"
+entrypoint = "./functions/get-org-wallet/index.ts"
+
+[functions.list-org-ledger]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-org-ledger/deno.json"
+entrypoint = "./functions/list-org-ledger/index.ts"
+
+[functions.list-org-payments]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-org-payments/deno.json"
+entrypoint = "./functions/list-org-payments/index.ts"
+
 [functions.staff-complete-pending-topup]
 enabled = true
 verify_jwt = true
