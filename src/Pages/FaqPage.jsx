@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
+import PrintPdfButton from "../components/PrintPdfButton.jsx";
+import { usePrintDocument } from "../hooks/usePrintDocument.js";
 
 function FaqItem({ id, question, children }) {
   return (
@@ -31,14 +33,22 @@ const toc = [
 ];
 
 export default function FaqPage() {
+  const { contentRef, printAsPdf } = usePrintDocument();
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+    <div className="min-h-screen bg-gray-100 print:bg-white print:min-h-0">
+      <div
+        ref={contentRef}
+        className="print-document max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12 print:py-4 print:max-w-none"
+      >
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden print:shadow-none print:border-0 print:rounded-none">
           <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
-              Frequently asked questions
-            </h1>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
+                Frequently asked questions
+              </h1>
+              <PrintPdfButton onPrint={printAsPdf} />
+            </div>
             <p className="text-sm text-gray-600 mt-3 max-w-3xl leading-relaxed">
               Quick answers about using iRegistry as an ordinary user. For step-by-step walkthroughs of every screen,
               see the{" "}

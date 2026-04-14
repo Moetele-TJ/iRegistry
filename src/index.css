@@ -151,3 +151,67 @@ body {
   animation: toast-pop 180ms ease-out both;
   will-change: transform, opacity;
 }
+
+/* ----- Print / Save as PDF (guide, FAQ, terms, etc.) ----- */
+@media print {
+  @page {
+    margin: 14mm 12mm;
+    size: auto;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  header,
+  footer,
+  aside {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    padding-left: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    max-width: none !important;
+  }
+
+  .print-document {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    max-width: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-document * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-document h1,
+  .print-document h2,
+  .print-document h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-document .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .print-document table {
+    width: 100%;
+  }
+
+  a {
+    text-decoration: underline;
+    color: #111827 !important;
+  }
+}

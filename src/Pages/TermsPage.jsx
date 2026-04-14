@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import PrintPdfButton from "../components/PrintPdfButton.jsx";
+import { usePrintDocument } from "../hooks/usePrintDocument.js";
 
 function TermSection({ id, n, title, children }) {
   return (
@@ -29,14 +31,22 @@ const toc = [
 ];
 
 export default function TermsPage() {
+  const { contentRef, printAsPdf } = usePrintDocument();
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+    <div className="min-h-screen bg-gray-100 print:bg-white print:min-h-0">
+      <div
+        ref={contentRef}
+        className="print-document max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12 print:py-4 print:max-w-none"
+      >
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden print:shadow-none print:border-0 print:rounded-none">
           <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
-              Terms &amp; conditions
-            </h1>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
+                Terms &amp; conditions
+              </h1>
+              <PrintPdfButton onPrint={printAsPdf} />
+            </div>
             <p className="text-sm text-gray-600 mt-3 max-w-3xl leading-relaxed">
               These terms govern your access to and use of iRegistry. By creating an account or using the service, you
               agree to them. For how to use the product, see the{" "}
