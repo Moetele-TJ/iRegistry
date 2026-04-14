@@ -31,7 +31,10 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
   // not clear the local session or silently redirect.
   const hasAuthHeader = !!headers?.Authorization || !!headers?.authorization;
 
-  if (error?.context?.status === 401 && (withAuth || hasAuthHeader)) {
+  // Redirect only when this request carried a session token. `withAuth: true` with no
+  // token in storage still sends no Authorization header — a 401 must not send guests to login
+  // (e.g. home page loads `list-tasks` for pricing labels via useTaskPricing).
+  if (error?.context?.status === 401 && hasAuthHeader) {
     // Token rotation race safety:
     // If another request/tab refreshed localStorage.session since this request started,
     // retry once with the latest token instead of logging out.
