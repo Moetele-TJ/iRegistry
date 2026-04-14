@@ -427,6 +427,102 @@ verify_jwt = true
 import_map = "./functions/user-pending-topup/deno.json"
 entrypoint = "./functions/user-pending-topup/index.ts"
 
+[functions.list-my-orgs]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-my-orgs/deno.json"
+entrypoint = "./functions/list-my-orgs/index.ts"
+
+[functions.respond-org-invite]
+enabled = true
+verify_jwt = true
+import_map = "./functions/respond-org-invite/deno.json"
+entrypoint = "./functions/respond-org-invite/index.ts"
+
+[functions.list-org-items]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-org-items/deno.json"
+entrypoint = "./functions/list-org-items/index.ts"
+
+[functions.bulk-assign-org-items]
+enabled = true
+verify_jwt = true
+import_map = "./functions/bulk-assign-org-items/deno.json"
+entrypoint = "./functions/bulk-assign-org-items/index.ts"
+
+[functions.invite-org-member]
+enabled = true
+verify_jwt = true
+import_map = "./functions/invite-org-member/deno.json"
+entrypoint = "./functions/invite-org-member/index.ts"
+
+[functions.create-org-item-return-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-org-item-return-request/deno.json"
+entrypoint = "./functions/create-org-item-return-request/index.ts"
+
+[functions.review-org-item-return-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/review-org-item-return-request/deno.json"
+entrypoint = "./functions/review-org-item-return-request/index.ts"
+
+[functions.org-mark-item-legacy]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-mark-item-legacy/deno.json"
+entrypoint = "./functions/org-mark-item-legacy/index.ts"
+
+[functions.org-restore-legacy-item]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-restore-legacy-item/deno.json"
+entrypoint = "./functions/org-restore-legacy-item/index.ts"
+
+[functions.app-admin-transfer-item-scope]
+enabled = true
+verify_jwt = true
+import_map = "./functions/app-admin-transfer-item-scope/deno.json"
+entrypoint = "./functions/app-admin-transfer-item-scope/index.ts"
+
+[functions.list-org-members]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-org-members/deno.json"
+entrypoint = "./functions/list-org-members/index.ts"
+
+[functions.list-my-assigned-org-items]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-my-assigned-org-items/deno.json"
+entrypoint = "./functions/list-my-assigned-org-items/index.ts"
+
+[functions.list-org-item-return-requests]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-org-item-return-requests/deno.json"
+entrypoint = "./functions/list-org-item-return-requests/index.ts"
+
+[functions.org-toggle-item-stolen]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-toggle-item-stolen/deno.json"
+entrypoint = "./functions/org-toggle-item-stolen/index.ts"
+
+[functions.list-orgs]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-orgs/deno.json"
+entrypoint = "./functions/list-orgs/index.ts"
+
+[functions.cashier-org-topup]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cashier-org-topup/deno.json"
+entrypoint = "./functions/cashier-org-topup/index.ts"
+
 [functions.staff-complete-pending-topup]
 enabled = true
 verify_jwt = true

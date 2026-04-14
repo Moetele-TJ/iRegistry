@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Receipt, Wallet, User, ChevronRight, Hourglass } from "lucide-react";
+import { Search, Receipt, Wallet, User, ChevronRight, Hourglass, Building2 } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -23,10 +23,14 @@ function displayName(u) {
 export default function CashierTopupPage() {
   const { addToast } = useToast();
   const { confirm } = useModal();
+  const [targetType, setTargetType] = useState("user"); // user | organization
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [users, setUsers] = useState([]);
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [orgs, setOrgs] = useState([]);
   const [q, setQ] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedOrgId, setSelectedOrgId] = useState("");
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [packageId, setPackageId] = useState("");
@@ -64,6 +68,28 @@ export default function CashierTopupPage() {
 
   useEffect(() => {
     let cancelled = false;
+    async function loadOrgs() {
+      setLoadingOrgs(true);
+      try {
+        const { data, error } = await invokeWithAuth("list-orgs", { body: { q: "", limit: 200 } });
+        if (cancelled) return;
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load organizations");
+        setOrgs(data.organizations || []);
+      } catch (e) {
+        addToast({ type: "error", message: e.message || "Failed to load organizations" });
+        setOrgs([]);
+      } finally {
+        if (!cancelled) setLoadingOrgs(false);
+      }
+    }
+    void loadOrgs();
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast]);
+
+  useEffect(() => {
+    let cancelled = false;
     async function loadPackages() {
       setLoadingPackages(true);
       try {
@@ -92,6 +118,10 @@ export default function CashierTopupPage() {
   useEffect(() => {
     setPendingReceipt("");
     setPendingStaffNote("");
+    if (targetType !== "user") {
+      setPendingPayment(null);
+      return;
+    }
     if (!selectedUserId) {
       setPendingPayment(null);
       return;
@@ -131,8 +161,29 @@ export default function CashierTopupPage() {
     [users, selectedUserId],
   );
 
+  const selectedOrg = useMemo(
+    () => orgs.find((o) => String(o.id) === String(selectedOrgId)) || null,
+    [orgs, selectedOrgId],
+  );
+
   const filtered = useMemo(() => {
     const query = String(q || "").trim().toLowerCase();
+    if (targetType === "organization") {
+      const list = orgs || [];
+      if (!query) return list.slice(0, 50);
+      return list.filter((o) => {
+        const hay = [
+          o?.name || "",
+          o?.registration_no || "",
+          o?.contact_email || "",
+          o?.phone || "",
+          o?.id || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(query);
+      });
+    }
     if (!query) return users.slice(0, 50);
     return (users || []).filter((u) => {
       const hay = [
@@ -147,24 +198,36 @@ export default function CashierTopupPage() {
         .toLowerCase();
       return hay.includes(query);
     });
-  }, [users, q]);
+  }, [users, orgs, q, targetType]);
 
   const pkg = (packages || []).find((p) => p.id === packageId) || packages[0] || null;
 
   async function submitTopup() {
     const rid = String(receiptNo || "").trim();
-    if (!selectedUserId) {
-      addToast({ type: "error", message: "Select a user first." });
-      return;
+    if (targetType === "organization") {
+      if (!selectedOrgId) {
+        addToast({ type: "error", message: "Select an organization first." });
+        return;
+      }
+    } else {
+      if (!selectedUserId) {
+        addToast({ type: "error", message: "Select a user first." });
+        return;
+      }
     }
     if (!rid) {
       addToast({ type: "error", message: "Receipt number is required." });
       return;
     }
 
+    const who =
+      targetType === "organization"
+        ? (selectedOrg?.name || selectedOrgId)
+        : (selectedUser ? displayName(selectedUser) : "this user");
+
     const ok = await confirm({
       title: "Confirm",
-      message: `Credit ${selectedUser ? displayName(selectedUser) : "this user"} with ${Number(pkg?.credits ?? 0)} credits for ${pkgLabel(pkg)}?`,
+      message: `Credit ${who} with ${Number(pkg?.credits ?? 0)} credits for ${pkgLabel(pkg)}?`,
       confirmLabel: "Confirm top-up",
       cancelLabel: "Cancel",
       danger: false,
@@ -173,14 +236,23 @@ export default function CashierTopupPage() {
 
     setSubmitting(true);
     try {
-      const { data, error } = await invokeWithAuth("cashier-topup", {
-        body: {
-          user_id: selectedUserId,
-          package_id: packageId,
-          receipt_no: rid,
-          note: String(note || "").trim() || null,
-        },
-      });
+      const endpoint = targetType === "organization" ? "cashier-org-topup" : "cashier-topup";
+      const payload =
+        targetType === "organization"
+          ? {
+              org_id: selectedOrgId,
+              package_id: packageId,
+              receipt_no: rid,
+              note: String(note || "").trim() || null,
+            }
+          : {
+              user_id: selectedUserId,
+              package_id: packageId,
+              receipt_no: rid,
+              note: String(note || "").trim() || null,
+            };
+
+      const { data, error } = await invokeWithAuth(endpoint, { body: payload });
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Top up failed");
       }
@@ -188,7 +260,7 @@ export default function CashierTopupPage() {
         type: "success",
         message: `Top up successful: +${Number(pkg?.credits ?? 0)} credits. New balance: ${data.new_balance ?? "—"}.`,
       });
-      if (typeof data.new_balance === "number") {
+      if (typeof data.new_balance === "number" && targetType === "user") {
         setUsers((prev) =>
           (prev || []).map((u) =>
             String(u.id) === String(selectedUserId)
@@ -260,19 +332,61 @@ export default function CashierTopupPage() {
     <PageSectionCard
       maxWidthClass="max-w-6xl"
       title="Cashier top-up"
-      subtitle="Record a cash/office payment and credit the user's account."
+      subtitle="Record a cash/office payment and credit a user or organization wallet."
       icon={<Wallet className="w-6 h-6 text-iregistrygreen shrink-0" />}
     >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6">
         <section className="lg:col-span-7 rounded-xl border border-gray-100 bg-gray-50/60 p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <User size={18} className="text-gray-400" />
-              Select user
+              {targetType === "organization" ? (
+                <>
+                  <Building2 size={18} className="text-gray-400" />
+                  Select organization
+                </>
+              ) : (
+                <>
+                  <User size={18} className="text-gray-400" />
+                  Select user
+                </>
+              )}
             </div>
             <div className="text-xs text-gray-400">
-              {loadingUsers ? "Loading…" : `${users.length} total`}
+              {targetType === "organization"
+                ? (loadingOrgs ? "Loading…" : `${orgs.length} total`)
+                : (loadingUsers ? "Loading…" : `${users.length} total`)}
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <RippleButton
+              type="button"
+              className={`px-3 py-2 rounded-xl text-sm font-semibold border ${
+                targetType === "user"
+                  ? "bg-emerald-600 text-white border-emerald-600"
+                  : "bg-white text-gray-800 border-gray-200"
+              }`}
+              onClick={() => {
+                setTargetType("user");
+                setQ("");
+              }}
+            >
+              User
+            </RippleButton>
+            <RippleButton
+              type="button"
+              className={`px-3 py-2 rounded-xl text-sm font-semibold border ${
+                targetType === "organization"
+                  ? "bg-emerald-600 text-white border-emerald-600"
+                  : "bg-white text-gray-800 border-gray-200"
+              }`}
+              onClick={() => {
+                setTargetType("organization");
+                setQ("");
+              }}
+            >
+              Organization
+            </RippleButton>
           </div>
 
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 mb-4">
@@ -281,38 +395,68 @@ export default function CashierTopupPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               className="w-full outline-none text-sm"
-              placeholder="Search name, ID number, phone, email…"
+              placeholder={targetType === "organization" ? "Search organization name, reg no…" : "Search name, ID number, phone, email…"}
             />
           </div>
 
           <div className="max-h-[420px] overflow-auto divide-y rounded-xl border border-gray-100">
-            {filtered.map((u) => {
-              const active = String(u.id) === String(selectedUserId);
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => setSelectedUserId(String(u.id))}
-                  className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 ${
-                    active ? "bg-emerald-50/60" : "bg-white"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="font-medium text-gray-900 truncate">{displayName(u)}</div>
-                    <div className="text-xs text-gray-500 truncate">
-                      {u.id_number ? `ID: ${u.id_number}` : null}
-                      {u.id_number && u.phone ? " • " : null}
-                      {u.phone ? `Phone: ${u.phone}` : null}
-                      {(u.id_number || u.phone) && u.role ? " • " : null}
-                      {u.role ? `Role: ${u.role}` : null}
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-gray-300 shrink-0" />
-                </button>
-              );
-            })}
-            {!loadingUsers && filtered.length === 0 && (
-              <div className="px-4 py-6 text-sm text-gray-500">No users match your search.</div>
+            {targetType === "organization"
+              ? filtered.map((o) => {
+                  const active = String(o.id) === String(selectedOrgId);
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => setSelectedOrgId(String(o.id))}
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 ${
+                        active ? "bg-emerald-50/60" : "bg-white"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{String(o.name || "—")}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {o.registration_no ? `Reg: ${o.registration_no}` : null}
+                          {o.registration_no && o.contact_email ? " • " : null}
+                          {o.contact_email ? o.contact_email : null}
+                        </div>
+                      </div>
+                      <ChevronRight size={18} className="text-gray-300 shrink-0" />
+                    </button>
+                  );
+                })
+              : filtered.map((u) => {
+                  const active = String(u.id) === String(selectedUserId);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setSelectedUserId(String(u.id))}
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 ${
+                        active ? "bg-emerald-50/60" : "bg-white"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{displayName(u)}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {u.id_number ? `ID: ${u.id_number}` : null}
+                          {u.id_number && u.phone ? " • " : null}
+                          {u.phone ? `Phone: ${u.phone}` : null}
+                          {(u.id_number || u.phone) && u.role ? " • " : null}
+                          {u.role ? `Role: ${u.role}` : null}
+                        </div>
+                      </div>
+                      <ChevronRight size={18} className="text-gray-300 shrink-0" />
+                    </button>
+                  );
+                })}
+            {targetType === "organization" ? (
+              !loadingOrgs && filtered.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-gray-500">No organizations match your search.</div>
+              ) : null
+            ) : (
+              !loadingUsers && filtered.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-gray-500">No users match your search.</div>
+              ) : null
             )}
           </div>
         </section>
@@ -323,11 +467,11 @@ export default function CashierTopupPage() {
             Top-up details
           </div>
 
-          {selectedUserId && loadingPending ? (
+          {targetType === "user" && selectedUserId && loadingPending ? (
             <div className="text-xs text-gray-500">Checking for pending user top-up…</div>
           ) : null}
 
-          {selectedUser && pendingPayment ? (
+          {targetType === "user" && selectedUser && pendingPayment ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
               <div className="text-sm font-semibold text-amber-950 flex items-center gap-2">
                 <Hourglass size={18} className="text-amber-700 shrink-0" />
@@ -381,12 +525,20 @@ export default function CashierTopupPage() {
           ) : null}
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wide">Selected user</div>
-            <div className="text-sm font-semibold text-gray-900 mt-1">
-              {selectedUser ? displayName(selectedUser) : "—"}
+            <div className="text-xs text-gray-500 uppercase tracking-wide">
+              {targetType === "organization" ? "Selected organization" : "Selected user"}
             </div>
-            <div className="text-xs text-gray-500 mt-1">{selectedUser ? `User ID: ${selectedUser.id}` : ""}</div>
-            {selectedUser ? (
+            <div className="text-sm font-semibold text-gray-900 mt-1">
+              {targetType === "organization"
+                ? (selectedOrg ? (selectedOrg.name || "—") : "—")
+                : (selectedUser ? displayName(selectedUser) : "—")}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {targetType === "organization"
+                ? (selectedOrg ? `Org ID: ${selectedOrg.id}` : "")
+                : (selectedUser ? `User ID: ${selectedUser.id}` : "")}
+            </div>
+            {targetType === "user" && selectedUser ? (
               <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900">
                 Current balance:
                 <span className="tabular-nums">{Number(selectedUser.credit_balance ?? 0)}</span>

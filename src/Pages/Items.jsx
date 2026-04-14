@@ -23,6 +23,7 @@ import {
   isItemFrozen,
   isItemReportedStolen,
 } from "../lib/itemState.js";
+import { normalizeItemFromDB } from "../contexts/ItemsContext.jsx";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -108,6 +109,15 @@ function formatItemStation(item) {
   return String(item?.station || item?.location || "").trim() || "—";
 }
 
+function isAssignedOrganizationItem(item, sessionUserId) {
+  if (!item) return false;
+  const oid = item?.ownerOrgId;
+  const aid = item?.assignedUserId;
+  if (!oid) return false;
+  if (!sessionUserId) return false;
+  return String(aid || "") === String(sessionUserId);
+}
+
 function itemThumbnailSrc(item) {
   const first = item?.photos?.[0] ?? null;
   return (
@@ -147,6 +157,7 @@ export default function Items({ view = "active" } = {}) {
 
   const { user } = useAuth();
   const role = user?.role;
+  const sessionUserId = user?.id;
   const { getCost } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
   const { goToAddItem, tasksLoading: addPreflightLoading } = useAddItemPreflight();
@@ -169,8 +180,37 @@ export default function Items({ view = "active" } = {}) {
   const [usersList, setUsersList] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [selectedOwnerId, setSelectedOwnerId] = useState(user?.id || "");
+  const [assignedOrgItems, setAssignedOrgItems] = useState([]);
 
   const isPrivileged = isPrivilegedRole(role);
+  const isOrdinaryUser = roleIs(role, "user");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAssigned() {
+      if (!user?.id || !isOrdinaryUser) {
+        setAssignedOrgItems([]);
+        return;
+      }
+      try {
+        const { data, error } = await invokeWithAuth("list-my-assigned-org-items");
+        if (cancelled) return;
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+        const rows = Array.isArray(data.items) ? data.items : [];
+        const normalized = rows.map((r) => ({
+          ...normalizeItemFromDB(r),
+          organizationName: r?.organization?.name ?? null,
+        }));
+        setAssignedOrgItems(normalized);
+      } catch {
+        if (!cancelled) setAssignedOrgItems([]);
+      }
+    }
+    void loadAssigned();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, isOrdinaryUser]);
 
   /** Keep get-items flags aligned with the current tab (active / deleted / legacy). */
   function fetchParamsForItemsView(ownerId) {
@@ -308,7 +348,13 @@ export default function Items({ view = "active" } = {}) {
   }
 
   // derived items (from context)
-  const items = useMemo(() => ctxItems || [], [ctxItems]);
+  const items = useMemo(() => {
+    if (!isOrdinaryUser) return ctxItems || [];
+    const byId = new Map();
+    for (const it of ctxItems || []) byId.set(it.id, it);
+    for (const it of assignedOrgItems || []) byId.set(it.id, it);
+    return Array.from(byId.values());
+  }, [ctxItems, assignedOrgItems, isOrdinaryUser]);
 
   async function handlePoliceStolenToggle(nextValue) {
     setPoliceShowStolenAtStation(nextValue);
@@ -594,6 +640,58 @@ export default function Items({ view = "active" } = {}) {
   async function doToggleStatus(id, getPoliceStation) {
     const it = items.find((x) => x.id === id);
     if (!it) return;
+
+    // Organization-owned items: use org-aware endpoint with proper role gating.
+    if (it.ownerOrgId) {
+      const next = isItemReportedStolen(it) ? "MARK_ACTIVE" : "MARK_STOLEN";
+      try {
+        const raw =
+          next === "MARK_STOLEN" && typeof getPoliceStation === "function" ? getPoliceStation() : "";
+        const trimmed = String(raw ?? "").trim();
+        const { data, error } = await invokeWithAuth("org-toggle-item-stolen", {
+          body: {
+            org_id: it.ownerOrgId,
+            item_id: id,
+            action: next,
+            policeStation: trimmed || undefined,
+          },
+        });
+        if (error || !data?.success) {
+          throw new Error(data?.message || error?.message || "Failed");
+        }
+
+        // Refresh lists (personal items + assigned org items).
+        const oid = isPrivileged ? selectedOwnerId || user?.id : user?.id;
+        if (oid) {
+          await refreshItems(fetchParamsForItemsView(oid));
+        }
+        // Reload assigned org items (best-effort, without failing the action).
+        if (isOrdinaryUser) {
+          try {
+            const { data: aData } = await invokeWithAuth("list-my-assigned-org-items");
+            const rows = Array.isArray(aData?.items) ? aData.items : [];
+            const normalized = rows.map((r) => ({
+              ...normalizeItemFromDB(r),
+              organizationName: r?.organization?.name ?? null,
+            }));
+            setAssignedOrgItems(normalized);
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch (err) {
+        setToast({
+          message: err?.message || "Failed",
+          type: "error",
+          visible: true,
+        });
+        setTimeout(() => {
+          setToast((t) => ({ ...t, visible: false }));
+        }, 5000);
+        throw err;
+      }
+      return;
+    }
 
     const next = isItemReportedStolen(it) ? "Active" : "Stolen";
 
@@ -1273,6 +1371,26 @@ export default function Items({ view = "active" } = {}) {
                             View
                           </RippleButton>
 
+                          {isOrdinaryUser && isAssignedOrganizationItem(item, sessionUserId) ? (
+                            <>
+                              {item.organizationName ? (
+                                <span className="text-xs text-gray-500 rounded-full border border-gray-200 bg-white px-2 py-1">
+                                  Organization: {item.organizationName}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-500 rounded-full border border-gray-200 bg-white px-2 py-1">
+                                  Organization-owned
+                                </span>
+                              )}
+                              <RippleButton
+                                className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
+                                onClick={() => navigate(`/organizations/${item.ownerOrgId}/items`)}
+                              >
+                                Open organization
+                              </RippleButton>
+                            </>
+                          ) : null}
+
                           {showStationQueue &&
                             item.policeCase &&
                             (() => {
@@ -1292,7 +1410,12 @@ export default function Items({ view = "active" } = {}) {
                               );
                             })()}
 
-                          {!queueRowReadOnly(item) ? (
+                          {!queueRowReadOnly(item) &&
+                          !(
+                            isOrdinaryUser &&
+                            isAssignedOrganizationItem(item, sessionUserId) &&
+                            isItemReportedStolen(item)
+                          ) ? (
                             <>
                               {view === "active" && !isItemFrozen(item) ? (
                                 <RippleButton
@@ -1307,7 +1430,12 @@ export default function Items({ view = "active" } = {}) {
                                 </RippleButton>
                               ) : null}
 
-                              {view === "active" ? (
+                              {view === "active" &&
+                              !(
+                                isOrdinaryUser &&
+                                isAssignedOrganizationItem(item, sessionUserId) &&
+                                item.ownerOrgId
+                              ) ? (
                                 <>
                                   <RippleButton
                                     className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"

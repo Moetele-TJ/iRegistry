@@ -32,6 +32,7 @@ import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
 import UserPricingPage from "./Pages/user/UserPricingPage.jsx";
 import UserTopupPage from "./Pages/user/UserTopupPage.jsx";
 import UserManualPage from "./Pages/user/UserManualPage.jsx";
+import UserOrganizationsPage from "./Pages/user/UserOrganizationsPage.jsx";
 import FaqPage from "./Pages/FaqPage.jsx";
 import TermsPage from "./Pages/TermsPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
@@ -71,6 +72,7 @@ import CashierTransactionsPage from "./Pages/cashier/CashierTransactionsPage.jsx
 import CashierPricingPage from "./Pages/cashier/CashierPricingPage.jsx";
 import CashierRevenuePage from "./Pages/cashier/CashierRevenuePage.jsx";
 import CashierUsersPage from "./Pages/cashier/CashierUsersPage.jsx";
+import OrganizationItemsPage from "./Pages/shared/OrganizationItemsPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -135,6 +137,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="notifications" element={<UserNotificationsPage />} />
                     <Route path="activity" element={<UserActivityPage />} />
                     <Route path="transactions" element={<UserTransactionsPage />} />
+                    <Route path="organizations" element={<UserOrganizationsPage />} />
                     <Route path="pricing" element={<UserPricingPage />} />
                     <Route path="topup" element={<UserTopupPage />} />
                   </Route>
@@ -272,6 +275,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route path="/profile" element={<ProfileRoleRedirect />} />
+
+                  {/* Organization-owned items (shared) */}
+                  <Route
+                    path="/organizations/:orgId/items"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
+                        <OrganizationItemsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
                 </Route>
 

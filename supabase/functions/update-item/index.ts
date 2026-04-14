@@ -9,6 +9,11 @@ import { normalizeSerial } from "../shared/serial.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { slugify, generateUniqueSlug } from "../shared/slug.ts";
+import {
+  canOrgEditItem,
+  getActiveOrgMembership,
+  isAppAdmin,
+} from "../shared/orgAuth.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -95,8 +100,21 @@ serve(async (req) => {
 
     const isOwner = existing.ownerid === actorUserId;
     const isPrivileged = isPrivilegedRole(actorRole);
+    const isOrgOwned = existing.owner_org_id !== null && existing.owner_org_id !== undefined;
+    const orgId = isOrgOwned ? String(existing.owner_org_id) : null;
 
-    if (!isOwner && !isPrivileged) {
+    // If org-owned, allow update by org managers/admins (or app admins).
+    let canUpdateOrgItem = false;
+    if (isOrgOwned && orgId) {
+      if (isAppAdmin(actorRole)) {
+        canUpdateOrgItem = true;
+      } else {
+        const m = await getActiveOrgMembership(supabase, { orgId, userId: actorUserId });
+        canUpdateOrgItem = Boolean(m && canOrgEditItem(m.role));
+      }
+    }
+
+    if (!isOwner && !isPrivileged && !canUpdateOrgItem) {
       return respond(
         {
           success: false,
@@ -209,6 +227,18 @@ serve(async (req) => {
         );
       }
 
+      if (isOrgOwned) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-ORG-STATUS-001",
+            message: "Use the organization workflow to update stolen/active status",
+          },
+          corsHeaders,
+          403
+        );
+      }
+
       // Translate legacy `status` to `reportedstolenat` intent.
       if (legacy === "Stolen") {
         if (existing.reportedstolenat == null && !("reportedstolenat" in cleanUpdates)) {
@@ -224,6 +254,18 @@ serve(async (req) => {
     }
 
     if ("reportedstolenat" in cleanUpdates) {
+      if (isOrgOwned) {
+        return respond(
+          {
+            success: false,
+            diag: "ITEM-UPDATE-ORG-STOLENAT-001",
+            message: "Use the organization workflow to update stolen/active status",
+          },
+          corsHeaders,
+          403
+        );
+      }
+
       const v = cleanUpdates.reportedstolenat;
       if (v === null) {
         // ok (becoming active)
@@ -552,100 +594,142 @@ serve(async (req) => {
       }
     }
 
-    /* ---------------- BILLING (after validation & police gates; debit_item_update_tasks) ---------------- */
-    const billToUserId = String(existing.ownerid);
-    const { data: ownerRow } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("id", billToUserId)
-      .maybeSingle();
-    const ownerRole = (ownerRow as any)?.role;
-    const ownerIsPrivileged = isPrivilegedRole(ownerRole);
-    const actorIsPrivileged = isPrivilegedRole(actorRole);
-
     let needMarkStolen = false;
     let needUploadPhotos = false;
     let needEditItem = false;
 
-    if (!actorIsPrivileged && !ownerIsPrivileged) {
-      needMarkStolen = Boolean(becomingStolen);
-
-      if ("photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
-        const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
-        const existingSet = new Set(
-          existingPhotos
-            .map((p: any) => (typeof p === "string" ? p : p?.original || p?.thumb || ""))
-            .map((s: any) => String(s || "").trim())
-            .filter(Boolean),
-        );
-        const incoming = cleanUpdates.photos as any[];
-        const hasNew = incoming.some((p) => {
-          const raw = typeof p === "string" ? p : p?.original || p?.thumb || "";
-          const key = String(raw || "").trim();
-          return key && !existingSet.has(key);
-        });
-        if (hasNew) {
-          needUploadPhotos = true;
-        }
-      }
-
-      const keys = Object.keys(cleanUpdates);
-      const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
-      const hasNonPhotoNonStatusChange = meaningful.some((k) => {
-        if (k === "photos") return false;
-        const existingVal = (existing as any)[k];
-        const v = (cleanUpdates as any)[k];
-        return !deepEqual(existingVal, v);
+    // Billing decisions depend on what actually changed.
+    // - Personal items: only bill when both actor and owner are non-privileged.
+    // - Organization-owned items: always bill the organization wallet for charged tasks.
+    if ("photos" in cleanUpdates && Array.isArray(cleanUpdates.photos)) {
+      const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
+      const existingSet = new Set(
+        existingPhotos
+          .map((p: any) => (typeof p === "string" ? p : p?.original || p?.thumb || ""))
+          .map((s: any) => String(s || "").trim())
+          .filter(Boolean),
+      );
+      const incoming = cleanUpdates.photos as any[];
+      const hasNew = incoming.some((p) => {
+        const raw = typeof p === "string" ? p : p?.original || p?.thumb || "";
+        const key = String(raw || "").trim();
+        return key && !existingSet.has(key);
       });
-      if (hasNonPhotoNonStatusChange) {
-        needEditItem = true;
+      if (hasNew) {
+        needUploadPhotos = true;
       }
     }
 
-    if (!actorIsPrivileged && !ownerIsPrivileged &&
-        (needMarkStolen || needUploadPhotos || needEditItem)) {
-      const { error: debitErr } = await supabase.rpc("debit_item_update_tasks", {
-        p_bill_to_user_id: billToUserId,
-        p_item_id: id,
-        p_mark_stolen: needMarkStolen,
-        p_upload_photos: needUploadPhotos,
-        p_edit_item: needEditItem,
-      });
-      if (debitErr) {
-        const em = String(debitErr.message || "");
-        const billingMap: [string, string][] = [
-          ["INSUFFICIENT_MARK_STOLEN", "MARK_STOLEN"],
-          ["INSUFFICIENT_UPLOAD_PHOTOS", "UPLOAD_PHOTOS"],
-          ["INSUFFICIENT_EDIT_ITEM", "EDIT_ITEM"],
-        ];
-        for (const [needle, code] of billingMap) {
-          if (em.includes(needle)) {
-            return respond(
-              {
-                success: false,
-                diag:
-                  code === "MARK_STOLEN"
-                    ? "ITEM-UPDATE-BILL-001"
-                    : code === "UPLOAD_PHOTOS"
-                    ? "ITEM-UPDATE-BILL-002"
-                    : "ITEM-UPDATE-BILL-003",
-                message: "Insufficient credits",
-                billing: { required: true, task_code: code },
-              },
-              corsHeaders,
-              402,
-            );
+    const keys = Object.keys(cleanUpdates);
+    const meaningful = keys.filter((k) => !["reportedstolenat"].includes(k));
+    const hasNonPhotoNonStatusChange = meaningful.some((k) => {
+      if (k === "photos") return false;
+      const existingVal = (existing as any)[k];
+      const v = (cleanUpdates as any)[k];
+      return !deepEqual(existingVal, v);
+    });
+    if (hasNonPhotoNonStatusChange) {
+      needEditItem = true;
+    }
+
+    if (!isOrgOwned) {
+      /* ---------------- BILLING (personal wallet; debit_item_update_tasks) ---------------- */
+      const billToUserId = String(existing.ownerid);
+      const { data: ownerRow } = await supabase
+        .from("users")
+        .select("id, role")
+        .eq("id", billToUserId)
+        .maybeSingle();
+      const ownerRole = (ownerRow as any)?.role;
+      const ownerIsPrivileged = isPrivilegedRole(ownerRole);
+      const actorIsPrivileged = isPrivilegedRole(actorRole);
+
+      if (!actorIsPrivileged && !ownerIsPrivileged) {
+      needMarkStolen = Boolean(becomingStolen);
+      }
+
+      if (needMarkStolen || needUploadPhotos || needEditItem) {
+        const { error: debitErr } = await supabase.rpc("debit_item_update_tasks", {
+          p_bill_to_user_id: billToUserId,
+          p_item_id: id,
+          p_mark_stolen: needMarkStolen,
+          p_upload_photos: needUploadPhotos,
+          p_edit_item: needEditItem,
+        });
+        if (debitErr) {
+          const em = String(debitErr.message || "");
+          const billingMap: [string, string][] = [
+            ["INSUFFICIENT_MARK_STOLEN", "MARK_STOLEN"],
+            ["INSUFFICIENT_UPLOAD_PHOTOS", "UPLOAD_PHOTOS"],
+            ["INSUFFICIENT_EDIT_ITEM", "EDIT_ITEM"],
+          ];
+          for (const [needle, code] of billingMap) {
+            if (em.includes(needle)) {
+              return respond(
+                {
+                  success: false,
+                  diag:
+                    code === "MARK_STOLEN"
+                      ? "ITEM-UPDATE-BILL-001"
+                      : code === "UPLOAD_PHOTOS"
+                      ? "ITEM-UPDATE-BILL-002"
+                      : "ITEM-UPDATE-BILL-003",
+                  message: "Insufficient credits",
+                  billing: { required: true, task_code: code },
+                },
+                corsHeaders,
+                402,
+              );
+            }
           }
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-UPDATE-BILL-000",
+              message: debitErr.message || "Billing failed",
+            },
+            corsHeaders,
+            500,
+          );
         }
-        return respond(
-          {
-            success: false,
-            diag: "ITEM-UPDATE-BILL-000",
-            message: debitErr.message || "Billing failed",
-          },
-          corsHeaders,
-          500,
-        );
+      }
+    } else {
+      /* ---------------- BILLING (org wallet; debit_org_item_update_tasks) ---------------- */
+      // For org-owned items, stolen toggles are handled by `org-toggle-item-stolen`.
+      // `needMarkStolen` should always be false here (guarded above), but keep it safe.
+      needMarkStolen = Boolean(becomingStolen);
+      if (orgId && (needMarkStolen || needUploadPhotos || needEditItem)) {
+        const { data: spendRows, error: debitErr } = await supabase.rpc("debit_org_item_update_tasks", {
+          p_org_id: orgId,
+          p_item_id: id,
+          p_mark_stolen: Boolean(needMarkStolen),
+          p_upload_photos: Boolean(needUploadPhotos),
+          p_edit_item: Boolean(needEditItem),
+          p_created_by: actorUserId,
+        });
+        if (debitErr) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-UPDATE-ORG-BILL-000",
+              message: debitErr.message || "Billing failed",
+            },
+            corsHeaders,
+            500
+          );
+        }
+        const ok = Array.isArray(spendRows) ? spendRows[0]?.success : null;
+        if (ok !== true) {
+          return respond(
+            {
+              success: false,
+              diag: "ITEM-UPDATE-ORG-BILL-001",
+              message: "Insufficient credits",
+            },
+            corsHeaders,
+            402
+          );
+        }
       }
     }
 

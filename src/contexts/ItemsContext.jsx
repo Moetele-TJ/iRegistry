@@ -90,6 +90,10 @@ export function normalizeItemFromDB(row) {
   return {
     id: row.id,
     ownerId: row.ownerid,
+    ownerOrgId: row.owner_org_id ?? null,
+    assignedUserId: row.assigned_user_id ?? null,
+    orgAssignedAt: row.org_assigned_at ?? null,
+    orgAssignedBy: row.org_assigned_by ?? null,
 
     name: row.name,
     category: row.category,
