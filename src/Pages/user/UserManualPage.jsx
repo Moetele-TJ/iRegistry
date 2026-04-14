@@ -87,6 +87,10 @@ export default function UserManualPage() {
                 <Link to="/faq" className="font-semibold text-iregistrygreen hover:underline">
                   FAQ
                 </Link>
+                . Legal terms are in the{" "}
+                <Link to="/terms" className="font-semibold text-iregistrygreen hover:underline">
+                  Terms &amp; conditions
+                </Link>
                 .
               </p>
             </div>

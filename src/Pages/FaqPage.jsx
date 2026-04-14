@@ -45,7 +45,11 @@ export default function FaqPage() {
               <Link to="/guide" className="font-semibold text-iregistrygreen hover:underline">
                 User guide
               </Link>
-              . You do not need to be logged in to read this page.
+              . You do not need to be logged in to read this page. Legal terms for using the service are in the{" "}
+              <Link to="/terms" className="font-semibold text-iregistrygreen hover:underline">
+                Terms &amp; conditions
+              </Link>
+              .
             </p>
           </div>
 
