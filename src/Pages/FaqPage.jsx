@@ -182,7 +182,7 @@ export default function FaqPage() {
                       to look up a serial or use photo search in many cases <strong>without signing in</strong>. Free
                       limits may apply; when you are logged in, some extra checks may use <strong>credits</strong> after
                       allowances — see <Link to="/guide" className="text-iregistrygreen font-medium hover:underline">User guide</Link>{" "}
-                      and <Link to="/userdashboard/pricing" className="text-iregistrygreen font-medium hover:underline">Pricing</Link>{" "}
+                      and <Link to="/user/pricing" className="text-iregistrygreen font-medium hover:underline">Pricing</Link>{" "}
                       (Pricing requires login).
                     </p>
                   </FaqItem>

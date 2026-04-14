@@ -1,6 +1,6 @@
 import PricingPage from "../shared/PricingPage.jsx";
 
-const CASHIER_TOPUP_PATH = "/cashierdashboard/topup";
+const CASHIER_TOPUP_PATH = "/cashier/topup";
 
 export default function CashierPricingPage() {
   return (

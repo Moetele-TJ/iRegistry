@@ -14,13 +14,13 @@ export default function ProfileRoleRedirect() {
     return <Navigate to="/login" replace />;
   }
   if (roleIs(role, "admin")) {
-    return <Navigate to="/admindashboard/profile" replace />;
+    return <Navigate to="/admin/profile" replace />;
   }
   if (roleIs(role, "police")) {
-    return <Navigate to="/policedashboard/profile" replace />;
+    return <Navigate to="/police/profile" replace />;
   }
   if (roleIs(role, "cashier")) {
-    return <Navigate to="/cashierdashboard/profile" replace />;
+    return <Navigate to="/cashier/profile" replace />;
   }
-  return <Navigate to="/userdashboard/profile" replace />;
+  return <Navigate to="/user/profile" replace />;
 }

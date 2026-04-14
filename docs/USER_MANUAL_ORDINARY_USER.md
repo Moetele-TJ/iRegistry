@@ -21,7 +21,7 @@ iRegistry helps you **register valuable items** (with photos and serials), **pro
 
 - If you use more than one browser or device, you may need to verify by **email first** on a new device before SMS is offered.
 - Your account may allow **up to two active sessions**. If you are at the limit, sign in will ask you to **sign out one existing session** before continuing.
-- After login, you are usually taken to your **dashboard** (`/userdashboard`), or back to a page you tried to open before logging in.
+- After login, you are usually taken to your **dashboard** (`/user`), or back to a page you tried to open before logging in.
 
 **Signing up**
 
@@ -45,7 +45,7 @@ When you are logged in as an ordinary user, the **left sidebar** (expand it by m
 | **Pricing** | What actions cost in credits and how billing works |
 
 **URLs (for reference)**  
-All of these live under `/userdashboard/…` — for example `/userdashboard/items`, `/userdashboard/profile`.
+All of these live under `/user/…` — for example `/user/items`, `/user/profile`.
 
 ---
 
@@ -125,9 +125,9 @@ If something fails because of **insufficient credits**, the app should tell you 
 
 Many operations use **credits** (a balance on your account).
 
-- **Pricing** (`/userdashboard/pricing`) — explains **costs** for actions (e.g. registering extra items, certain updates).
-- **Top up** (`/userdashboard/topup`) — add credits when your organization supports self-serve top-up; otherwise you may be directed to a **cashier** or other channel.
-- **Transactions** (`/userdashboard/transactions`) — history of top-ups and charges so you can reconcile your balance.
+- **Pricing** (`/user/pricing`) — explains **costs** for actions (e.g. registering extra items, certain updates).
+- **Top up** (`/user/topup`) — add credits when your organization supports self-serve top-up; otherwise you may be directed to a **cashier** or other channel.
+- **Transactions** (`/user/transactions`) — history of top-ups and charges so you can reconcile your balance.
 
 The **credits strip** on the dashboard often shows **balance** and quick links to these pages.
 

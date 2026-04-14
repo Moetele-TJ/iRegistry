@@ -87,7 +87,7 @@ export default function PoliceHome() {
 
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/policedashboard/items"
+              to="/police/items"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium hover:opacity-90 shadow-sm"
             >
               <Package size={18} />
@@ -164,7 +164,7 @@ export default function PoliceHome() {
 
             <div className="mt-4 text-right">
               <Link
-                to="/policedashboard/activity"
+                to="/police/activity"
                 className="text-sm text-iregistrygreen hover:underline"
               >
                 Full activity log

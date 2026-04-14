@@ -158,7 +158,7 @@ export default function AdminPackagesPage() {
   const headerActions = (
     <>
       <Link
-        to="/admindashboard/topup"
+        to="/admin/topup"
         className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-white/90 px-3 py-2 text-sm font-medium text-emerald-900 shadow-sm hover:bg-white transition"
       >
         Top-up

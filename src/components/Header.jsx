@@ -70,35 +70,35 @@ export default function Header() {
   const role = user?.role;
 
   function dashboardPath() {
-    if (roleIs(role, "admin")) return "/admindashboard";
-    if (roleIs(role, "police")) return "/policedashboard";
-    if (roleIs(role, "cashier")) return "/cashierdashboard";
-    if (roleIs(role, "user")) return "/userdashboard";
+    if (roleIs(role, "admin")) return "/admin";
+    if (roleIs(role, "police")) return "/police";
+    if (roleIs(role, "cashier")) return "/cashier";
+    if (roleIs(role, "user")) return "/user";
     return "/";
   }
 
   function profilePath() {
-    if (roleIs(role, "admin")) return "/admindashboard/profile";
-    if (roleIs(role, "police")) return "/policedashboard/profile";
-    if (roleIs(role, "cashier")) return "/cashierdashboard/profile";
-    if (roleIs(role, "user")) return "/userdashboard/profile";
+    if (roleIs(role, "admin")) return "/admin/profile";
+    if (roleIs(role, "police")) return "/police/profile";
+    if (roleIs(role, "cashier")) return "/cashier/profile";
+    if (roleIs(role, "user")) return "/user/profile";
     return "/profile";
   }
 
   /** Registry list route scoped to the same dashboard shell as the sidebar (avoids mismatched nav vs layout). */
   function itemsPath() {
-    if (roleIs(role, "admin")) return "/admindashboard/items";
-    if (roleIs(role, "police")) return "/policedashboard/items";
-    if (roleIs(role, "cashier")) return "/cashierdashboard/items";
-    if (roleIs(role, "user")) return "/userdashboard/items";
+    if (roleIs(role, "admin")) return "/admin/items";
+    if (roleIs(role, "police")) return "/police/items";
+    if (roleIs(role, "cashier")) return "/cashier/items";
+    if (roleIs(role, "user")) return "/user/items";
     return "/items";
   }
 
   function notificationsPath() {
-    if (roleIs(role, "admin")) return "/admindashboard/notifications";
-    if (roleIs(role, "police")) return "/policedashboard/notifications";
-    if (roleIs(role, "cashier")) return "/cashierdashboard/notifications";
-    if (roleIs(role, "user")) return "/userdashboard/notifications";
+    if (roleIs(role, "admin")) return "/admin/notifications";
+    if (roleIs(role, "police")) return "/police/notifications";
+    if (roleIs(role, "cashier")) return "/cashier/notifications";
+    if (roleIs(role, "user")) return "/user/notifications";
     return "/notifications";
   }
 
@@ -182,7 +182,7 @@ export default function Header() {
           {count > 0 && !roleIs(role, "cashier") && (
             <div
               className="relative cursor-pointer hover:scale-105 transition-transform"
-              onClick={() => navigate("/userdashboard?tab=transfers")}
+              onClick={() => navigate("/user?tab=transfers")}
             >
               <Repeat size={20} className="text-gray-600" />
 

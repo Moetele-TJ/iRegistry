@@ -160,12 +160,12 @@ export default function AdminHome() {
             loading={loading}
             pending={paymentAttention.pending}
             failed={paymentAttention.failed}
-            onGoPayments={() => navigate("/admindashboard/transactions")}
+            onGoPayments={() => navigate("/admin/transactions")}
           />
           <SuspendedUsersCard
             loading={loading}
             users={suspendedUsers}
-            onGoUsers={() => navigate("/admindashboard/users")}
+            onGoUsers={() => navigate("/admin/users")}
           />
           <QuickActions onGo={(to) => navigate(to)} />
         </div>
@@ -175,7 +175,7 @@ export default function AdminHome() {
           <RecentActivityCard
             events={roleActivity}
             loading={loading}
-            onGoActivity={() => navigate("/admindashboard/activity")}
+            onGoActivity={() => navigate("/admin/activity")}
           />
         </div>
       </section>
@@ -210,14 +210,14 @@ function StatCard({ label, value, danger, icon: Icon }) {
 
 function QuickActions({ onGo }) {
   const actions = [
-    { label: "Manage users", to: "/admindashboard/users", icon: Users },
-    { label: "Items", to: "/admindashboard/items", icon: Package },
-    { label: "Transactions", to: "/admindashboard/transactions", icon: ReceiptText },
-    { label: "Revenue", to: "/admindashboard/revenue", icon: Coins },
-    { label: "Sessions", to: "/admindashboard/sessions", icon: MonitorSmartphone },
-    { label: "Pricing", to: "/admindashboard/pricing", icon: Tag },
-    { label: "Notifications", to: "/admindashboard/notifications", icon: Bell },
-    { label: "Activity", to: "/admindashboard/activity", icon: Activity },
+    { label: "Manage users", to: "/admin/users", icon: Users },
+    { label: "Items", to: "/admin/items", icon: Package },
+    { label: "Transactions", to: "/admin/transactions", icon: ReceiptText },
+    { label: "Revenue", to: "/admin/revenue", icon: Coins },
+    { label: "Sessions", to: "/admin/sessions", icon: MonitorSmartphone },
+    { label: "Pricing", to: "/admin/pricing", icon: Tag },
+    { label: "Notifications", to: "/admin/notifications", icon: Bell },
+    { label: "Activity", to: "/admin/activity", icon: Activity },
   ];
 
   return (

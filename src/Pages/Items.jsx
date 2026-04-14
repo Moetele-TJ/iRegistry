@@ -132,7 +132,7 @@ function photoEntryPath(entry, preferThumb = true) {
 export default function Items({ view = "active" } = {}) {
   const { confirm } = useModal();
   const navigate = useNavigate();
-  /** `/items` has no dashboard layout padding; nested `/userdashboard/items` already does. */
+  /** `/items` has no dashboard layout padding; nested `/user/items` already does. */
   const standaloneItemsRoute = useMatch({ path: "/items", end: true });
     const {
     items: ctxItems = [],

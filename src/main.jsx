@@ -107,6 +107,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     path="/userdashboard/manual"
                     element={<Navigate to="/guide" replace />}
                   />
+                  <Route
+                    path="/user/manual"
+                    element={<Navigate to="/guide" replace />}
+                  />
 
                   <Route path="/redirect" element={<RoleRedirect />} />
 
@@ -116,7 +120,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
                   {/* Dashboards */}
                   <Route
-                    path="/userdashboard"
+                    path="/user"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
                         <UserLayout />
@@ -136,7 +140,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   </Route>
 
                   <Route
-                    path="/admindashboard"
+                    path="/admin"
                     element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminLayout />
@@ -148,11 +152,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
                     <Route path="settings" element={<AdminSettings />} />
-                  <Route path="topup" element={<AdminTopupPage />} />
-                  <Route path="transactions" element={<AdminTransactionsPage />} />
-                  <Route path="pricing" element={<AdminPricingPage />} />
-                  <Route path="packages" element={<AdminPackagesPage />} />
-                  <Route path="revenue" element={<AdminRevenuePage />} />
+                    <Route path="topup" element={<AdminTopupPage />} />
+                    <Route path="transactions" element={<AdminTransactionsPage />} />
+                    <Route path="pricing" element={<AdminPricingPage />} />
+                    <Route path="packages" element={<AdminPackagesPage />} />
+                    <Route path="revenue" element={<AdminRevenuePage />} />
                     <Route path="items" element={<AdminItemsPage />} />
                     <Route path="items/deleted" element={<AdminDeletedItemsPage />} />
                     <Route path="items/legacy" element={<AdminLegacyItemsPage />} />
@@ -162,7 +166,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   </Route>
 
                   <Route
-                    path="/policedashboard"
+                    path="/police"
                     element={
                       <ProtectedRoute allowedRoles={["police", "admin"]}>
                         <PoliceLayout />
@@ -181,7 +185,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   </Route>
 
                   <Route
-                    path="/cashierdashboard"
+                    path="/cashier"
                     element={
                       <ProtectedRoute allowedRoles={["cashier"]}>
                         <CashierLayout />
@@ -201,6 +205,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
                   </Route>
+
+                  {/* Backward-compatible redirects (old dashboard URLs) */}
+                  <Route path="/userdashboard" element={<Navigate to="/user" replace />} />
+                  <Route path="/userdashboard/*" element={<Navigate to="/user" replace />} />
+                  <Route path="/admindashboard" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admindashboard/*" element={<Navigate to="/admin" replace />} />
+                  <Route path="/policedashboard" element={<Navigate to="/police" replace />} />
+                  <Route path="/policedashboard/*" element={<Navigate to="/police" replace />} />
+                  <Route path="/cashierdashboard" element={<Navigate to="/cashier" replace />} />
+                  <Route path="/cashierdashboard/*" element={<Navigate to="/cashier" replace />} />
 
                   {/* Items */}
                   <Route

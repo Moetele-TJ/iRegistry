@@ -1,10 +1,10 @@
 /** Routes for user dashboard credit UX (see Header role-based paths if these change). */
 import { roleIs } from "./roleUtils.js";
 
-export const USER_PRICING_PATH = "/userdashboard/pricing";
-export const USER_TOPUP_PATH = "/userdashboard/topup";
-export const POLICE_TOPUP_PATH = "/policedashboard/topup";
-export const USER_TRANSACTIONS_PATH = "/userdashboard/transactions";
+export const USER_PRICING_PATH = "/user/pricing";
+export const USER_TOPUP_PATH = "/user/topup";
+export const POLICE_TOPUP_PATH = "/police/topup";
+export const USER_TRANSACTIONS_PATH = "/user/transactions";
 
 export function isPrivilegedRole(role) {
   return roleIs(role, "admin", "cashier");

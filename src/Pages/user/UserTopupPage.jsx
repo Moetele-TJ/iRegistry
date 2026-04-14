@@ -143,7 +143,7 @@ export function UserTopupContent() {
 
   // Staff roles should use the staff top-up workflow (top up other users).
   if (roleIs(user?.role, "admin")) {
-    return <Navigate to="/admindashboard/topup" replace />;
+    return <Navigate to="/admin/topup" replace />;
   }
 
   return (

@@ -18,8 +18,8 @@ Tick items as you complete them (`[ ]` → `[x]`).
 
 ## 3. Item UX coherence
 
-- [ ] **3.1** Decide: keep global `/items` routes vs add `/userdashboard/items/*` aliases — document the decision.
-- [ ] **3.2** If keeping global routes: add **consistent “back to overview”** to `/userdashboard`.
+- [ ] **3.1** Decide: keep global `/items` routes vs add `/user/items/*` aliases — document the decision.
+- [ ] **3.2** If keeping global routes: add **consistent “back to overview”** to `/user`.
 - [ ] **3.3** **Report theft** quick action deep-links to the theft/stolen flow (not only `/items` list).
 
 ## 4. Trust, compliance, account lifecycle

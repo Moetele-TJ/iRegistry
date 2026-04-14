@@ -206,7 +206,7 @@ export default function UserManualPage() {
                     </li>
                     <li>
                       After login, you are usually taken to your <strong>dashboard</strong> (
-                      <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded text-emerald-800">/userdashboard</code>
+                      <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded text-emerald-800">/user</code>
                       ), or back to a page you tried to open before logging in.
                     </li>
                   </ul>
@@ -275,14 +275,14 @@ export default function UserManualPage() {
                   </div>
                   <p className="mt-4">
                     <strong>URLs (for reference)</strong> — All of these live under{" "}
-                    <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded text-emerald-800">/userdashboard/…</code>{" "}
+                    <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded text-emerald-800">/user/…</code>{" "}
                     — for example{" "}
-                    <Link to="/userdashboard/items" className="text-iregistrygreen font-medium hover:underline">
-                      /userdashboard/items
+                    <Link to="/user/items" className="text-iregistrygreen font-medium hover:underline">
+                      /user/items
                     </Link>
                     ,{" "}
-                    <Link to="/userdashboard/profile" className="text-iregistrygreen font-medium hover:underline">
-                      /userdashboard/profile
+                    <Link to="/user/profile" className="text-iregistrygreen font-medium hover:underline">
+                      /user/profile
                     </Link>
                     .
                   </p>
@@ -408,9 +408,9 @@ export default function UserManualPage() {
                   </ul>
                   <p className="mt-3">
                     If something fails because of <strong>insufficient credits</strong>, the app should tell you and
-                    point you to <Link to="/userdashboard/pricing" className="text-iregistrygreen font-medium hover:underline">Pricing</Link>{" "}
+                    point you to <Link to="/user/pricing" className="text-iregistrygreen font-medium hover:underline">Pricing</Link>{" "}
                     or{" "}
-                    <Link to="/userdashboard/topup" className="text-iregistrygreen font-medium hover:underline">
+                    <Link to="/user/topup" className="text-iregistrygreen font-medium hover:underline">
                       Top up
                     </Link>
                     .
@@ -442,20 +442,20 @@ export default function UserManualPage() {
                   <p className="mt-4">Many operations use <strong>credits</strong> (a balance on your account).</p>
                   <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600 mt-3">
                     <li>
-                      <Link to="/userdashboard/pricing" className="text-iregistrygreen font-medium hover:underline">
+                      <Link to="/user/pricing" className="text-iregistrygreen font-medium hover:underline">
                         Pricing
                       </Link>{" "}
                       — explains <strong>costs</strong> for actions (e.g. registering extra items, certain updates).
                     </li>
                     <li>
-                      <Link to="/userdashboard/topup" className="text-iregistrygreen font-medium hover:underline">
+                      <Link to="/user/topup" className="text-iregistrygreen font-medium hover:underline">
                         Top up
                       </Link>{" "}
                       — add credits when your organization supports self-serve top-up; otherwise you may be directed to a{" "}
                       <strong>cashier</strong> or other channel.
                     </li>
                     <li>
-                      <Link to="/userdashboard/transactions" className="text-iregistrygreen font-medium hover:underline">
+                      <Link to="/user/transactions" className="text-iregistrygreen font-medium hover:underline">
                         Transactions
                       </Link>{" "}
                       — history of top-ups and charges so you can reconcile your balance.
@@ -492,11 +492,11 @@ export default function UserManualPage() {
                     </li>
                     <li>
                       <strong>“Insufficient credits”</strong> — Check{" "}
-                      <Link to="/userdashboard/pricing" className="text-iregistrygreen font-medium hover:underline">
+                      <Link to="/user/pricing" className="text-iregistrygreen font-medium hover:underline">
                         Pricing
                       </Link>
                       , then{" "}
-                      <Link to="/userdashboard/topup" className="text-iregistrygreen font-medium hover:underline">
+                      <Link to="/user/topup" className="text-iregistrygreen font-medium hover:underline">
                         Top up
                       </Link>{" "}
                       or ask your registry how to add credits.

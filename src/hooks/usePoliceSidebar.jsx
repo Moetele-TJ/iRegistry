@@ -7,22 +7,22 @@ export function usePoliceSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/policedashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-      { to: "/policedashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
+      { to: "/police", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/police/profile", icon: <UserCircle size={20} />, label: "Profile" },
       {
-        to: "/policedashboard/items",
+        to: "/police/items",
         icon: <Package size={20} />,
         label: "Items",
         subItems: [
-          { to: "/policedashboard/items", label: "Active Items", end: true },
-          { to: "/policedashboard/items/deleted", label: "Deleted Items", end: true },
-          { to: "/policedashboard/items/legacy", label: "Legacy items", end: true },
+          { to: "/police/items", label: "Active Items", end: true },
+          { to: "/police/items/deleted", label: "Deleted Items", end: true },
+          { to: "/police/items/legacy", label: "Legacy items", end: true },
         ],
       },
-      { to: "/policedashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
-      { to: "/policedashboard/activity", icon: <Activity size={20} />, label: "Activity" },
-      { to: "/policedashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
-      { to: "/policedashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },
+      { to: "/police/notifications", icon: <Bell size={20} />, label: "Notifications" },
+      { to: "/police/activity", icon: <Activity size={20} />, label: "Activity" },
+      { to: "/police/topup", icon: <Wallet size={20} />, label: "Top up" },
+      { to: "/police/pricing", icon: <Tag size={20} />, label: "Pricing" },
     ],
     []
   );

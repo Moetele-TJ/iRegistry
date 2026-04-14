@@ -309,7 +309,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const { confirm } = useModal();
 
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
-  const profileListBase = canAdminister ? "/admindashboard/profile" : "/cashierdashboard/profile";
+  const profileListBase = canAdminister ? "/admin/profile" : "/cashier/profile";
 
   const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(null); // user being edited or null
@@ -996,7 +996,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           actions={
             <RippleButton
               className="py-2 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
-              onClick={() => navigate(canAdminister ? "/admindashboard" : "/cashierdashboard")}
+              onClick={() => navigate(canAdminister ? "/admin" : "/cashier")}
             >
               Back
             </RippleButton>

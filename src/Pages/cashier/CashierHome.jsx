@@ -168,7 +168,7 @@ export default function CashierHome() {
 
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/cashierdashboard/items"
+              to="/cashier/items"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium hover:opacity-90 shadow-sm"
             >
               <Package size={18} />
@@ -176,14 +176,14 @@ export default function CashierHome() {
               <ChevronRight size={16} />
             </Link>
             <Link
-              to="/cashierdashboard/notifications"
+              to="/cashier/notifications"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50"
             >
               Notifications
               <ChevronRight size={16} />
             </Link>
             <Link
-              to="/cashierdashboard/activity"
+              to="/cashier/activity"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50"
             >
               Full activity
@@ -248,7 +248,7 @@ export default function CashierHome() {
             )}
 
             <div className="mt-4 text-right">
-              <Link to="/cashierdashboard/activity" className="text-sm text-iregistrygreen hover:underline">
+            <Link to="/cashier/activity" className="text-sm text-iregistrygreen hover:underline">
                 Open full activity log
               </Link>
             </div>

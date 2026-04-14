@@ -18,25 +18,25 @@ export function useCashierSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/cashierdashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-      { to: "/cashierdashboard/profile", icon: <UserCircle size={20} />, label: "Profile" },
+      { to: "/cashier", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/cashier/profile", icon: <UserCircle size={20} />, label: "Profile" },
       {
-        to: "/cashierdashboard/items",
+        to: "/cashier/items",
         icon: <Package size={20} />,
         label: "Items",
         subItems: [
-          { to: "/cashierdashboard/items", label: "Active Items", end: true },
-          { to: "/cashierdashboard/items/deleted", label: "Deleted Items", end: true },
-          { to: "/cashierdashboard/items/legacy", label: "Legacy items", end: true },
+          { to: "/cashier/items", label: "Active Items", end: true },
+          { to: "/cashier/items/deleted", label: "Deleted Items", end: true },
+          { to: "/cashier/items/legacy", label: "Legacy items", end: true },
         ],
       },
-      { to: "/cashierdashboard/users", icon: <Users size={20} />, label: "Users" },
-      { to: "/cashierdashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
-      { to: "/cashierdashboard/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
-      { to: "/cashierdashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },
-      { to: "/cashierdashboard/revenue", icon: <Coins size={20} />, label: "Revenue" },
-      { to: "/cashierdashboard/notifications", icon: <Bell size={20} />, label: "Notifications" },
-      { to: "/cashierdashboard/activity", icon: <Activity size={20} />, label: "Activity" },
+      { to: "/cashier/users", icon: <Users size={20} />, label: "Users" },
+      { to: "/cashier/topup", icon: <Wallet size={20} />, label: "Top up" },
+      { to: "/cashier/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
+      { to: "/cashier/pricing", icon: <Tag size={20} />, label: "Pricing" },
+      { to: "/cashier/revenue", icon: <Coins size={20} />, label: "Revenue" },
+      { to: "/cashier/notifications", icon: <Bell size={20} />, label: "Notifications" },
+      { to: "/cashier/activity", icon: <Activity size={20} />, label: "Activity" },
     ],
     []
   );

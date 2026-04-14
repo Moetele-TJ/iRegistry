@@ -29,8 +29,8 @@ export default function RoleRedirect() {
 
   // Logged in → route by role (case-insensitive)
   const r = normalizeRole(user.role);
-  if (r === "admin") return <Navigate to="/admindashboard" replace />;
-  if (r === "police") return <Navigate to="/policedashboard" replace />;
-  if (r === "cashier") return <Navigate to="/cashierdashboard" replace />;
-  return <Navigate to="/userdashboard" replace />;
+  if (r === "admin") return <Navigate to="/admin" replace />;
+  if (r === "police") return <Navigate to="/police" replace />;
+  if (r === "cashier") return <Navigate to="/cashier" replace />;
+  return <Navigate to="/user" replace />;
 }
