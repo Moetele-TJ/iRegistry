@@ -82,6 +82,13 @@ export default function UserManualPage() {
                 <strong className="text-gray-800">standard user</strong> account (the default role after sign-up).
                 Admin, police, and cashier tools are described in separate manuals.
               </p>
+              <p>
+                Prefer short answers? See the{" "}
+                <Link to="/faq" className="font-semibold text-iregistrygreen hover:underline">
+                  FAQ
+                </Link>
+                .
+              </p>
             </div>
           </div>
 

@@ -119,18 +119,33 @@ export default function HomePage() {
                 >
                   User guide
                 </RippleButton>
+
+                <RippleButton
+                  className="px-6 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
+                  onClick={() => navigate("/faq")}
+                >
+                  FAQ
+                </RippleButton>
               </div>
             )}
 
             {/* RIGHT SIDE */}
             {user && (
               <div className="flex flex-wrap items-center justify-between gap-4 w-full">
-                <RippleButton
-                  className="px-5 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
-                  onClick={() => navigate("/guide")}
-                >
-                  User guide
-                </RippleButton>
+                <div className="flex flex-wrap gap-3 items-center">
+                  <RippleButton
+                    className="px-5 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
+                    onClick={() => navigate("/guide")}
+                  >
+                    User guide
+                  </RippleButton>
+                  <RippleButton
+                    className="px-5 py-2 rounded-xl bg-white/15 backdrop-blur text-white border border-white/40 font-semibold"
+                    onClick={() => navigate("/faq")}
+                  >
+                    FAQ
+                  </RippleButton>
+                </div>
                 <div className="flex items-center gap-3 ml-auto sm:ml-0">
                   <div className="text-white text-lg font-medium text-right">
                     Welcome back,{" "}

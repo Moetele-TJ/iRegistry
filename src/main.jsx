@@ -32,6 +32,7 @@ import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
 import UserPricingPage from "./Pages/user/UserPricingPage.jsx";
 import UserTopupPage from "./Pages/user/UserTopupPage.jsx";
 import UserManualPage from "./Pages/user/UserManualPage.jsx";
+import FaqPage from "./Pages/FaqPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
@@ -98,6 +99,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route path="/" element={<HomePage />} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   <Route path="/guide" element={<UserManualPage />} />
+                  <Route path="/faq" element={<FaqPage />} />
                   <Route
                     path="/userdashboard/manual"
                     element={<Navigate to="/guide" replace />}

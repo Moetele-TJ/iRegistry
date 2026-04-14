@@ -3,6 +3,7 @@ import {
   Activity,
   Bell,
   BookOpen,
+  HelpCircle,
   LayoutDashboard,
   Package,
   ReceiptText,
@@ -35,6 +36,7 @@ export function useUserSidebar({ visible = true } = {}) {
       { to: "/userdashboard/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/userdashboard/pricing", icon: <Tag size={20} />, label: "Pricing" },
       { to: "/guide", icon: <BookOpen size={20} />, label: "User guide" },
+      { to: "/faq", icon: <HelpCircle size={20} />, label: "FAQ" },
     ],
     []
   );
