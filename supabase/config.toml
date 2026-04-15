@@ -553,6 +553,18 @@ verify_jwt = true
 import_map = "./functions/org-remove-member/deno.json"
 entrypoint = "./functions/org-remove-member/index.ts"
 
+[functions.org-delete-item]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-delete-item/deno.json"
+entrypoint = "./functions/org-delete-item/index.ts"
+
+[functions.org-restore-item]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-restore-item/deno.json"
+entrypoint = "./functions/org-restore-item/index.ts"
+
 [functions.staff-complete-pending-topup]
 enabled = true
 verify_jwt = true

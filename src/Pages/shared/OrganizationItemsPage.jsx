@@ -5,6 +5,7 @@ import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -16,6 +17,7 @@ function displayName(u) {
 export default function OrganizationItemsPage() {
   const { orgId } = useParams();
   const { addToast } = useToast();
+  const { confirm } = useModal();
 
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState(null);
@@ -28,6 +30,7 @@ export default function OrganizationItemsPage() {
   const [assigneeId, setAssigneeId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   const [myOpenReturnReqByItemId, setMyOpenReturnReqByItemId] = useState({});
   const [orgOpenRequests, setOrgOpenRequests] = useState([]);
@@ -60,7 +63,7 @@ export default function OrganizationItemsPage() {
     setError(null);
     try {
       const { data, error } = await invokeWithAuth("list-org-items", {
-        body: { org_id: orgId, limit: 200 },
+        body: { org_id: orgId, limit: 200, includeDeleted },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load items");
       setItems(Array.isArray(data.items) ? data.items : []);
@@ -139,7 +142,7 @@ export default function OrganizationItemsPage() {
     void loadItems();
     void loadWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId]);
+  }, [orgId, includeDeleted]);
 
   useEffect(() => {
     void loadMembers();
@@ -238,6 +241,59 @@ export default function OrganizationItemsPage() {
     }
   }
 
+  const isOrgAdmin = role === "ORG_ADMIN";
+
+  async function deleteItem(itemId, itemName) {
+    const ok = await confirm({
+      title: "Delete item?",
+      message: `This will delete “${itemName || "this item"}” from the organization list. You can restore it later.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
+    setBulkBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("org-delete-item", {
+        body: { org_id: orgId, item_id: itemId, reason: null },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Item deleted." });
+      await loadItems();
+      await loadWallet();
+    } catch (e) {
+      addToast({ type: "error", message: e.message || "Failed" });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function restoreItem(itemId, itemName) {
+    const ok = await confirm({
+      title: "Restore item?",
+      message: `Restoring “${itemName || "this item"}” will charge the organization wallet (RESTORE_ITEM).`,
+      confirmLabel: "Restore",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
+    setBulkBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("org-restore-item", {
+        body: { org_id: orgId, item_id: itemId },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Item restored." });
+      await loadItems();
+      await loadWallet();
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed" });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
@@ -307,6 +363,18 @@ export default function OrganizationItemsPage() {
             View details
           </Link>
         </div>
+
+        {isPrivileged ? (
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              id="includeDeleted"
+              type="checkbox"
+              checked={includeDeleted}
+              onChange={(e) => setIncludeDeleted(e.target.checked)}
+            />
+            <label htmlFor="includeDeleted">Show deleted items</label>
+          </div>
+        ) : null}
 
         {isPrivileged ? (
           <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 flex flex-col lg:flex-row lg:items-end gap-3">
@@ -419,6 +487,7 @@ export default function OrganizationItemsPage() {
                 <th className="text-left font-semibold px-4 py-3">Status</th>
                 {isPrivileged ? <th className="text-left font-semibold px-4 py-3">Assigned</th> : null}
                 {!isPrivileged ? <th className="text-right font-semibold px-4 py-3">Action</th> : null}
+                {isPrivileged ? <th className="text-right font-semibold px-4 py-3">Admin</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -473,6 +542,31 @@ export default function OrganizationItemsPage() {
                             <span className="text-xs font-mono">{String(i.assigned_user_id).slice(0, 8)}…</span>
                           ) : (
                             <span className="text-xs text-gray-500">Unassigned</span>
+                          )}
+                        </td>
+                      ) : null}
+                      {isPrivileged ? (
+                        <td className="px-4 py-3 text-right">
+                          {isOrgAdmin ? (
+                            i.deletedat ? (
+                              <RippleButton
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
+                                disabled={bulkBusy}
+                                onClick={() => void restoreItem(i.id, i.name)}
+                              >
+                                Restore
+                              </RippleButton>
+                            ) : (
+                              <RippleButton
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
+                                disabled={bulkBusy}
+                                onClick={() => void deleteItem(i.id, i.name)}
+                              >
+                                Delete
+                              </RippleButton>
+                            )
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
                       ) : null}
