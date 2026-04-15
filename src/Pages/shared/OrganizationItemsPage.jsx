@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet } from "lucide-react";
+import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import { supabase } from "../../lib/supabase.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -31,6 +32,11 @@ export default function OrganizationItemsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [transferItemId, setTransferItemId] = useState("");
+  const [transferTargetUserId, setTransferTargetUserId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferFile, setTransferFile] = useState(null);
+  const [transferBusy, setTransferBusy] = useState(false);
 
   const [myOpenReturnReqByItemId, setMyOpenReturnReqByItemId] = useState({});
   const [orgOpenRequests, setOrgOpenRequests] = useState([]);
@@ -294,6 +300,79 @@ export default function OrganizationItemsPage() {
     }
   }
 
+  async function submitTransferRequest() {
+    if (!isOrgAdmin) return;
+    if (!transferItemId) {
+      addToast({ type: "error", message: "Select an item to transfer." });
+      return;
+    }
+    if (!transferTargetUserId.trim()) {
+      addToast({ type: "error", message: "Enter a target user id." });
+      return;
+    }
+    if (!transferReason.trim()) {
+      addToast({ type: "error", message: "Enter a reason." });
+      return;
+    }
+    if (!transferFile) {
+      addToast({ type: "error", message: "Upload evidence (PDF/image) to proceed." });
+      return;
+    }
+
+    const ok = await confirm({
+      title: "Submit transfer request?",
+      message:
+        "This will submit a request for staff (admin/cashier) to complete the transfer, with your reason and evidence attached.",
+      confirmLabel: "Submit request",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
+    setTransferBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", transferFile);
+      form.append("itemId", transferItemId);
+      form.append("type", "ORG_TRANSFER_EVIDENCE");
+      form.append("referenceId", String(orgId));
+      form.append("orgId", String(orgId));
+
+      const auth = await supabase.auth.getSession();
+      const token = auth?.data?.session?.access_token;
+      if (!token) throw new Error("Not signed in");
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-ownership-evidence`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const evJson = await res.json().catch(() => ({}));
+      if (!res.ok || !evJson?.success) {
+        throw new Error(evJson?.message || "Failed to upload evidence");
+      }
+
+      const { data, error } = await invokeWithAuth("create-org-item-transfer-request", {
+        body: {
+          org_id: orgId,
+          item_id: transferItemId,
+          target_user_id: transferTargetUserId.trim(),
+          reason: transferReason.trim(),
+          evidence: evJson.evidence,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Transfer request submitted." });
+      setTransferItemId("");
+      setTransferTargetUserId("");
+      setTransferReason("");
+      setTransferFile(null);
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed" });
+    } finally {
+      setTransferBusy(false);
+    }
+  }
+
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
@@ -373,6 +452,71 @@ export default function OrganizationItemsPage() {
               onChange={(e) => setIncludeDeleted(e.target.checked)}
             />
             <label htmlFor="includeDeleted">Show deleted items</label>
+          </div>
+        ) : null}
+
+        {isOrgAdmin ? (
+          <div className="rounded-2xl border border-gray-100 bg-white p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-sm font-semibold text-gray-800">Transfer item (staff-assisted)</div>
+              <div className="text-xs text-gray-500">Requires reason + evidence</div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+              <div className="lg:col-span-3">
+                <label className="text-xs text-gray-600">Item</label>
+                <select
+                  value={transferItemId}
+                  onChange={(e) => setTransferItemId(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">Select item…</option>
+                  {(items || [])
+                    .filter((it) => !it.deletedat && !it.legacyat)
+                    .map((it) => (
+                      <option key={it.id} value={it.id}>
+                        {it.name || it.id}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="lg:col-span-3">
+                <label className="text-xs text-gray-600">Target user id</label>
+                <input
+                  value={transferTargetUserId}
+                  onChange={(e) => setTransferTargetUserId(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="uuid…"
+                />
+              </div>
+              <div className="lg:col-span-4">
+                <label className="text-xs text-gray-600">Reason</label>
+                <input
+                  value={transferReason}
+                  onChange={(e) => setTransferReason(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="Why is this transfer needed?"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Evidence (PDF/image)</label>
+                <input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  onChange={(e) => setTransferFile(e.target.files?.[0] || null)}
+                  className="mt-1 w-full text-sm"
+                />
+              </div>
+              <div className="lg:col-span-12 flex justify-end">
+                <RippleButton
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                  disabled={transferBusy}
+                  onClick={() => void submitTransferRequest()}
+                >
+                  <Send size={18} />
+                  Submit request
+                </RippleButton>
+              </div>
+            </div>
           </div>
         ) : null}
 

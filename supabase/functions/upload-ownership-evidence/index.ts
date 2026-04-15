@@ -5,7 +5,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { roleIs } from "../shared/roles.ts";
+import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
+import { getActiveOrgMembership, orgRoleIs } from "../shared/orgAuth.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -41,12 +42,14 @@ serve(async (req) => {
 
     const actorUserId = session.user_id;
 
-    if (!roleIs(session.role, "admin")) {
+    const isStaff = isPrivilegedRole(session.role);
+    const isAppAdmin = roleIs(session.role, "admin");
+    if (!isStaff && !isAppAdmin) {
       return respond(
         {
           success: false,
           diag: "EVIDENCE-AUTH-002",
-          message: "Only administrators may perform this task.",
+          message: "Only staff may perform this task.",
         },
         corsHeaders,
         403
@@ -61,6 +64,7 @@ serve(async (req) => {
     const itemId = form.get("itemId")?.toString();
     const type = form.get("type")?.toString();
     const referenceId = form.get("referenceId")?.toString() ?? null;
+    const orgId = form.get("orgId")?.toString() ?? null;
 
     if (!file || !(file instanceof File)) {
       return respond(
@@ -140,7 +144,7 @@ serve(async (req) => {
 
     const { data: itemExists } = await supabase
       .from("items")
-      .select("id")
+      .select("id, owner_org_id")
       .eq("id", itemId)
       .is("deletedat",null)
       .maybeSingle();
@@ -155,6 +159,27 @@ serve(async (req) => {
         corsHeaders,
         404
       );
+    }
+
+    // If caller is not app admin, allow only when:
+    // - staff (cashier/admin) AND orgId matches the item's owner_org_id (so evidence is tied to org workflow)
+    // - OR org admin membership for that org (org admin flow)
+    if (!isAppAdmin) {
+      const itemOrgId = (itemExists as any)?.owner_org_id ? String((itemExists as any).owner_org_id) : "";
+      const effectiveOrgId = String(orgId || itemOrgId || "").trim();
+      if (!effectiveOrgId || effectiveOrgId !== itemOrgId) {
+        return respond(
+          { success: false, diag: "EVIDENCE-AUTH-003", message: "Invalid organization context for this item" },
+          corsHeaders,
+          403,
+        );
+      }
+      if (!isStaff) {
+        const m = await getActiveOrgMembership(supabase, { orgId: effectiveOrgId, userId: session.user_id });
+        if (!m || !orgRoleIs(m.role, "ORG_ADMIN")) {
+          return respond({ success: false, diag: "EVIDENCE-AUTH-004", message: "Forbidden" }, corsHeaders, 403);
+        }
+      }
     }
 
     /* ===================== BUILD STORAGE PATH ===================== */

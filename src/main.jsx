@@ -76,6 +76,7 @@ import OrganizationItemsPage from "./Pages/shared/OrganizationItemsPage.jsx";
 import OrganizationWalletPage from "./Pages/shared/OrganizationWalletPage.jsx";
 import OrganizationTransactionsPage from "./Pages/shared/OrganizationTransactionsPage.jsx";
 import OrganizationMembersPage from "./Pages/shared/OrganizationMembersPage.jsx";
+import StaffOrgTransferRequestsPage from "./Pages/shared/StaffOrgTransferRequestsPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -317,6 +318,24 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                 </Route>
+
+                <Route
+                  path="/admin/org-transfer-requests"
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <StaffOrgTransferRequestsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/cashier/org-transfer-requests"
+                  element={
+                    <ProtectedRoute allowedRoles={["cashier"]}>
+                      <StaffOrgTransferRequestsPage />
+                    </ProtectedRoute>
+                  }
+                />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
 

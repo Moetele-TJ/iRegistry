@@ -31,6 +31,7 @@ export function useAdminSidebar({ visible = true } = {}) {
       { to: "/admin/packages", icon: <Tag size={20} />, label: "Packages" },
       { to: "/admin/revenue", icon: <Coins size={20} />, label: "Revenue" },
       { to: "/admin/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
+      { to: "/admin/org-transfer-requests", icon: <FileText size={20} />, label: "Org transfer requests" },
       {
         to: "/admin/items",
         icon: <Package size={20} />,

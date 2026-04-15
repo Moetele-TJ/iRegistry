@@ -565,6 +565,24 @@ verify_jwt = true
 import_map = "./functions/org-restore-item/deno.json"
 entrypoint = "./functions/org-restore-item/index.ts"
 
+[functions.create-org-item-transfer-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-org-item-transfer-request/deno.json"
+entrypoint = "./functions/create-org-item-transfer-request/index.ts"
+
+[functions.list-org-item-transfer-requests]
+enabled = true
+verify_jwt = true
+import_map = "./functions/list-org-item-transfer-requests/deno.json"
+entrypoint = "./functions/list-org-item-transfer-requests/index.ts"
+
+[functions.staff-complete-org-item-transfer-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-complete-org-item-transfer-request/deno.json"
+entrypoint = "./functions/staff-complete-org-item-transfer-request/index.ts"
+
 [functions.staff-complete-pending-topup]
 enabled = true
 verify_jwt = true
