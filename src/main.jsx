@@ -77,6 +77,7 @@ import OrganizationWalletPage from "./Pages/shared/OrganizationWalletPage.jsx";
 import OrganizationTransactionsPage from "./Pages/shared/OrganizationTransactionsPage.jsx";
 import OrganizationMembersPage from "./Pages/shared/OrganizationMembersPage.jsx";
 import StaffOrgTransferRequestsPage from "./Pages/shared/StaffOrgTransferRequestsPage.jsx";
+import StaffOrganizationsPage from "./Pages/shared/StaffOrganizationsPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -333,6 +334,30 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   element={
                     <ProtectedRoute allowedRoles={["cashier"]}>
                       <StaffOrgTransferRequestsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/organizations"
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <StaffOrganizationsPage
+                        title="Organizations"
+                        subtitle="Browse organizations and jump to items, wallet, or transactions."
+                      />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/cashier/organizations"
+                  element={
+                    <ProtectedRoute allowedRoles={["cashier"]}>
+                      <StaffOrganizationsPage
+                        title="Organizations"
+                        subtitle="Browse organizations and jump to items, wallet, or transactions."
+                      />
                     </ProtectedRoute>
                   }
                 />

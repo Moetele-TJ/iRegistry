@@ -19,7 +19,7 @@ export default function OrganizationMembersPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [role, setRole] = useState(null);
+  const [actorRole, setActorRole] = useState(null);
   const [members, setMembers] = useState([]);
   const [error, setError] = useState(null);
 
@@ -27,7 +27,7 @@ export default function OrganizationMembersPage() {
   const [inviteRole, setInviteRole] = useState("ORG_MEMBER");
   const [includeInvited, setIncludeInvited] = useState(true);
 
-  const isOrgAdmin = role === "ORG_ADMIN";
+  const isOrgAdmin = actorRole === "ORG_ADMIN";
   const rows = useMemo(() => members || [], [members]);
 
   async function load() {
@@ -39,16 +39,11 @@ export default function OrganizationMembersPage() {
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load members");
       setMembers(Array.isArray(data.members) ? data.members : []);
-      // list-org-members only returns for privileged org roles; infer from first row if present.
-      // We can still set role based on whether user can access the endpoint:
-      // - ORG_ADMIN/ORG_MANAGER can access; role isn't returned by API.
-      // We'll keep role null here and rely on actions to be server-validated.
-      // If you want to surface role, we can extend the API later.
-      setRole("ORG_ADMIN"); // optimistic UX; server enforces anyway
+      setActorRole(data.actor_role || null);
     } catch (e) {
       setError(e.message || "Failed to load members");
       setMembers([]);
-      setRole(null);
+      setActorRole(null);
     } finally {
       setLoading(false);
     }
@@ -152,55 +147,71 @@ export default function OrganizationMembersPage() {
         ) : null}
 
         <div className="rounded-2xl border border-gray-100 bg-white p-4">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
-            <div className="flex-1">
-              <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">Invite member</div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">Members</div>
               <div className="text-sm text-gray-700">
-                Paste the user&apos;s <span className="font-mono">user_id</span> to send an invitation.
+                Your role: <span className="font-mono">{actorRole || "—"}</span>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-              <div className="min-w-[280px]">
-                <label className="text-xs text-gray-600">User ID</label>
-                <input
-                  value={inviteUserId}
-                  onChange={(e) => setInviteUserId(e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                  placeholder="uuid…"
-                />
-              </div>
-              <div className="min-w-[200px]">
-                <label className="text-xs text-gray-600">Role</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                >
-                  <option value="ORG_MEMBER">Member</option>
-                  <option value="ORG_MANAGER">Manager</option>
-                  <option value="ORG_ADMIN">Administrator</option>
-                </select>
-              </div>
-              <RippleButton
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
-                disabled={saving}
-                onClick={() => void invite()}
-              >
-                <UserPlus size={18} />
-                Invite
-              </RippleButton>
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                id="includeInvited"
+                type="checkbox"
+                checked={includeInvited}
+                onChange={(e) => setIncludeInvited(e.target.checked)}
+              />
+              <label htmlFor="includeInvited">Show pending invitations</label>
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 text-sm text-gray-700">
-            <input
-              id="includeInvited"
-              type="checkbox"
-              checked={includeInvited}
-              onChange={(e) => setIncludeInvited(e.target.checked)}
-            />
-            <label htmlFor="includeInvited">Show pending invitations</label>
-          </div>
+          {isOrgAdmin ? (
+            <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+                <div className="flex-1">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">Invite member</div>
+                  <div className="text-sm text-gray-700">
+                    Paste the user&apos;s <span className="font-mono">user_id</span> to send an invitation.
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                  <div className="min-w-[280px]">
+                    <label className="text-xs text-gray-600">User ID</label>
+                    <input
+                      value={inviteUserId}
+                      onChange={(e) => setInviteUserId(e.target.value)}
+                      className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                      placeholder="uuid…"
+                    />
+                  </div>
+                  <div className="min-w-[200px]">
+                    <label className="text-xs text-gray-600">Role</label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value)}
+                      className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="ORG_MEMBER">Member</option>
+                      <option value="ORG_MANAGER">Manager</option>
+                      <option value="ORG_ADMIN">Administrator</option>
+                    </select>
+                  </div>
+                  <RippleButton
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                    disabled={saving}
+                    onClick={() => void invite()}
+                  >
+                    <UserPlus size={18} />
+                    Invite
+                  </RippleButton>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 text-sm text-gray-700">
+              Only organization administrators can invite users or change roles.
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-gray-100 bg-white overflow-auto">

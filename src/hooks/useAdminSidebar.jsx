@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import {
   Activity,
   Bell,
+  Building2,
   FileText,
   LayoutDashboard,
   MonitorSmartphone,
@@ -24,6 +25,7 @@ export function useAdminSidebar({ visible = true } = {}) {
       { to: "/admin", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/admin/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/admin/users", icon: <Users size={20} />, label: "Users" },
+      { to: "/admin/organizations", icon: <Building2 size={20} />, label: "Organizations" },
       { to: "/admin/audit-logs", icon: <FileText size={20} />, label: "Audit Logs" },
       { to: "/admin/settings", icon: <Settings size={20} />, label: "Settings" },
       { to: "/admin/topup", icon: <Wallet size={20} />, label: "Top up" },

@@ -5,7 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { getActiveOrgMembership, isOrgPrivileged } from "../shared/orgAuth.ts";
+import { getActiveOrgMembership, isOrgPrivileged, orgRoleIs } from "../shared/orgAuth.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -34,6 +34,8 @@ serve(async (req) => {
     if (!membership || !isOrgPrivileged(membership.role)) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
+    const actorRole = membership.role;
+    const canInvite = orgRoleIs(actorRole, "ORG_ADMIN");
 
     let q = supabase
       .from("org_members")
@@ -79,7 +81,7 @@ serve(async (req) => {
       user: r.users,
     }));
 
-    return respond({ success: true, members }, corsHeaders, 200);
+    return respond({ success: true, members, actor_role: actorRole, can_invite: canInvite }, corsHeaders, 200);
   } catch (err: any) {
     console.error("list-org-members crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);
