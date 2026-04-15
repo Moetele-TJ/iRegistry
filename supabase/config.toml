@@ -565,6 +565,12 @@ verify_jwt = true
 import_map = "./functions/org-restore-item/deno.json"
 entrypoint = "./functions/org-restore-item/index.ts"
 
+[functions.org-create-item]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-create-item/deno.json"
+entrypoint = "./functions/org-create-item/index.ts"
+
 [functions.create-org-item-transfer-request]
 enabled = true
 verify_jwt = true

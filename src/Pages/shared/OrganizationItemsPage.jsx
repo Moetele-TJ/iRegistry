@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send } from "lucide-react";
+import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send, Plus } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -37,6 +37,18 @@ export default function OrganizationItemsPage() {
   const [transferReason, setTransferReason] = useState("");
   const [transferFile, setTransferFile] = useState(null);
   const [transferBusy, setTransferBusy] = useState(false);
+
+  const [createCategory, setCreateCategory] = useState("");
+  const [createMake, setCreateMake] = useState("");
+  const [createModel, setCreateModel] = useState("");
+  const [createSerial1, setCreateSerial1] = useState("");
+  const [createSerial2, setCreateSerial2] = useState("");
+  const [createStation, setCreateStation] = useState("");
+  const [createVillage, setCreateVillage] = useState("");
+  const [createWard, setCreateWard] = useState("");
+  const [createNotes, setCreateNotes] = useState("");
+  const [createAssignTo, setCreateAssignTo] = useState("");
+  const [createBusy, setCreateBusy] = useState(false);
 
   const [myOpenReturnReqByItemId, setMyOpenReturnReqByItemId] = useState({});
   const [orgOpenRequests, setOrgOpenRequests] = useState([]);
@@ -248,6 +260,7 @@ export default function OrganizationItemsPage() {
   }
 
   const isOrgAdmin = role === "ORG_ADMIN";
+  const canCreate = role === "ORG_ADMIN" || role === "ORG_MANAGER";
 
   async function deleteItem(itemId, itemName) {
     const ok = await confirm({
@@ -370,6 +383,50 @@ export default function OrganizationItemsPage() {
       addToast({ type: "error", message: e?.message || "Failed" });
     } finally {
       setTransferBusy(false);
+    }
+  }
+
+  async function createItem() {
+    if (!canCreate) return;
+    if (!createCategory.trim() || !createMake.trim() || !createModel.trim() || !createSerial1.trim() || !createStation.trim()) {
+      addToast({ type: "error", message: "Category, make, model, serial number, and station are required." });
+      return;
+    }
+    setCreateBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("org-create-item", {
+        body: {
+          org_id: orgId,
+          category: createCategory,
+          make: createMake,
+          model: createModel,
+          serial1: createSerial1,
+          serial2: createSerial2 || null,
+          station: createStation,
+          village: createVillage || null,
+          ward: createWard || null,
+          notes: createNotes || null,
+          assign_to_user_id: createAssignTo || null,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Item created." });
+      setCreateCategory("");
+      setCreateMake("");
+      setCreateModel("");
+      setCreateSerial1("");
+      setCreateSerial2("");
+      setCreateStation("");
+      setCreateVillage("");
+      setCreateWard("");
+      setCreateNotes("");
+      setCreateAssignTo("");
+      await loadItems();
+      await loadWallet();
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed" });
+    } finally {
+      setCreateBusy(false);
     }
   }
 
@@ -514,6 +571,121 @@ export default function OrganizationItemsPage() {
                 >
                   <Send size={18} />
                   Submit request
+                </RippleButton>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {canCreate ? (
+          <div className="rounded-2xl border border-gray-100 bg-white p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-sm font-semibold text-gray-800">Add organization item</div>
+              <div className="text-xs text-gray-500">Charges organization wallet (ADD_ITEM)</div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+              <div className="lg:col-span-3">
+                <label className="text-xs text-gray-600">Category</label>
+                <input
+                  value={createCategory}
+                  onChange={(e) => setCreateCategory(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="e.g. Electronics"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Make</label>
+                <input
+                  value={createMake}
+                  onChange={(e) => setCreateMake(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="e.g. Dell"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Model</label>
+                <input
+                  value={createModel}
+                  onChange={(e) => setCreateModel(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="e.g. XPS 13"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Serial number</label>
+                <input
+                  value={createSerial1}
+                  onChange={(e) => setCreateSerial1(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="Required"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <label className="text-xs text-gray-600">Nearest police station</label>
+                <input
+                  value={createStation}
+                  onChange={(e) => setCreateStation(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                  placeholder="Required"
+                />
+              </div>
+
+              <div className="lg:col-span-3">
+                <label className="text-xs text-gray-600">Assign to (optional)</label>
+                <select
+                  value={createAssignTo}
+                  onChange={(e) => setCreateAssignTo(e.target.value)}
+                  disabled={loadingMembers || activeMembers.length === 0}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white disabled:opacity-60"
+                >
+                  <option value="">Unassigned</option>
+                  {activeMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {displayName(m.user)} ({m.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Serial #2 (optional)</label>
+                <input
+                  value={createSerial2}
+                  onChange={(e) => setCreateSerial2(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Village (optional)</label>
+                <input
+                  value={createVillage}
+                  onChange={(e) => setCreateVillage(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-xs text-gray-600">Ward (optional)</label>
+                <input
+                  value={createWard}
+                  onChange={(e) => setCreateWard(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                />
+              </div>
+              <div className="lg:col-span-12">
+                <label className="text-xs text-gray-600">Notes (optional)</label>
+                <input
+                  value={createNotes}
+                  onChange={(e) => setCreateNotes(e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                />
+              </div>
+              <div className="lg:col-span-12 flex justify-end">
+                <RippleButton
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                  disabled={createBusy}
+                  onClick={() => void createItem()}
+                >
+                  <Plus size={18} />
+                  Add item
                 </RippleButton>
               </div>
             </div>
