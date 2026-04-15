@@ -79,6 +79,7 @@ import OrganizationMembersPage from "./Pages/shared/OrganizationMembersPage.jsx"
 import StaffOrgTransferRequestsPage from "./Pages/shared/StaffOrgTransferRequestsPage.jsx";
 import StaffOrganizationsPage from "./Pages/shared/StaffOrganizationsPage.jsx";
 import StaffAddOrgMemberPage from "./Pages/shared/StaffAddOrgMemberPage.jsx";
+import StaffOrganizationMembersPage from "./Pages/shared/StaffOrganizationMembersPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -370,6 +371,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 />
 
                 <Route
+                  path="/admin/organizations/:orgId/members"
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <StaffOrganizationMembersPage staffBasePath="/admin" />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/cashier/organizations"
                   element={
                     <ProtectedRoute allowedRoles={["cashier"]}>
@@ -386,6 +396,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   element={
                     <ProtectedRoute allowedRoles={["cashier"]}>
                       <StaffAddOrgMemberPage staffBasePath="/cashier" />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/cashier/organizations/:orgId/members"
+                  element={
+                    <ProtectedRoute allowedRoles={["cashier"]}>
+                      <StaffOrganizationMembersPage staffBasePath="/cashier" />
                     </ProtectedRoute>
                   }
                 />

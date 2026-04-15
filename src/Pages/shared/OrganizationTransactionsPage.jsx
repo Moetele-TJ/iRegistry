@@ -30,7 +30,15 @@ function downloadCsv(filename, rows) {
 function normalizeLedgerRow(r) {
   const entry = String(r?.entry_type || "");
   const title =
-    entry === "CREDIT_SPEND" ? "Credit spent" : entry === "CREDIT_ADD" ? "Credit added" : entry || "Ledger";
+    entry === "CREDIT_SPEND"
+      ? "Credit spent"
+      : entry === "CREDIT_ADD"
+        ? "Credit added"
+        : entry === "REFUND"
+          ? "Refund"
+          : entry === "ADJUSTMENT"
+            ? "Adjustment"
+            : entry || "Ledger";
   return {
     kind: "LEDGER",
     id: r.id,
@@ -81,6 +89,7 @@ export default function OrganizationTransactionsPage() {
   const [q, setQ] = useState("");
   const [showLedger, setShowLedger] = useState(true);
   const [showPayments, setShowPayments] = useState(true);
+  const [ledgerType, setLedgerType] = useState("ALL"); // ALL | CREDIT_SPEND | CREDIT_ADD | REFUND | ADJUSTMENT
 
   const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER" || role === "STAFF";
 
@@ -169,7 +178,13 @@ export default function OrganizationTransactionsPage() {
 
   const merged = useMemo(() => {
     const rows = [];
-    if (showLedger) rows.push(...(ledger || []).map(normalizeLedgerRow));
+    if (showLedger) {
+      const filteredLedger =
+        ledgerType === "ALL"
+          ? ledger || []
+          : (ledger || []).filter((r) => String(r?.entry_type || "") === ledgerType);
+      rows.push(...filteredLedger.map(normalizeLedgerRow));
+    }
     if (showPayments) rows.push(...(payments || []).map(normalizePaymentRow));
     rows.sort((a, b) => {
       const ta = a.created_at ? Date.parse(a.created_at) : 0;
@@ -187,6 +202,7 @@ export default function OrganizationTransactionsPage() {
         r.status,
         r.reference,
         r.raw?.task_code,
+        r.raw?.entry_type,
         r.raw?.receipt_no,
         r.raw?.provider_reference,
         r.raw?.channel,
@@ -195,7 +211,7 @@ export default function OrganizationTransactionsPage() {
         .join(" ");
       return hay.includes(needle);
     });
-  }, [ledger, payments, q, showLedger, showPayments]);
+  }, [ledger, payments, q, showLedger, showPayments, ledgerType]);
 
   const canLoadMoreLedger =
     typeof ledgerTotal === "number" ? ledgerOffset < ledgerTotal : ledger.length >= FETCH_LIMIT;
@@ -205,7 +221,7 @@ export default function OrganizationTransactionsPage() {
   function exportCsv() {
     const now = new Date();
     const filename = `org-${orgId}-transactions-${now.toISOString().slice(0, 10)}.csv`;
-    const header = ["created_at", "kind", "title", "status", "credits_delta", "money", "reference"];
+    const header = ["created_at", "kind", "title", "status", "credits_delta", "money", "reference", "ledger_entry_type"];
     const lines = [header.map(safeCsv).join(",")];
     for (const r of merged.slice(0, 2000)) {
       lines.push(
@@ -217,6 +233,7 @@ export default function OrganizationTransactionsPage() {
           String(r.creditsDelta ?? ""),
           r.money || "",
           r.reference || "",
+          r.kind === "LEDGER" ? String(r.raw?.entry_type || "") : "",
         ]
           .map(safeCsv)
           .join(","),
@@ -308,6 +325,22 @@ export default function OrganizationTransactionsPage() {
             <label className="inline-flex items-center gap-2 text-sm text-gray-700 select-none">
               <input type="checkbox" checked={showPayments} onChange={(e) => setShowPayments(e.target.checked)} />
               Payments
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 select-none">
+              <span className="text-xs text-gray-500">Ledger type</span>
+              <select
+                value={ledgerType}
+                onChange={(e) => setLedgerType(e.target.value)}
+                disabled={!showLedger}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
+                title="Filter ledger entries"
+              >
+                <option value="ALL">All</option>
+                <option value="CREDIT_SPEND">Spend</option>
+                <option value="CREDIT_ADD">Add</option>
+                <option value="REFUND">Refund</option>
+                <option value="ADJUSTMENT">Adjustment</option>
+              </select>
             </label>
           </div>
 

@@ -517,6 +517,12 @@ verify_jwt = true
 import_map = "./functions/list-orgs/deno.json"
 entrypoint = "./functions/list-orgs/index.ts"
 
+[functions.staff-list-orgs-summary]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-list-orgs-summary/deno.json"
+entrypoint = "./functions/staff-list-orgs-summary/index.ts"
+
 [functions.cashier-org-topup]
 enabled = true
 verify_jwt = true
@@ -528,6 +534,24 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/staff-create-org-member/deno.json"
 entrypoint = "./functions/staff-create-org-member/index.ts"
+
+[functions.staff-list-org-members]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-list-org-members/deno.json"
+entrypoint = "./functions/staff-list-org-members/index.ts"
+
+[functions.staff-update-org-member-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-update-org-member-user/deno.json"
+entrypoint = "./functions/staff-update-org-member-user/index.ts"
+
+[functions.staff-lookup-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-lookup-user/deno.json"
+entrypoint = "./functions/staff-lookup-user/index.ts"
 
 [functions.get-org-wallet]
 enabled = true

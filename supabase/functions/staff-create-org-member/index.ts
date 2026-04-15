@@ -64,11 +64,22 @@ serve(async (req) => {
     const { data: orgRow } = await supabase.from("orgs").select("id, name").eq("id", orgId).maybeSingle();
     if (!orgRow) return respond({ success: false, message: "Organization not found" }, corsHeaders, 404);
 
-    // Charge org wallet for ADD_MEMBER.
+    // Best-effort uniqueness checks (DB constraints still apply).
+    const { data: idExists } = await supabase.from("users").select("id").eq("id_number", id_number).is("deleted_at", null).maybeSingle();
+    if (idExists) return respond({ success: false, message: "A user with this ID number already exists." }, corsHeaders, 409);
+    const { data: phoneExists } = await supabase.from("users").select("id").eq("phone", phone).is("deleted_at", null).maybeSingle();
+    if (phoneExists) return respond({ success: false, message: "A user with this phone number already exists." }, corsHeaders, 409);
+    if (email) {
+      const { data: emailExists } = await supabase.from("users").select("id").eq("email", email).is("deleted_at", null).maybeSingle();
+      if (emailExists) return respond({ success: false, message: "A user with this email already exists." }, corsHeaders, 409);
+    }
+
+    // Charge org wallet for ADD_MEMBER AFTER duplicate checks (so we never charge on obvious conflicts).
+    const billingRef = id_number || phone || email || "add-member";
     const { data: spendRows, error: spendErr } = await supabase.rpc("spend_org_credits", {
       p_org_id: orgId,
       p_task_code: "ADD_MEMBER",
-      p_reference: id_number,
+      p_reference: billingRef,
       p_metadata: { kind: "staff-create-org-member" },
       p_created_by: session.user_id,
     });
@@ -82,19 +93,26 @@ serve(async (req) => {
     }
     const ok = Array.isArray(spendRows) ? spendRows[0]?.success : null;
     if (ok !== true) {
-      return respond({ success: false, message: "Insufficient credits", billing: { required: true, task_code: "ADD_MEMBER" } }, corsHeaders, 402);
+      return respond(
+        { success: false, message: "Insufficient credits", billing: { required: true, task_code: "ADD_MEMBER" } },
+        corsHeaders,
+        402,
+      );
     }
+    const newBalance = Array.isArray(spendRows) ? spendRows[0]?.new_balance : null;
 
-    // Best-effort uniqueness checks (DB constraints still apply).
-    const { data: idExists } = await supabase.from("users").select("id").eq("id_number", id_number).is("deleted_at", null).maybeSingle();
-    if (idExists) return respond({ success: false, message: "A user with this ID number already exists." }, corsHeaders, 409);
-    const { data: phoneExists } = await supabase.from("users").select("id").eq("phone", phone).is("deleted_at", null).maybeSingle();
-    if (phoneExists) return respond({ success: false, message: "A user with this phone number already exists." }, corsHeaders, 409);
-    if (email) {
-      const { data: emailExists } = await supabase.from("users").select("id").eq("email", email).is("deleted_at", null).maybeSingle();
-      if (emailExists) return respond({ success: false, message: "A user with this email already exists." }, corsHeaders, 409);
-    }
+    const { data: ledgerRow } = await supabase
+      .from("org_credit_ledger")
+      .select("id, entry_type, amount, task_code, reference, created_by, created_at")
+      .eq("org_id", orgId)
+      .eq("entry_type", "CREDIT_SPEND")
+      .eq("task_code", "ADD_MEMBER")
+      .eq("created_by", session.user_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
+    let createdUserId: string | null = null;
     const { data: created, error: insErr } = await supabase
       .from("users")
       .insert({
@@ -115,8 +133,17 @@ serve(async (req) => {
       .single();
 
     if (insErr || !created) {
+      // Best-effort refund (we already charged).
+      await supabase.rpc("refund_org_credits", {
+        p_org_id: orgId,
+        p_amount: 2,
+        p_reference: billingRef,
+        p_metadata: { kind: "refund", reason: "user_insert_failed", error: insErr?.message || null },
+        p_created_by: session.user_id,
+      }).catch(() => null);
       return respond({ success: false, message: insErr?.message || "Failed to create user" }, corsHeaders, 500);
     }
+    createdUserId = String(created.id);
 
     const nowIso = new Date().toISOString();
     const { data: mem, error: memErr } = await supabase
@@ -137,6 +164,17 @@ serve(async (req) => {
       .single();
 
     if (memErr || !mem) {
+      // Best-effort refund + cleanup (avoid leaving orphan user if membership fails).
+      await supabase.rpc("refund_org_credits", {
+        p_org_id: orgId,
+        p_amount: 2,
+        p_reference: billingRef,
+        p_metadata: { kind: "refund", reason: "membership_failed", error: memErr?.message || null, user_id: createdUserId },
+        p_created_by: session.user_id,
+      }).catch(() => null);
+      if (createdUserId) {
+        await supabase.from("users").delete().eq("id", createdUserId).catch(() => null);
+      }
       return respond({ success: false, message: memErr?.message || "User created but membership failed" }, corsHeaders, 500);
     }
 
@@ -148,7 +186,16 @@ serve(async (req) => {
       metadata: { user_id: created.id, org_role: orgRole, billed_task: "ADD_MEMBER" },
     });
 
-    return respond({ success: true, user: created, membership: mem }, corsHeaders, 200);
+    return respond(
+      {
+        success: true,
+        user: created,
+        membership: mem,
+        billing: { task_code: "ADD_MEMBER", amount: 2, new_balance: newBalance, ledger: ledgerRow || null },
+      },
+      corsHeaders,
+      200,
+    );
   } catch (err: any) {
     console.error("staff-create-org-member crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);

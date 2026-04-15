@@ -5,25 +5,51 @@ import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 
 function orgLabel(o) {
   return String(o?.name || "").trim() || o?.registration_no || o?.id || "—";
 }
 
+function pkgLabel(p) {
+  const cur = p?.currency || "BWP";
+  const amt = Number(p?.amount ?? 0);
+  if (cur === "BWP") return `P${amt}`;
+  return `${cur} ${amt}`;
+}
+
 export default function StaffOrganizationsPage({ title = "Organizations", subtitle = "Browse organizations." }) {
   const { addToast } = useToast();
+  const { confirm, alert } = useModal();
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
   const staffBasePath =
     typeof window !== "undefined" && window.location?.pathname?.startsWith("/cashier")
       ? "/cashier"
       : "/admin";
 
+  async function loadPackages() {
+    setLoadingPackages(true);
+    try {
+      const { data, error } = await invokeWithAuth("list-credit-packages");
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      const rows = Array.isArray(data.packages) ? data.packages : [];
+      setPackages(rows);
+    } catch (e) {
+      addToast({ type: "error", message: e.message || "Failed to load packages" });
+      setPackages([]);
+    } finally {
+      setLoadingPackages(false);
+    }
+  }
+
   async function load() {
     setLoading(true);
     try {
-      const { data, error } = await invokeWithAuth("list-orgs", {
+      const { data, error } = await invokeWithAuth("staff-list-orgs-summary", {
         body: { q: q.trim() || "", limit: 200 },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
@@ -38,10 +64,121 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
 
   useEffect(() => {
     void load();
+    void loadPackages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const organizations = useMemo(() => rows || [], [rows]);
+
+  async function openTopup(o) {
+    const pkg0 = (packages || [])[0] || null;
+    const state = { packageId: pkg0?.id ? String(pkg0.id) : "", receiptNo: "", note: "" };
+
+    const ok = await confirm({
+      title: "Top up organization",
+      message: `Credit ${orgLabel(o)} with a package.`,
+      confirmLabel: "Confirm top-up",
+      cancelLabel: "Cancel",
+      confirmDisabled: loadingPackages || !packages?.length,
+      children: (
+        <div className="space-y-3">
+          {loadingPackages ? (
+            <div className="text-sm text-gray-600">Loading packages…</div>
+          ) : !packages?.length ? (
+            <div className="text-sm text-red-700">No active credit packages found.</div>
+          ) : (
+            <>
+              <label className="block">
+                <div className="text-xs font-semibold text-gray-700 mb-1">Package</div>
+                <select
+                  defaultValue={state.packageId}
+                  onChange={(e) => {
+                    state.packageId = e.target.value;
+                  }}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                >
+                  {(packages || []).map((p) => (
+                    <option key={p.id} value={String(p.id)}>
+                      {pkgLabel(p)} • {Number(p.credits ?? 0)} credits
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <div className="text-xs font-semibold text-gray-700 mb-1">Receipt number *</div>
+                <input
+                  placeholder="e.g. RCPT-1234"
+                  onChange={(e) => {
+                    state.receiptNo = e.target.value;
+                  }}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+
+              <label className="block">
+                <div className="text-xs font-semibold text-gray-700 mb-1">Note (optional)</div>
+                <textarea
+                  rows={3}
+                  onChange={(e) => {
+                    state.note = e.target.value;
+                  }}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+            </>
+          )}
+        </div>
+      ),
+      onConfirm: async () => {
+        const rid = String(state.receiptNo || "").trim();
+        if (!rid) throw new Error("Receipt number is required.");
+        const pid = String(state.packageId || "").trim();
+        if (!pid) throw new Error("Package is required.");
+
+        const { data, error } = await invokeWithAuth("cashier-org-topup", {
+          body: {
+            org_id: o.id,
+            package_id: pid,
+            receipt_no: rid,
+            note: String(state.note || "").trim() || null,
+          },
+        });
+        if (error || !data?.success) throw new Error(data?.message || error?.message || "Top up failed");
+        addToast({ type: "success", message: "Top-up complete." });
+        await alert({
+          title: "Top-up complete",
+          message: `New balance: ${data.new_balance ?? "—"} credits`,
+          confirmLabel: "Close",
+          children: (
+            <div className="space-y-2">
+              <div className="text-xs text-gray-600">
+                Receipt: <span className="font-mono">{String(rid)}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  to={`/organizations/${o.id}/wallet`}
+                  className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
+                >
+                  View wallet
+                </Link>
+                <Link
+                  to={`/organizations/${o.id}/transactions`}
+                  className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
+                >
+                  View transactions
+                </Link>
+              </div>
+            </div>
+          ),
+        });
+      },
+    }).catch((e) => {
+      addToast({ type: "error", message: e.message || "Top up failed" });
+      return false;
+    });
+    if (!ok) return;
+  }
 
   return (
     <PageSectionCard
@@ -90,19 +227,21 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                 <th className="text-left font-semibold px-4 py-3">Organization</th>
                 <th className="text-left font-semibold px-4 py-3">Registration</th>
                 <th className="text-left font-semibold px-4 py-3">Contact</th>
+                <th className="text-left font-semibold px-4 py-3">Wallet</th>
+                <th className="text-left font-semibold px-4 py-3">Last top-up</th>
                 <th className="text-right font-semibold px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-8 text-gray-500" colSpan={4}>
+                  <td className="px-4 py-8 text-gray-500" colSpan={6}>
                     Loading…
                   </td>
                 </tr>
               ) : organizations.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-8 text-gray-500" colSpan={4}>
+                  <td className="px-4 py-8 text-gray-500" colSpan={6}>
                     No organizations found.
                   </td>
                 </tr>
@@ -118,6 +257,31 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                       <div className="text-xs">{o.contact_email || "—"}</div>
                       <div className="text-xs">{o.phone || ""}</div>
                     </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <div className="font-semibold tabular-nums">{Number(o?.wallet?.balance ?? 0).toLocaleString()} credits</div>
+                      <div className="text-xs text-gray-500">
+                        Updated: {o?.wallet?.updated_at ? new Date(o.wallet.updated_at).toLocaleDateString() : "—"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {o.last_payment ? (
+                        <>
+                          <div className="text-xs">
+                            +{Number(o.last_payment.credits_granted ?? 0)} credits • {o.last_payment.currency}{" "}
+                            {Number(o.last_payment.amount ?? 0)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {o.last_payment.confirmed_at
+                              ? new Date(o.last_payment.confirmed_at).toLocaleString()
+                              : o.last_payment.created_at
+                                ? new Date(o.last_payment.created_at).toLocaleString()
+                                : "—"}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-500">—</div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
                         <Link
@@ -132,11 +296,25 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                         >
                           Wallet
                         </Link>
+                        <RippleButton
+                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
+                          onClick={() => void openTopup(o)}
+                          disabled={loadingPackages}
+                          title="Top up this organization"
+                        >
+                          Top up
+                        </RippleButton>
                         <Link
                           to={`/organizations/${o.id}/transactions`}
                           className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
                         >
                           Transactions
+                        </Link>
+                        <Link
+                          to={`${staffBasePath}/organizations/${o.id}/members`}
+                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
+                        >
+                          Members
                         </Link>
                         <Link
                           to={`${staffBasePath}/organizations/${o.id}/add-member`}
