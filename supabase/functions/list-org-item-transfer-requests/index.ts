@@ -43,7 +43,8 @@ serve(async (req) => {
         reviewed_by, reviewed_at, review_note, completed_at,
         orgs:org_id ( id, name ),
         items:item_id ( id, name ),
-        users:target_user_id ( id, first_name, last_name, email, id_number )
+        users:target_user_id ( id, first_name, last_name, email, id_number ),
+        requested_by_user:requested_by ( id, first_name, last_name, email, id_number )
       `,
         { count: "exact" },
       )
@@ -61,9 +62,11 @@ serve(async (req) => {
       organization: r.orgs ?? null,
       item: r.items ?? null,
       target_user: r.users ?? null,
+      requested_by_user: r.requested_by_user ?? null,
       orgs: undefined,
       items: undefined,
       users: undefined,
+      requested_by: undefined,
     }));
 
     return respond({ success: true, requests, total: count ?? null }, corsHeaders, 200);

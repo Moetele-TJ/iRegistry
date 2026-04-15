@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, RefreshCw, X } from "lucide-react";
+import { Check, ExternalLink, Info, RefreshCw, X } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -15,7 +15,7 @@ function displayName(u) {
 
 export default function StaffOrgTransferRequestsPage() {
   const { addToast } = useToast();
-  const { confirm } = useModal();
+  const { confirm, alert } = useModal();
 
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
@@ -74,6 +74,84 @@ export default function StaffOrgTransferRequestsPage() {
     }
   }
 
+  function evidenceHref(evidence) {
+    // Current evidence shape from upload-ownership-evidence: { fileId, type, uploadedAt, referenceId }
+    const fileId = evidence?.fileId;
+    if (!fileId || typeof fileId !== "string") return "";
+    const base = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
+    // fileId looks like: bucket/path/to/file
+    return `${base}/storage/v1/object/public/${fileId}`;
+  }
+
+  async function showDetails(r) {
+    const org = r.organization?.name || r.org_id;
+    const item = r.item?.name || r.item_id;
+    const target = displayName(r.target_user);
+    const requestedBy = displayName(r.requested_by_user);
+    const when = r.requested_at ? new Date(r.requested_at).toLocaleString() : "—";
+    const href = evidenceHref(r.evidence);
+
+    await alert({
+      title: "Transfer request details",
+      message: "Review details and evidence before completing.",
+      confirmLabel: "Close",
+      children: (
+        <div className="space-y-2 text-sm text-gray-700">
+          <div>
+            <div className="text-xs text-gray-500">Organization</div>
+            <div className="font-semibold text-gray-900">{org}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Item</div>
+            <div className="font-semibold text-gray-900">{item}</div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <div className="text-xs text-gray-500">Target user</div>
+              <div className="font-semibold text-gray-900">{target}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Requested by</div>
+              <div className="font-semibold text-gray-900">{requestedBy}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <div className="text-xs text-gray-500">Requested at</div>
+              <div className="font-semibold text-gray-900">{when}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Status</div>
+              <div className="font-semibold text-gray-900">{r.status}</div>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Reason</div>
+            <div className="text-gray-900">{r.reason || "—"}</div>
+          </div>
+          <div className="pt-1">
+            {href ? (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-emerald-800 hover:text-emerald-900 font-semibold"
+              >
+                <ExternalLink size={16} />
+                Open evidence
+              </a>
+            ) : (
+              <div className="inline-flex items-center gap-2 text-gray-500">
+                <Info size={16} />
+                No evidence link available
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+    });
+  }
+
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
@@ -130,6 +208,14 @@ export default function StaffOrgTransferRequestsPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
+                        <RippleButton
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold disabled:opacity-60"
+                          disabled={busyId === r.id}
+                          onClick={() => void showDetails(r)}
+                        >
+                          <Info size={14} />
+                          Details
+                        </RippleButton>
                         <RippleButton
                           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-iregistrygreen text-white text-xs font-semibold disabled:opacity-60"
                           disabled={busyId === r.id}
