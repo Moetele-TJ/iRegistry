@@ -13,6 +13,11 @@ function displayName(u) {
   return full || u?.email || u?.id_number || u?.id || "—";
 }
 
+function compact(v) {
+  const s = String(v ?? "").trim();
+  return s || "—";
+}
+
 export default function OrganizationMembersPage() {
   const { orgId } = useParams();
   const { addToast } = useToast();
@@ -219,6 +224,8 @@ export default function OrganizationMembersPage() {
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="text-left font-semibold px-4 py-3">User</th>
+                <th className="text-left font-semibold px-4 py-3">Contacts</th>
+                <th className="text-left font-semibold px-4 py-3">Address</th>
                 <th className="text-left font-semibold px-4 py-3">Status</th>
                 <th className="text-left font-semibold px-4 py-3">Role</th>
                 <th className="text-right font-semibold px-4 py-3">Actions</th>
@@ -227,13 +234,13 @@ export default function OrganizationMembersPage() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-gray-500" colSpan={4}>
+                  <td className="px-4 py-6 text-gray-500" colSpan={6}>
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-gray-500" colSpan={4}>
+                  <td className="px-4 py-6 text-gray-500" colSpan={6}>
                     No members found.
                   </td>
                 </tr>
@@ -243,6 +250,19 @@ export default function OrganizationMembersPage() {
                     <td className="px-4 py-3">
                       <div className="font-semibold text-gray-900">{displayName(m.user)}</div>
                       <div className="text-xs text-gray-500 font-mono">{String(m.user_id).slice(0, 8)}…</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        ID: <span className="font-mono">{compact(m.user?.id_number)}</span>
+                        {" · "}
+                        DOB: <span className="font-mono">{compact(m.user?.date_of_birth)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <div className="text-xs">{compact(m.user?.phone)}</div>
+                      <div className="text-xs">{compact(m.user?.email)}</div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <div className="text-xs">Village: {compact(m.user?.village)}</div>
+                      <div className="text-xs">Ward: {compact(m.user?.ward)}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{m.status}</td>
                     <td className="px-4 py-3">

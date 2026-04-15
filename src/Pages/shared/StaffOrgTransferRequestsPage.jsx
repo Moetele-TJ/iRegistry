@@ -32,6 +32,7 @@ export default function StaffOrgTransferRequestsPage() {
   const [total, setTotal] = useState(null);
   const [page, setPage] = useState(0);
   const pageSize = 100;
+  const [actionNote, setActionNote] = useState("");
 
   const rows = useMemo(() => requests || [], [requests]);
 
@@ -60,6 +61,7 @@ export default function StaffOrgTransferRequestsPage() {
   }, [status, page]);
 
   async function completeRequest(r, action) {
+    setActionNote("");
     const ok = await confirm({
       title: action === "COMPLETE" ? "Complete transfer?" : "Reject transfer?",
       message:
@@ -69,13 +71,25 @@ export default function StaffOrgTransferRequestsPage() {
       confirmLabel: action === "COMPLETE" ? "Complete" : "Reject",
       cancelLabel: "Cancel",
       danger: action === "REJECT",
+      children: (
+        <div>
+          <label className="text-xs font-semibold text-gray-700">Staff note (optional)</label>
+          <textarea
+            value={actionNote}
+            onChange={(e) => setActionNote(e.target.value)}
+            rows={3}
+            placeholder="Add a brief note for audit (e.g. verified evidence, receipt #, etc.)"
+            className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+          />
+        </div>
+      ),
     }).catch(() => false);
     if (!ok) return;
 
     setBusyId(r.id);
     try {
       const { data, error } = await invokeWithAuth("staff-complete-org-item-transfer-request", {
-        body: { request_id: r.id, action, note: null },
+        body: { request_id: r.id, action, note: actionNote?.trim() || null },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       addToast({ type: "success", message: action === "COMPLETE" ? "Transfer completed." : "Request rejected." });
@@ -84,16 +98,27 @@ export default function StaffOrgTransferRequestsPage() {
       addToast({ type: "error", message: e.message || "Failed" });
     } finally {
       setBusyId("");
+      setActionNote("");
     }
   }
 
-  function evidenceHref(evidence) {
-    // Current evidence shape from upload-ownership-evidence: { fileId, type, uploadedAt, referenceId }
+  async function openEvidence(evidence) {
     const fileId = evidence?.fileId;
-    if (!fileId || typeof fileId !== "string") return "";
-    const base = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
-    // fileId looks like: bucket/path/to/file
-    return `${base}/storage/v1/object/public/${fileId}`;
+    if (!fileId || typeof fileId !== "string") {
+      addToast({ type: "error", message: "No evidence file found." });
+      return;
+    }
+    try {
+      const { data, error } = await invokeWithAuth("get-ownership-evidence-url", {
+        body: { file_id: fileId, expires_seconds: 300 },
+      });
+      if (error || !data?.success || !data?.url) {
+        throw new Error(data?.message || error?.message || "Failed to open evidence");
+      }
+      window.open(String(data.url), "_blank", "noopener,noreferrer");
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed to open evidence" });
+    }
   }
 
   async function showDetails(r) {
@@ -104,8 +129,6 @@ export default function StaffOrgTransferRequestsPage() {
     const when = r.requested_at ? new Date(r.requested_at).toLocaleString() : "—";
     const reviewedAt = r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : "—";
     const completedAt = r.completed_at ? new Date(r.completed_at).toLocaleString() : "—";
-    const href = evidenceHref(r.evidence);
-
     await alert({
       title: "Transfer request details",
       message: "Review details and evidence before completing.",
@@ -161,20 +184,19 @@ export default function StaffOrgTransferRequestsPage() {
             <div className="text-gray-900">{r.reason || "—"}</div>
           </div>
           <div className="pt-1">
-            {href ? (
-              <a
-                href={href}
-                target="_blank"
-                rel="noreferrer"
+            {r.evidence?.fileId ? (
+              <button
+                type="button"
+                onClick={() => void openEvidence(r.evidence)}
                 className="inline-flex items-center gap-2 text-emerald-800 hover:text-emerald-900 font-semibold"
               >
                 <ExternalLink size={16} />
                 Open evidence
-              </a>
+              </button>
             ) : (
               <div className="inline-flex items-center gap-2 text-gray-500">
                 <Info size={16} />
-                No evidence link available
+                No evidence attached
               </div>
             )}
           </div>

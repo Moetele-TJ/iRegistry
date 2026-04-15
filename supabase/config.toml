@@ -523,6 +523,12 @@ verify_jwt = true
 import_map = "./functions/cashier-org-topup/deno.json"
 entrypoint = "./functions/cashier-org-topup/index.ts"
 
+[functions.staff-create-org-member]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-create-org-member/deno.json"
+entrypoint = "./functions/staff-create-org-member/index.ts"
+
 [functions.get-org-wallet]
 enabled = true
 verify_jwt = true
@@ -594,6 +600,12 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/cancel-org-item-transfer-request/deno.json"
 entrypoint = "./functions/cancel-org-item-transfer-request/index.ts"
+
+[functions.get-ownership-evidence-url]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-ownership-evidence-url/deno.json"
+entrypoint = "./functions/get-ownership-evidence-url/index.ts"
 
 [functions.staff-complete-pending-topup]
 enabled = true

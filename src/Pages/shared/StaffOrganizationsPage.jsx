@@ -15,6 +15,10 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
+  const staffBasePath =
+    typeof window !== "undefined" && window.location?.pathname?.startsWith("/cashier")
+      ? "/cashier"
+      : "/admin";
 
   async function load() {
     setLoading(true);
@@ -133,6 +137,13 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                           className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
                         >
                           Transactions
+                        </Link>
+                        <Link
+                          to={`${staffBasePath}/organizations/${o.id}/add-member`}
+                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
+                          title="Create a user and add them as a member (2 credits)"
+                        >
+                          Add member
                         </Link>
                       </div>
                     </td>

@@ -53,6 +53,9 @@ serve(async (req) => {
             email,
             phone,
             id_number,
+            date_of_birth,
+            village,
+            ward,
             role,
             status
           )
