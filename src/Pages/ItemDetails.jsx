@@ -483,7 +483,6 @@ export default function ItemDetails() {
 
   async function confirmRestoreFrozen() {
     if (!item?.id) return;
-    const label = isDeleted ? "Restore deleted item" : "Restore legacy item";
     const msg = isDeleted
       ? `Restore "${item.name || item.id}" back to active items?`
       : `Restore "${item.name || item.id}" from legacy back to active items?`;

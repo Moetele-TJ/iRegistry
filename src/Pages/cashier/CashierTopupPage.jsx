@@ -154,7 +154,7 @@ export default function CashierTopupPage() {
     return () => {
       cancelled = true;
     };
-  }, [addToast, selectedUserId]);
+  }, [addToast, selectedUserId, targetType]);
 
   const selectedUser = useMemo(
     () => users.find((u) => String(u.id) === String(selectedUserId)) || null,

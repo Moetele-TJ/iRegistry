@@ -95,7 +95,7 @@ export default function AdminAuditLogs() {
         if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load facets");
         setFacetEvents(Array.isArray(data.events) ? data.events : []);
         setFacetCodes(Array.isArray(data.codes) ? data.codes : []);
-      } catch (e) {
+      } catch {
         // facets are optional; don't hard-fail the page
         setFacetEvents([]);
         setFacetCodes([]);

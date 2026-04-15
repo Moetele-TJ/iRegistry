@@ -196,10 +196,10 @@ export default function AdminRevenuePage() {
 
   const totalCount = report?.totals?.count ?? 0;
   const tx = report?.transactions || [];
-  const byChannel = report?.totals?.by_channel || {};
-  const byChCur = report?.totals?.by_channel_currency || {};
 
   const breakdownRows = useMemo(() => {
+    const byChannel = report?.totals?.by_channel || {};
+    const byChCur = report?.totals?.by_channel_currency || {};
     const picks = [
       { channel: "CASHIER", label: "Cashier" },
       { channel: "ONLINE", label: "Online" },
@@ -216,7 +216,7 @@ export default function AdminRevenuePage() {
         }));
         return { ...p, totals, currencies: curList };
       });
-  }, [byChannel, byChCur]);
+  }, [report]);
 
   return (
     <PageSectionCard

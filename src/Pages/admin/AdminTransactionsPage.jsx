@@ -14,7 +14,7 @@ function displayName(u) {
   return full || u?.email || u?.id_number || u?.phone || u?.id || "—";
 }
 
-export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
+export default function AdminTransactionsPage({ canReverse = true } = {}) {
   const { addToast } = useToast();
 
   const REVERSAL_REASONS = useMemo(

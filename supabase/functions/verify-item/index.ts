@@ -7,7 +7,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { logActivity } from "../shared/logActivity.ts";
-import { checkRateLimit } from "../shared/rateLimit.ts";
+import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 
