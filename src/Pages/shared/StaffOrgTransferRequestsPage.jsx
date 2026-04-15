@@ -13,6 +13,13 @@ function displayName(u) {
   return full || u?.email || u?.id_number || u?.id || "—";
 }
 
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Open" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
 export default function StaffOrgTransferRequestsPage() {
   const { addToast } = useToast();
   const { confirm, alert } = useModal();
@@ -21,6 +28,10 @@ export default function StaffOrgTransferRequestsPage() {
   const [busyId, setBusyId] = useState("");
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState(null);
+  const [status, setStatus] = useState("OPEN");
+  const [total, setTotal] = useState(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 100;
 
   const rows = useMemo(() => requests || [], [requests]);
 
@@ -29,13 +40,15 @@ export default function StaffOrgTransferRequestsPage() {
     setError(null);
     try {
       const { data, error } = await invokeWithAuth("list-org-item-transfer-requests", {
-        body: { status: "OPEN", limit: 200, offset: 0 },
+        body: { status, limit: pageSize, offset: page * pageSize },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       setRequests(Array.isArray(data.requests) ? data.requests : []);
+      setTotal(typeof data.total === "number" ? data.total : null);
     } catch (e) {
       setError(e.message || "Failed to load requests");
       setRequests([]);
+      setTotal(null);
     } finally {
       setLoading(false);
     }
@@ -44,7 +57,7 @@ export default function StaffOrgTransferRequestsPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status, page]);
 
   async function completeRequest(r, action) {
     const ok = await confirm({
@@ -89,6 +102,8 @@ export default function StaffOrgTransferRequestsPage() {
     const target = displayName(r.target_user);
     const requestedBy = displayName(r.requested_by_user);
     const when = r.requested_at ? new Date(r.requested_at).toLocaleString() : "—";
+    const reviewedAt = r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : "—";
+    const completedAt = r.completed_at ? new Date(r.completed_at).toLocaleString() : "—";
     const href = evidenceHref(r.evidence);
 
     await alert({
@@ -125,6 +140,22 @@ export default function StaffOrgTransferRequestsPage() {
               <div className="font-semibold text-gray-900">{r.status}</div>
             </div>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <div className="text-xs text-gray-500">Reviewed at</div>
+              <div className="font-semibold text-gray-900">{reviewedAt}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Completed at</div>
+              <div className="font-semibold text-gray-900">{completedAt}</div>
+            </div>
+          </div>
+          {r.review_note ? (
+            <div>
+              <div className="text-xs text-gray-500">Staff note</div>
+              <div className="text-gray-900">{r.review_note}</div>
+            </div>
+          ) : null}
           <div>
             <div className="text-xs text-gray-500">Reason</div>
             <div className="text-gray-900">{r.reason || "—"}</div>
@@ -173,6 +204,52 @@ export default function StaffOrgTransferRequestsPage() {
           <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">{error}</div>
         ) : null}
 
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+          <div>
+            <label className="text-xs text-gray-600">Status</label>
+            <select
+              value={status}
+              onChange={(e) => {
+                setPage(0);
+                setStatus(e.target.value);
+              }}
+              className="mt-1 w-full sm:w-[220px] border rounded-xl px-3 py-2 text-sm bg-white"
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-xs text-gray-500">
+            {typeof total === "number" ? (
+              <>
+                Total: <span className="tabular-nums font-semibold">{total}</span>
+              </>
+            ) : (
+              " "
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <RippleButton
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 font-semibold disabled:opacity-60"
+              disabled={loading || page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Prev
+            </RippleButton>
+            <div className="text-xs text-gray-500 tabular-nums">Page {page + 1}</div>
+            <RippleButton
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 font-semibold disabled:opacity-60"
+              disabled={loading || (typeof total === "number" ? (page + 1) * pageSize >= total : rows.length < pageSize)}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </RippleButton>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-gray-100 bg-white overflow-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
@@ -181,19 +258,20 @@ export default function StaffOrgTransferRequestsPage() {
                 <th className="text-left font-semibold px-4 py-3">Item</th>
                 <th className="text-left font-semibold px-4 py-3">Target user</th>
                 <th className="text-left font-semibold px-4 py-3">Reason</th>
+                <th className="text-left font-semibold px-4 py-3">When</th>
                 <th className="text-right font-semibold px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-8 text-gray-500" colSpan={5}>
+                  <td className="px-4 py-8 text-gray-500" colSpan={6}>
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-8 text-gray-500" colSpan={5}>
+                  <td className="px-4 py-8 text-gray-500" colSpan={6}>
                     No open requests.
                   </td>
                 </tr>
@@ -206,6 +284,9 @@ export default function StaffOrgTransferRequestsPage() {
                     <td className="px-4 py-3 text-gray-700 max-w-[360px] truncate" title={r.reason || ""}>
                       {r.reason}
                     </td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      {r.requested_at ? new Date(r.requested_at).toLocaleString() : "—"}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
                         <RippleButton
@@ -216,22 +297,26 @@ export default function StaffOrgTransferRequestsPage() {
                           <Info size={14} />
                           Details
                         </RippleButton>
-                        <RippleButton
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-iregistrygreen text-white text-xs font-semibold disabled:opacity-60"
-                          disabled={busyId === r.id}
-                          onClick={() => void completeRequest(r, "COMPLETE")}
-                        >
-                          <Check size={14} />
-                          Complete
-                        </RippleButton>
-                        <RippleButton
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold disabled:opacity-60"
-                          disabled={busyId === r.id}
-                          onClick={() => void completeRequest(r, "REJECT")}
-                        >
-                          <X size={14} />
-                          Reject
-                        </RippleButton>
+                        {r.status === "OPEN" ? (
+                          <>
+                            <RippleButton
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-iregistrygreen text-white text-xs font-semibold disabled:opacity-60"
+                              disabled={busyId === r.id}
+                              onClick={() => void completeRequest(r, "COMPLETE")}
+                            >
+                              <Check size={14} />
+                              Complete
+                            </RippleButton>
+                            <RippleButton
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold disabled:opacity-60"
+                              disabled={busyId === r.id}
+                              onClick={() => void completeRequest(r, "REJECT")}
+                            >
+                              <X size={14} />
+                              Reject
+                            </RippleButton>
+                          </>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

@@ -262,6 +262,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
+                    path="/items/:slug/edit"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
+                        <EditItem />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
                     path="/notifications"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>

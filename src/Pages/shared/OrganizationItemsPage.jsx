@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send, Plus } from "lucide-react";
+import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send, Plus, ExternalLink, Pencil, Archive, RotateCcw } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -32,11 +32,15 @@ export default function OrganizationItemsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [includeLegacy, setIncludeLegacy] = useState(false);
   const [transferItemId, setTransferItemId] = useState("");
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
   const [transferReason, setTransferReason] = useState("");
   const [transferFile, setTransferFile] = useState(null);
   const [transferBusy, setTransferBusy] = useState(false);
+  const [openTransferRequests, setOpenTransferRequests] = useState([]);
+  const [transferReqLoading, setTransferReqLoading] = useState(false);
+  const [transferCancelBusyId, setTransferCancelBusyId] = useState("");
 
   const [createCategory, setCreateCategory] = useState("");
   const [createMake, setCreateMake] = useState("");
@@ -81,7 +85,7 @@ export default function OrganizationItemsPage() {
     setError(null);
     try {
       const { data, error } = await invokeWithAuth("list-org-items", {
-        body: { org_id: orgId, limit: 200, includeDeleted },
+        body: { org_id: orgId, limit: 200, includeDeleted, includeLegacy },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load items");
       setItems(Array.isArray(data.items) ? data.items : []);
@@ -160,7 +164,7 @@ export default function OrganizationItemsPage() {
     void loadItems();
     void loadWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, includeDeleted]);
+  }, [orgId, includeDeleted, includeLegacy]);
 
   useEffect(() => {
     void loadMembers();
@@ -262,6 +266,58 @@ export default function OrganizationItemsPage() {
   const isOrgAdmin = role === "ORG_ADMIN";
   const canCreate = role === "ORG_ADMIN" || role === "ORG_MANAGER";
 
+  async function loadTransferRequests() {
+    if (!isOrgAdmin) {
+      setOpenTransferRequests([]);
+      return;
+    }
+    setTransferReqLoading(true);
+    try {
+      const { data, error } = await invokeWithAuth("list-org-item-transfer-requests", {
+        body: { status: "OPEN", limit: 200, offset: 0 },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      const all = Array.isArray(data.requests) ? data.requests : [];
+      const mineOrg = all.filter((r) => String(r?.org_id) === String(orgId));
+      setOpenTransferRequests(mineOrg);
+    } catch {
+      setOpenTransferRequests([]);
+    } finally {
+      setTransferReqLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadTransferRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, isOrgAdmin]);
+
+  async function cancelTransferRequest(requestId) {
+    if (!isOrgAdmin) return;
+    const ok = await confirm({
+      title: "Cancel transfer request?",
+      message: "This will cancel the open request. Staff will no longer be able to complete it.",
+      confirmLabel: "Cancel request",
+      cancelLabel: "Keep",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
+    setTransferCancelBusyId(requestId);
+    try {
+      const { data, error } = await invokeWithAuth("cancel-org-item-transfer-request", {
+        body: { org_id: orgId, request_id: requestId },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Transfer request cancelled." });
+      await loadTransferRequests();
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed" });
+    } finally {
+      setTransferCancelBusyId("");
+    }
+  }
+
   async function deleteItem(itemId, itemName) {
     const ok = await confirm({
       title: "Delete item?",
@@ -308,6 +364,55 @@ export default function OrganizationItemsPage() {
       await loadWallet();
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed" });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function markLegacy(itemId, itemName) {
+    const ok = await confirm({
+      title: "Mark as legacy?",
+      message: `This will move “${itemName || "this item"}” to legacy. Only organization administrators can restore it.`,
+      confirmLabel: "Mark legacy",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
+    setBulkBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("org-mark-item-legacy", {
+        body: { org_id: orgId, item_id: itemId, reason: null },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Item moved to legacy." });
+      await loadItems();
+    } catch (e) {
+      addToast({ type: "error", message: e.message || "Failed" });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function restoreLegacy(itemId, itemName) {
+    const ok = await confirm({
+      title: "Restore legacy item?",
+      message: `This will restore “${itemName || "this item"}” from legacy.`,
+      confirmLabel: "Restore",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
+    setBulkBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("org-restore-legacy-item", {
+        body: { org_id: orgId, item_id: itemId },
+      });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      addToast({ type: "success", message: "Legacy item restored." });
+      await loadItems();
+    } catch (e) {
+      addToast({ type: "error", message: e.message || "Failed" });
     } finally {
       setBulkBusy(false);
     }
@@ -501,14 +606,25 @@ export default function OrganizationItemsPage() {
         </div>
 
         {isPrivileged ? (
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              id="includeDeleted"
-              type="checkbox"
-              checked={includeDeleted}
-              onChange={(e) => setIncludeDeleted(e.target.checked)}
-            />
-            <label htmlFor="includeDeleted">Show deleted items</label>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-700">
+            <div className="flex items-center gap-2">
+              <input
+                id="includeDeleted"
+                type="checkbox"
+                checked={includeDeleted}
+                onChange={(e) => setIncludeDeleted(e.target.checked)}
+              />
+              <label htmlFor="includeDeleted">Show deleted items</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="includeLegacy"
+                type="checkbox"
+                checked={includeLegacy}
+                onChange={(e) => setIncludeLegacy(e.target.checked)}
+              />
+              <label htmlFor="includeLegacy">Show legacy items</label>
+            </div>
           </div>
         ) : null}
 
@@ -518,6 +634,43 @@ export default function OrganizationItemsPage() {
               <div className="text-sm font-semibold text-gray-800">Transfer item (staff-assisted)</div>
               <div className="text-xs text-gray-500">Requires reason + evidence</div>
             </div>
+
+            <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="text-sm font-semibold text-gray-800">Open transfer requests</div>
+                {transferReqLoading ? <div className="text-xs text-gray-400">Loading…</div> : null}
+              </div>
+              {openTransferRequests.length === 0 ? (
+                <div className="text-sm text-gray-600">No open requests for this organization.</div>
+              ) : (
+                <div className="space-y-2">
+                  {openTransferRequests.map((r) => (
+                    <div
+                      key={r.id}
+                      className="rounded-xl border border-gray-100 bg-white px-3 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">
+                          {r.item?.name || r.item_id}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Target: {displayName(r.target_user)} • Requested{" "}
+                          {r.requested_at ? new Date(r.requested_at).toLocaleString() : "—"}
+                        </div>
+                      </div>
+                      <RippleButton
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold disabled:opacity-60"
+                        disabled={transferCancelBusyId === r.id}
+                        onClick={() => void cancelTransferRequest(r.id)}
+                      >
+                        Cancel
+                      </RippleButton>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
               <div className="lg:col-span-3">
                 <label className="text-xs text-gray-600">Item</label>
@@ -803,7 +956,7 @@ export default function OrganizationItemsPage() {
                 <th className="text-left font-semibold px-4 py-3">Status</th>
                 {isPrivileged ? <th className="text-left font-semibold px-4 py-3">Assigned</th> : null}
                 {!isPrivileged ? <th className="text-right font-semibold px-4 py-3">Action</th> : null}
-                {isPrivileged ? <th className="text-right font-semibold px-4 py-3">Admin</th> : null}
+                {isPrivileged ? <th className="text-right font-semibold px-4 py-3">Manage</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -863,27 +1016,72 @@ export default function OrganizationItemsPage() {
                       ) : null}
                       {isPrivileged ? (
                         <td className="px-4 py-3 text-right">
-                          {isOrgAdmin ? (
-                            i.deletedat ? (
-                              <RippleButton
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
-                                disabled={bulkBusy}
-                                onClick={() => void restoreItem(i.id, i.name)}
+                          <div className="inline-flex items-center gap-2">
+                            <Link
+                              to={`/items/${i.slug || i.id}`}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
+                              title="View item"
+                            >
+                              <ExternalLink size={14} />
+                              View
+                            </Link>
+                            {!i.deletedat ? (
+                              <Link
+                                to={`/items/${i.slug || i.id}/edit`}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
+                                title="Edit item"
                               >
-                                Restore
-                              </RippleButton>
-                            ) : (
-                              <RippleButton
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
-                                disabled={bulkBusy}
-                                onClick={() => void deleteItem(i.id, i.name)}
-                              >
-                                Delete
-                              </RippleButton>
-                            )
-                          ) : (
-                            <span className="text-xs text-gray-400">—</span>
-                          )}
+                                <Pencil size={14} />
+                                Edit
+                              </Link>
+                            ) : null}
+
+                            {isOrgAdmin ? (
+                              i.deletedat ? (
+                                <RippleButton
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
+                                  disabled={bulkBusy}
+                                  onClick={() => void restoreItem(i.id, i.name)}
+                                >
+                                  Restore
+                                </RippleButton>
+                              ) : (
+                                <RippleButton
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
+                                  disabled={bulkBusy}
+                                  onClick={() => void deleteItem(i.id, i.name)}
+                                >
+                                  Delete
+                                </RippleButton>
+                              )
+                            ) : null}
+
+                            {!i.deletedat ? (
+                              i.legacyat ? (
+                                isOrgAdmin ? (
+                                  <RippleButton
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
+                                    disabled={bulkBusy}
+                                    onClick={() => void restoreLegacy(i.id, i.name)}
+                                    title="Restore from legacy"
+                                  >
+                                    <RotateCcw size={14} />
+                                    Restore legacy
+                                  </RippleButton>
+                                ) : null
+                              ) : (
+                                <RippleButton
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
+                                  disabled={bulkBusy}
+                                  onClick={() => void markLegacy(i.id, i.name)}
+                                  title="Move to legacy"
+                                >
+                                  <Archive size={14} />
+                                  Legacy
+                                </RippleButton>
+                              )
+                            ) : null}
+                          </div>
                         </td>
                       ) : null}
                       {!isPrivileged ? (

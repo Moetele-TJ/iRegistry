@@ -589,6 +589,12 @@ verify_jwt = true
 import_map = "./functions/staff-complete-org-item-transfer-request/deno.json"
 entrypoint = "./functions/staff-complete-org-item-transfer-request/index.ts"
 
+[functions.cancel-org-item-transfer-request]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cancel-org-item-transfer-request/deno.json"
+entrypoint = "./functions/cancel-org-item-transfer-request/index.ts"
+
 [functions.staff-complete-pending-topup]
 enabled = true
 verify_jwt = true

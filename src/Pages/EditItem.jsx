@@ -61,7 +61,8 @@ function photoThumbUrl(entry) {
 }
 
 export default function EditItem() {
-  const { id: routeParam } = useParams();
+  const { id, slug } = useParams();
+  const routeParam = id ?? slug;
   const navigate = useNavigate();
   const { alert, confirm } = useModal();
 
