@@ -259,6 +259,15 @@ export default function OrganizationItemsPage() {
           >
             Transactions
           </Link>
+          {isPrivileged ? (
+            <Link
+              to={`/organizations/${orgId}/members`}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+            >
+              <Users size={16} />
+              Members
+            </Link>
+          ) : null}
           <RippleButton
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
             onClick={() => {

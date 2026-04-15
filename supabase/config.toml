@@ -541,6 +541,18 @@ verify_jwt = true
 import_map = "./functions/list-org-payments/deno.json"
 entrypoint = "./functions/list-org-payments/index.ts"
 
+[functions.org-update-member-role]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-update-member-role/deno.json"
+entrypoint = "./functions/org-update-member-role/index.ts"
+
+[functions.org-remove-member]
+enabled = true
+verify_jwt = true
+import_map = "./functions/org-remove-member/deno.json"
+entrypoint = "./functions/org-remove-member/index.ts"
+
 [functions.staff-complete-pending-topup]
 enabled = true
 verify_jwt = true

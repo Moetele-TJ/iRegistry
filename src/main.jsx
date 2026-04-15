@@ -75,6 +75,7 @@ import CashierUsersPage from "./Pages/cashier/CashierUsersPage.jsx";
 import OrganizationItemsPage from "./Pages/shared/OrganizationItemsPage.jsx";
 import OrganizationWalletPage from "./Pages/shared/OrganizationWalletPage.jsx";
 import OrganizationTransactionsPage from "./Pages/shared/OrganizationTransactionsPage.jsx";
+import OrganizationMembersPage from "./Pages/shared/OrganizationMembersPage.jsx";
 
 // AUTH PAGES
 import Login from "./Pages/Login.jsx";
@@ -302,6 +303,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <OrganizationTransactionsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/organizations/:orgId/members"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
+                        <OrganizationMembersPage />
                       </ProtectedRoute>
                     }
                   />
