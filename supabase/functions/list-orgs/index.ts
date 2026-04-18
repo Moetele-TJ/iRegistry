@@ -49,7 +49,25 @@ serve(async (req) => {
       return respond({ success: false, message: error.message || "Failed to load organizations" }, corsHeaders, 500);
     }
 
-    return respond({ success: true, organizations: data || [] }, corsHeaders, 200);
+    const orgRows = data || [];
+    const orgIds = orgRows.map((o: { id: string }) => o.id).filter(Boolean);
+    const creditsByOrg = new Map<string, number>();
+    if (orgIds.length > 0) {
+      const { data: creditRows } = await supabase
+        .from("org_credits")
+        .select("org_id, balance")
+        .in("org_id", orgIds);
+      for (const r of creditRows || []) {
+        creditsByOrg.set(String(r.org_id), typeof r.balance === "number" ? r.balance : 0);
+      }
+    }
+
+    const organizations = orgRows.map((o: { id: string }) => ({
+      ...o,
+      credit_balance: creditsByOrg.get(String(o.id)) ?? 0,
+    }));
+
+    return respond({ success: true, organizations }, corsHeaders, 200);
   } catch (err: any) {
     console.error("list-orgs crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);

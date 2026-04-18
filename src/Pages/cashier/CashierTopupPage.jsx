@@ -260,14 +260,24 @@ export default function CashierTopupPage() {
         type: "success",
         message: `Top up successful: +${Number(pkg?.credits ?? 0)} credits. New balance: ${data.new_balance ?? "—"}.`,
       });
-      if (typeof data.new_balance === "number" && targetType === "user") {
-        setUsers((prev) =>
-          (prev || []).map((u) =>
-            String(u.id) === String(selectedUserId)
-              ? { ...u, credit_balance: data.new_balance }
-              : u,
-          ),
-        );
+      if (typeof data.new_balance === "number") {
+        if (targetType === "user") {
+          setUsers((prev) =>
+            (prev || []).map((u) =>
+              String(u.id) === String(selectedUserId)
+                ? { ...u, credit_balance: data.new_balance }
+                : u,
+            ),
+          );
+        } else if (targetType === "organization") {
+          setOrgs((prev) =>
+            (prev || []).map((o) =>
+              String(o.id) === String(selectedOrgId)
+                ? { ...o, credit_balance: data.new_balance }
+                : o,
+            ),
+          );
+        }
       }
       setReceiptNo("");
       setNote("");
@@ -533,15 +543,17 @@ export default function CashierTopupPage() {
                 ? (selectedOrg ? (selectedOrg.name || "—") : "—")
                 : (selectedUser ? displayName(selectedUser) : "—")}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {targetType === "organization"
-                ? (selectedOrg ? `Org ID: ${selectedOrg.id}` : "")
-                : (selectedUser ? `User ID: ${selectedUser.id}` : "")}
-            </div>
-            {targetType === "user" && selectedUser ? (
+            {(targetType === "user" && selectedUser) ||
+            (targetType === "organization" && selectedOrg) ? (
               <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900">
                 Current balance:
-                <span className="tabular-nums">{Number(selectedUser.credit_balance ?? 0)}</span>
+                <span className="tabular-nums">
+                  {Number(
+                    targetType === "organization"
+                      ? (selectedOrg?.credit_balance ?? 0)
+                      : (selectedUser?.credit_balance ?? 0),
+                  )}
+                </span>
                 credits
               </div>
             ) : null}
