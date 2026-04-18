@@ -147,6 +147,15 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
     [orgs, selectedOrgId],
   );
 
+  function changeScope(next) {
+    if (next === scope) return;
+    setSelectedUserId("");
+    setSelectedOrgId("");
+    setUserQuery("");
+    setOrgQuery("");
+    setScope(next);
+  }
+
   async function loadPayments() {
     setLoadingPayments(true);
     try {
@@ -222,7 +231,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
             <button
               key={opt.id}
               type="button"
-              onClick={() => setScope(opt.id)}
+              onClick={() => changeScope(opt.id)}
               className={`px-3 py-1.5 rounded-lg transition-colors ${
                 scope === opt.id ? "bg-iregistrygreen text-white" : "text-gray-700 hover:bg-gray-50"
               }`}
