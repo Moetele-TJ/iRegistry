@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 
 const UUID_RE =
@@ -11,6 +11,8 @@ const UUID_RE =
  */
 export function useOrgRouteResolution() {
   const { orgKey } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [organization, setOrganization] = useState(null);
@@ -67,6 +69,25 @@ export function useOrgRouteResolution() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (loading || error || !organization?.slug || !orgKey) return;
+    const key = String(orgKey).trim();
+    if (!UUID_RE.test(key)) return;
+    if (String(organization.id).toLowerCase() !== key.toLowerCase()) return;
+    const slug = String(organization.slug).trim().toLowerCase();
+    if (!slug || slug === key.toLowerCase()) return;
+    const path = location.pathname;
+    const needle = `/organizations/${key}`;
+    if (!path.includes(needle)) return;
+    const next =
+      path.slice(0, path.indexOf(needle)) +
+      `/organizations/${slug}` +
+      path.slice(path.indexOf(needle) + needle.length);
+    if (next !== path) {
+      navigate(`${next}${location.search}${location.hash}`, { replace: true });
+    }
+  }, [loading, error, organization, orgKey, location.pathname, location.search, location.hash, navigate]);
 
   return {
     orgKey,

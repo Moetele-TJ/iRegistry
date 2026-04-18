@@ -28,7 +28,7 @@ export async function run(req: Request): Promise<Response> {
 
     let query = supabase
       .from("orgs")
-      .select("id, name, registration_no, contact_email, phone, village, ward, updated_at")
+      .select("id, slug, name, registration_no, contact_email, phone, village, ward, updated_at")
       .order("name", { ascending: true })
       .limit(limit);
 

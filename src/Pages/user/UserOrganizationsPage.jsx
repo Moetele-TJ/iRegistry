@@ -4,6 +4,7 @@ import { Building2, Check, X, RefreshCw, Wallet } from "lucide-react";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { useOrganizations } from "../../hooks/useOrganizations.js";
+import { orgPathSegment } from "../../lib/orgPath.js";
 
 function orgLabel(org) {
   return String(org?.name || "").trim() || org?.registration_no || org?.id || "—";
@@ -111,14 +112,14 @@ export default function UserOrganizationsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
                       <Link
-                        to={`/organizations/${m.org.id}/wallet`}
+                        to={`/organizations/${orgPathSegment(m.org)}/wallet`}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-semibold hover:bg-gray-50"
                       >
                         <Wallet size={16} />
                         Wallet
                       </Link>
                       <Link
-                        to={`/organizations/${m.org.id}/items`}
+                        to={`/organizations/${orgPathSegment(m.org)}/items`}
                         className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
                       >
                         View items

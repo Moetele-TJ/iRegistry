@@ -24,6 +24,7 @@ import {
   isItemReportedStolen,
 } from "../lib/itemState.js";
 import { normalizeItemFromDB } from "../contexts/ItemsContext.jsx";
+import { orgPathSegment } from "../lib/orgPath.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -201,6 +202,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         const normalized = rows.map((r) => ({
           ...normalizeItemFromDB(r),
           organizationName: r?.organization?.name ?? null,
+          ownerOrgSlug: r?.organization?.slug ?? null,
         }));
         setAssignedOrgItems(normalized);
       } catch {
@@ -684,6 +686,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
             const normalized = rows.map((r) => ({
               ...normalizeItemFromDB(r),
               organizationName: r?.organization?.name ?? null,
+              ownerOrgSlug: r?.organization?.slug ?? null,
             }));
             setAssignedOrgItems(normalized);
           } catch {
@@ -1396,7 +1399,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                               <RippleButton
                                 className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
                                 onClick={() =>
-                                  navigate(`/organizations/${item.ownerOrgId}/items`)
+                                  navigate(
+                                    `/organizations/${orgPathSegment({
+                                      id: item.ownerOrgId,
+                                      slug: item.ownerOrgSlug,
+                                    })}/items`,
+                                  )
                                 }
                               >
                                 Open organization

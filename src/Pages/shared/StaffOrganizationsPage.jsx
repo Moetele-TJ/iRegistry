@@ -4,6 +4,7 @@ import { Building2, ChevronRight, RefreshCw, Search, Plus, X } from "lucide-reac
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { orgPathSegment } from "../../lib/orgPath.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 
 function orgLabel(o) {
@@ -179,7 +180,7 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                     <tr key={o.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3">
                         <Link
-                          to={`${staffBasePath}/organizations/${o.id}`}
+                          to={`${staffBasePath}/organizations/${orgPathSegment(o)}`}
                           className="font-semibold text-emerald-900 hover:text-emerald-950 hover:underline underline-offset-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 inline-block"
                         >
                           {orgLabel(o)}
@@ -200,19 +201,19 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex flex-wrap items-center justify-end gap-2">
                           <Link
-                            to={`/organizations/${o.id}/items`}
+                            to={`/organizations/${orgPathSegment(o)}/items`}
                             className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
                           >
                             Items
                           </Link>
                           <Link
-                            to={`/organizations/${o.id}/wallet`}
+                            to={`/organizations/${orgPathSegment(o)}/wallet`}
                             className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
                           >
                             Wallet
                           </Link>
                           <Link
-                            to={`${staffBasePath}/organizations/${o.id}`}
+                            to={`${staffBasePath}/organizations/${orgPathSegment(o)}`}
                             className="inline-flex items-center justify-center gap-0.5 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50/90 text-emerald-950 text-xs font-semibold hover:bg-emerald-100"
                           >
                             More

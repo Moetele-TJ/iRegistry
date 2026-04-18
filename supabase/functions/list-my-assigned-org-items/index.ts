@@ -46,6 +46,7 @@ serve(async (req) => {
           org_assigned_by,
           orgs:owner_org_id (
             id,
+            slug,
             name
           )
         `,
