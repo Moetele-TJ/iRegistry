@@ -1396,9 +1396,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                               <RippleButton
                                 className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
                                 onClick={() =>
-                                  navigate(
-                                    `/organizations/${item.ownerOrgSlug || item.ownerOrgId}/items`,
-                                  )
+                                  navigate(`/organizations/${item.ownerOrgId}/items`)
                                 }
                               >
                                 Open organization

@@ -14,7 +14,7 @@ function reqMsg(label) {
 export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
   const { addToast } = useToast();
   const nav = useNavigate();
-  const { orgSlug, orgId, organization: org, loading, error: orgError } = useOrgRouteResolution();
+  const { orgKey, orgId, organization: org, loading, error: orgError } = useOrgRouteResolution();
 
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -117,7 +117,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
     }
   }
 
-  const orgLabel = String(org?.name || "").trim() || org?.registration_no || orgSlug || "Organization";
+  const orgLabel = String(org?.name || "").trim() || org?.registration_no || orgId || "Organization";
 
   return (
     <PageSectionCard
@@ -185,7 +185,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
                 </RippleButton>
                 <RippleButton
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-semibold hover:bg-gray-50"
-                  onClick={() => nav(`${staffBasePath}/organizations/${orgSlug}/members`)}
+                  onClick={() => nav(`${staffBasePath}/organizations/${orgKey}/members`)}
                 >
                   View members
                 </RippleButton>

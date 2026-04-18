@@ -63,39 +63,6 @@ async function enrichItemsWithOwnerBilling(
   });
 }
 
-async function enrichItemsWithOwnerOrgSlug(
-  rows: Record<string, unknown>[],
-): Promise<Record<string, unknown>[]> {
-  const list = rows || [];
-  const orgIds = [
-    ...new Set(
-      list
-        .map((r) => r?.owner_org_id)
-        .filter((id): id is string => typeof id === "string" && !!String(id).trim()),
-    ),
-  ];
-  if (orgIds.length === 0) return list;
-
-  const { data: orgRows, error: oErr } = await supabase
-    .from("orgs")
-    .select("id, slug")
-    .in("id", orgIds);
-  if (oErr) console.error("get-items org slugs:", oErr.message);
-
-  const slugBy = new Map(
-    (orgRows || []).map((o: { id?: string; slug?: string }) => [String(o.id), o.slug ?? null]),
-  );
-
-  return list.map((row) => {
-    const oid = row?.owner_org_id;
-    const id = typeof oid === "string" ? oid : null;
-    return {
-      ...row,
-      owner_org_slug: id ? (slugBy.get(id) ?? null) : null,
-    };
-  });
-}
-
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -218,10 +185,8 @@ serve(async (req) => {
         })
         .filter(Boolean);
 
-      const ordered = await enrichItemsWithOwnerOrgSlug(
-        await enrichItemsWithOwnerBilling(
-          orderedRaw as Record<string, unknown>[],
-        ),
+      const ordered = await enrichItemsWithOwnerBilling(
+        orderedRaw as Record<string, unknown>[],
       );
 
       return respond(
@@ -298,10 +263,8 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    const enriched = await enrichItemsWithOwnerOrgSlug(
-      await enrichItemsWithOwnerBilling(
-        (data || []) as Record<string, unknown>[],
-      ),
+    const enriched = await enrichItemsWithOwnerBilling(
+      (data || []) as Record<string, unknown>[],
     );
 
     return respond(

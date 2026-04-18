@@ -55,14 +55,13 @@ serve(async (req) => {
       village: string | null;
       ward: string | null;
       updated_at: string | null;
-      slug: string;
     } | null = null;
     let orgErr: { message?: string } | null = null;
 
     if (resolvedOrgId) {
       const q = await supabase
         .from("orgs")
-        .select("id, name, registration_no, contact_email, phone, village, ward, updated_at, slug")
+        .select("id, name, registration_no, contact_email, phone, village, ward, updated_at")
         .eq("id", resolvedOrgId)
         .maybeSingle();
       orgRow = q.data as typeof orgRow;
@@ -70,7 +69,7 @@ serve(async (req) => {
     } else if (slugLookup) {
       const q = await supabase
         .from("orgs")
-        .select("id, name, registration_no, contact_email, phone, village, ward, updated_at, slug")
+        .select("id, name, registration_no, contact_email, phone, village, ward, updated_at")
         .eq("slug", slugLookup)
         .maybeSingle();
       orgRow = q.data as typeof orgRow;
@@ -102,7 +101,6 @@ serve(async (req) => {
         success: true,
         organization: {
           id: orgRow.id,
-          slug: orgRow.slug,
           name: orgRow.name,
           registration_no: orgRow.registration_no ?? null,
           contact_email: orgRow.contact_email ?? null,

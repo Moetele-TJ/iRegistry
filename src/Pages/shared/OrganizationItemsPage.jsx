@@ -17,7 +17,7 @@ function displayName(u) {
 }
 
 export default function OrganizationItemsPage() {
-  const { orgSlug, orgId, loading: routeLoading, error: routeError } = useOrgRouteResolution();
+  const { orgKey, orgId, loading: routeLoading, error: routeError } = useOrgRouteResolution();
   const { addToast } = useToast();
   const { confirm } = useModal();
 
@@ -552,21 +552,21 @@ export default function OrganizationItemsPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/organizations/${orgSlug}/wallet`}
+            to={`/organizations/${orgKey}/wallet`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
           >
             <Wallet size={16} />
             Organization wallet
           </Link>
           <Link
-            to={`/organizations/${orgSlug}/transactions`}
+            to={`/organizations/${orgKey}/transactions`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             Transactions
           </Link>
           {isPrivileged ? (
             <Link
-              to={`/organizations/${orgSlug}/members`}
+              to={`/organizations/${orgKey}/members`}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
             >
               <Users size={16} />
@@ -612,7 +612,7 @@ export default function OrganizationItemsPage() {
             </div>
           </div>
           <Link
-            to={`/organizations/${orgSlug}/wallet`}
+            to={`/organizations/${orgKey}/wallet`}
             className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50 shrink-0"
           >
             View details

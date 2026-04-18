@@ -70,7 +70,7 @@ function normalizePaymentRow(p) {
 }
 
 export default function OrganizationTransactionsPage() {
-  const { orgSlug, orgId } = useOrgRouteResolution();
+  const { orgKey, orgId } = useOrgRouteResolution();
   const { addToast } = useToast();
 
   const [orgName, setOrgName] = useState("");
@@ -227,7 +227,7 @@ export default function OrganizationTransactionsPage() {
 
   function exportCsv() {
     const now = new Date();
-    const filename = `org-${orgSlug || orgId}-transactions-${now.toISOString().slice(0, 10)}.csv`;
+    const filename = `org-${orgId}-transactions-${now.toISOString().slice(0, 10)}.csv`;
     const header = ["created_at", "kind", "title", "status", "credits_delta", "money", "reference", "ledger_entry_type"];
     const lines = [header.map(safeCsv).join(",")];
     for (const r of merged.slice(0, 2000)) {
@@ -258,14 +258,14 @@ export default function OrganizationTransactionsPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/organizations/${orgSlug}/wallet`}
+            to={`/organizations/${orgKey}/wallet`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Wallet size={16} />
             Wallet
           </Link>
           <Link
-            to={`/organizations/${orgSlug}/items`}
+            to={`/organizations/${orgKey}/items`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Building2 size={16} />

@@ -36,7 +36,7 @@ function PaymentStatusBadge({ status }) {
 }
 
 export default function OrganizationWalletPage() {
-  const { orgSlug, orgId } = useOrgRouteResolution();
+  const { orgKey, orgId } = useOrgRouteResolution();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -208,14 +208,14 @@ export default function OrganizationWalletPage() {
             </RippleButton>
           ) : null}
           <Link
-            to={`/organizations/${orgSlug}/items`}
+            to={`/organizations/${orgKey}/items`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Building2 size={16} />
             Items
           </Link>
           <Link
-            to={`/organizations/${orgSlug}/transactions`}
+            to={`/organizations/${orgKey}/transactions`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             Transactions

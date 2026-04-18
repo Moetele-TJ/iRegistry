@@ -40,7 +40,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
   const { confirm, alert } = useModal();
 
   const {
-    orgSlug,
+    orgKey,
     orgId,
     organization,
     balance,
@@ -160,13 +160,13 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={`/organizations/${orgSlug}/wallet`}
+                  to={`/organizations/${orgKey}/wallet`}
                   className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
                 >
                   View wallet
                 </Link>
                 <Link
-                  to={`/organizations/${orgSlug}/transactions`}
+                  to={`/organizations/${orgKey}/transactions`}
                   className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
                 >
                   View transactions
@@ -250,28 +250,28 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
               <div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Actions</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Link to={`/organizations/${orgSlug}/items`} className={actionClass}>
+                  <Link to={`/organizations/${orgKey}/items`} className={actionClass}>
                     <Building2 size={18} className="text-gray-500 shrink-0" />
                     <span>View items</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
-                  <Link to={`/organizations/${orgSlug}/wallet`} className={`${actionClass} border-emerald-200 bg-emerald-50/50`}>
+                  <Link to={`/organizations/${orgKey}/wallet`} className={`${actionClass} border-emerald-200 bg-emerald-50/50`}>
                     <Wallet size={18} className="text-emerald-700 shrink-0" />
                     <span>Organization wallet</span>
                     <ChevronRight size={18} className="text-emerald-600/80 ml-auto shrink-0" />
                   </Link>
-                  <Link to={`/organizations/${orgSlug}/transactions`} className={actionClass}>
+                  <Link to={`/organizations/${orgKey}/transactions`} className={actionClass}>
                     <ReceiptText size={18} className="text-gray-500 shrink-0" />
                     <span>Transactions</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
-                  <Link to={`${staffBasePath}/organizations/${orgSlug}/members`} className={actionClass}>
+                  <Link to={`${staffBasePath}/organizations/${orgKey}/members`} className={actionClass}>
                     <Users size={18} className="text-gray-500 shrink-0" />
                     <span>Members</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
                   <Link
-                    to={`${staffBasePath}/organizations/${orgSlug}/add-member`}
+                    to={`${staffBasePath}/organizations/${orgKey}/add-member`}
                     className={`${actionClass} border-emerald-200 bg-white`}
                   >
                     <UserPlus size={18} className="text-emerald-700 shrink-0" />

@@ -33,7 +33,6 @@ serve(async (req) => {
           responded_at,
           orgs:org_id (
             id,
-            slug,
             name,
             registration_no,
             contact_email,

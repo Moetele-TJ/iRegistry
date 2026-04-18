@@ -35,7 +35,7 @@ serve(async (req) => {
 
     let query = supabase
       .from("orgs")
-      .select("id, slug, name, registration_no, contact_email, phone, updated_at")
+      .select("id, name, registration_no, contact_email, phone, updated_at")
       .order("name", { ascending: true })
       .limit(limit);
 

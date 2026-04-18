@@ -6,11 +6,11 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
- * Resolves `orgSlug` from the route via get-org-wallet. All invocations that need the org
- * should pass `org_id` from the returned `orgId`; URLs use `orgSlug`.
+ * Resolves the org segment from the route (UUID or server-stored path key) via get-org-wallet.
+ * Pass `org_id` from `orgId` to all other APIs; never display the path key in the UI.
  */
 export function useOrgRouteResolution() {
-  const { orgSlug } = useParams();
+  const { orgKey } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [organization, setOrganization] = useState(null);
@@ -20,7 +20,7 @@ export function useOrgRouteResolution() {
   const [role, setRole] = useState(null);
 
   const reload = useCallback(async () => {
-    if (!orgSlug) {
+    if (!orgKey) {
       setLoading(false);
       setError("Missing organization");
       setOrganization(null);
@@ -38,7 +38,7 @@ export function useOrgRouteResolution() {
     setCreditsUpdatedAt(null);
     setRole(null);
     try {
-      const raw = String(orgSlug || "").trim();
+      const raw = String(orgKey || "").trim();
       const body = UUID_RE.test(raw) ? { org_id: raw } : { org_slug: raw.toLowerCase() };
       const { data, error: invErr } = await invokeWithAuth("get-org-wallet", {
         body,
@@ -62,14 +62,14 @@ export function useOrgRouteResolution() {
     } finally {
       setLoading(false);
     }
-  }, [orgSlug]);
+  }, [orgKey]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
   return {
-    orgSlug,
+    orgKey,
     orgId,
     organization,
     balance,

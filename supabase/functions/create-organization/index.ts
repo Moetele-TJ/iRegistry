@@ -96,7 +96,7 @@ serve(async (req) => {
       req,
     });
 
-    return respond({ success: true, org: { ...org, slug } }, corsHeaders, 200);
+    return respond({ success: true, org }, corsHeaders, 200);
   } catch (err: unknown) {
     console.error("create-organization crash:", err);
     return respond(

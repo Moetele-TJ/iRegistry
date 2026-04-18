@@ -8,6 +8,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { orgSlugFromNameAndId } from "../shared/orgSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -76,11 +77,15 @@ serve(async (req) => {
       patch.contact_email = String(patch.contact_email).toLowerCase().slice(0, 200);
     }
 
+    if (typeof patch.name === "string" && patch.name) {
+      patch.slug = orgSlugFromNameAndId(patch.name, orgId);
+    }
+
     const { data: org, error } = await supabase
       .from("orgs")
       .update(patch)
       .eq("id", orgId)
-      .select("id, slug, name, registration_no, contact_email, phone, village, ward, updated_at")
+      .select("id, name, registration_no, contact_email, phone, village, ward, updated_at")
       .single();
 
     if (error || !org) {

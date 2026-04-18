@@ -20,7 +20,7 @@ function compact(v) {
 }
 
 export default function OrganizationMembersPage() {
-  const { orgSlug, orgId } = useOrgRouteResolution();
+  const { orgKey, orgId } = useOrgRouteResolution();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -126,7 +126,7 @@ export default function OrganizationMembersPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/organizations/${orgSlug}/items`}
+            to={`/organizations/${orgKey}/items`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Building2 size={16} />
