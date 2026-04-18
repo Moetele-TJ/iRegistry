@@ -49,6 +49,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
     loading,
     error,
     reload,
+    refreshOrganization,
   } = useOrgRouteResolution();
 
   const [packages, setPackages] = useState([]);
@@ -177,7 +178,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
             </div>
           ),
         });
-        await reload();
+        await refreshOrganization();
       },
     }).catch((e) => {
       addToast({ type: "error", message: e.message || "Top up failed" });

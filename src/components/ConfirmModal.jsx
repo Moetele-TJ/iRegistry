@@ -22,6 +22,16 @@ export default function ConfirmModal({
   const confirmRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
+  // Nested flows (e.g. confirm → await alert()) swap `mode` while async onConfirm still runs;
+  // keep internal loading from blocking the alert OK button.
+  useEffect(() => {
+    if (!isOpen) {
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+  }, [isOpen, mode, title]);
+
   /* ================= BODY SCROLL LOCK ================= */
 
   useEffect(() => {

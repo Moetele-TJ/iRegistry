@@ -22,6 +22,28 @@ export function useOrgRouteResolution() {
   const [creditsUpdatedAt, setCreditsUpdatedAt] = useState(null);
   const [role, setRole] = useState(null);
 
+  /** Updates org + wallet from get-org-wallet without clearing state (no loading flash). */
+  const refreshOrganization = useCallback(async () => {
+    if (!orgKey) return;
+    try {
+      const raw = String(orgKey || "").trim();
+      const body = UUID_RE.test(raw) ? { org_id: raw } : { org_slug: raw.toLowerCase() };
+      const { data, error: invErr } = await invokeWithAuth("get-org-wallet", {
+        body,
+      });
+      if (invErr || !data?.success) return;
+      const org = data.organization || null;
+      setOrganization(org);
+      setOrgId(org?.id ? String(org.id) : null);
+      setBalance(parseCreditBalance(data.balance) ?? 0);
+      setCreditsUpdatedAt(data.credits_updated_at ?? null);
+      setRole(data.role ?? null);
+      setError(null);
+    } catch {
+      /* keep current org snapshot */
+    }
+  }, [orgKey]);
+
   const reload = useCallback(async () => {
     if (!orgKey) {
       setLoading(false);
@@ -100,5 +122,6 @@ export function useOrgRouteResolution() {
     loading,
     error,
     reload,
+    refreshOrganization,
   };
 }
