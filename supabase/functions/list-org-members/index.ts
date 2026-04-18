@@ -7,6 +7,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, isOrgPrivileged, orgRoleIs } from "../shared/orgAuth.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -61,7 +62,9 @@ serve(async (req) => {
             village,
             ward,
             role,
-            status
+            deleted_at,
+            disabled_at,
+            suspended_at
           )
         `,
       )
@@ -79,14 +82,19 @@ serve(async (req) => {
       return respond({ success: false, message: error.message || "Failed to load members" }, corsHeaders, 500);
     }
 
-    const members = (data || []).map((r: any) => ({
-      user_id: r.user_id,
-      role: r.role,
-      status: r.status,
-      invited_at: r.invited_at,
-      responded_at: r.responded_at,
-      user: r.users,
-    }));
+    const members = (data || []).map((r: any) => {
+      const u = r.users;
+      return {
+        user_id: r.user_id,
+        role: r.role,
+        status: r.status,
+        invited_at: r.invited_at,
+        responded_at: r.responded_at,
+        user: u
+          ? { ...u, status: deriveUserStatus(u) }
+          : null,
+      };
+    });
 
     return respond({ success: true, members, actor_role: actorRole, can_invite: canInvite }, corsHeaders, 200);
   } catch (err: any) {

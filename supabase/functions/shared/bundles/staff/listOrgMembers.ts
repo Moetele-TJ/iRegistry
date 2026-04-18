@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../../cors.ts";
 import { respond } from "../../respond.ts";
 import { validateSession } from "../../validateSession.ts";
 import { isPrivilegedRole } from "../../roles.ts";
+import { deriveUserStatus } from "../../userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -48,7 +49,9 @@ export async function run(req: Request): Promise<Response> {
             village,
             ward,
             role,
-            status
+            deleted_at,
+            disabled_at,
+            suspended_at
           )
         `,
       )
@@ -64,15 +67,18 @@ export async function run(req: Request): Promise<Response> {
     const { data, error } = await q;
     if (error) return respond({ success: false, message: error.message || "Failed to load members" }, corsHeaders, 500);
 
-    const members = (data || []).map((r: any) => ({
-      user_id: r.user_id,
-      role: r.role,
-      status: r.status,
-      invited_at: r.invited_at,
-      responded_at: r.responded_at,
-      invited_by: r.invited_by,
-      user: r.users,
-    }));
+    const members = (data || []).map((r: any) => {
+      const u = r.users;
+      return {
+        user_id: r.user_id,
+        role: r.role,
+        status: r.status,
+        invited_at: r.invited_at,
+        responded_at: r.responded_at,
+        invited_by: r.invited_by,
+        user: u ? { ...u, status: deriveUserStatus(u) } : null,
+      };
+    });
 
     return respond({ success: true, members }, corsHeaders, 200);
   } catch (err: any) {

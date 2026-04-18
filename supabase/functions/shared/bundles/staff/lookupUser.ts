@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../../cors.ts";
 import { respond } from "../../respond.ts";
 import { validateSession } from "../../validateSession.ts";
 import { isPrivilegedRole } from "../../roles.ts";
+import { deriveUserStatus } from "../../userState.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -45,14 +46,14 @@ export async function run(req: Request): Promise<Response> {
       id_number: u.id_number,
       phone: u.phone,
       email: u.email,
-      status: u.status,
+      status: deriveUserStatus(u),
       role: u.role,
     });
 
     if (id_number) {
       const { data } = await supabase
         .from("users")
-        .select("id, first_name, last_name, id_number, phone, email, status, role")
+        .select("id, first_name, last_name, id_number, phone, email, role, deleted_at, disabled_at, suspended_at")
         .eq("id_number", id_number)
         .is("deleted_at", null)
         .limit(3);
@@ -67,7 +68,7 @@ export async function run(req: Request): Promise<Response> {
     if (phone) {
       const { data } = await supabase
         .from("users")
-        .select("id, first_name, last_name, id_number, phone, email, status, role")
+        .select("id, first_name, last_name, id_number, phone, email, role, deleted_at, disabled_at, suspended_at")
         .eq("phone", phone)
         .is("deleted_at", null)
         .limit(3);
@@ -82,7 +83,7 @@ export async function run(req: Request): Promise<Response> {
     if (email) {
       const { data } = await supabase
         .from("users")
-        .select("id, first_name, last_name, id_number, phone, email, status, role")
+        .select("id, first_name, last_name, id_number, phone, email, role, deleted_at, disabled_at, suspended_at")
         .eq("email", email)
         .is("deleted_at", null)
         .limit(3);
