@@ -529,6 +529,12 @@ verify_jwt = true
 import_map = "./functions/update-organization/deno.json"
 entrypoint = "./functions/update-organization/index.ts"
 
+[functions.delete-organization]
+enabled = true
+verify_jwt = true
+import_map = "./functions/delete-organization/deno.json"
+entrypoint = "./functions/delete-organization/index.ts"
+
 [functions.staff-api]
 enabled = true
 verify_jwt = true

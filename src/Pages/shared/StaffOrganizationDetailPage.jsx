@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
@@ -8,6 +8,7 @@ import {
   Plus,
   ReceiptText,
   RefreshCw,
+  Trash2,
   UserPlus,
   Users,
   Wallet,
@@ -38,6 +39,7 @@ function pkgLabel(p) {
 export default function StaffOrganizationDetailPage({ staffBasePath }) {
   const { addToast } = useToast();
   const { confirm, alert } = useModal();
+  const navigate = useNavigate();
 
   const {
     orgKey,
@@ -186,6 +188,31 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
 
   const listPath = `${staffBasePath}/organizations`;
 
+  async function handleDelete() {
+    if (!organization?.id || !orgId) return;
+    const ok = await confirm({
+      title: "Delete organization?",
+      message: `Permanently delete “${orgLabel(organization)}”? This cannot be undone. The organization must not own any registry items.`,
+      confirmLabel: "Delete organization",
+      cancelLabel: "Cancel",
+      danger: true,
+      onConfirm: async () => {
+        const { data, error } = await invokeWithAuth("delete-organization", {
+          body: { org_id: orgId },
+        });
+        if (error || !data?.success) {
+          throw new Error(data?.message || error?.message || "Failed to delete organization");
+        }
+        addToast({ type: "success", message: "Organization deleted." });
+        navigate(listPath);
+      },
+    }).catch((e) => {
+      addToast({ type: "error", message: e?.message || "Could not delete organization" });
+      return false;
+    });
+    if (!ok) return;
+  }
+
   const actionClass =
     "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50 transition-colors text-left";
 
@@ -294,6 +321,22 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
                   >
                     <Pencil size={18} className="text-gray-500 shrink-0" />
                     <span>Edit organization details</span>
+                  </RippleButton>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-red-100">
+                  <div className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-2">Danger zone</div>
+                  <p className="text-xs text-gray-600 mb-3 max-w-xl">
+                    Deleting removes the organization, its wallet, memberships, and related records. You cannot delete
+                    while this organization still owns any items in the registry.
+                  </p>
+                  <RippleButton
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-red-200 bg-red-50 text-sm font-semibold text-red-900 shadow-sm hover:bg-red-100/80 transition-colors"
+                    onClick={() => void handleDelete()}
+                  >
+                    <Trash2 size={18} className="shrink-0" />
+                    Delete organization
                   </RippleButton>
                 </div>
               </div>
