@@ -43,6 +43,16 @@ serve(async (req) => {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 
+    const { data: existingOrg, error: fetchErr } = await supabase
+      .from("orgs")
+      .select("id, name")
+      .eq("id", orgId)
+      .maybeSingle();
+
+    if (fetchErr || !existingOrg) {
+      return respond({ success: false, message: "Organization not found" }, corsHeaders, 404);
+    }
+
     const patch: Record<string, unknown> = {};
 
     if ("name" in body) {
@@ -77,9 +87,16 @@ serve(async (req) => {
       patch.contact_email = String(patch.contact_email).toLowerCase().slice(0, 200);
     }
 
-    if (typeof patch.name === "string" && patch.name) {
-      patch.slug = orgSlugFromNameAndId(patch.name, orgId);
+    const effectiveName =
+      typeof patch.name === "string" && String(patch.name).trim()
+        ? String(patch.name).trim()
+        : String(existingOrg.name || "").trim();
+
+    if (!effectiveName) {
+      return respond({ success: false, message: "Organization name cannot be empty" }, corsHeaders, 400);
     }
+
+    patch.slug = orgSlugFromNameAndId(effectiveName, orgId);
 
     const { data: org, error } = await supabase
       .from("orgs")
