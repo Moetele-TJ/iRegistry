@@ -63,7 +63,8 @@ export default function OrganizationItemsPage() {
   const [walletBalance, setWalletBalance] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
 
-  const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER";
+  const isPrivileged =
+    role === "ORG_ADMIN" || role === "ORG_MANAGER" || role === "STAFF";
 
   async function loadWallet() {
     if (!orgId) {

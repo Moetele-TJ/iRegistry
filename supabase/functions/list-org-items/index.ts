@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, isOrgPrivileged } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -29,10 +30,15 @@ serve(async (req) => {
     const orgId = typeof body?.org_id === "string" ? body.org_id : "";
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
 
-    const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    const staff = isPrivilegedRole(session.role);
+    const membership = staff
+      ? null
+      : await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
+    if (!staff && !membership) {
+      return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    }
 
-    const privileged = isOrgPrivileged(membership.role);
+    const privileged = staff || (!!membership && isOrgPrivileged(membership.role));
 
     const includeDeleted = !!body?.includeDeleted;
     const includeLegacy = !!body?.includeLegacy;
@@ -79,7 +85,7 @@ serve(async (req) => {
         success: true,
         items: data || [],
         total: count ?? null,
-        role: membership.role,
+        role: membership?.role ?? (staff ? "STAFF" : null),
       },
       corsHeaders,
       200,

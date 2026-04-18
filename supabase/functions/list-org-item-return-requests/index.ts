@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, isOrgPrivileged } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -38,10 +39,15 @@ serve(async (req) => {
       return respond({ success: false, message: "Invalid scope" }, corsHeaders, 400);
     }
 
-    const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    const staff = isPrivilegedRole(session.role);
+    const membership = staff
+      ? null
+      : await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
+    if (!staff && !membership) {
+      return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    }
 
-    const privileged = isOrgPrivileged(membership.role);
+    const privileged = staff || (!!membership && isOrgPrivileged(membership.role));
     if (scope === "org" && !privileged) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
@@ -83,7 +89,11 @@ serve(async (req) => {
       items: undefined,
     }));
 
-    return respond({ success: true, requests: rows, role: membership.role }, corsHeaders, 200);
+    return respond(
+      { success: true, requests: rows, role: membership?.role ?? (staff ? "STAFF" : null) },
+      corsHeaders,
+      200,
+    );
   } catch (err: any) {
     console.error("list-org-item-return-requests crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);

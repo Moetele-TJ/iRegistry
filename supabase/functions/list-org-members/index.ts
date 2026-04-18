@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, isOrgPrivileged, orgRoleIs } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -30,12 +31,15 @@ serve(async (req) => {
 
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
 
-    const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership || !isOrgPrivileged(membership.role)) {
+    const staff = isPrivilegedRole(session.role);
+    const membership = staff
+      ? null
+      : await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
+    if (!staff && (!membership || !isOrgPrivileged(membership.role))) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
-    const actorRole = membership.role;
-    const canInvite = orgRoleIs(actorRole, "ORG_ADMIN");
+    const actorRole = membership?.role ?? "ORG_ADMIN";
+    const canInvite = staff || orgRoleIs(actorRole, "ORG_ADMIN");
 
     let q = supabase
       .from("org_members")
