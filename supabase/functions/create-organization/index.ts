@@ -7,6 +7,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { logAudit } from "../shared/logAudit.ts";
+import { orgSlugFromNameAndId } from "../shared/orgSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -70,6 +71,17 @@ serve(async (req) => {
       );
     }
 
+    const slug = orgSlugFromNameAndId(name, String(org.id));
+    const { error: slugErr } = await supabase.from("orgs").update({ slug }).eq("id", org.id);
+    if (slugErr) {
+      console.error("create-organization slug:", slugErr?.message);
+      return respond(
+        { success: false, message: slugErr?.message || "Failed to set organization URL" },
+        corsHeaders,
+        500,
+      );
+    }
+
     const channel = roleIs(session.role, "cashier") ? "CASHIER" : "ADMIN";
     await logAudit({
       supabase,
@@ -84,7 +96,7 @@ serve(async (req) => {
       req,
     });
 
-    return respond({ success: true, org }, corsHeaders, 200);
+    return respond({ success: true, org: { ...org, slug } }, corsHeaders, 200);
   } catch (err: unknown) {
     console.error("create-organization crash:", err);
     return respond(

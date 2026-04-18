@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Building2, RefreshCw, UserPlus, Users, X } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -19,7 +20,7 @@ function compact(v) {
 }
 
 export default function OrganizationMembersPage() {
-  const { orgId } = useParams();
+  const { orgSlug, orgId } = useOrgRouteResolution();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,10 @@ export default function OrganizationMembersPage() {
   const rows = useMemo(() => members || [], [members]);
 
   async function load() {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -121,7 +126,7 @@ export default function OrganizationMembersPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/organizations/${orgId}/items`}
+            to={`/organizations/${orgSlug}/items`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Building2 size={16} />

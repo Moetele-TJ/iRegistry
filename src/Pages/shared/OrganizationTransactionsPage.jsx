@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Building2, Download, RefreshCw, Search, Wallet } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
+import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 
 const FETCH_LIMIT = 200;
 
@@ -69,7 +70,7 @@ function normalizePaymentRow(p) {
 }
 
 export default function OrganizationTransactionsPage() {
-  const { orgId } = useParams();
+  const { orgSlug, orgId } = useOrgRouteResolution();
   const { addToast } = useToast();
 
   const [orgName, setOrgName] = useState("");
@@ -94,6 +95,10 @@ export default function OrganizationTransactionsPage() {
   const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER" || role === "STAFF";
 
   async function loadWalletHeader() {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("get-org-wallet", { body: { org_id: orgId } });
@@ -112,6 +117,7 @@ export default function OrganizationTransactionsPage() {
   }
 
   async function loadLedgerPage({ offset, append }) {
+    if (!orgId) return;
     setLedgerLoading(true);
     try {
       const { data, error } = await invokeWithAuth("list-org-ledger", {
@@ -131,6 +137,7 @@ export default function OrganizationTransactionsPage() {
   }
 
   async function loadPaymentsPage({ offset, append }) {
+    if (!orgId) return;
     setPaymentsLoading(true);
     try {
       const { data, error } = await invokeWithAuth("list-org-payments", {
@@ -220,7 +227,7 @@ export default function OrganizationTransactionsPage() {
 
   function exportCsv() {
     const now = new Date();
-    const filename = `org-${orgId}-transactions-${now.toISOString().slice(0, 10)}.csv`;
+    const filename = `org-${orgSlug || orgId}-transactions-${now.toISOString().slice(0, 10)}.csv`;
     const header = ["created_at", "kind", "title", "status", "credits_delta", "money", "reference", "ledger_entry_type"];
     const lines = [header.map(safeCsv).join(",")];
     for (const r of merged.slice(0, 2000)) {
@@ -251,14 +258,14 @@ export default function OrganizationTransactionsPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/organizations/${orgId}/wallet`}
+            to={`/organizations/${orgSlug}/wallet`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Wallet size={16} />
             Wallet
           </Link>
           <Link
-            to={`/organizations/${orgId}/items`}
+            to={`/organizations/${orgSlug}/items`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             <Building2 size={16} />

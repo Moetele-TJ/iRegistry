@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Pencil, RefreshCw, Save, Users, X } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -20,7 +21,7 @@ function compact(v) {
 
 export default function StaffOrganizationMembersPage({ staffBasePath = "/admin" }) {
   const { addToast } = useToast();
-  const { orgId } = useParams();
+  const { orgId } = useOrgRouteResolution();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [includeInvited, setIncludeInvited] = useState(true);
@@ -39,6 +40,10 @@ export default function StaffOrganizationMembersPage({ staffBasePath = "/admin" 
   });
 
   async function load() {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("staff-list-org-members", {

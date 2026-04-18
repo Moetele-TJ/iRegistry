@@ -80,7 +80,7 @@ serve(async (req) => {
       .from("orgs")
       .update(patch)
       .eq("id", orgId)
-      .select("id, name, registration_no, contact_email, phone, village, ward, updated_at")
+      .select("id, slug, name, registration_no, contact_email, phone, village, ward, updated_at")
       .single();
 
     if (error || !org) {

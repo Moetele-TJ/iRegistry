@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send, Plus, ExternalLink, Pencil, Archive, RotateCcw } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
@@ -7,6 +7,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { supabase } from "../../lib/supabase.js";
+import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -16,7 +17,7 @@ function displayName(u) {
 }
 
 export default function OrganizationItemsPage() {
-  const { orgId } = useParams();
+  const { orgSlug, orgId, loading: routeLoading, error: routeError } = useOrgRouteResolution();
   const { addToast } = useToast();
   const { confirm } = useModal();
 
@@ -65,7 +66,10 @@ export default function OrganizationItemsPage() {
   const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER";
 
   async function loadWallet() {
-    if (!orgId) return;
+    if (!orgId) {
+      setWalletLoading(false);
+      return;
+    }
     setWalletLoading(true);
     try {
       const { data, error } = await invokeWithAuth("get-org-wallet", {
@@ -81,6 +85,10 @@ export default function OrganizationItemsPage() {
   }
 
   async function loadItems() {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -544,21 +552,21 @@ export default function OrganizationItemsPage() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={`/organizations/${orgId}/wallet`}
+            to={`/organizations/${orgSlug}/wallet`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
           >
             <Wallet size={16} />
             Organization wallet
           </Link>
           <Link
-            to={`/organizations/${orgId}/transactions`}
+            to={`/organizations/${orgSlug}/transactions`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
           >
             Transactions
           </Link>
           {isPrivileged ? (
             <Link
-              to={`/organizations/${orgId}/members`}
+              to={`/organizations/${orgSlug}/members`}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
             >
               <Users size={16} />
@@ -580,6 +588,12 @@ export default function OrganizationItemsPage() {
       }
     >
       <div className="p-4 sm:p-6 space-y-5">
+        {routeLoading ? (
+          <div className="text-sm text-gray-500">Loading organization…</div>
+        ) : null}
+        {routeError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">{routeError}</div>
+        ) : null}
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">{error}</div>
         ) : null}
@@ -598,7 +612,7 @@ export default function OrganizationItemsPage() {
             </div>
           </div>
           <Link
-            to={`/organizations/${orgId}/wallet`}
+            to={`/organizations/${orgSlug}/wallet`}
             className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50 shrink-0"
           >
             View details

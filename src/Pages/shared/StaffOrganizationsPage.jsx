@@ -179,7 +179,7 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                     <tr key={o.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3">
                         <Link
-                          to={`${staffBasePath}/organizations/${o.id}`}
+                          to={`${staffBasePath}/organizations/${o.slug || o.id}`}
                           className="font-semibold text-emerald-900 hover:text-emerald-950 hover:underline underline-offset-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 inline-block"
                         >
                           {orgLabel(o)}
@@ -200,19 +200,19 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex flex-wrap items-center justify-end gap-2">
                           <Link
-                            to={`/organizations/${o.id}/items`}
+                            to={`/organizations/${o.slug || o.id}/items`}
                             className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
                           >
                             Items
                           </Link>
                           <Link
-                            to={`/organizations/${o.id}/wallet`}
+                            to={`/organizations/${o.slug || o.id}/wallet`}
                             className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
                           >
                             Wallet
                           </Link>
                           <Link
-                            to={`${staffBasePath}/organizations/${o.id}`}
+                            to={`${staffBasePath}/organizations/${o.slug || o.id}`}
                             className="inline-flex items-center justify-center gap-0.5 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50/90 text-emerald-950 text-xs font-semibold hover:bg-emerald-100"
                           >
                             More

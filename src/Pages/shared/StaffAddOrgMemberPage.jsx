@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 
 function reqMsg(label) {
   return `${label} is required.`;
@@ -13,10 +14,7 @@ function reqMsg(label) {
 export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
   const { addToast } = useToast();
   const nav = useNavigate();
-  const { orgId } = useParams();
-
-  const [loading, setLoading] = useState(true);
-  const [org, setOrg] = useState(null);
+  const { orgSlug, orgId, organization: org, loading, error: orgError } = useOrgRouteResolution();
 
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -82,31 +80,6 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
     };
   }, [form.id_number, form.phone, form.email]);
 
-  async function loadOrg() {
-    setLoading(true);
-    try {
-      const { data, error } = await invokeWithAuth("list-orgs", {
-        body: { q: String(orgId || ""), limit: 1 },
-      });
-      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
-      const match = (Array.isArray(data.organizations) ? data.organizations : []).find((o) => o.id === orgId) ||
-        (Array.isArray(data.organizations) ? data.organizations : [])[0] ||
-        null;
-      setOrg(match);
-    } catch (e) {
-      addToast({ type: "error", message: e.message || "Failed to load organization" });
-      setOrg(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!orgId) return;
-    void loadOrg();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId]);
-
   async function onSubmit(e) {
     e.preventDefault();
     setSubmitted(true);
@@ -144,13 +117,19 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
     }
   }
 
-  const orgLabel = String(org?.name || "").trim() || org?.registration_no || orgId || "Organization";
+  const orgLabel = String(org?.name || "").trim() || org?.registration_no || orgSlug || "Organization";
 
   return (
     <PageSectionCard
       maxWidthClass="max-w-3xl"
       title="Add organization member"
-      subtitle={loading ? "Loading…" : `Adds a user directly to ${orgLabel}. This costs 2 organization credits.`}
+      subtitle={
+        loading
+          ? "Loading…"
+          : orgError
+            ? orgError
+            : `Adds a user directly to ${orgLabel}. This costs 2 organization credits.`
+      }
       icon={<UserPlus className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
         <Link
@@ -206,7 +185,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
                 </RippleButton>
                 <RippleButton
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-semibold hover:bg-gray-50"
-                  onClick={() => nav(`${staffBasePath}/organizations/${orgId}/members`)}
+                  onClick={() => nav(`${staffBasePath}/organizations/${orgSlug}/members`)}
                 >
                   View members
                 </RippleButton>
@@ -372,7 +351,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
           </div>
           <RippleButton
             type="submit"
-            disabled={saving || loading}
+            disabled={saving || loading || !orgId || !!orgError}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
           >
             Add member

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
@@ -18,6 +18,7 @@ import EditOrganizationDetailsModal from "../../components/EditOrganizationDetai
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 
 function orgLabel(o) {
   return String(o?.name || "").trim() || o?.registration_no || o?.id || "—";
@@ -35,42 +36,28 @@ function pkgLabel(p) {
  * @param {string} props.staffBasePath — `/admin` or `/cashier`
  */
 export default function StaffOrganizationDetailPage({ staffBasePath }) {
-  const { orgId } = useParams();
   const { addToast } = useToast();
   const { confirm, alert } = useModal();
 
-  const [loading, setLoading] = useState(true);
-  const [organization, setOrganization] = useState(null);
-  const [balance, setBalance] = useState(null);
+  const {
+    orgSlug,
+    orgId,
+    organization,
+    balance,
+    loading,
+    error,
+    reload,
+  } = useOrgRouteResolution();
 
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
-  const loadOrg = useCallback(async () => {
-    if (!orgId) return;
-    setLoading(true);
-    try {
-      const { data, error } = await invokeWithAuth("get-org-wallet", {
-        body: { org_id: orgId },
-      });
-      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load organization");
-      setOrganization(data.organization || null);
-      setBalance(typeof data.balance === "number" ? data.balance : 0);
-    } catch (e) {
-      addToast({ type: "error", message: e.message || "Failed to load" });
-      setOrganization(null);
-      setBalance(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [addToast, orgId]);
-
   const loadPackages = useCallback(async () => {
     setLoadingPackages(true);
     try {
-      const { data, error } = await invokeWithAuth("list-credit-packages");
-      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      const { data, error: invErr } = await invokeWithAuth("list-credit-packages");
+      if (invErr || !data?.success) throw new Error(data?.message || invErr?.message || "Failed");
       setPackages(Array.isArray(data.packages) ? data.packages : []);
     } catch (e) {
       addToast({ type: "error", message: e.message || "Failed to load packages" });
@@ -81,9 +68,8 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
   }, [addToast]);
 
   useEffect(() => {
-    void loadOrg();
     void loadPackages();
-  }, [loadOrg, loadPackages]);
+  }, [loadPackages]);
 
   async function openTopup() {
     const o = organization;
@@ -153,7 +139,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
         const pid = String(state.packageId || "").trim();
         if (!pid) throw new Error("Package is required.");
 
-        const { data, error } = await invokeWithAuth("cashier-org-topup", {
+        const { data, error: invErr } = await invokeWithAuth("cashier-org-topup", {
           body: {
             org_id: o.id,
             package_id: pid,
@@ -161,7 +147,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
             note: String(state.note || "").trim() || null,
           },
         });
-        if (error || !data?.success) throw new Error(data?.message || error?.message || "Top up failed");
+        if (invErr || !data?.success) throw new Error(data?.message || invErr?.message || "Top up failed");
         addToast({ type: "success", message: "Top-up complete." });
         await alert({
           title: "Top-up complete",
@@ -174,13 +160,13 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={`/organizations/${o.id}/wallet`}
+                  to={`/organizations/${orgSlug}/wallet`}
                   className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
                 >
                   View wallet
                 </Link>
                 <Link
-                  to={`/organizations/${o.id}/transactions`}
+                  to={`/organizations/${orgSlug}/transactions`}
                   className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
                 >
                   View transactions
@@ -189,7 +175,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
             </div>
           ),
         });
-        await loadOrg();
+        await reload();
       },
     }).catch((e) => {
       addToast({ type: "error", message: e.message || "Top up failed" });
@@ -199,7 +185,6 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
   }
 
   const listPath = `${staffBasePath}/organizations`;
-  const oid = organization?.id || orgId;
 
   const actionClass =
     "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50 transition-colors text-left";
@@ -214,7 +199,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
         actions={
           <RippleButton
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
-            onClick={() => void loadOrg()}
+            onClick={() => void reload()}
             disabled={loading}
             type="button"
           >
@@ -234,9 +219,9 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
 
           {loading ? (
             <div className="text-sm text-gray-500">Loading…</div>
-          ) : !organization ? (
+          ) : error || !organization ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
-              Organization not found or you don&apos;t have access.
+              {error || "Organization not found or you don&apos;t have access."}
             </div>
           ) : (
             <>
@@ -265,28 +250,28 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
               <div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Actions</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Link to={`/organizations/${oid}/items`} className={actionClass}>
+                  <Link to={`/organizations/${orgSlug}/items`} className={actionClass}>
                     <Building2 size={18} className="text-gray-500 shrink-0" />
                     <span>View items</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
-                  <Link to={`/organizations/${oid}/wallet`} className={`${actionClass} border-emerald-200 bg-emerald-50/50`}>
+                  <Link to={`/organizations/${orgSlug}/wallet`} className={`${actionClass} border-emerald-200 bg-emerald-50/50`}>
                     <Wallet size={18} className="text-emerald-700 shrink-0" />
                     <span>Organization wallet</span>
                     <ChevronRight size={18} className="text-emerald-600/80 ml-auto shrink-0" />
                   </Link>
-                  <Link to={`/organizations/${oid}/transactions`} className={actionClass}>
+                  <Link to={`/organizations/${orgSlug}/transactions`} className={actionClass}>
                     <ReceiptText size={18} className="text-gray-500 shrink-0" />
                     <span>Transactions</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
-                  <Link to={`${staffBasePath}/organizations/${oid}/members`} className={actionClass}>
+                  <Link to={`${staffBasePath}/organizations/${orgSlug}/members`} className={actionClass}>
                     <Users size={18} className="text-gray-500 shrink-0" />
                     <span>Members</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
                   <Link
-                    to={`${staffBasePath}/organizations/${oid}/add-member`}
+                    to={`${staffBasePath}/organizations/${orgSlug}/add-member`}
                     className={`${actionClass} border-emerald-200 bg-white`}
                   >
                     <UserPlus size={18} className="text-emerald-700 shrink-0" />
@@ -320,9 +305,9 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
       <EditOrganizationDetailsModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        orgId={oid || ""}
+        orgId={orgId || ""}
         initial={organization || {}}
-        onSaved={() => void loadOrg()}
+        onSaved={() => void reload()}
       />
     </>
   );

@@ -111,14 +111,14 @@ export default function UserOrganizationsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
                       <Link
-                        to={`/organizations/${m.org.id}/wallet`}
+                        to={`/organizations/${m.org.slug || m.org.id}/wallet`}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-semibold hover:bg-gray-50"
                       >
                         <Wallet size={16} />
                         Wallet
                       </Link>
                       <Link
-                        to={`/organizations/${m.org.id}/items`}
+                        to={`/organizations/${m.org.slug || m.org.id}/items`}
                         className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
                       >
                         View items

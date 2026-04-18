@@ -191,15 +191,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                       }
                     />
                     <Route
-                      path="organizations/:orgId/add-member"
+                      path="organizations/:orgSlug/add-member"
                       element={<StaffAddOrgMemberPage staffBasePath="/admin" />}
                     />
                     <Route
-                      path="organizations/:orgId/members"
+                      path="organizations/:orgSlug/members"
                       element={<StaffOrganizationMembersPage staffBasePath="/admin" />}
                     />
                     <Route
-                      path="organizations/:orgId"
+                      path="organizations/:orgSlug"
                       element={<StaffOrganizationDetailPage staffBasePath="/admin" />}
                     />
                   </Route>
@@ -254,15 +254,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                       }
                     />
                     <Route
-                      path="organizations/:orgId/add-member"
+                      path="organizations/:orgSlug/add-member"
                       element={<StaffAddOrgMemberPage staffBasePath="/cashier" />}
                     />
                     <Route
-                      path="organizations/:orgId/members"
+                      path="organizations/:orgSlug/members"
                       element={<StaffOrganizationMembersPage staffBasePath="/cashier" />}
                     />
                     <Route
-                      path="organizations/:orgId"
+                      path="organizations/:orgSlug"
                       element={<StaffOrganizationDetailPage staffBasePath="/cashier" />}
                     />
                     <Route
@@ -349,7 +349,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
                   {/* Organization-owned items (shared) */}
                   <Route
-                    path="/organizations/:orgId/items"
+                    path="/organizations/:orgSlug/items"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <OrganizationItemsPage />
@@ -358,7 +358,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
-                    path="/organizations/:orgId/wallet"
+                    path="/organizations/:orgSlug/wallet"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <OrganizationWalletPage />
@@ -367,7 +367,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
-                    path="/organizations/:orgId/transactions"
+                    path="/organizations/:orgSlug/transactions"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <OrganizationTransactionsPage />
@@ -376,7 +376,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
-                    path="/organizations/:orgId/members"
+                    path="/organizations/:orgSlug/members"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <OrganizationMembersPage />
