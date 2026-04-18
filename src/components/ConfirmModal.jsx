@@ -90,6 +90,11 @@ export default function ConfirmModal({
         } else if (typeof onConfirm === "function") {
           await onConfirm();
         }
+      } else if (mode === "alert") {
+        // Alert mode still receives `onConfirm` from ModalContext to resolve the `alert()` promise.
+        if (typeof onConfirm === "function") {
+          await onConfirm();
+        }
       }
 
       if (typeof afterConfirm === "function") {
