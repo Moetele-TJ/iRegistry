@@ -13,6 +13,16 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+const uuidRe =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Match client `normalizeOrgPathKey`: spaces → hyphens so URL slugs align with `orgs.slug`. */
+function normalizeOrgSlugLookup(s: string): string {
+  const t = s.trim().toLowerCase();
+  if (uuidRe.test(t)) return t;
+  return t.replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -27,9 +37,7 @@ serve(async (req) => {
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const rawOrgId = typeof body?.org_id === "string" ? body.org_id.trim() : "";
-    const rawOrgSlug = typeof body?.org_slug === "string" ? body.org_slug.trim().toLowerCase() : "";
-
-    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const rawOrgSlug = typeof body?.org_slug === "string" ? body.org_slug.trim() : "";
 
     let resolvedOrgId = "";
     let slugLookup: string | null = null;
@@ -37,9 +45,9 @@ serve(async (req) => {
     if (rawOrgId && uuidRe.test(rawOrgId)) {
       resolvedOrgId = rawOrgId;
     } else if (rawOrgSlug) {
-      slugLookup = rawOrgSlug;
+      slugLookup = normalizeOrgSlugLookup(rawOrgSlug);
     } else if (rawOrgId && !uuidRe.test(rawOrgId)) {
-      slugLookup = rawOrgId.toLowerCase();
+      slugLookup = normalizeOrgSlugLookup(rawOrgId);
     } else {
       return respond({ success: false, message: "org_id or org_slug is required" }, corsHeaders, 400);
     }

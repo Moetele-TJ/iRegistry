@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { parseCreditBalance } from "../lib/parseCreditBalance.js";
+import { normalizeOrgPathKey } from "../lib/orgPath.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -11,7 +12,8 @@ const UUID_RE =
  * Pass `org_id` from `orgId` to all other APIs; never display the path key in the UI.
  */
 export function useOrgRouteResolution() {
-  const { orgKey } = useParams();
+  const { orgKey: orgKeyParam } = useParams();
+  const orgKey = useMemo(() => normalizeOrgPathKey(orgKeyParam), [orgKeyParam]);
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -98,7 +100,7 @@ export function useOrgRouteResolution() {
     const key = String(orgKey).trim();
     if (!UUID_RE.test(key)) return;
     if (String(organization.id).toLowerCase() !== key.toLowerCase()) return;
-    const slug = String(organization.slug).trim().toLowerCase();
+    const slug = normalizeOrgPathKey(String(organization.slug));
     if (!slug || slug === key.toLowerCase()) return;
     const path = location.pathname;
     const needle = `/organizations/${key}`;

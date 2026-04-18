@@ -100,11 +100,11 @@ import { AuthProvider } from "./contexts/AuthContext.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <ItemsProvider>
-        <ToastProvider>
-          <ModalProvider>
-            <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <ItemsProvider>
+          <ToastProvider>
+            <ModalProvider>
               <Routes>
 
                 <Route element={<AppLayout />}>
@@ -389,10 +389,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 <Route path="*" element={<Navigate to="/" replace />} />
 
               </Routes>
-            </BrowserRouter>
-          </ModalProvider>
-        </ToastProvider>
-      </ItemsProvider>
-    </AuthProvider>
+            </ModalProvider>
+          </ToastProvider>
+        </ItemsProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );
