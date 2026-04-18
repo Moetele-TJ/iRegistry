@@ -367,6 +367,60 @@ serve(async (req) => {
       );
     }
 
+    // Auto-match: if police previously recorded a found/impounded serial, link it and open a station case.
+    const serialsToMatch = [serial1Normalized, serial2Normalized].filter(Boolean);
+    if (serialsToMatch.length > 0) {
+      const { data: reports } = await supabase
+        .from("found_item_reports")
+        .select("id, station")
+        .in("serial_normalized", serialsToMatch as string[])
+        .eq("status", "OPEN")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const rep = Array.isArray(reports) ? reports[0] : null;
+      if (rep?.id && rep?.station) {
+        const stamp = new Date().toISOString();
+
+        await supabase
+          .from("found_item_reports")
+          .update({
+            status: "MATCHED",
+            matched_item_id: data.id,
+            matched_owner_id: resolvedOwnerId,
+            matched_at: stamp,
+          })
+          .eq("id", rep.id);
+
+        // Create a station case so police can see it in the station queue.
+        await supabase
+          .from("item_police_cases")
+          .insert({
+            item_id: data.id,
+            station: rep.station,
+            station_source: "user_selected",
+            status: "Open",
+            created_by: actorUserId,
+            updated_by: actorUserId,
+            notes: `[${stamp}] Auto-match: user registered an item matching a found/impounded report at ${rep.station}.`,
+          })
+          .select("id")
+          .maybeSingle()
+          .catch(() => null);
+
+        // Notify owner of the match.
+        await supabase.from("item_notifications").insert({
+          itemid: data.id,
+          ownerid: resolvedOwnerId,
+          recipient_type: "owner",
+          message:
+            `A police station (${rep.station}) recorded an impounded item matching your serial number. ` +
+            `Please contact the station to confirm ownership.`,
+          contact: rep.station,
+        });
+      }
+    }
+
     await logActivity(supabase, {
     actorId: actorUserId,
     actorRole,

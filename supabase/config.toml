@@ -517,41 +517,17 @@ verify_jwt = true
 import_map = "./functions/list-orgs/deno.json"
 entrypoint = "./functions/list-orgs/index.ts"
 
-[functions.staff-list-orgs-summary]
+[functions.staff-api]
 enabled = true
 verify_jwt = true
-import_map = "./functions/staff-list-orgs-summary/deno.json"
-entrypoint = "./functions/staff-list-orgs-summary/index.ts"
+import_map = "./functions/staff-api/deno.json"
+entrypoint = "./functions/staff-api/index.ts"
 
 [functions.cashier-org-topup]
 enabled = true
 verify_jwt = true
 import_map = "./functions/cashier-org-topup/deno.json"
 entrypoint = "./functions/cashier-org-topup/index.ts"
-
-[functions.staff-create-org-member]
-enabled = true
-verify_jwt = true
-import_map = "./functions/staff-create-org-member/deno.json"
-entrypoint = "./functions/staff-create-org-member/index.ts"
-
-[functions.staff-list-org-members]
-enabled = true
-verify_jwt = true
-import_map = "./functions/staff-list-org-members/deno.json"
-entrypoint = "./functions/staff-list-org-members/index.ts"
-
-[functions.staff-update-org-member-user]
-enabled = true
-verify_jwt = true
-import_map = "./functions/staff-update-org-member-user/deno.json"
-entrypoint = "./functions/staff-update-org-member-user/index.ts"
-
-[functions.staff-lookup-user]
-enabled = true
-verify_jwt = true
-import_map = "./functions/staff-lookup-user/deno.json"
-entrypoint = "./functions/staff-lookup-user/index.ts"
 
 [functions.get-org-wallet]
 enabled = true
@@ -613,12 +589,6 @@ verify_jwt = true
 import_map = "./functions/list-org-item-transfer-requests/deno.json"
 entrypoint = "./functions/list-org-item-transfer-requests/index.ts"
 
-[functions.staff-complete-org-item-transfer-request]
-enabled = true
-verify_jwt = true
-import_map = "./functions/staff-complete-org-item-transfer-request/deno.json"
-entrypoint = "./functions/staff-complete-org-item-transfer-request/index.ts"
-
 [functions.cancel-org-item-transfer-request]
 enabled = true
 verify_jwt = true
@@ -630,12 +600,6 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/get-ownership-evidence-url/deno.json"
 entrypoint = "./functions/get-ownership-evidence-url/index.ts"
-
-[functions.staff-complete-pending-topup]
-enabled = true
-verify_jwt = true
-import_map = "./functions/staff-complete-pending-topup/deno.json"
-entrypoint = "./functions/staff-complete-pending-topup/index.ts"
 
 [functions.logout]
 enabled = true
@@ -798,6 +762,14 @@ entrypoint = "./functions/verify-item/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/verify-item/*.html" ]
 
+[functions.police-impound-item]
+enabled = true
+verify_jwt = true
+import_map = "./functions/police-impound-item/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/police-impound-item/index.ts"
+
 [functions.notify-owner]
 enabled = true
 verify_jwt = false
@@ -914,17 +886,6 @@ entrypoint = "./functions/generate-thumbnail/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-thumbnail/*.html" ]
 
-[functions.generate-embedding]
-enabled = true
-verify_jwt = true
-import_map = "./functions/generate-embedding/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/generate-embedding/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/generate-embedding/*.html" ]
-
 [functions.create-embedding-job]
 enabled = true
 verify_jwt = true
@@ -960,11 +921,11 @@ entrypoint = "./functions/public-photo-search/index.ts"
 
 # --- Functions below were missing from config; deployed with JWT verification (session required) ---
 
-[functions.admin-create-user]
+[functions.admin-api]
 enabled = true
 verify_jwt = true
-import_map = "./functions/admin-create-user/deno.json"
-entrypoint = "./functions/admin-create-user/index.ts"
+import_map = "./functions/admin-api/deno.json"
+entrypoint = "./functions/admin-api/index.ts"
 
 [functions.delete-user]
 enabled = true
@@ -1001,12 +962,6 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/update-user/deno.json"
 entrypoint = "./functions/update-user/index.ts"
-
-[functions.admin-sessions]
-enabled = true
-verify_jwt = true
-import_map = "./functions/admin-sessions/deno.json"
-entrypoint = "./functions/admin-sessions/index.ts"
 
 [functions.list-audit-logs]
 enabled = true

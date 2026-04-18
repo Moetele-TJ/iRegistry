@@ -139,7 +139,7 @@ function photoEntryPath(entry, preferThumb = true) {
   return null;
 }
 
-export default function Items({ view = "active" } = {}) {
+export default function Items({ view = "active", defaultPoliceStationStolenView = false } = {}) {
   const { confirm } = useModal();
   const navigate = useNavigate();
   /** `/items` has no dashboard layout padding; nested `/user/items` already does. */
@@ -177,6 +177,7 @@ export default function Items({ view = "active" } = {}) {
   // - police: can toggle viewing items "reported stolen at my station"
   // - privileged (admin/cashier): can choose which user's items to view
   const [policeShowStolenAtStation, setPoliceShowStolenAtStation] = useState(false);
+  const didInitPoliceStationViewRef = useRef(false);
   const [usersList, setUsersList] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [selectedOwnerId, setSelectedOwnerId] = useState(user?.id || "");
@@ -237,8 +238,18 @@ export default function Items({ view = "active" } = {}) {
   useEffect(() => {
     // Reset scope defaults when switching sessions/roles.
     setPoliceShowStolenAtStation(false);
+    didInitPoliceStationViewRef.current = false;
     setSelectedOwnerId(user?.id || "");
   }, [user?.id, role]);
+
+  useEffect(() => {
+    if (!roleIs(role, "police")) return;
+    if (!defaultPoliceStationStolenView) return;
+    if (didInitPoliceStationViewRef.current) return;
+    didInitPoliceStationViewRef.current = true;
+    void handlePoliceStolenToggle(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, defaultPoliceStationStolenView]);
 
   useEffect(() => {
     // When used as a dedicated page (deleted/legacy), refresh the backing list accordingly.

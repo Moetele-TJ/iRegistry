@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Activity, Bell, LayoutDashboard, Package, Tag, UserCircle, Wallet } from "lucide-react";
+import { Activity, Bell, LayoutDashboard, Package, Shield, Tag, UserCircle, Wallet } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 
 export function usePoliceSidebar({ visible = true } = {}) {
@@ -14,11 +14,13 @@ export function usePoliceSidebar({ visible = true } = {}) {
         icon: <Package size={20} />,
         label: "Items",
         subItems: [
-          { to: "/police/items", label: "Active Items", end: true },
-          { to: "/police/items/deleted", label: "Deleted Items", end: true },
-          { to: "/police/items/legacy", label: "Legacy items", end: true },
+          { to: "/police/items", label: "Station stolen queue", end: true },
+          { to: "/police/items?mine=1", label: "My active items", end: true },
+          { to: "/police/items/deleted", label: "My deleted items", end: true },
+          { to: "/police/items/legacy", label: "My legacy items", end: true },
         ],
       },
+      { to: "/police/impound", icon: <Shield size={20} />, label: "Impound / Found item" },
       { to: "/police/notifications", icon: <Bell size={20} />, label: "Notifications" },
       { to: "/police/activity", icon: <Activity size={20} />, label: "Activity" },
       { to: "/police/topup", icon: <Wallet size={20} />, label: "Top up" },

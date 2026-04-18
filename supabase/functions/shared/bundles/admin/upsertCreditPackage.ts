@@ -1,12 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-import { getCorsHeaders } from "../shared/cors.ts";
-import { respond } from "../shared/respond.ts";
-import { validateSession } from "../shared/validateSession.ts";
-import { logAudit } from "../shared/logAudit.ts";
-import { roleIs } from "../shared/roles.ts";
+import { getCorsHeaders } from "../../cors.ts";
+import { respond } from "../../respond.ts";
+import { validateSession } from "../../validateSession.ts";
+import { logAudit } from "../../logAudit.ts";
+import { roleIs } from "../../roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -22,7 +21,7 @@ function normalizeId(id: unknown) {
     .replace(/^_+|_+$/g, "");
 }
 
-serve(async (req) => {
+export async function run(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -100,5 +99,4 @@ serve(async (req) => {
     console.error("admin-upsert-credit-package crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);
   }
-});
-
+}

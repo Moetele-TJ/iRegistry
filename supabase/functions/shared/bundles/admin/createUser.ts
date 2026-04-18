@@ -5,15 +5,14 @@
 // Nullable on insert: first_name, email, date_of_birth, location columns, auth_user_id, etc.
 // Lockout state uses suspended_* and/or disabled_* (mutually exclusive per users_derived_status_check).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-import { getCorsHeaders } from "../shared/cors.ts";
-import { respond } from "../shared/respond.ts";
-import { validateSession } from "../shared/validateSession.ts";
-import { roleIs } from "../shared/roles.ts";
-import { logUserActivity } from "../shared/logUserActivity.ts";
-import { humanizeRole } from "../shared/userActivityMessages.ts";
+import { getCorsHeaders } from "../../cors.ts";
+import { respond } from "../../respond.ts";
+import { validateSession } from "../../validateSession.ts";
+import { roleIs } from "../../roles.ts";
+import { logUserActivity } from "../../logUserActivity.ts";
+import { humanizeRole } from "../../userActivityMessages.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -23,7 +22,7 @@ const supabase = createClient(
 const ALLOWED_ROLES = ["user", "admin", "police", "cashier"];
 const ALLOWED_STATUS = ["active", "suspended", "disabled"];
 
-serve(async (req) => {
+export async function run(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -241,5 +240,4 @@ serve(async (req) => {
       500,
     );
   }
-});
-
+}

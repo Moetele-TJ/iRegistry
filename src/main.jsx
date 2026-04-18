@@ -60,6 +60,7 @@ import PoliceNotificationsPage from "./Pages/police/PoliceNotificationsPage.jsx"
 import PoliceActivityPage from "./Pages/police/PoliceActivityPage.jsx";
 import PolicePricingPage from "./Pages/police/PolicePricingPage.jsx";
 import PoliceTopupPage from "./Pages/police/PoliceTopupPage.jsx";
+import PoliceImpoundPage from "./Pages/police/PoliceImpoundPage.jsx";
 import CashierLayout from "./Pages/cashier/CashierLayout.jsx";
 import CashierHome from "./Pages/cashier/CashierHome.jsx";
 import CashierItemsPage from "./Pages/cashier/CashierItemsPage.jsx";
@@ -188,6 +189,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<PoliceItemsPage />} />
                     <Route path="items/deleted" element={<PoliceDeletedItemsPage />} />
                     <Route path="items/legacy" element={<PoliceLegacyItemsPage />} />
+                    <Route path="impound" element={<PoliceImpoundPage />} />
                     <Route path="notifications" element={<PoliceNotificationsPage />} />
                     <Route path="activity" element={<PoliceActivityPage />} />
                     <Route path="topup" element={<PoliceTopupPage />} />

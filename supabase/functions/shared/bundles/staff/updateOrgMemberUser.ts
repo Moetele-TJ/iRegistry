@@ -1,13 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-import { getCorsHeaders } from "../shared/cors.ts";
-import { respond } from "../shared/respond.ts";
-import { validateSession } from "../shared/validateSession.ts";
-import { isPrivilegedRole } from "../shared/roles.ts";
-import { logUserActivity } from "../shared/logUserActivity.ts";
-import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
+import { getCorsHeaders } from "../../cors.ts";
+import { respond } from "../../respond.ts";
+import { validateSession } from "../../validateSession.ts";
+import { isPrivilegedRole } from "../../roles.ts";
+import { logUserActivity } from "../../logUserActivity.ts";
+import { logOrgItemActivity } from "../../logOrgItemActivity.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -21,7 +20,7 @@ function displayName(u: any) {
   return full || String(u?.email || "").trim() || String(u?.id_number || "").trim() || "User";
 }
 
-serve(async (req) => {
+export async function run(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
@@ -197,5 +196,4 @@ serve(async (req) => {
     console.error("staff-update-org-member-user crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);
   }
-});
-
+}
