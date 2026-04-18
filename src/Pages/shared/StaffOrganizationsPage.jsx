@@ -184,15 +184,9 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                         >
                           {orgLabel(o)}
                         </Link>
-                        <div className="text-xs text-gray-500 font-mono">{String(o.id).slice(0, 8)}…</div>
-                        {o.registration_no ? (
-                          <div className="text-xs text-gray-600 mt-0.5">Reg: {o.registration_no}</div>
-                        ) : null}
-                        {o.contact_email || o.phone ? (
-                          <div className="text-xs text-gray-600">
-                            {[o.contact_email, o.phone].filter(Boolean).join(" · ")}
-                          </div>
-                        ) : null}
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          {String(o.registration_no || "").trim() || "—"}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-700">
                         <div className="font-semibold tabular-nums">
