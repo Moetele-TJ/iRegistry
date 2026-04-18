@@ -4,3 +4,4 @@ export default function CashierTransactionsPage() {
   return <AdminTransactionsPage canReverse={false} showSidebar={false} />;
 }
 
+

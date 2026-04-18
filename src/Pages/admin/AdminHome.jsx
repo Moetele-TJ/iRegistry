@@ -32,7 +32,9 @@ export default function AdminHome() {
       // If this ever fails, we still render the dashboard using get-dashboard-data.
       const statsReq = invokeWithAuth("stats?mode=admin");
 
-      const paymentsReq = invokeWithAuth("list-payments", { body: { user_id: null, limit: 200, offset: 0 } });
+      const paymentsReq = invokeWithAuth("list-payments", {
+        body: { limit: 200, offset: 0, scope: "user" },
+      });
       const usersReq = invokeWithAuth("list-users");
 
       const [dashRes, statsRes, paymentsRes, usersRes] = await Promise.allSettled([

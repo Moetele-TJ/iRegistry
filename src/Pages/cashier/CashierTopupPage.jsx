@@ -131,7 +131,7 @@ export default function CashierTopupPage() {
       setLoadingPending(true);
       try {
         const { data, error } = await invokeWithAuth("list-payments", {
-          body: { user_id: selectedUserId, status: "PENDING", limit: 5 },
+          body: { user_id: selectedUserId, status: "PENDING", limit: 5, scope: "user" },
         });
         if (cancelled) return;
         if (error || !data?.success) {
