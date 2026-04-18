@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, ChevronLeft, ChevronRight, RefreshCw, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, ChevronLeft, ChevronRight, Pencil, RefreshCw, Wallet } from "lucide-react";
+import EditOrganizationDetailsModal from "../../components/EditOrganizationDetailsModal.jsx";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -41,8 +42,10 @@ export default function OrganizationWalletPage() {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [orgName, setOrgName] = useState("");
+  const [organization, setOrganization] = useState(null);
   const [balance, setBalance] = useState(null);
   const [role, setRole] = useState(null);
+  const [editOrgOpen, setEditOrgOpen] = useState(false);
   const [entries, setEntries] = useState([]);
   const [ledgerTotal, setLedgerTotal] = useState(null);
   const [ledgerPage, setLedgerPage] = useState(0);
@@ -51,6 +54,7 @@ export default function OrganizationWalletPage() {
   const [paymentsPage, setPaymentsPage] = useState(0);
 
   const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER";
+  const isOrgAdmin = role === "ORG_ADMIN";
 
   const loadWallet = useCallback(async () => {
     setLoading(true);
@@ -59,11 +63,14 @@ export default function OrganizationWalletPage() {
         body: { org_id: orgId },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load wallet");
-      setOrgName(String(data?.organization?.name || "").trim() || "Organization");
+      const org = data?.organization || null;
+      setOrganization(org);
+      setOrgName(String(org?.name || "").trim() || "Organization");
       setBalance(typeof data.balance === "number" ? data.balance : 0);
       setRole(data.role || null);
     } catch (e) {
       addToast({ type: "error", message: e.message || "Failed to load wallet" });
+      setOrganization(null);
       setOrgName("");
       setBalance(null);
       setRole(null);
@@ -117,6 +124,8 @@ export default function OrganizationWalletPage() {
   );
 
   useEffect(() => {
+    setOrganization(null);
+    setEditOrgOpen(false);
     setBalance(null);
     setRole(null);
     setEntries([]);
@@ -171,6 +180,7 @@ export default function OrganizationWalletPage() {
   }
 
   return (
+    <>
     <PageSectionCard
       maxWidthClass="max-w-7xl"
       title="Organization wallet"
@@ -182,6 +192,16 @@ export default function OrganizationWalletPage() {
       icon={<Wallet className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {isOrgAdmin && organization ? (
+            <RippleButton
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-semibold shadow-sm hover:bg-emerald-100/80"
+              type="button"
+              onClick={() => setEditOrgOpen(true)}
+            >
+              <Pencil size={16} />
+              Edit details
+            </RippleButton>
+          ) : null}
           <Link
             to={`/organizations/${orgId}/items`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
@@ -424,5 +444,14 @@ export default function OrganizationWalletPage() {
         ) : null}
       </div>
     </PageSectionCard>
+
+    <EditOrganizationDetailsModal
+      open={editOrgOpen}
+      onClose={() => setEditOrgOpen(false)}
+      orgId={orgId || ""}
+      initial={organization || {}}
+      onSaved={() => void loadWallet()}
+    />
+    </>
   );
 }

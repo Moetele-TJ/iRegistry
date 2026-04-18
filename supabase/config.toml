@@ -517,6 +517,18 @@ verify_jwt = true
 import_map = "./functions/list-orgs/deno.json"
 entrypoint = "./functions/list-orgs/index.ts"
 
+[functions.create-organization]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-organization/deno.json"
+entrypoint = "./functions/create-organization/index.ts"
+
+[functions.update-organization]
+enabled = true
+verify_jwt = true
+import_map = "./functions/update-organization/deno.json"
+entrypoint = "./functions/update-organization/index.ts"
+
 [functions.staff-api]
 enabled = true
 verify_jwt = true

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, RefreshCw, Search } from "lucide-react";
+import { Building2, RefreshCw, Search, Plus, X, Pencil } from "lucide-react";
+import EditOrganizationDetailsModal from "../../components/EditOrganizationDetailsModal.jsx";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -26,6 +27,17 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
   const [rows, setRows] = useState([]);
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
+  const [editOrg, setEditOrg] = useState(null);
+  const [addOrgOpen, setAddOrgOpen] = useState(false);
+  const [addOrgBusy, setAddOrgBusy] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: "",
+    registration_no: "",
+    contact_email: "",
+    phone: "",
+    village: "",
+    ward: "",
+  });
   const staffBasePath =
     typeof window !== "undefined" && window.location?.pathname?.startsWith("/cashier")
       ? "/cashier"
@@ -180,21 +192,80 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
     if (!ok) return;
   }
 
+  function resetAddForm() {
+    setAddForm({
+      name: "",
+      registration_no: "",
+      contact_email: "",
+      phone: "",
+      village: "",
+      ward: "",
+    });
+  }
+
+  async function submitAddOrganization(e) {
+    e?.preventDefault?.();
+    const name = String(addForm.name || "").trim();
+    if (!name) {
+      addToast({ type: "error", message: "Organization name is required." });
+      return;
+    }
+    setAddOrgBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("create-organization", {
+        body: {
+          name,
+          registration_no: addForm.registration_no?.trim() || null,
+          contact_email: addForm.contact_email?.trim() || null,
+          phone: addForm.phone?.trim() || null,
+          village: addForm.village?.trim() || null,
+          ward: addForm.ward?.trim() || null,
+        },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not create organization");
+      }
+      addToast({ type: "success", message: "Organization created." });
+      setAddOrgOpen(false);
+      resetAddForm();
+      await load();
+    } catch (err) {
+      addToast({ type: "error", message: err?.message || "Failed to create organization" });
+    } finally {
+      setAddOrgBusy(false);
+    }
+  }
+
   return (
+    <>
     <PageSectionCard
       maxWidthClass="max-w-7xl"
       title={title}
       subtitle={subtitle}
       icon={<Building2 className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
-        <RippleButton
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </RippleButton>
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <RippleButton
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-semibold shadow-sm hover:bg-emerald-100/80"
+            onClick={() => {
+              resetAddForm();
+              setAddOrgOpen(true);
+            }}
+            type="button"
+          >
+            <Plus size={16} />
+            Add organization
+          </RippleButton>
+          <RippleButton
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+            onClick={() => void load()}
+            disabled={loading}
+            type="button"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </RippleButton>
+        </div>
       }
     >
       <div className="p-4 sm:p-6 space-y-4">
@@ -323,6 +394,15 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
                         >
                           Add member
                         </Link>
+                        <RippleButton
+                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
+                          type="button"
+                          title="Edit organization details"
+                          onClick={() => setEditOrg(o)}
+                        >
+                          <Pencil size={14} className="mr-1" />
+                          Edit
+                        </RippleButton>
                       </div>
                     </td>
                   </tr>
@@ -333,6 +413,123 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
         </div>
       </div>
     </PageSectionCard>
+
+    <EditOrganizationDetailsModal
+      open={!!editOrg}
+      onClose={() => setEditOrg(null)}
+      orgId={editOrg?.id ? String(editOrg.id) : ""}
+      initial={editOrg || {}}
+      onSaved={() => void load()}
+    />
+
+    {addOrgOpen ? (
+      <div
+        className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-org-title"
+      >
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+            <h2 id="add-org-title" className="text-lg font-semibold text-gray-900">
+              Add organization
+            </h2>
+            <button
+              type="button"
+              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+              onClick={() => {
+                setAddOrgOpen(false);
+                resetAddForm();
+              }}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <form onSubmit={submitAddOrganization} className="p-5 space-y-4">
+            <label className="block">
+              <span className="text-xs font-semibold text-gray-700">Name *</span>
+              <input
+                required
+                value={addForm.name}
+                onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Organization name"
+                autoComplete="organization"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-gray-700">Registration number</span>
+              <input
+                value={addForm.registration_no}
+                onChange={(e) => setAddForm((f) => ({ ...f, registration_no: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Optional"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-gray-700">Contact email</span>
+              <input
+                type="email"
+                value={addForm.contact_email}
+                onChange={(e) => setAddForm((f) => ({ ...f, contact_email: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Optional"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-gray-700">Phone</span>
+              <input
+                value={addForm.phone}
+                onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Optional"
+              />
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">Village</span>
+                <input
+                  value={addForm.village}
+                  onChange={(e) => setAddForm((f) => ({ ...f, village: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Optional"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">Ward</span>
+                <input
+                  value={addForm.ward}
+                  onChange={(e) => setAddForm((f) => ({ ...f, ward: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Optional"
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                onClick={() => {
+                  setAddOrgOpen(false);
+                  resetAddForm();
+                }}
+              >
+                Cancel
+              </button>
+              <RippleButton
+                type="submit"
+                className="px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
+                disabled={addOrgBusy}
+              >
+                {addOrgBusy ? "Creating…" : "Create organization"}
+              </RippleButton>
+            </div>
+          </form>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
 

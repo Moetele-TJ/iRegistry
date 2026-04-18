@@ -37,7 +37,7 @@ serve(async (req) => {
 
     const { data: orgRow, error: orgErr } = await supabase
       .from("orgs")
-      .select("id, name, registration_no")
+      .select("id, name, registration_no, contact_email, phone, village, ward, updated_at")
       .eq("id", orgId)
       .maybeSingle();
 
@@ -61,6 +61,11 @@ serve(async (req) => {
           id: orgRow.id,
           name: orgRow.name,
           registration_no: orgRow.registration_no ?? null,
+          contact_email: orgRow.contact_email ?? null,
+          phone: orgRow.phone ?? null,
+          village: orgRow.village ?? null,
+          ward: orgRow.ward ?? null,
+          updated_at: orgRow.updated_at ?? null,
         },
         balance,
         credits_updated_at: creditRow?.updated_at ?? null,

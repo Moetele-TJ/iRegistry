@@ -175,6 +175,28 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />
                     <Route path="sessions" element={<AdminSessionsPage />} />
+                    <Route path="transfers" element={<AdminTransfersPage />} />
+                    <Route
+                      path="org-transfer-requests"
+                      element={<Navigate to="/admin/transfers?view=organization" replace />}
+                    />
+                    <Route
+                      path="organizations"
+                      element={
+                        <StaffOrganizationsPage
+                          title="Organizations"
+                          subtitle="Browse organizations and jump to items, wallet, or transactions."
+                        />
+                      }
+                    />
+                    <Route
+                      path="organizations/:orgId/add-member"
+                      element={<StaffAddOrgMemberPage staffBasePath="/admin" />}
+                    />
+                    <Route
+                      path="organizations/:orgId/members"
+                      element={<StaffOrganizationMembersPage staffBasePath="/admin" />}
+                    />
                   </Route>
 
                   <Route
@@ -217,6 +239,27 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="revenue" element={<CashierRevenuePage />} />
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
+                    <Route
+                      path="organizations"
+                      element={
+                        <StaffOrganizationsPage
+                          title="Organizations"
+                          subtitle="Browse organizations and jump to items, wallet, or transactions."
+                        />
+                      }
+                    />
+                    <Route
+                      path="organizations/:orgId/add-member"
+                      element={<StaffAddOrgMemberPage staffBasePath="/cashier" />}
+                    />
+                    <Route
+                      path="organizations/:orgId/members"
+                      element={<StaffOrganizationMembersPage staffBasePath="/cashier" />}
+                    />
+                    <Route
+                      path="org-transfer-requests"
+                      element={<StaffOrgTransferRequestsPage />}
+                    />
                   </Route>
 
                   {/* Backward-compatible redirects (old dashboard URLs) */}
@@ -333,89 +376,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                 </Route>
-
-                <Route
-                  path="/admin/transfers"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminTransfersPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/admin/org-transfer-requests"
-                  element={<Navigate to="/admin/transfers?view=organization" replace />}
-                />
-
-                <Route
-                  path="/cashier/org-transfer-requests"
-                  element={
-                    <ProtectedRoute allowedRoles={["cashier"]}>
-                      <StaffOrgTransferRequestsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/admin/organizations"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <StaffOrganizationsPage
-                        title="Organizations"
-                        subtitle="Browse organizations and jump to items, wallet, or transactions."
-                      />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/admin/organizations/:orgId/add-member"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <StaffAddOrgMemberPage staffBasePath="/admin" />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/admin/organizations/:orgId/members"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <StaffOrganizationMembersPage staffBasePath="/admin" />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/cashier/organizations"
-                  element={
-                    <ProtectedRoute allowedRoles={["cashier"]}>
-                      <StaffOrganizationsPage
-                        title="Organizations"
-                        subtitle="Browse organizations and jump to items, wallet, or transactions."
-                      />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/cashier/organizations/:orgId/add-member"
-                  element={
-                    <ProtectedRoute allowedRoles={["cashier"]}>
-                      <StaffAddOrgMemberPage staffBasePath="/cashier" />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/cashier/organizations/:orgId/members"
-                  element={
-                    <ProtectedRoute allowedRoles={["cashier"]}>
-                      <StaffOrganizationMembersPage staffBasePath="/cashier" />
-                    </ProtectedRoute>
-                  }
-                />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
 
