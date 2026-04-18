@@ -37,6 +37,7 @@ import FaqPage from "./Pages/FaqPage.jsx";
 import TermsPage from "./Pages/TermsPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
+import AdminTransfersPage from "./Pages/admin/AdminTransfersPage.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
 import AdminAuditLogs from "./Pages/admin/AdminAuditLogs.jsx";
 import AdminSettings from "./Pages/admin/AdminSettings.jsx";
@@ -334,12 +335,17 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 </Route>
 
                 <Route
-                  path="/admin/org-transfer-requests"
+                  path="/admin/transfers"
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
-                      <StaffOrgTransferRequestsPage />
+                      <AdminTransfersPage />
                     </ProtectedRoute>
                   }
+                />
+
+                <Route
+                  path="/admin/org-transfer-requests"
+                  element={<Navigate to="/admin/transfers?view=organization" replace />}
                 />
 
                 <Route

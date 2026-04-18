@@ -10,7 +10,7 @@ import { useModal } from "../contexts/ModalContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import { useState } from "react";
 
-export default function PendingTransferRequests() {
+export default function PendingTransferRequests({ showWhenEmpty = false } = {}) {
   const { data, loading, refresh } = usePendingTransfers();
   const { confirm } = useModal();
   const { addToast } = useToast();
@@ -27,7 +27,7 @@ export default function PendingTransferRequests() {
     );
   }
 
-  if (!data.length) return null;
+  if (!data.length && !showWhenEmpty) return null;
 
   async function handleDecision(id, decision) {
     if (busyId) return;
@@ -88,11 +88,22 @@ export default function PendingTransferRequests() {
     }
   }
 
+  if (!data.length && showWhenEmpty) {
+    return (
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-sm uppercase tracking-wide text-gray-500">Individual transfer requests</div>
+        </div>
+        <p className="text-sm text-gray-500">No pending individual transfer requests.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex justify-between items-center mb-4">
         <div className="text-sm uppercase tracking-wide text-gray-500">
-          Pending Transfer Requests
+          {showWhenEmpty ? "Individual transfer requests" : "Pending Transfer Requests"}
         </div>
 
         <div className="text-xs text-gray-400">

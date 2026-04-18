@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
-import PendingTransferRequests from "../../components/PendingTransferRequests.jsx";
 
 export default function AdminHome() {
   const navigate = useNavigate();
@@ -155,7 +154,7 @@ export default function AdminHome() {
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-7 space-y-4">
-          <PendingTransferRequests />
+          <AdminTransfersShortcut />
           <AttentionPaymentsCard
             loading={loading}
             pending={paymentAttention.pending}
@@ -188,6 +187,29 @@ export default function AdminHome() {
 /* =========================
    Stat Card
    ========================= */
+function AdminTransfersShortcut() {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-gray-800">Transfer requests</div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Review individual (P2P) and organization-assisted transfers in one place.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/admin/transfers")}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-sm hover:bg-emerald-700"
+        >
+          Open transfers
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, danger, icon: Icon }) {
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
