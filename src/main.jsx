@@ -80,6 +80,7 @@ import OrganizationTransactionsPage from "./Pages/shared/OrganizationTransaction
 import OrganizationMembersPage from "./Pages/shared/OrganizationMembersPage.jsx";
 import StaffOrgTransferRequestsPage from "./Pages/shared/StaffOrgTransferRequestsPage.jsx";
 import StaffOrganizationsPage from "./Pages/shared/StaffOrganizationsPage.jsx";
+import StaffOrganizationDetailPage from "./Pages/shared/StaffOrganizationDetailPage.jsx";
 import StaffAddOrgMemberPage from "./Pages/shared/StaffAddOrgMemberPage.jsx";
 import StaffOrganizationMembersPage from "./Pages/shared/StaffOrganizationMembersPage.jsx";
 
@@ -185,7 +186,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                       element={
                         <StaffOrganizationsPage
                           title="Organizations"
-                          subtitle="Browse organizations and jump to items, wallet, or transactions."
+                          subtitle="Search organizations. Open one to see all staff actions."
                         />
                       }
                     />
@@ -196,6 +197,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route
                       path="organizations/:orgId/members"
                       element={<StaffOrganizationMembersPage staffBasePath="/admin" />}
+                    />
+                    <Route
+                      path="organizations/:orgId"
+                      element={<StaffOrganizationDetailPage staffBasePath="/admin" />}
                     />
                   </Route>
 
@@ -244,7 +249,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                       element={
                         <StaffOrganizationsPage
                           title="Organizations"
-                          subtitle="Browse organizations and jump to items, wallet, or transactions."
+                          subtitle="Search organizations. Open one to see all staff actions."
                         />
                       }
                     />
@@ -255,6 +260,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route
                       path="organizations/:orgId/members"
                       element={<StaffOrganizationMembersPage staffBasePath="/cashier" />}
+                    />
+                    <Route
+                      path="organizations/:orgId"
+                      element={<StaffOrganizationDetailPage staffBasePath="/cashier" />}
                     />
                     <Route
                       path="org-transfer-requests"

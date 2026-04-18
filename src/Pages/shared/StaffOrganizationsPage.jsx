@@ -1,33 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, RefreshCw, Search, Plus, X, Pencil } from "lucide-react";
-import EditOrganizationDetailsModal from "../../components/EditOrganizationDetailsModal.jsx";
+import { Building2, ChevronRight, RefreshCw, Search, Plus, X } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useModal } from "../../contexts/ModalContext.jsx";
 
 function orgLabel(o) {
   return String(o?.name || "").trim() || o?.registration_no || o?.id || "—";
 }
 
-function pkgLabel(p) {
-  const cur = p?.currency || "BWP";
-  const amt = Number(p?.amount ?? 0);
-  if (cur === "BWP") return `P${amt}`;
-  return `${cur} ${amt}`;
-}
-
 export default function StaffOrganizationsPage({ title = "Organizations", subtitle = "Browse organizations." }) {
   const { addToast } = useToast();
-  const { confirm, alert } = useModal();
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
-  const [packages, setPackages] = useState([]);
-  const [loadingPackages, setLoadingPackages] = useState(false);
-  const [editOrg, setEditOrg] = useState(null);
   const [addOrgOpen, setAddOrgOpen] = useState(false);
   const [addOrgBusy, setAddOrgBusy] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -42,21 +29,6 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
     typeof window !== "undefined" && window.location?.pathname?.startsWith("/cashier")
       ? "/cashier"
       : "/admin";
-
-  async function loadPackages() {
-    setLoadingPackages(true);
-    try {
-      const { data, error } = await invokeWithAuth("list-credit-packages");
-      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
-      const rows = Array.isArray(data.packages) ? data.packages : [];
-      setPackages(rows);
-    } catch (e) {
-      addToast({ type: "error", message: e.message || "Failed to load packages" });
-      setPackages([]);
-    } finally {
-      setLoadingPackages(false);
-    }
-  }
 
   async function load() {
     setLoading(true);
@@ -76,121 +48,10 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
 
   useEffect(() => {
     void load();
-    void loadPackages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const organizations = useMemo(() => rows || [], [rows]);
-
-  async function openTopup(o) {
-    const pkg0 = (packages || [])[0] || null;
-    const state = { packageId: pkg0?.id ? String(pkg0.id) : "", receiptNo: "", note: "" };
-
-    const ok = await confirm({
-      title: "Top up organization",
-      message: `Credit ${orgLabel(o)} with a package.`,
-      confirmLabel: "Confirm top-up",
-      cancelLabel: "Cancel",
-      confirmDisabled: loadingPackages || !packages?.length,
-      children: (
-        <div className="space-y-3">
-          {loadingPackages ? (
-            <div className="text-sm text-gray-600">Loading packages…</div>
-          ) : !packages?.length ? (
-            <div className="text-sm text-red-700">No active credit packages found.</div>
-          ) : (
-            <>
-              <label className="block">
-                <div className="text-xs font-semibold text-gray-700 mb-1">Package</div>
-                <select
-                  defaultValue={state.packageId}
-                  onChange={(e) => {
-                    state.packageId = e.target.value;
-                  }}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                >
-                  {(packages || []).map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      {pkgLabel(p)} • {Number(p.credits ?? 0)} credits
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <div className="text-xs font-semibold text-gray-700 mb-1">Receipt number *</div>
-                <input
-                  placeholder="e.g. RCPT-1234"
-                  onChange={(e) => {
-                    state.receiptNo = e.target.value;
-                  }}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block">
-                <div className="text-xs font-semibold text-gray-700 mb-1">Note (optional)</div>
-                <textarea
-                  rows={3}
-                  onChange={(e) => {
-                    state.note = e.target.value;
-                  }}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                />
-              </label>
-            </>
-          )}
-        </div>
-      ),
-      onConfirm: async () => {
-        const rid = String(state.receiptNo || "").trim();
-        if (!rid) throw new Error("Receipt number is required.");
-        const pid = String(state.packageId || "").trim();
-        if (!pid) throw new Error("Package is required.");
-
-        const { data, error } = await invokeWithAuth("cashier-org-topup", {
-          body: {
-            org_id: o.id,
-            package_id: pid,
-            receipt_no: rid,
-            note: String(state.note || "").trim() || null,
-          },
-        });
-        if (error || !data?.success) throw new Error(data?.message || error?.message || "Top up failed");
-        addToast({ type: "success", message: "Top-up complete." });
-        await alert({
-          title: "Top-up complete",
-          message: `New balance: ${data.new_balance ?? "—"} credits`,
-          confirmLabel: "Close",
-          children: (
-            <div className="space-y-2">
-              <div className="text-xs text-gray-600">
-                Receipt: <span className="font-mono">{String(rid)}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  to={`/organizations/${o.id}/wallet`}
-                  className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
-                >
-                  View wallet
-                </Link>
-                <Link
-                  to={`/organizations/${o.id}/transactions`}
-                  className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
-                >
-                  View transactions
-                </Link>
-              </div>
-            </div>
-          ),
-        });
-      },
-    }).catch((e) => {
-      addToast({ type: "error", message: e.message || "Top up failed" });
-      return false;
-    });
-    if (!ok) return;
-  }
 
   function resetAddForm() {
     setAddForm({
@@ -238,298 +99,249 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
 
   return (
     <>
-    <PageSectionCard
-      maxWidthClass="max-w-7xl"
-      title={title}
-      subtitle={subtitle}
-      icon={<Building2 className="w-6 h-6 text-iregistrygreen shrink-0" />}
-      actions={
-        <div className="flex flex-wrap items-center gap-2 justify-end">
-          <RippleButton
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-semibold shadow-sm hover:bg-emerald-100/80"
-            onClick={() => {
-              resetAddForm();
-              setAddOrgOpen(true);
-            }}
-            type="button"
-          >
-            <Plus size={16} />
-            Add organization
-          </RippleButton>
-          <RippleButton
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
-            onClick={() => void load()}
-            disabled={loading}
-            type="button"
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </RippleButton>
-        </div>
-      }
-    >
-      <div className="p-4 sm:p-6 space-y-4">
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-          <div className="relative w-full sm:w-[420px] max-w-full">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by name or registration number…"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void load();
+      <PageSectionCard
+        maxWidthClass="max-w-7xl"
+        title={title}
+        subtitle={subtitle}
+        icon={<Building2 className="w-6 h-6 text-iregistrygreen shrink-0" />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <RippleButton
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-semibold shadow-sm hover:bg-emerald-100/80"
+              onClick={() => {
+                resetAddForm();
+                setAddOrgOpen(true);
               }}
-            />
+              type="button"
+            >
+              <Plus size={16} />
+              Add organization
+            </RippleButton>
+            <RippleButton
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
+              onClick={() => void load()}
+              disabled={loading}
+              type="button"
+            >
+              <RefreshCw size={16} />
+              Refresh
+            </RippleButton>
           </div>
-          <RippleButton
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
-            disabled={loading}
-            onClick={() => void load()}
-          >
-            Search
-          </RippleButton>
-        </div>
+        }
+      >
+        <div className="p-4 sm:p-6 space-y-4">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div className="relative w-full sm:w-[420px] max-w-full">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search by name or registration number…"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void load();
+                }}
+              />
+            </div>
+            <RippleButton
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+              disabled={loading}
+              onClick={() => void load()}
+            >
+              Search
+            </RippleButton>
+          </div>
 
-        <div className="rounded-2xl border border-gray-100 bg-white overflow-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="text-left font-semibold px-4 py-3">Organization</th>
-                <th className="text-left font-semibold px-4 py-3">Registration</th>
-                <th className="text-left font-semibold px-4 py-3">Contact</th>
-                <th className="text-left font-semibold px-4 py-3">Wallet</th>
-                <th className="text-left font-semibold px-4 py-3">Last top-up</th>
-                <th className="text-right font-semibold px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
+          <div className="rounded-2xl border border-gray-100 bg-white overflow-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <td className="px-4 py-8 text-gray-500" colSpan={6}>
-                    Loading…
-                  </td>
+                  <th className="text-left font-semibold px-4 py-3">Organization</th>
+                  <th className="text-left font-semibold px-4 py-3">Wallet</th>
+                  <th className="text-right font-semibold px-4 py-3">Actions</th>
                 </tr>
-              ) : organizations.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-8 text-gray-500" colSpan={6}>
-                    No organizations found.
-                  </td>
-                </tr>
-              ) : (
-                organizations.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-gray-900">{orgLabel(o)}</div>
-                      <div className="text-xs text-gray-500 font-mono">{String(o.id).slice(0, 8)}…</div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{o.registration_no || "—"}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      <div className="text-xs">{o.contact_email || "—"}</div>
-                      <div className="text-xs">{o.phone || ""}</div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      <div className="font-semibold tabular-nums">{Number(o?.wallet?.balance ?? 0).toLocaleString()} credits</div>
-                      <div className="text-xs text-gray-500">
-                        Updated: {o?.wallet?.updated_at ? new Date(o.wallet.updated_at).toLocaleDateString() : "—"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {o.last_payment ? (
-                        <>
-                          <div className="text-xs">
-                            +{Number(o.last_payment.credits_granted ?? 0)} credits • {o.last_payment.currency}{" "}
-                            {Number(o.last_payment.amount ?? 0)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {o.last_payment.confirmed_at
-                              ? new Date(o.last_payment.confirmed_at).toLocaleString()
-                              : o.last_payment.created_at
-                                ? new Date(o.last_payment.created_at).toLocaleString()
-                                : "—"}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-xs text-gray-500">—</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <Link
-                          to={`/organizations/${o.id}/items`}
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
-                        >
-                          Items
-                        </Link>
-                        <Link
-                          to={`/organizations/${o.id}/wallet`}
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
-                        >
-                          Wallet
-                        </Link>
-                        <RippleButton
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
-                          onClick={() => void openTopup(o)}
-                          disabled={loadingPackages}
-                          title="Top up this organization"
-                        >
-                          Top up
-                        </RippleButton>
-                        <Link
-                          to={`/organizations/${o.id}/transactions`}
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
-                        >
-                          Transactions
-                        </Link>
-                        <Link
-                          to={`${staffBasePath}/organizations/${o.id}/members`}
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
-                        >
-                          Members
-                        </Link>
-                        <Link
-                          to={`${staffBasePath}/organizations/${o.id}/add-member`}
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
-                          title="Create a user and add them as a member (2 credits)"
-                        >
-                          Add member
-                        </Link>
-                        <RippleButton
-                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
-                          type="button"
-                          title="Edit organization details"
-                          onClick={() => setEditOrg(o)}
-                        >
-                          <Pencil size={14} className="mr-1" />
-                          Edit
-                        </RippleButton>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td className="px-4 py-8 text-gray-500" colSpan={3}>
+                      Loading…
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </PageSectionCard>
-
-    <EditOrganizationDetailsModal
-      open={!!editOrg}
-      onClose={() => setEditOrg(null)}
-      orgId={editOrg?.id ? String(editOrg.id) : ""}
-      initial={editOrg || {}}
-      onSaved={() => void load()}
-    />
-
-    {addOrgOpen ? (
-      <div
-        className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-org-title"
-      >
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
-            <h2 id="add-org-title" className="text-lg font-semibold text-gray-900">
-              Add organization
-            </h2>
-            <button
-              type="button"
-              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
-              onClick={() => {
-                setAddOrgOpen(false);
-                resetAddForm();
-              }}
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
+                ) : organizations.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-8 text-gray-500" colSpan={3}>
+                      No organizations found.
+                    </td>
+                  </tr>
+                ) : (
+                  organizations.map((o) => (
+                    <tr key={o.id} className="hover:bg-gray-50/50">
+                      <td className="px-4 py-3">
+                        <Link
+                          to={`${staffBasePath}/organizations/${o.id}`}
+                          className="font-semibold text-emerald-900 hover:text-emerald-950 hover:underline underline-offset-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 inline-block"
+                        >
+                          {orgLabel(o)}
+                        </Link>
+                        <div className="text-xs text-gray-500 font-mono">{String(o.id).slice(0, 8)}…</div>
+                        {o.registration_no ? (
+                          <div className="text-xs text-gray-600 mt-0.5">Reg: {o.registration_no}</div>
+                        ) : null}
+                        {o.contact_email || o.phone ? (
+                          <div className="text-xs text-gray-600">
+                            {[o.contact_email, o.phone].filter(Boolean).join(" · ")}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <div className="font-semibold tabular-nums">
+                          {Number(o?.wallet?.balance ?? 0).toLocaleString()} credits
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Updated:{" "}
+                          {o?.wallet?.updated_at ? new Date(o.wallet.updated_at).toLocaleDateString() : "—"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                          <Link
+                            to={`/organizations/${o.id}/items`}
+                            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
+                          >
+                            Items
+                          </Link>
+                          <Link
+                            to={`/organizations/${o.id}/wallet`}
+                            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
+                          >
+                            Wallet
+                          </Link>
+                          <Link
+                            to={`${staffBasePath}/organizations/${o.id}`}
+                            className="inline-flex items-center justify-center gap-0.5 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50/90 text-emerald-950 text-xs font-semibold hover:bg-emerald-100"
+                          >
+                            More
+                            <ChevronRight size={14} className="shrink-0" aria-hidden />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          <form onSubmit={submitAddOrganization} className="p-5 space-y-4">
-            <label className="block">
-              <span className="text-xs font-semibold text-gray-700">Name *</span>
-              <input
-                required
-                value={addForm.name}
-                onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                placeholder="Organization name"
-                autoComplete="organization"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-gray-700">Registration number</span>
-              <input
-                value={addForm.registration_no}
-                onChange={(e) => setAddForm((f) => ({ ...f, registration_no: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                placeholder="Optional"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-gray-700">Contact email</span>
-              <input
-                type="email"
-                value={addForm.contact_email}
-                onChange={(e) => setAddForm((f) => ({ ...f, contact_email: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                placeholder="Optional"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-gray-700">Phone</span>
-              <input
-                value={addForm.phone}
-                onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                placeholder="Optional"
-              />
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="block">
-                <span className="text-xs font-semibold text-gray-700">Village</span>
-                <input
-                  value={addForm.village}
-                  onChange={(e) => setAddForm((f) => ({ ...f, village: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Optional"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-gray-700">Ward</span>
-                <input
-                  value={addForm.ward}
-                  onChange={(e) => setAddForm((f) => ({ ...f, ward: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Optional"
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2 pt-2">
+        </div>
+      </PageSectionCard>
+
+      {addOrgOpen ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-org-title"
+        >
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+              <h2 id="add-org-title" className="text-lg font-semibold text-gray-900">
+                Add organization
+              </h2>
               <button
                 type="button"
-                className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
                 onClick={() => {
                   setAddOrgOpen(false);
                   resetAddForm();
                 }}
+                aria-label="Close"
               >
-                Cancel
+                <X size={20} />
               </button>
-              <RippleButton
-                type="submit"
-                className="px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
-                disabled={addOrgBusy}
-              >
-                {addOrgBusy ? "Creating…" : "Create organization"}
-              </RippleButton>
             </div>
-          </form>
+            <form onSubmit={submitAddOrganization} className="p-5 space-y-4">
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">Name *</span>
+                <input
+                  required
+                  value={addForm.name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Organization name"
+                  autoComplete="organization"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">Registration number</span>
+                <input
+                  value={addForm.registration_no}
+                  onChange={(e) => setAddForm((f) => ({ ...f, registration_no: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Optional"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">Contact email</span>
+                <input
+                  type="email"
+                  value={addForm.contact_email}
+                  onChange={(e) => setAddForm((f) => ({ ...f, contact_email: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Optional"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-700">Phone</span>
+                <input
+                  value={addForm.phone}
+                  onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Optional"
+                />
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-700">Village</span>
+                  <input
+                    value={addForm.village}
+                    onChange={(e) => setAddForm((f) => ({ ...f, village: e.target.value }))}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-700">Ward</span>
+                  <input
+                    value={addForm.ward}
+                    onChange={(e) => setAddForm((f) => ({ ...f, ward: e.target.value }))}
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    placeholder="Optional"
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                  onClick={() => {
+                    setAddOrgOpen(false);
+                    resetAddForm();
+                  }}
+                >
+                  Cancel
+                </button>
+                <RippleButton
+                  type="submit"
+                  className="px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
+                  disabled={addOrgBusy}
+                >
+                  {addOrgBusy ? "Creating…" : "Create organization"}
+                </RippleButton>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
-    ) : null}
+      ) : null}
     </>
   );
 }
-
