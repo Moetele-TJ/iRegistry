@@ -52,7 +52,7 @@ serve(async (req) => {
     const { data, error, count } = await supabase
       .from("org_payments")
       .select(
-        "id, org_id, channel, status, currency, amount, credits_granted, provider, provider_reference, cashier_user_id, receipt_no, metadata, created_at, confirmed_at",
+        "id, org_id, channel, status, currency, amount, credits_granted, provider, provider_reference, cashier_user_id, receipt_no, metadata, created_at, confirmed_at, reversed_at, reversed_by, reversed_reason",
         { count: "exact" },
       )
       .eq("org_id", orgId)

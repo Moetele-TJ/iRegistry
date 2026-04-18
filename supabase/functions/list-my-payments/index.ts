@@ -40,6 +40,9 @@ const ORG_SELECT = `
   provider_reference,
   created_at,
   confirmed_at,
+  reversed_at,
+  reversed_by,
+  reversed_reason,
   orgs:org_id (id, name, slug)
 `;
 
@@ -64,8 +67,9 @@ function mapOrgRow(p: Record<string, unknown>): Unified {
     organization: org
       ? { id: org.id, name: org.name, slug: org.slug ?? null }
       : { id: p.org_id, name: "—", slug: null },
-    reversed_at: null,
-    reversed_reason: null,
+    reversed_at: p.reversed_at ?? null,
+    reversed_by: p.reversed_by ?? null,
+    reversed_reason: p.reversed_reason ?? null,
   };
 }
 

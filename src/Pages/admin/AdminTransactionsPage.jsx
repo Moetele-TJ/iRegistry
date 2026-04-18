@@ -28,6 +28,10 @@ function accountLabel(p) {
   return who ? displayName(who) : p?.user_id || "—";
 }
 
+function paymentRowKey(p) {
+  return `${p?.wallet || "user"}:${p?.id}`;
+}
+
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
   const { addToast } = useToast();
 
@@ -170,7 +174,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
   }, [selectedUserId, selectedOrgId, scope]);
 
   function openReverseModal(payment) {
-    if (!canReverse || payment?.wallet === "org") return;
+    if (!canReverse) return;
     setReverseReasonPreset("");
     setReverseModal({ isOpen: true, payment });
   }
@@ -180,17 +184,19 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
     setReverseModal({ isOpen: false, payment: null });
   }
 
-  async function reversePayment(paymentId) {
-    if (!canReverse) return;
+  async function reversePayment(payment) {
+    if (!canReverse || !payment?.id) return;
     const reason = String(reverseReason || "").trim();
     if (!reason) {
       return;
     }
 
-    setReversingId(paymentId);
+    const isOrg = payment.wallet === "org";
+    const key = paymentRowKey(payment);
+    setReversingId(key);
     try {
-      const { data, error } = await invokeWithAuth("reverse-payment", {
-        body: { payment_id: paymentId, reason },
+      const { data, error } = await invokeWithAuth(isOrg ? "reverse-org-payment" : "reverse-payment", {
+        body: isOrg ? { org_payment_id: payment.id, reason } : { payment_id: payment.id, reason },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Could not reverse payment");
       addToast({ type: "success", message: "Transaction reversed successfully." });
@@ -372,13 +378,17 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
         isOpen={reverseModal.isOpen}
         onClose={closeReverseModal}
         onConfirm={async () => {
-          const id = reverseModal?.payment?.id;
-          if (!id) return;
-          await reversePayment(id);
+          const p = reverseModal?.payment;
+          if (!p?.id) return;
+          await reversePayment(p);
           closeReverseModal();
         }}
         title="Confirm"
-        message="This will subtract credits from the user if they still have enough balance."
+        message={
+          reverseModal?.payment?.wallet === "org"
+            ? "This will subtract credits from the organization wallet if the full credited amount is still available (nothing spent from it yet)."
+            : "This will subtract credits from the user if they still have enough balance."
+        }
         confirmLabel={reversingId ? "Reversing…" : "Reverse"}
         cancelLabel="Cancel"
         danger
@@ -417,7 +427,7 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
       <PageSectionCard
         maxWidthClass="max-w-7xl"
         title="Transactions"
-        subtitle="User-wallet and organization top-ups. Reversal applies to confirmed user-wallet payments only (not org wallets)."
+        subtitle="User-wallet and organization top-ups. Admins can reverse confirmed cashier top-ups when the credited balance is still intact."
         icon={<ReceiptText className="w-6 h-6 text-iregistrygreen shrink-0" />}
       >
         <div
@@ -451,7 +461,8 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                 <div className="md:hidden space-y-3 -mx-1">
                   {payments.map((p) => {
                     const rowKey = `${p.wallet || "user"}-${p.id}`;
-                    const reversible = p.wallet !== "org" && p.status === "CONFIRMED" && !p.reversed_at;
+                    const revKey = paymentRowKey(p);
+                    const reversible = p.status === "CONFIRMED" && !p.reversed_at;
                     const statusLabel = p.reversed_at ? "REVERSED" : (p.status || "—");
                     const statusClass = p.reversed_at
                       ? "bg-gray-50 text-gray-700 border border-gray-100"
@@ -498,16 +509,16 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                         </div>
 
                         <div className="mt-3">
-                          {canReverse && p.wallet !== "org" ? (
+                          {canReverse ? (
                             <RippleButton
                               className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-red-600 bg-red-600 text-white text-sm font-semibold shadow-md hover:bg-red-700 hover:border-red-700 active:shadow-sm active:translate-y-[1px] disabled:opacity-60"
-                              disabled={!reversible || reversingId === p.id}
+                              disabled={!reversible || reversingId === revKey}
                               onClick={() => openReverseModal(p)}
                             >
                               <RotateCcw size={16} />
-                              {reversingId === p.id ? "Reversing…" : "Reverse payment"}
+                              {reversingId === revKey ? "Reversing…" : "Reverse payment"}
                             </RippleButton>
-                          ) : canReverse && p.wallet === "org" ? null : (
+                          ) : (
                             <RippleButton
                               className="w-full inline-flex items-center justify-center px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm shadow-sm hover:bg-gray-50 disabled:opacity-60"
                               disabled
@@ -537,7 +548,8 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                     <tbody className="divide-y divide-gray-100">
                       {payments.map((p) => {
                         const rowKey = `${p.wallet || "user"}-${p.id}`;
-                        const reversible = p.wallet !== "org" && p.status === "CONFIRMED" && !p.reversed_at;
+                        const revKey = paymentRowKey(p);
+                        const reversible = p.status === "CONFIRMED" && !p.reversed_at;
                         return (
                           <tr key={rowKey} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
@@ -575,19 +587,17 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {canReverse && p.wallet !== "org" ? (
+                              {canReverse ? (
                                 <RippleButton
                                   className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm disabled:opacity-50"
-                                  disabled={!reversible || reversingId === p.id}
+                                  disabled={!reversible || reversingId === revKey}
                                   onClick={() => openReverseModal(p)}
                                 >
                                   <RotateCcw size={16} />
-                                  {reversingId === p.id ? "Reversing…" : "Reverse"}
+                                  {reversingId === revKey ? "Reversing…" : "Reverse"}
                                 </RippleButton>
-                              ) : !canReverse ? (
-                                <span className="text-xs text-gray-400">Read only</span>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-400">Read only</span>
                               )}
                             </td>
                           </tr>
