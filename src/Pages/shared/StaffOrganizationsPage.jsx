@@ -153,7 +153,69 @@ export default function StaffOrganizationsPage({ title = "Organizations", subtit
             </RippleButton>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white overflow-auto">
+          <div className="md:hidden space-y-3">
+            {loading ? (
+              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-8 text-sm text-gray-500 text-center">
+                Loading…
+              </div>
+            ) : organizations.length === 0 ? (
+              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-8 text-sm text-gray-500 text-center">
+                No organizations found.
+              </div>
+            ) : (
+              organizations.map((o) => (
+                <article
+                  key={o.id}
+                  className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4 space-y-4"
+                >
+                  <div>
+                    <Link
+                      to={`${staffBasePath}/organizations/${orgPathSegment(o)}`}
+                      className="font-semibold text-emerald-900 hover:text-emerald-950 hover:underline underline-offset-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 text-base"
+                    >
+                      {orgLabel(o)}
+                    </Link>
+                    <div className="text-xs text-gray-600 mt-1">
+                      Reg: {String(o.registration_no || "").trim() || "—"}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Wallet</div>
+                    <div className="font-semibold tabular-nums text-gray-900 mt-0.5">
+                      {Number(o?.wallet?.balance ?? 0).toLocaleString()} credits
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      Updated:{" "}
+                      {o?.wallet?.updated_at ? new Date(o.wallet.updated_at).toLocaleDateString() : "—"}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to={`/organizations/${orgPathSegment(o)}/items`}
+                      className="inline-flex flex-1 min-w-[5.5rem] items-center justify-center px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50"
+                    >
+                      Items
+                    </Link>
+                    <Link
+                      to={`/organizations/${orgPathSegment(o)}/wallet`}
+                      className="inline-flex flex-1 min-w-[5.5rem] items-center justify-center px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-xs font-semibold hover:bg-emerald-50"
+                    >
+                      Wallet
+                    </Link>
+                    <Link
+                      to={`${staffBasePath}/organizations/${orgPathSegment(o)}`}
+                      className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-0.5 px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/90 text-emerald-950 text-xs font-semibold hover:bg-emerald-100"
+                    >
+                      More
+                      <ChevronRight size={14} className="shrink-0" aria-hidden />
+                    </Link>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="hidden md:block rounded-2xl border border-gray-100 bg-white overflow-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
