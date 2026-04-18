@@ -33,6 +33,8 @@ export default function SidebarItemGroup({
   const leaveTimer = useRef(null);
   const prevCloseNonce = useRef(0);
   const [inHoverZone, setInHoverZone] = useState(false);
+  /** Touch / coarse pointer: show submenu flyout only after user taps Items, not when the rail expands. */
+  const [touchFlyoutOpen, setTouchFlyoutOpen] = useState(false);
   const [pos, setPos] = useState(null);
   const [enterVisible, setEnterVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -46,7 +48,7 @@ export default function SidebarItemGroup({
     expanded &&
     expandAnimationComplete &&
     subItems.length > 0 &&
-    (touchMode || groupPathActive || inHoverZone);
+    (touchMode ? touchFlyoutOpen : groupPathActive || inHoverZone);
 
   const clearLeaveTimer = () => {
     if (leaveTimer.current != null) {
@@ -89,10 +91,15 @@ export default function SidebarItemGroup({
     };
   }, [wantShow, exiting, expanded, location.pathname]);
 
+  useEffect(() => {
+    if (!expanded) setTouchFlyoutOpen(false);
+  }, [expanded]);
+
   // Parent: close submenu first, then collapse rail.
   useEffect(() => {
     if (flyoutCloseNonce === prevCloseNonce.current) return;
     prevCloseNonce.current = flyoutCloseNonce;
+    setTouchFlyoutOpen(false);
 
     if (!pos) {
       onFlyoutExitComplete?.();
@@ -211,6 +218,11 @@ export default function SidebarItemGroup({
             if (touchMode && !expanded) {
               e.preventDefault();
               onTouchExpand?.();
+              return;
+            }
+            if (touchMode && expanded) {
+              e.preventDefault();
+              setTouchFlyoutOpen((o) => !o);
               return;
             }
             onNavigate?.();
