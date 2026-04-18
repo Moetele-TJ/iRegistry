@@ -7,6 +7,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
+import { parseCreditBalance } from "../../lib/parseCreditBalance.js";
 
 const FETCH_LIMIT = 200;
 
@@ -104,7 +105,7 @@ export default function OrganizationTransactionsPage() {
       const { data, error } = await invokeWithAuth("get-org-wallet", { body: { org_id: orgId } });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       setOrgName(String(data?.organization?.name || "").trim());
-      setBalance(typeof data.balance === "number" ? data.balance : 0);
+      setBalance(parseCreditBalance(data.balance) ?? 0);
       setRole(data.role || null);
     } catch (e) {
       addToast({ type: "error", message: e.message || "Failed to load wallet" });

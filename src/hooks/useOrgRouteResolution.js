@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { parseCreditBalance } from "../lib/parseCreditBalance.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -51,7 +52,7 @@ export function useOrgRouteResolution() {
       const org = data.organization || null;
       setOrganization(org);
       setOrgId(org?.id ? String(org.id) : null);
-      setBalance(typeof data.balance === "number" ? data.balance : 0);
+      setBalance(parseCreditBalance(data.balance) ?? 0);
       setCreditsUpdatedAt(data.credits_updated_at ?? null);
       setRole(data.role ?? null);
     } catch (e) {

@@ -95,7 +95,14 @@ serve(async (req) => {
       .eq("org_id", orgRow.id)
       .maybeSingle();
 
-    const balance = typeof creditRow?.balance === "number" ? creditRow.balance : 0;
+    const rawBal = creditRow?.balance;
+    const n =
+      rawBal == null
+        ? 0
+        : typeof rawBal === "number"
+        ? rawBal
+        : Number(rawBal);
+    const balance = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 
     return respond(
       {

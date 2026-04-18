@@ -17,7 +17,15 @@ function displayName(u) {
 }
 
 export default function OrganizationItemsPage() {
-  const { orgKey, orgId, loading: routeLoading, error: routeError } = useOrgRouteResolution();
+  const {
+    orgKey,
+    orgId,
+    organization,
+    balance: orgWalletBalance,
+    loading: routeLoading,
+    error: routeError,
+    reload: reloadOrgRoute,
+  } = useOrgRouteResolution();
   const { addToast } = useToast();
   const { confirm } = useModal();
 
@@ -60,30 +68,8 @@ export default function OrganizationItemsPage() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [reviewBusyId, setReviewBusyId] = useState("");
 
-  const [walletBalance, setWalletBalance] = useState(null);
-  const [walletLoading, setWalletLoading] = useState(false);
-
   const isPrivileged =
     role === "ORG_ADMIN" || role === "ORG_MANAGER" || role === "STAFF";
-
-  async function loadWallet() {
-    if (!orgId) {
-      setWalletLoading(false);
-      return;
-    }
-    setWalletLoading(true);
-    try {
-      const { data, error } = await invokeWithAuth("get-org-wallet", {
-        body: { org_id: orgId },
-      });
-      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load wallet");
-      setWalletBalance(typeof data.balance === "number" ? data.balance : 0);
-    } catch {
-      setWalletBalance(null);
-    } finally {
-      setWalletLoading(false);
-    }
-  }
 
   async function loadItems() {
     if (!orgId) {
@@ -171,7 +157,6 @@ export default function OrganizationItemsPage() {
 
   useEffect(() => {
     void loadItems();
-    void loadWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, includeDeleted, includeLegacy]);
 
@@ -345,7 +330,7 @@ export default function OrganizationItemsPage() {
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       addToast({ type: "success", message: "Item deleted." });
       await loadItems();
-      await loadWallet();
+      await reloadOrgRoute();
     } catch (e) {
       addToast({ type: "error", message: e.message || "Failed" });
     } finally {
@@ -370,7 +355,7 @@ export default function OrganizationItemsPage() {
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       addToast({ type: "success", message: "Item restored." });
       await loadItems();
-      await loadWallet();
+      await reloadOrgRoute();
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed" });
     } finally {
@@ -536,7 +521,7 @@ export default function OrganizationItemsPage() {
       setCreateNotes("");
       setCreateAssignTo("");
       await loadItems();
-      await loadWallet();
+      await reloadOrgRoute();
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed" });
     } finally {
@@ -544,10 +529,15 @@ export default function OrganizationItemsPage() {
     }
   }
 
+  const pageTitle =
+    organization?.name && String(organization.name).trim()
+      ? `${String(organization.name).trim()} items`
+      : "Organization items";
+
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Organization items"
+      title={pageTitle}
       subtitle={isPrivileged ? "Manage organization-owned items and assignments." : "Your assigned organization items."}
       icon={<Building2 className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
@@ -578,7 +568,7 @@ export default function OrganizationItemsPage() {
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 shadow-sm hover:bg-gray-50"
             onClick={() => {
               void loadItems();
-              void loadWallet();
+              void reloadOrgRoute();
             }}
             disabled={loading}
           >
@@ -607,7 +597,11 @@ export default function OrganizationItemsPage() {
             <div className="min-w-0">
               <div className="text-xs font-semibold text-emerald-900/80 uppercase tracking-wide">Organization wallet</div>
               <div className="text-lg font-bold text-emerald-950 tabular-nums">
-                {walletLoading ? "…" : walletBalance === null ? "—" : walletBalance.toLocaleString()}{" "}
+                {routeLoading
+                  ? "…"
+                  : orgWalletBalance === null
+                    ? "—"
+                    : orgWalletBalance.toLocaleString()}{" "}
                 <span className="text-sm font-semibold text-emerald-900/70">credits</span>
               </div>
             </div>
