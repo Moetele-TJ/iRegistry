@@ -1,9 +1,12 @@
-/** Normalizes a display name into a URL segment (lowercase, hyphenated). */
+/**
+ * Normalizes a display name into a URL segment: lowercase letters/digits, hyphen between word runs.
+ * Uses Unicode letters/numbers so casing is folded to lowercase without dropping non-ASCII letters.
+ */
 export function slugifyOrgName(name: string): string {
-  const s = String(name || "")
-    .trim()
-    .toLowerCase();
-  const x = s.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const s = String(name || "").trim().toLocaleLowerCase();
+  const x = s
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
   return (x || "org").slice(0, 96);
 }
 
