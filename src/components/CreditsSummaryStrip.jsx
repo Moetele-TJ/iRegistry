@@ -17,8 +17,8 @@ export default function CreditsSummaryStrip() {
     (async () => {
       try {
         const { data, error } = await invokeWithAuth("list-my-payments", {
-          // Fetch extra rows: pending/failed entries are ignored below.
-          body: { limit: 40, offset: 0 },
+          // Personal wallet only — org top-ups are shown on org pages / transactions filter.
+          body: { limit: 40, offset: 0, scope: "user" },
         });
         if (cancelled || error || !data?.success) return;
         const rows = data.payments || [];
