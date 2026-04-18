@@ -49,9 +49,14 @@ serve(async (req) => {
       typeof body?.village === "string" && body.village.trim() ? body.village.trim() : null;
     const ward = typeof body?.ward === "string" && body.ward.trim() ? body.ward.trim() : null;
 
+    const id = crypto.randomUUID();
+    const slug = orgSlugFromNameAndId(name, id);
+
     const { data: org, error } = await supabase
       .from("orgs")
       .insert({
+        id,
+        slug,
         name: name.slice(0, 200),
         registration_no: registration_no ? registration_no.slice(0, 120) : null,
         contact_email: contact_email ? contact_email.slice(0, 200) : null,
@@ -59,24 +64,13 @@ serve(async (req) => {
         village: village ? village.slice(0, 120) : null,
         ward: ward ? ward.slice(0, 120) : null,
       })
-      .select("id, name, registration_no, contact_email, phone, village, ward, created_at")
+      .select("id, slug, name, registration_no, contact_email, phone, village, ward, created_at")
       .single();
 
     if (error || !org) {
       console.error("create-organization insert:", error?.message);
       return respond(
         { success: false, message: error?.message || "Failed to create organization" },
-        corsHeaders,
-        500,
-      );
-    }
-
-    const slug = orgSlugFromNameAndId(name, String(org.id));
-    const { error: slugErr } = await supabase.from("orgs").update({ slug }).eq("id", org.id);
-    if (slugErr) {
-      console.error("create-organization slug:", slugErr?.message);
-      return respond(
-        { success: false, message: slugErr?.message || "Failed to set organization URL" },
         corsHeaders,
         500,
       );
