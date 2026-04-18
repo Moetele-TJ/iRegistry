@@ -19,6 +19,7 @@ import EditItem from "./Pages/EditItem.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import RoleRedirect from "./components/RoleRedirect.jsx";
 import AppLayout from "./Layouts/AppLayout.jsx";
+import OrganizationLayout from "./Layouts/OrganizationLayout.jsx";
 
 // DASHBOARDS
 import UserDashboard from "./Pages/UserDashboard.jsx";
@@ -347,42 +348,21 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
                   <Route path="/profile" element={<ProfileRoleRedirect />} />
 
-                  {/* Organization-owned items (shared) */}
+                  {/* Organization workspace (shared): layout + sidebar uses app role + org role */}
                   <Route
-                    path="/organizations/:orgKey/items"
+                    path="/organizations/:orgKey"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
-                        <OrganizationItemsPage />
+                        <OrganizationLayout />
                       </ProtectedRoute>
                     }
-                  />
-
-                  <Route
-                    path="/organizations/:orgKey/wallet"
-                    element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
-                        <OrganizationWalletPage />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/organizations/:orgKey/transactions"
-                    element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
-                        <OrganizationTransactionsPage />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/organizations/:orgKey/members"
-                    element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
-                        <OrganizationMembersPage />
-                      </ProtectedRoute>
-                    }
-                  />
+                  >
+                    <Route index element={<Navigate to="items" replace />} />
+                    <Route path="items" element={<OrganizationItemsPage />} />
+                    <Route path="wallet" element={<OrganizationWalletPage />} />
+                    <Route path="transactions" element={<OrganizationTransactionsPage />} />
+                    <Route path="members" element={<OrganizationMembersPage />} />
+                  </Route>
 
                 </Route>
 
