@@ -17,7 +17,36 @@ function timeAgo(date) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function ItemActivityTimeline({ events = [] }) {
+function fmtWhen(iso) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function actorLine(event) {
+  const role = event.actor_role ? String(event.actor_role) : null;
+  const id = event.actor_id ? String(event.actor_id) : null;
+  if (!role && !id) return null;
+  const tail = id && id.length > 8 ? `…${id.slice(-6)}` : id;
+  if (role && tail) return `${role} · ${tail}`;
+  if (role) return role;
+  return tail;
+}
+
+export default function ItemActivityTimeline({ events = [], loading = false }) {
+
+  if (loading) {
+    return (
+      <div className="text-sm text-gray-400 animate-pulse">
+        Loading activity…
+      </div>
+    );
+  }
 
   if (!events.length) {
     return (
@@ -35,7 +64,9 @@ export default function ItemActivityTimeline({ events = [] }) {
 
       <div className="space-y-6">
 
-        {events.map((event) => (
+        {events.map((event) => {
+          const actor = actorLine(event);
+          return (
 
           <div key={event.id} className="relative">
 
@@ -47,23 +78,40 @@ export default function ItemActivityTimeline({ events = [] }) {
             {/* event content */}
             <div>
 
-              <div className="text-sm font-semibold text-gray-800">
-                {event.entity_name || "Item activity"}
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-gray-800">
+                <span>{event.entity_name || "Item activity"}</span>
+                {event.source === "org_item" && (
+                  <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    Org
+                  </span>
+                )}
               </div>
 
               <div className="text-sm text-gray-600 mt-0.5">
-                {event.message}
+                {event.message || "—"}
               </div>
 
-              <div className="text-xs text-gray-400 mt-1">
+              {actor && (
+                <div className="text-xs text-gray-500 mt-1">
+                  By {actor}
+                </div>
+              )}
+
+              <div
+                className="text-xs text-gray-400 mt-1"
+                title={fmtWhen(event.created_at)}
+              >
                 {timeAgo(event.created_at)}
+                <span className="text-gray-300"> · </span>
+                <span className="text-gray-400">{fmtWhen(event.created_at)}</span>
               </div>
 
             </div>
 
           </div>
 
-        ))}
+        );
+        })}
 
       </div>
     </div>

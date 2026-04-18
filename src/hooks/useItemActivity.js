@@ -9,7 +9,12 @@ export function useItemActivity(itemId) {
 
   useEffect(() => {
 
-    if (!itemId) return;
+    if (!itemId) {
+      setActivity([]);
+      return;
+    }
+
+    setActivity([]);
 
     async function loadActivity() {
       try {

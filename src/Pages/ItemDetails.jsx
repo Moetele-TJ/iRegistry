@@ -191,7 +191,7 @@ export default function ItemDetails() {
 
   const itemPageLoading = itemsLoading || (!itemFromList && !lookupResolved);
 
-  const { activity } = useItemActivity(item?.id);
+  const { activity, loading: activityLoading } = useItemActivity(item?.id);
 
   useEffect(() => {
     setFetchedItem(null);
@@ -1320,7 +1320,7 @@ export default function ItemDetails() {
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                     Activity
                   </div>
-                  <ItemActivityTimeline events={activity} />
+                  <ItemActivityTimeline events={activity} loading={activityLoading} />
                 </div>
               </div>
             </div>
