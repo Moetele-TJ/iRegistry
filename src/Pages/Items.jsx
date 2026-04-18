@@ -1160,9 +1160,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                 )}
 
                 {isPrivileged && (
-                  <div className="flex items-center gap-2 px-2 py-2 rounded-xl border bg-white">
-                    <div className="text-xs text-gray-500 whitespace-nowrap">
-                      View as user
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 px-2 py-2 rounded-xl border bg-white w-full min-w-0 sm:w-auto">
+                    <div className="text-xs font-medium text-gray-600 sm:text-gray-500 sm:whitespace-nowrap">
+                      View as
                     </div>
                     <select
                       value={selectedOwnerId}
@@ -1170,7 +1170,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                         void handlePrivilegedOwnerChange(e.target.value);
                       }}
                       disabled={usersLoading || usersList.length === 0}
-                      className="border rounded-lg px-2 py-1 text-sm"
+                      className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                     >
                       {(usersList || []).map((u) => {
                         const label =
