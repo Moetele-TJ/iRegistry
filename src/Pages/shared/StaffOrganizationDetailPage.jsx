@@ -253,25 +253,44 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
             </div>
           ) : (
             <>
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-5 py-4">
-                <div className="text-xs font-semibold text-emerald-900/80 uppercase tracking-wide">Wallet balance</div>
-                <div className="text-3xl font-bold text-emerald-950 tabular-nums mt-1">
-                  {balance === null ? "—" : balance.toLocaleString()}{" "}
-                  <span className="text-lg font-semibold text-emerald-900/80">credits</span>
-                </div>
-                {organization.registration_no ? (
-                  <div className="text-sm text-gray-700 mt-2">
-                    Registration: <span className="font-mono">{organization.registration_no}</span>
-                  </div>
-                ) : null}
-                <div className="mt-3 space-y-1 text-sm text-gray-700">
-                  {organization.contact_email ? <div>Email: {organization.contact_email}</div> : null}
-                  {organization.phone ? <div>Phone: {organization.phone}</div> : null}
-                  {(organization.village || organization.ward) && (
-                    <div>
-                      {[organization.village, organization.ward].filter(Boolean).join(" · ")}
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-5 py-5">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,auto)_1fr] lg:gap-10 lg:items-start">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-emerald-900/80 uppercase tracking-wide">Wallet balance</div>
+                    <div className="text-3xl font-bold text-emerald-950 tabular-nums mt-1">
+                      {balance === null ? "—" : balance.toLocaleString()}{" "}
+                      <span className="text-lg font-semibold text-emerald-900/80">credits</span>
                     </div>
-                  )}
+                  </div>
+
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm text-gray-700 min-w-0">
+                    {organization.registration_no ? (
+                      <div className="min-w-0 sm:col-span-2">
+                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Registration</dt>
+                        <dd className="mt-0.5 font-mono text-gray-900 break-all">{organization.registration_no}</dd>
+                      </div>
+                    ) : null}
+                    {organization.contact_email ? (
+                      <div className="min-w-0">
+                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Email</dt>
+                        <dd className="mt-0.5 text-gray-900 break-words">{organization.contact_email}</dd>
+                      </div>
+                    ) : null}
+                    {organization.phone ? (
+                      <div className="min-w-0">
+                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Phone</dt>
+                        <dd className="mt-0.5 text-gray-900 tabular-nums">{organization.phone}</dd>
+                      </div>
+                    ) : null}
+                    {(organization.village || organization.ward) && (
+                      <div className="min-w-0 sm:col-span-2">
+                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Location</dt>
+                        <dd className="mt-0.5 text-gray-900">
+                          {[organization.village, organization.ward].filter(Boolean).join(" · ")}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
                 </div>
               </div>
 
