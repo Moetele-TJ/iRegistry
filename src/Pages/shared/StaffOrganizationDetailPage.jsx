@@ -263,17 +263,39 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
                     </div>
                   </div>
 
-                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm text-gray-700 min-w-0">
-                    {organization.registration_no ? (
-                      <div className="min-w-0 sm:col-span-2">
-                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Registration</dt>
-                        <dd className="mt-0.5 font-mono text-gray-900 break-all">{organization.registration_no}</dd>
-                      </div>
-                    ) : null}
-                    {(organization.contact_email || organization.phone) && (
-                      <div
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm text-gray-700 min-w-0">
+                    {(organization.registration_no || organization.village || organization.ward) && (
+                      <dl
                         className={`min-w-0 space-y-4 ${
-                          organization.village || organization.ward ? "sm:col-span-1" : "sm:col-span-2"
+                          organization.contact_email || organization.phone ? "" : "sm:col-span-2"
+                        }`}
+                      >
+                        {organization.registration_no ? (
+                          <div>
+                            <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">
+                              Registration
+                            </dt>
+                            <dd className="mt-0.5 font-mono text-gray-900 break-all">
+                              {organization.registration_no}
+                            </dd>
+                          </div>
+                        ) : null}
+                        {(organization.village || organization.ward) && (
+                          <div>
+                            <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Location</dt>
+                            <dd className="mt-0.5 text-gray-900">
+                              {[organization.village, organization.ward].filter(Boolean).join(" · ")}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                    )}
+                    {(organization.contact_email || organization.phone) && (
+                      <dl
+                        className={`min-w-0 space-y-4 ${
+                          organization.registration_no || organization.village || organization.ward
+                            ? ""
+                            : "sm:col-span-2"
                         }`}
                       >
                         {organization.contact_email ? (
@@ -288,17 +310,9 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
                             <dd className="mt-0.5 text-gray-900 tabular-nums">{organization.phone}</dd>
                           </div>
                         ) : null}
-                      </div>
+                      </dl>
                     )}
-                    {(organization.village || organization.ward) && (
-                      <div className="min-w-0 sm:col-span-1">
-                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Location</dt>
-                        <dd className="mt-0.5 text-gray-900">
-                          {[organization.village, organization.ward].filter(Boolean).join(" · ")}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
+                  </div>
                 </div>
               </div>
 
