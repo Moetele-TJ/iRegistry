@@ -388,8 +388,14 @@ serve(async (req) => {
     );
     }
 
-    // Email OTP on this device unlocks SMS for future logins (trusted browser).
-    if (otpRecord.channel === "email" && deviceId.length >= 8) {
+    // Email OTP can mark this browser as trusted (SMS allowed here next time). User may opt out
+    // (e.g. shared computer) via trust_device: false — omitted/true preserves previous default behavior.
+    const trustDeviceRequested = body?.trust_device !== false;
+    if (
+      trustDeviceRequested &&
+      otpRecord.channel === "email" &&
+      deviceId.length >= 8
+    ) {
       const { error: trustErr } = await supabase.from("user_trusted_devices").upsert(
         {
           user_id: body.user_id,

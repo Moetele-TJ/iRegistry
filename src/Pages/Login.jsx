@@ -49,6 +49,8 @@ export default function Login() {
   const [maskedEmail, setMaskedEmail] = useState("");
   /** After identify-user: has this browser completed email OTP before? */
   const [deviceTrusted, setDeviceTrusted] = useState(null);
+  /** When email OTP would newly trust this browser, user can opt out (shared/public device). */
+  const [trustThisDevice, setTrustThisDevice] = useState(false);
   /** Account has phone but no email — only SMS is possible */
   const [phoneOnlyNoEmail, setPhoneOnlyNoEmail] = useState(false);
 
@@ -248,6 +250,7 @@ export default function Login() {
 
     setLastChannel(channel);
 
+    setTrustThisDevice(false);
     setStep("otp");
     setCooldown(30);
     setExpiry(300);        // ⏱ reset timer
@@ -302,6 +305,7 @@ export default function Login() {
         revoke_session_id: revokeSessionId || undefined,
         device_id: getDeviceId() || undefined,
         device_name: getDeviceName() || undefined,
+        trust_device: trustThisDevice,
       });
 
       if (verifyError || !data) {
@@ -353,6 +357,7 @@ export default function Login() {
           setMaskedEmail("");
           setChannels([]);
           setDeviceTrusted(null);
+          setTrustThisDevice(false);
           setPhoneOnlyNoEmail(false);
           setCooldown(0);
           setExpiry(300);
@@ -591,8 +596,8 @@ export default function Login() {
 
               {deviceTrusted === false && channels.includes("email") ? (
                 <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
-                  <span className="font-semibold">New browser or device.</span> Use email once to trust this
-                  browser; after that you can use SMS here if you prefer.
+                  <span className="font-semibold">New browser or device.</span> Sign in with email first for
+                  security. On the next step you can choose whether to save this browser for SMS sign-in later.
                 </div>
               ) : null}
 
@@ -629,6 +634,25 @@ export default function Login() {
 
           {step === "otp" && (
             <>
+
+              {lastChannel === "email" && deviceTrusted === false ? (
+                <label className="flex cursor-pointer items-start gap-3 mb-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-iregistrygreen focus:ring-iregistrygreen"
+                    checked={trustThisDevice}
+                    onChange={(e) => setTrustThisDevice(e.target.checked)}
+                    disabled={verifyingOtp}
+                  />
+                  <span className="text-sm text-gray-800">
+                    <span className="font-medium text-gray-900">Trust this browser</span>
+                    <span className="block text-xs text-gray-600 mt-1">
+                      Allow SMS sign-in on this device next time. Uncheck if you are on a shared or public computer
+                      and only need one-time access.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
 
               <div className="flex justify-center mb-4">
                 <CountdownCircle seconds={expiry} />
