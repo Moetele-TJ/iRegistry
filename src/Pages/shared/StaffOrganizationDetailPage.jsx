@@ -270,20 +270,28 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
                         <dd className="mt-0.5 font-mono text-gray-900 break-all">{organization.registration_no}</dd>
                       </div>
                     ) : null}
-                    {organization.contact_email ? (
-                      <div className="min-w-0">
-                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Email</dt>
-                        <dd className="mt-0.5 text-gray-900 break-words">{organization.contact_email}</dd>
+                    {(organization.contact_email || organization.phone) && (
+                      <div
+                        className={`min-w-0 space-y-4 ${
+                          organization.village || organization.ward ? "sm:col-span-1" : "sm:col-span-2"
+                        }`}
+                      >
+                        {organization.contact_email ? (
+                          <div>
+                            <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Email</dt>
+                            <dd className="mt-0.5 text-gray-900 break-words">{organization.contact_email}</dd>
+                          </div>
+                        ) : null}
+                        {organization.phone ? (
+                          <div>
+                            <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Phone</dt>
+                            <dd className="mt-0.5 text-gray-900 tabular-nums">{organization.phone}</dd>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                    {organization.phone ? (
-                      <div className="min-w-0">
-                        <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Phone</dt>
-                        <dd className="mt-0.5 text-gray-900 tabular-nums">{organization.phone}</dd>
-                      </div>
-                    ) : null}
+                    )}
                     {(organization.village || organization.ward) && (
-                      <div className="min-w-0 sm:col-span-2">
+                      <div className="min-w-0 sm:col-span-1">
                         <dt className="text-xs font-semibold text-emerald-900/70 uppercase tracking-wide">Location</dt>
                         <dd className="mt-0.5 text-gray-900">
                           {[organization.village, organization.ward].filter(Boolean).join(" · ")}
