@@ -25,6 +25,7 @@ export default function OrganizationItemsPage() {
     loading: routeLoading,
     error: routeError,
     reload: reloadOrgRoute,
+    role: orgRoleFromWallet,
   } = useOrgRouteResolution();
   const { addToast } = useToast();
   const { confirm } = useModal();
@@ -68,8 +69,15 @@ export default function OrganizationItemsPage() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [reviewBusyId, setReviewBusyId] = useState("");
 
+  /** Prefer role from list-org-items; fall back to get-org-wallet so privileges resolve before items load. */
+  const effectiveOrgRole = role ?? orgRoleFromWallet ?? null;
+
   const isPrivileged =
-    role === "ORG_ADMIN" || role === "ORG_MANAGER" || role === "STAFF";
+    effectiveOrgRole === "ORG_ADMIN" ||
+    effectiveOrgRole === "ORG_MANAGER" ||
+    effectiveOrgRole === "STAFF";
+  const isOrgAdmin = effectiveOrgRole === "ORG_ADMIN";
+  const canCreate = effectiveOrgRole === "ORG_ADMIN" || effectiveOrgRole === "ORG_MANAGER";
 
   async function loadItems() {
     if (!orgId) {
@@ -256,9 +264,6 @@ export default function OrganizationItemsPage() {
       setReviewBusyId("");
     }
   }
-
-  const isOrgAdmin = role === "ORG_ADMIN";
-  const canCreate = role === "ORG_ADMIN" || role === "ORG_MANAGER";
 
   async function loadTransferRequests() {
     if (!isOrgAdmin) {
@@ -542,6 +547,19 @@ export default function OrganizationItemsPage() {
       icon={<Building2 className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {canCreate ? (
+            <a
+              href="#add-org-item"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:opacity-95"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("add-org-item")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              <Plus size={16} />
+              Add item
+            </a>
+          ) : null}
           <Link
             to={`/organizations/${orgKey}/wallet`}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
@@ -740,7 +758,7 @@ export default function OrganizationItemsPage() {
         ) : null}
 
         {canCreate ? (
-          <div className="rounded-2xl border border-gray-100 bg-white p-4">
+          <div id="add-org-item" className="rounded-2xl border border-gray-100 bg-white p-4 scroll-mt-24">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="text-sm font-semibold text-gray-800">Add organization item</div>
               <div className="text-xs text-gray-500">Charges organization wallet (ADD_ITEM)</div>

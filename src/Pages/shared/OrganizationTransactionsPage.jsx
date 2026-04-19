@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Building2, Download, RefreshCw, Search, Wallet } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
+import OrganizationWalletProfileCard from "../../components/OrganizationWalletProfileCard.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
@@ -75,6 +76,7 @@ export default function OrganizationTransactionsPage() {
   const { addToast } = useToast();
 
   const [orgName, setOrgName] = useState("");
+  const [organization, setOrganization] = useState(null);
   const [balance, setBalance] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,11 +106,14 @@ export default function OrganizationTransactionsPage() {
     try {
       const { data, error } = await invokeWithAuth("get-org-wallet", { body: { org_id: orgId } });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
-      setOrgName(String(data?.organization?.name || "").trim());
+      const org = data?.organization || null;
+      setOrganization(org);
+      setOrgName(String(org?.name || "").trim());
       setBalance(parseCreditBalance(data.balance) ?? 0);
       setRole(data.role || null);
     } catch (e) {
       addToast({ type: "error", message: e.message || "Failed to load wallet" });
+      setOrganization(null);
       setOrgName("");
       setBalance(null);
       setRole(null);
@@ -300,19 +305,18 @@ export default function OrganizationTransactionsPage() {
           Back to organizations
         </Link>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <div className="text-xs font-semibold text-emerald-900/80 uppercase tracking-wide">Balance</div>
-            <div className="text-3xl font-bold text-emerald-950 tabular-nums mt-1">
-              {loading ? "…" : balance === null ? "—" : balance.toLocaleString()}{" "}
-              <span className="text-lg font-semibold text-emerald-900/80">credits</span>
-            </div>
-          </div>
-          <div className="text-sm text-emerald-900/80 max-w-md">
+        <div className="space-y-3">
+          <OrganizationWalletProfileCard
+            organization={organization}
+            balance={balance}
+            loading={loading}
+            balanceLabel="Balance"
+          />
+          <p className="text-sm text-emerald-900/80 max-w-3xl">
             {isPrivileged
               ? "Combined feed of credit ledger entries and staff top-ups."
               : "Full transaction history is available to organization managers/administrators and staff."}
-          </div>
+          </p>
         </div>
 
         <div className="rounded-2xl border border-gray-100 bg-white p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
