@@ -11,6 +11,7 @@ import { compressImage } from "../utils/imageCompression.js";
 import { normalizePhotos } from "../utils/itemPhotos.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
 import BillingHelpLinks from "../components/BillingHelpLinks.jsx";
+import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import {
   getEditItemPreviewCharges,
   isBalanceBelowMinimumForEdit,
@@ -389,16 +390,7 @@ export default function EditItem() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items, user?.ward]);
 
-  const stationOptions = useMemo(() => {
-    const s = new Set(
-      (items || [])
-        .map((it) => String(it?.station || it?.location || "").trim())
-        .filter(Boolean)
-    );
-    const u = String(user?.police_station || "").trim();
-    if (u) s.add(u);
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [items, user?.police_station]);
+  // stationOptions now loaded from DB via PoliceStationSelect
 
   useEffect(() => {
     if (!form.serial1.trim()) {
@@ -1036,18 +1028,16 @@ export default function EditItem() {
           </Field>
 
           <Field label="Nearest police station" required>
-            <input
-              name="station"
+            <PoliceStationSelect
+              label={null}
               value={form.station}
-              onChange={(e) => updateField("station", e.target.value)}
-              className={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
-              list="edit-station-options"
+              onChange={(v) => updateField("station", v)}
+              required={true}
+              withAuth={true}
+              inputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
+              placeholder="Select nearest police station…"
+              allowOther={true}
             />
-            <datalist id="edit-station-options">
-              {stationOptions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
           </Field>
 
           <Field label="Status">
@@ -1063,11 +1053,16 @@ export default function EditItem() {
 
           {form.status === "Stolen" && !isItemReportedStolen(storedItem) && (
             <Field label="Reporting station (optional)">
-              <input
+              <PoliceStationSelect
+                label={null}
                 value={policeStation}
-                onChange={(e) => setPoliceStation(e.target.value)}
-                className="input"
-                placeholder="Defaults to nearest police station if empty"
+                onChange={(v) => setPoliceStation(v)}
+                required={false}
+                withAuth={true}
+                inputClassName="input"
+                placeholder="Select reporting station (optional)…"
+                allowOther={true}
+                helpText="Leave blank to default to the nearest police station on file."
               />
             </Field>
           )}

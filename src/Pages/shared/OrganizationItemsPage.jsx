@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check, Wallet, Send, Plus, ExternalLink, Pencil, Archive, RotateCcw } from "lucide-react";
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
+import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
@@ -813,12 +814,18 @@ export default function OrganizationItemsPage() {
               </div>
               <div className="lg:col-span-3">
                 <label className="text-xs text-gray-600">Nearest police station</label>
-                <input
-                  value={createStation}
-                  onChange={(e) => setCreateStation(e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                  placeholder="Required"
-                />
+                <div className="mt-1">
+                  <PoliceStationSelect
+                    label={null}
+                    value={createStation}
+                    onChange={setCreateStation}
+                    required={true}
+                    withAuth={true}
+                    inputClassName="w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                    placeholder="Select nearest police station…"
+                    allowOther={true}
+                  />
+                </div>
               </div>
 
               <div className="lg:col-span-3">

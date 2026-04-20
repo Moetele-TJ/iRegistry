@@ -9,6 +9,7 @@ import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
+import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import {
@@ -233,16 +234,7 @@ export default function AddItem() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items, user?.ward]);
 
-  const stationOptions = useMemo(() => {
-    const s = new Set(
-      (items || [])
-        .map((it) => String(it?.station || it?.location || "").trim())
-        .filter(Boolean)
-    );
-    const u = String(user?.police_station || "").trim();
-    if (u) s.add(u);
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [items, user?.police_station]);
+  // stationOptions now loaded from DB via PoliceStationSelect
 
   function handleCategoryChange(next) {
     const v = String(next ?? "");
@@ -832,19 +824,16 @@ export default function AddItem() {
           </Field>
 
           <Field label="Nearest police station" required>
-            <input
-              name="station"
+            <PoliceStationSelect
+              label={null}
               value={form.station}
-              onChange={(e) => updateField("station", e.target.value)}
-              className={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
-              placeholder="e.g. Gantsi Police Station"
-              list="add-station-options"
+              onChange={(v) => updateField("station", v)}
+              required={true}
+              withAuth={true}
+              inputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
+              placeholder="Select nearest police station…"
+              allowOther={true}
             />
-            <datalist id="add-station-options">
-              {stationOptions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
           </Field>
 
           <Field label="Shop / retailer">

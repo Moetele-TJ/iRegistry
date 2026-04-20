@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState,useEffect } from "react";
 import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
+import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 
 export default function Signup() {
 
@@ -298,8 +299,14 @@ export default function Signup() {
               <Input label="Landline" value={form.landline}
                 onChange={(v) => setForm(f => ({ ...f, landline: v }))} required={false} />
 
-              <Input label="Police station" value={form.police_station}
-                onChange={(v) => setForm(f => ({ ...f, police_station: v }))} required={false} />
+              <PoliceStationSelect
+                label="Police station"
+                value={form.police_station}
+                onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
+                required={false}
+                withAuth={false}
+                inputClassName="w-full border rounded-lg px-4 py-2"
+              />
 
               <div className="flex gap-3 mt-4">
                 <button

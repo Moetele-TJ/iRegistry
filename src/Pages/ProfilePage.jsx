@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
+import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { isPrivilegedRole } from "../lib/billingUx.js";
@@ -719,6 +720,7 @@ export default function ProfilePage() {
   }
 
   function renderLocationCard() {
+    const isPolice = String(user?.role || "").toLowerCase() === "police";
     return (
       <Card title="Location" icon={MapPin}>
         <div className="grid gap-6">
@@ -754,10 +756,19 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Police station</label>
-                <input
-                  className={inputClass}
+                <PoliceStationSelect
+                  label={null}
                   value={form.police_station}
-                  onChange={(e) => setForm((f) => ({ ...f, police_station: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
+                  required={false}
+                  withAuth={true}
+                  inputClassName={inputClass}
+                  placeholder={isPolice ? "Select a police station…" : "Police station"}
+                  helpText={
+                    isPolice
+                      ? "This is used to match your station queue and case activity."
+                      : undefined
+                  }
                 />
               </div>
             </>

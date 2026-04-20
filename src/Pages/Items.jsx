@@ -12,6 +12,7 @@ import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
+import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import {
   resolveOwnerBalanceForItem,
   willUpdateItemChargeOwnerWallet,
@@ -304,7 +305,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     children: null,
   });
 
-  const stolenStationInputRef = useRef(null);
+  const [stolenStationDraft, setStolenStationDraft] = useState("");
 
   // Toast state (keeps Toast component usage compatible)
   const [toast, setToast] = useState({ message: "", type: "info", visible: false });
@@ -766,6 +767,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     const next = isItemReportedStolen(it) ? "Active" : "Stolen";
 
     if (next === "Stolen") {
+      setStolenStationDraft(String(it.station || it.location || "").trim());
       const ownerRole = it.ownerRole ?? null;
       const chargesOwner = willUpdateItemChargeOwnerWallet(role, ownerRole);
       const ownerBal = resolveOwnerBalanceForItem(it, user);
@@ -794,24 +796,19 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         cancelLabel: "Cancel",
         danger: true,
         action: () =>
-          doToggleStatus(id, () => stolenStationInputRef.current?.value ?? ""),
+          doToggleStatus(id, () => stolenStationDraft),
         afterConfirmMessage: `${it.name || it.id} reported stolen`,
         children: (
           <div className="text-left space-y-1.5">
-            <label
-              htmlFor="stolen-police-station"
-              className="block text-xs font-medium text-gray-700"
-            >
-              Police station (optional)
-            </label>
-            <input
-              id="stolen-police-station"
-              ref={stolenStationInputRef}
-              key={id}
-              type="text"
-              defaultValue={it.station || it.location || ""}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
-              placeholder="Leave blank to use nearest police station on file"
+            <PoliceStationSelect
+              label="Police station (optional)"
+              value={stolenStationDraft}
+              onChange={setStolenStationDraft}
+              required={false}
+              withAuth={true}
+              inputClassName="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
+              placeholder="Select a police station…"
+              allowOther={true}
             />
             <p className="text-xs text-gray-500">
               If you leave this blank, your item&apos;s nearest police station is used when the case opens.

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
+import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
@@ -1242,13 +1243,19 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 <>
                   <div>
                     <label className="text-xs text-gray-600">Police station</label>
-                    <input
-                      value={form.police_station}
-                      onChange={(e) => setForm((s) => ({ ...s, police_station: e.target.value }))}
-                      className="mt-1 w-full border rounded-lg px-3 py-2"
-                      placeholder="(optional)"
-                      disabled={loading}
-                    />
+                    <div className="mt-1">
+                      <PoliceStationSelect
+                        label={null}
+                        value={form.police_station}
+                        onChange={(v) => setForm((s) => ({ ...s, police_station: v }))}
+                        required={false}
+                        withAuth={true}
+                        inputClassName="w-full border rounded-lg px-3 py-2"
+                        placeholder="Select police station…"
+                        allowOther={true}
+                        disabled={loading}
+                      />
+                    </div>
                   </div>
 
                   <div>
