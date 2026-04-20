@@ -10,6 +10,7 @@ import { logActivity } from "../shared/logActivity.ts";
 import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { lookupActiveItemBySerialRaw } from "../shared/serialLookup.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -125,18 +126,11 @@ serve(async (req) => {
 
     const cleaned = normalizeSerial(serial);
 
-    const { data: item, error } = await supabase
-      .from("items")
-      .select("id, ownerid, reportedstolenat")
-      .or(
-        `serial1_normalized.eq.${cleaned},serial2_normalized.eq.${cleaned}`
-      )
-      .is("deletedat", null)
-      .is("legacyat", null)
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
+    const { item } = await lookupActiveItemBySerialRaw(supabase, cleaned, {
+      select: "id, ownerid, reportedstolenat",
+      includeDeleted: false,
+      includeLegacy: false,
+    });
 
     if (!item) {
       return respond(

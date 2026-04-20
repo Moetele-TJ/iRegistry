@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Shield, Search, ClipboardCheck } from "lucide-react";
+import { Shield, Search, ClipboardCheck, CheckCircle2, Info } from "lucide-react";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -11,15 +11,42 @@ export default function PoliceImpoundPage() {
   const [serial, setSerial] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lookup, setLookup] = useState(null);
   const [result, setResult] = useState(null);
 
   const canSubmit = useMemo(() => String(serial || "").trim().length > 0, [serial]);
 
-  async function submit(e) {
+  async function checkSerial(e) {
     e?.preventDefault?.();
     const s = String(serial || "").trim();
     if (!s) {
       addToast({ type: "error", message: "Serial is required." });
+      return;
+    }
+    setLoading(true);
+    setResult(null);
+    setLookup(null);
+    try {
+      const { data, error } = await invokeWithAuth("police-lookup-serial", { body: { serial: s } });
+      if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
+      setLookup(data);
+    } catch (err) {
+      addToast({ type: "error", message: err.message || "Failed" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitFoundReport(e) {
+    e?.preventDefault?.();
+    const s = String(serial || "").trim();
+    if (!s) {
+      addToast({ type: "error", message: "Serial is required." });
+      return;
+    }
+    // When no match is found, require notes so the report is actionable.
+    if (!lookup?.match && !String(notes || "").trim()) {
+      addToast({ type: "error", message: "Notes are required when no match is found." });
       return;
     }
     setLoading(true);
@@ -31,9 +58,9 @@ export default function PoliceImpoundPage() {
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       setResult(data.result || null);
       if (data?.result?.state === "FOUND") {
-        addToast({ type: "success", message: "Match found. Owner notified and station case opened." });
+        addToast({ type: "success", message: "Message sent to the registered owner. Station case opened." });
       } else {
-        addToast({ type: "success", message: "Recorded. This will match when the owner registers later." });
+        addToast({ type: "success", message: "Found item recorded. It will match if the owner registers later." });
       }
     } catch (err) {
       addToast({ type: "error", message: err.message || "Failed" });
@@ -42,11 +69,19 @@ export default function PoliceImpoundPage() {
     }
   }
 
+  const match = lookup?.match || null;
+  const officerStation = String(lookup?.officer_station || "").trim();
+  const matchLabel = useMemo(() => {
+    if (!match) return "";
+    const mm = [match.make, match.model].map((x) => String(x || "").trim()).filter(Boolean).join(" ");
+    return mm || String(match.name || "").trim() || "Registered item";
+  }, [match]);
+
   return (
     <PageSectionCard
       maxWidthClass="max-w-4xl"
       title="Impound / register found item"
-      subtitle="Enter a serial number. If it matches a registered item, the owner is notified. If not, we record it for future matching."
+      subtitle="Check a serial number first. If it matches a registered item, you can notify the owner and open a station case. If not, fill in details to record a found-item report."
       icon={<Shield className="w-7 h-7 text-iregistrygreen shrink-0" />}
       actions={
         <Link
@@ -57,7 +92,7 @@ export default function PoliceImpoundPage() {
         </Link>
       }
     >
-      <form onSubmit={submit} className="p-4 sm:p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
           <label className="block">
             <div className="text-sm font-semibold text-gray-800">Serial number *</div>
@@ -72,36 +107,120 @@ export default function PoliceImpoundPage() {
             </div>
           </label>
 
-          <label className="block">
-            <div className="text-sm font-semibold text-gray-800">Notes (optional)</div>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Where/when found, evidence summary, etc."
-            />
-          </label>
-
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <RippleButton
-              type="submit"
+              type="button"
+              onClick={checkSerial}
               disabled={!canSubmit || loading}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
             >
               <ClipboardCheck size={18} />
-              {loading ? "Saving…" : "Check & record"}
+              {loading ? "Checking…" : "Check serial"}
             </RippleButton>
           </div>
         </div>
 
+        {lookup ? (
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Officer station</div>
+                <div className="text-sm text-gray-900 font-semibold">{officerStation || "—"}</div>
+              </div>
+              <div className="shrink-0 text-xs text-gray-500 font-mono">
+                Normalized: {String(lookup.serial_normalized || "—")}
+              </div>
+            </div>
+
+            {match ? (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-900 font-semibold">
+                  <CheckCircle2 size={18} className="text-emerald-700" />
+                  Match found in registry
+                </div>
+                <div className="text-sm text-gray-800">
+                  Item: <span className="font-semibold">{matchLabel}</span>
+                </div>
+                <div className="text-sm text-gray-800 font-mono">Serial: {String(serial || "").trim()}</div>
+                <div className="text-xs text-gray-700 flex items-start gap-2">
+                  <Info size={14} className="text-gray-500 mt-0.5 shrink-0" />
+                  <span>
+                    Submitting will notify the registered owner and open a police recovery case under{" "}
+                    <span className="font-semibold">{officerStation}</span>. This does not confirm ownership; the owner must still provide proof to the station.
+                  </span>
+                </div>
+
+                <label className="block pt-2">
+                  <div className="text-sm font-semibold text-gray-800">Notes (optional)</div>
+                  <textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Where/when found, evidence summary, etc."
+                  />
+                </label>
+
+                <div className="flex justify-end">
+                  <RippleButton
+                    type="button"
+                    onClick={submitFoundReport}
+                    disabled={loading}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 text-white font-semibold disabled:opacity-60"
+                  >
+                    <ClipboardCheck size={18} />
+                    {loading ? "Sending…" : "Notify owner & open case"}
+                  </RippleButton>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4 space-y-2">
+                <div className="text-amber-900 font-semibold">No match found</div>
+                <div className="text-sm text-gray-800">
+                  A report will be saved for future matching. Please include enough detail for follow-up.
+                </div>
+
+                <label className="block pt-2">
+                  <div className="text-sm font-semibold text-gray-800">Notes *</div>
+                  <textarea
+                    rows={4}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Describe where/when found, identifying marks, evidence summary, etc."
+                  />
+                </label>
+
+                <div className="flex justify-end">
+                  <RippleButton
+                    type="button"
+                    onClick={submitFoundReport}
+                    disabled={loading}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                  >
+                    <ClipboardCheck size={18} />
+                    {loading ? "Saving…" : "Submit report"}
+                  </RippleButton>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         {result ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-4">
-            <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Result</div>
+            <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Outcome</div>
             {result.state === "FOUND" ? (
               <div className="space-y-2">
                 <div className="text-sm text-gray-800">
-                  Match found: <span className="font-semibold">{result.item?.name || result.item?.id}</span>
+                  Message sent to registered owner for{" "}
+                  <span className="font-semibold">
+                    {result.item?.make || result.item?.model ? `${result.item?.make || ""} ${result.item?.model || ""}`.trim() : (result.item?.name || result.item?.id)}
+                  </span>
+                  .
+                </div>
+                <div className="text-sm text-gray-700">
+                  Station case opened under <span className="font-semibold">{officerStation || "your station"}</span>.
                 </div>
                 {result.item?.slug ? (
                   <Link className="text-sm text-emerald-800 hover:underline" to={`/items/${result.item.slug}`}>
@@ -112,15 +231,13 @@ export default function PoliceImpoundPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="text-sm text-gray-800">
-                  No match found. Recorded for future matching.
-                </div>
+                <div className="text-sm text-gray-800">No match found. Report saved for future matching.</div>
                 <div className="text-xs text-gray-500 font-mono">Report: {result.report?.id}</div>
               </div>
             )}
           </div>
         ) : null}
-      </form>
+      </div>
     </PageSectionCard>
   );
 }

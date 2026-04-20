@@ -8,6 +8,7 @@ import { respond } from "../shared/respond.ts";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { lookupActiveItemBySerialRaw } from "../shared/serialLookup.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -53,14 +54,11 @@ serve(async (req) => {
 
     const normalized = normalizeSerial(serial);
 
-    const { data: item } = await supabase
-      .from("items")
-      .select("id, ownerid")
-      .or(
-          `serial1_normalized.eq.${normalized},serial2_normalized.eq.${normalized}`
-        )
-      .is("deletedat", null)
-      .maybeSingle();
+    const { item } = await lookupActiveItemBySerialRaw(supabase, normalized, {
+      select: "id, ownerid",
+      includeDeleted: false,
+      includeLegacy: true,
+    });
 
     if (!item) {
       return respond(

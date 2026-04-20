@@ -4,9 +4,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { hashToken } from "../shared/crypto.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { lookupActiveItemBySerialRaw } from "../shared/serialLookup.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -75,21 +75,16 @@ serve(async (req) => {
 
     /* ===================== CHECK ===================== */
 
-    const { data, error } = await supabase
-      .from("items")
-      .select("id")
-      .or(
-        `serial1_normalized.eq.${cleanSerial},serial2_normalized.eq.${cleanSerial}`,
-      )
-      .is("deletedat", null)
-      .maybeSingle();
-
-    if (error) throw error;
+    const { item } = await lookupActiveItemBySerialRaw(supabase, cleanSerial, {
+      select: "id",
+      includeDeleted: false,
+      includeLegacy: true,
+    });
 
     return respond(
       {
         success: true,
-        exists: !!data,
+        exists: !!item,
       },
       corsHeaders,
       200

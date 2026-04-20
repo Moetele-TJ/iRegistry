@@ -10,6 +10,7 @@ import { slugify, generateUniqueSlug } from "../shared/slug.ts";
 import { getActiveOrgMembership, canOrgEditItem } from "../shared/orgAuth.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
+import { normalizeSerialList, lookupActiveItemBySerials } from "../shared/serialLookup.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -63,24 +64,15 @@ serve(async (req) => {
     }
 
     // Duplicate serial guard against any active item (personal or org-owned).
-    const { data: duplicate, error: duplicateError } = await supabase
-      .from("items")
-      .select("id")
-      .is("deletedat", null)
-      .or(
-        [
-          `serial1_normalized.eq.${serial1Normalized}`,
-          `serial2_normalized.eq.${serial1Normalized}`,
-          serial2Normalized ? `serial1_normalized.eq.${serial2Normalized}` : null,
-          serial2Normalized ? `serial2_normalized.eq.${serial2Normalized}` : null,
-        ]
-          .filter(Boolean)
-          .join(","),
-      )
-      .limit(1)
-      .maybeSingle();
-
-    if (duplicateError) {
+    let duplicate: any | null = null;
+    try {
+      const { item } = await lookupActiveItemBySerials(
+        supabase,
+        normalizeSerialList([serial1Normalized, serial2Normalized]),
+        { select: "id", includeDeleted: false, includeLegacy: true },
+      );
+      duplicate = item;
+    } catch {
       return respond({ success: false, message: "Could not verify duplicate serial" }, corsHeaders, 500);
     }
     if (duplicate) {

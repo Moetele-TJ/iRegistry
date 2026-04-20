@@ -794,6 +794,12 @@ import_map = "./functions/police-impound-item/deno.json"
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/police-impound-item/index.ts"
 
+[functions.police-lookup-serial]
+enabled = true
+verify_jwt = true
+import_map = "./functions/police-lookup-serial/deno.json"
+entrypoint = "./functions/police-lookup-serial/index.ts"
+
 [functions.notify-owner]
 enabled = true
 verify_jwt = false

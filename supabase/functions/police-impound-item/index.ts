@@ -9,6 +9,7 @@ import { roleIs } from "../shared/roles.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
 import { logActivity } from "../shared/logActivity.ts";
+import { lookupActiveItemBySerialRaw } from "../shared/serialLookup.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -43,15 +44,11 @@ serve(async (req) => {
     }
 
     // 1) Try to match an existing active item by normalized serial(s)
-    const { data: item, error: itemErr } = await supabase
-      .from("items")
-      .select("id, ownerid, slug, name, reportedstolenat, location")
-      .or(`serial1_normalized.eq.${serialNormalized},serial2_normalized.eq.${serialNormalized}`)
-      .is("deletedat", null)
-      .is("legacyat", null)
-      .limit(1)
-      .maybeSingle();
-    if (itemErr) throw itemErr;
+    const { item } = await lookupActiveItemBySerialRaw(supabase, serialNormalized, {
+      select: "id, ownerid, slug, name, make, model, serial1, serial2, station, location, reportedstolenat",
+      includeDeleted: false,
+      includeLegacy: false,
+    });
 
     // Always write a found report for audit/history.
     const { data: report, error: repErr } = await supabase
@@ -108,9 +105,31 @@ serve(async (req) => {
       .catch(() => null); // if unique index blocks, case already exists
 
     // 3) Notify owner (stored in item_notifications for the owner)
-    const msg =
-      `Police station ${station} recorded an impounded item matching your serial number. ` +
-      `Please contact the station to confirm ownership.`;
+    const itemMake = String((item as any)?.make || "").trim();
+    const itemModel = String((item as any)?.model || "").trim();
+    const label =
+      [itemMake, itemModel].filter(Boolean).join(" ") ||
+      String((item as any)?.name || "").trim() ||
+      "your item";
+    const serialShown = serialRaw;
+    const msg = [
+      "POLICE FOUND ITEM — ACTION REQUIRED",
+      "",
+      `A police officer has recorded a found / impounded item at: ${station}`,
+      "",
+      `Item: ${label}`,
+      `Serial: ${serialShown}`,
+      "",
+      "What this means:",
+      "- Police recovery channels will be followed.",
+      "- This message is NOT a confirmation of ownership.",
+      "- You must still provide the necessary proof of ownership to the police station.",
+      "",
+      "Next steps:",
+      `1) Contact ${station} as soon as possible with your proof of ownership.`,
+      "2) Bring any receipts, photos, original packaging, or other documentation that links you to the item.",
+      "3) The station will advise you on the recovery process and timelines.",
+    ].join("\n");
     await supabase.from("item_notifications").insert({
       itemid: item.id,
       ownerid: item.ownerid,
@@ -134,7 +153,15 @@ serve(async (req) => {
         success: true,
         result: {
           state: "FOUND",
-          item: { id: item.id, slug: item.slug, name: item.name, ownerid: item.ownerid },
+          item: {
+            id: item.id,
+            slug: item.slug,
+            name: item.name,
+            make: (item as any)?.make ?? null,
+            model: (item as any)?.model ?? null,
+            serial: serialRaw,
+            ownerid: item.ownerid,
+          },
           report,
         },
       },

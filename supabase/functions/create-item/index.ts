@@ -9,6 +9,7 @@ import { normalizeSerial } from "../shared/serial.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { slugify, generateUniqueSlug } from "../shared/slug.ts";
+import { normalizeSerialList, lookupActiveItemBySerials } from "../shared/serialLookup.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -157,28 +158,15 @@ serve(async (req) => {
       );
     }
 
-    const { data: duplicate, error: duplicateError } = await supabase
-      .from("items")
-      .select("id")
-      .is("deletedat", null)
-      .or(
-        [
-          `serial1_normalized.eq.${serial1Normalized}`,
-          `serial2_normalized.eq.${serial1Normalized}`,
-          serial2Normalized
-            ? `serial1_normalized.eq.${serial2Normalized}`
-            : null,
-          serial2Normalized
-            ? `serial2_normalized.eq.${serial2Normalized}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(",")
-      )
-      .limit(1)
-      .maybeSingle();
-
-    if (duplicateError) {
+    let duplicate: any | null = null;
+    try {
+      const { item } = await lookupActiveItemBySerials(
+        supabase,
+        normalizeSerialList([serial1Normalized, serial2Normalized]),
+        { select: "id", includeDeleted: false, includeLegacy: true },
+      );
+      duplicate = item;
+    } catch {
       return respond(
         {
           success: false,
@@ -408,14 +396,33 @@ serve(async (req) => {
           .maybeSingle()
           .catch(() => null);
 
-        // Notify owner of the match.
+        // Notify owner of the match (clear message).
+        const itemMake = String(make || "").trim();
+        const itemModel = String(model || "").trim();
+        const label = [itemMake, itemModel].filter(Boolean).join(" ") || name || "your item";
+        const msg = [
+          "POLICE FOUND ITEM — ACTION REQUIRED",
+          "",
+          `A police officer has recorded a found / impounded item at: ${rep.station}`,
+          "",
+          `Item: ${label}`,
+          `Serial: ${serial1}`,
+          "",
+          "What this means:",
+          "- Police recovery channels will be followed.",
+          "- This message is NOT a confirmation of ownership.",
+          "- You must still provide the necessary proof of ownership to the police station.",
+          "",
+          "Next steps:",
+          `1) Contact ${rep.station} as soon as possible with your proof of ownership.`,
+          "2) Bring any receipts, photos, original packaging, or other documentation that links you to the item.",
+          "3) The station will advise you on the recovery process and timelines.",
+        ].join("\n");
         await supabase.from("item_notifications").insert({
           itemid: data.id,
           ownerid: resolvedOwnerId,
           recipient_type: "owner",
-          message:
-            `A police station (${rep.station}) recorded an impounded item matching your serial number. ` +
-            `Please contact the station to confirm ownership.`,
+          message: msg,
           contact: rep.station,
         });
       }
