@@ -87,9 +87,10 @@ serve(async (req) => {
 
     const orgIdForMembership = orgRow?.id ? String(orgRow.id) : "";
 
-    const membership = staff
-      ? null
-      : await getActiveOrgMembership(supabase, { orgId: orgIdForMembership, userId: session.user_id });
+    /** Resolve org role even for admin/cashier so users who are also org admins see ORG_* (not only STAFF). */
+    const membership = orgIdForMembership
+      ? await getActiveOrgMembership(supabase, { orgId: orgIdForMembership, userId: session.user_id })
+      : null;
     if (!staff && !membership) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
 
     if (orgErr || !orgRow) {

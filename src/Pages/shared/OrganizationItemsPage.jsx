@@ -8,6 +8,8 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { supabase } from "../../lib/supabase.js";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import { isAppAdminRole, isAppStaffRole } from "../../lib/roleUtils.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -29,6 +31,7 @@ export default function OrganizationItemsPage() {
   } = useOrgRouteResolution();
   const { addToast } = useToast();
   const { confirm } = useModal();
+  const { user: appUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState(null);
@@ -77,7 +80,15 @@ export default function OrganizationItemsPage() {
     effectiveOrgRole === "ORG_MANAGER" ||
     effectiveOrgRole === "STAFF";
   const isOrgAdmin = effectiveOrgRole === "ORG_ADMIN";
-  const canCreate = effectiveOrgRole === "ORG_ADMIN" || effectiveOrgRole === "ORG_MANAGER";
+  /** Soft-delete removal: org owner admin or platform administrator only (not cashier). */
+  const canHardDeleteOrgItem = isOrgAdmin || isAppAdminRole(appUser?.role);
+  /** Restore deleted / legacy: org admin or registry staff (admin + cashier). */
+  const canRestoreOrgItem = isOrgAdmin || isAppStaffRole(appUser?.role);
+  /** ORG_* from membership; STAFF = platform admin/cashier acting on org (see get-org-wallet / org-create-item). */
+  const canCreate =
+    effectiveOrgRole === "ORG_ADMIN" ||
+    effectiveOrgRole === "ORG_MANAGER" ||
+    effectiveOrgRole === "STAFF";
 
   async function loadItems() {
     if (!orgId) {
@@ -1063,16 +1074,18 @@ export default function OrganizationItemsPage() {
                               </Link>
                             ) : null}
 
-                            {isOrgAdmin ? (
+                            {canRestoreOrgItem || canHardDeleteOrgItem ? (
                               i.deletedat ? (
-                                <RippleButton
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
-                                  disabled={bulkBusy}
-                                  onClick={() => void restoreItem(i.id, i.name)}
-                                >
-                                  Restore
-                                </RippleButton>
-                              ) : (
+                                canRestoreOrgItem ? (
+                                  <RippleButton
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
+                                    disabled={bulkBusy}
+                                    onClick={() => void restoreItem(i.id, i.name)}
+                                  >
+                                    Restore
+                                  </RippleButton>
+                                ) : null
+                              ) : canHardDeleteOrgItem ? (
                                 <RippleButton
                                   className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold hover:bg-red-50 disabled:opacity-60"
                                   disabled={bulkBusy}
@@ -1080,12 +1093,12 @@ export default function OrganizationItemsPage() {
                                 >
                                   Delete
                                 </RippleButton>
-                              )
+                              ) : null
                             ) : null}
 
                             {!i.deletedat ? (
                               i.legacyat ? (
-                                isOrgAdmin ? (
+                                canRestoreOrgItem ? (
                                   <RippleButton
                                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold hover:bg-gray-50 disabled:opacity-60"
                                     disabled={bulkBusy}

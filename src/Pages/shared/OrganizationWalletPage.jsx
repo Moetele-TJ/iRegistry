@@ -56,8 +56,10 @@ export default function OrganizationWalletPage() {
   const [paymentsTotal, setPaymentsTotal] = useState(null);
   const [paymentsPage, setPaymentsPage] = useState(0);
 
-  const isPrivileged = role === "ORG_ADMIN" || role === "ORG_MANAGER";
-  const isOrgAdmin = role === "ORG_ADMIN";
+  const isPrivileged =
+    role === "ORG_ADMIN" || role === "ORG_MANAGER" || role === "STAFF";
+  /** Matches update-organization: ORG_ADMIN members or platform admin/cashier. */
+  const canEditOrgProfile = role === "ORG_ADMIN" || role === "STAFF";
 
   const loadWallet = useCallback(async () => {
     if (!orgId) {
@@ -199,7 +201,7 @@ export default function OrganizationWalletPage() {
       icon={<Wallet className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          {isOrgAdmin && organization ? (
+          {canEditOrgProfile && organization ? (
             <RippleButton
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-semibold shadow-sm hover:bg-emerald-100/80"
               type="button"

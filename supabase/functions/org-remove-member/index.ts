@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, orgRoleIs } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
 
 const supabase = createClient(
@@ -37,8 +38,9 @@ serve(async (req) => {
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
     if (!userId) return respond({ success: false, message: "user_id is required" }, corsHeaders, 400);
 
+    const staff = isPrivilegedRole(session.role);
     const actorMembership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!actorMembership || !orgRoleIs(actorMembership.role, "ORG_ADMIN")) {
+    if (!staff && (!actorMembership || !orgRoleIs(actorMembership.role, "ORG_ADMIN"))) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

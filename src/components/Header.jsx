@@ -241,6 +241,58 @@ export default function Header() {
               Profile
             </NavLink>
 
+            {roleIs(role, "admin") ? (
+              <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-500 border-l border-gray-200 pl-4 ml-1">
+                <span className="uppercase tracking-wide text-gray-400">Workspaces</span>
+                <NavLink
+                  to="/user"
+                  className={({ isActive }) =>
+                    isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
+                  }
+                >
+                  User
+                </NavLink>
+                <NavLink
+                  to="/cashier"
+                  className={({ isActive }) =>
+                    isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
+                  }
+                >
+                  Cashier
+                </NavLink>
+                <NavLink
+                  to="/police"
+                  className={({ isActive }) =>
+                    isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
+                  }
+                >
+                  Police
+                </NavLink>
+              </span>
+            ) : null}
+
+            {roleIs(role, "cashier") ? (
+              <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-500 border-l border-gray-200 pl-4 ml-1">
+                <span className="uppercase tracking-wide text-gray-400">Workspaces</span>
+                <NavLink
+                  to="/user"
+                  className={({ isActive }) =>
+                    isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
+                  }
+                >
+                  User
+                </NavLink>
+                <NavLink
+                  to="/police"
+                  className={({ isActive }) =>
+                    isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
+                  }
+                >
+                  Police
+                </NavLink>
+              </span>
+            ) : null}
+
             <button
               type="button"
               onClick={() => setShowLogoutConfirm(true)}

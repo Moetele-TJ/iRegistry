@@ -9,6 +9,7 @@ import {
   canOrgAssign,
   getActiveOrgMembership,
 } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
 
 const supabase = createClient(
@@ -57,8 +58,10 @@ serve(async (req) => {
     if (itemIds.length === 0) return respond({ success: false, message: "item_ids is required" }, corsHeaders, 400);
     if (itemIds.length > 200) return respond({ success: false, message: "Too many items (max 200)" }, corsHeaders, 400);
 
+    const staff = isPrivilegedRole(session.role);
     const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership || !canOrgAssign(membership.role)) {
+    const allowed = staff || (!!membership && canOrgAssign(membership.role));
+    if (!allowed) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

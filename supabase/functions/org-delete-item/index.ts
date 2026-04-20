@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, canOrgDeleteItem } from "../shared/orgAuth.ts";
+import { roleIs } from "../shared/roles.ts";
 import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
 
 const supabase = createClient(
@@ -38,7 +39,9 @@ serve(async (req) => {
     if (!itemId) return respond({ success: false, message: "item_id is required" }, corsHeaders, 400);
 
     const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership || !canOrgDeleteItem(membership.role)) {
+    const asOrgAdmin = !!membership && canOrgDeleteItem(membership.role);
+    const asAppAdmin = roleIs(session.role, "admin");
+    if (!asOrgAdmin && !asAppAdmin) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

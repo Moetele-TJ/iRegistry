@@ -33,14 +33,13 @@ serve(async (req) => {
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
 
     const staff = isPrivilegedRole(session.role);
-    const membership = staff
-      ? null
-      : await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
+    const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
     if (!staff && (!membership || !isOrgPrivileged(membership.role))) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
-    const actorRole = membership?.role ?? "ORG_ADMIN";
-    const canInvite = staff || orgRoleIs(actorRole, "ORG_ADMIN");
+    const actorRole = membership?.role ?? (staff ? "STAFF" : null);
+    const canInvite = staff || orgRoleIs(membership?.role, "ORG_ADMIN");
+    const canManageMembers = staff || orgRoleIs(membership?.role, "ORG_ADMIN");
 
     let q = supabase
       .from("org_members")
@@ -96,7 +95,11 @@ serve(async (req) => {
       };
     });
 
-    return respond({ success: true, members, actor_role: actorRole, can_invite: canInvite }, corsHeaders, 200);
+    return respond(
+      { success: true, members, actor_role: actorRole, can_invite: canInvite, can_manage_members: canManageMembers },
+      corsHeaders,
+      200,
+    );
   } catch (err: any) {
     console.error("list-org-members crash:", err);
     return respond({ success: false, message: err?.message || "Unexpected server error" }, corsHeaders, 500);

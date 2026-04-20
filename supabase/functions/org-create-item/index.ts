@@ -8,6 +8,7 @@ import { validateSession } from "../shared/validateSession.ts";
 import { normalizeSerial } from "../shared/serial.ts";
 import { slugify, generateUniqueSlug } from "../shared/slug.ts";
 import { getActiveOrgMembership, canOrgEditItem } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
 
 const supabase = createClient(
@@ -30,8 +31,10 @@ serve(async (req) => {
     const orgId = typeof body?.org_id === "string" ? body.org_id.trim() : "";
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
 
+    const staff = isPrivilegedRole(session.role);
     const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership || !canOrgEditItem(membership.role)) {
+    const allowedByMembership = !!membership && canOrgEditItem(membership.role);
+    if (!allowedByMembership && !staff) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

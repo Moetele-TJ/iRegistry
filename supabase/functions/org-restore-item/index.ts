@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { getActiveOrgMembership, canOrgRestoreLegacy } from "../shared/orgAuth.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 import { logOrgItemActivity } from "../shared/logOrgItemActivity.ts";
 
 const supabase = createClient(
@@ -36,8 +37,9 @@ serve(async (req) => {
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
     if (!itemId) return respond({ success: false, message: "item_id is required" }, corsHeaders, 400);
 
+    const staff = isPrivilegedRole(session.role);
     const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
-    if (!membership || !canOrgRestoreLegacy(membership.role)) {
+    if (!staff && (!membership || !canOrgRestoreLegacy(membership.role))) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
 

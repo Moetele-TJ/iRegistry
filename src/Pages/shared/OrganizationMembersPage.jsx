@@ -19,6 +19,11 @@ function compact(v) {
   return s || "—";
 }
 
+function actorRoleFallbackCanManage(role) {
+  const u = String(role || "").toUpperCase();
+  return u === "ORG_ADMIN" || u === "STAFF";
+}
+
 export default function OrganizationMembersPage() {
   const { orgKey, orgId } = useOrgRouteResolution();
   const { addToast } = useToast();
@@ -26,6 +31,7 @@ export default function OrganizationMembersPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actorRole, setActorRole] = useState(null);
+  const [canManageMembers, setCanManageMembers] = useState(false);
   const [members, setMembers] = useState([]);
   const [error, setError] = useState(null);
 
@@ -33,7 +39,6 @@ export default function OrganizationMembersPage() {
   const [inviteRole, setInviteRole] = useState("ORG_MEMBER");
   const [includeInvited, setIncludeInvited] = useState(true);
 
-  const isOrgAdmin = actorRole === "ORG_ADMIN";
   const rows = useMemo(() => members || [], [members]);
 
   async function load() {
@@ -50,10 +55,16 @@ export default function OrganizationMembersPage() {
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load members");
       setMembers(Array.isArray(data.members) ? data.members : []);
       setActorRole(data.actor_role || null);
+      setCanManageMembers(
+        data.can_manage_members === true ||
+          data.can_invite === true ||
+          actorRoleFallbackCanManage(data.actor_role),
+      );
     } catch (e) {
       setError(e.message || "Failed to load members");
       setMembers([]);
       setActorRole(null);
+      setCanManageMembers(false);
     } finally {
       setLoading(false);
     }
@@ -175,7 +186,7 @@ export default function OrganizationMembersPage() {
             </div>
           </div>
 
-          {isOrgAdmin ? (
+          {canManageMembers ? (
             <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
               <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
                 <div className="flex-1">
@@ -219,7 +230,7 @@ export default function OrganizationMembersPage() {
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 text-sm text-gray-700">
-              Only organization administrators can invite users or change roles.
+              Invitations and role changes are limited to organization administrators and registry staff.
             </div>
           )}
         </div>
@@ -273,7 +284,7 @@ export default function OrganizationMembersPage() {
                     <td className="px-4 py-3">
                       <select
                         value={m.role}
-                        disabled={saving || !isOrgAdmin}
+                        disabled={saving || !canManageMembers}
                         onChange={(e) => void changeRole(m.user_id, e.target.value)}
                         className="border rounded-xl px-3 py-2 text-sm bg-white disabled:opacity-60"
                       >
@@ -285,7 +296,7 @@ export default function OrganizationMembersPage() {
                     <td className="px-4 py-3 text-right">
                       <RippleButton
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-white text-xs font-semibold disabled:opacity-60"
-                        disabled={saving || !isOrgAdmin}
+                        disabled={saving || !canManageMembers}
                         onClick={() => void removeMember(m.user_id)}
                         title="Remove member"
                       >

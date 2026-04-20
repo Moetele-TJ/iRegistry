@@ -135,7 +135,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/user"
                     element={
-                      <ProtectedRoute allowedRoles={["user", "admin", "police"]}>
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
                         <UserLayout />
                       </ProtectedRoute>
                     }
@@ -208,7 +208,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/police"
                     element={
-                      <ProtectedRoute allowedRoles={["police", "admin"]}>
+                      <ProtectedRoute allowedRoles={["police", "admin", "cashier"]}>
                         <PoliceLayout />
                       </ProtectedRoute>
                     }
@@ -228,7 +228,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route
                     path="/cashier"
                     element={
-                      <ProtectedRoute allowedRoles={["cashier"]}>
+                      <ProtectedRoute allowedRoles={["cashier", "admin"]}>
                         <CashierLayout />
                       </ProtectedRoute>
                     }

@@ -30,9 +30,7 @@ serve(async (req) => {
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
 
     const staff = isPrivilegedRole(session.role);
-    const membership = staff
-      ? null
-      : await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
+    const membership = await getActiveOrgMembership(supabase, { orgId, userId: session.user_id });
     if (!staff && !membership) return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
 
     if (!staff && !isOrgPrivileged(membership?.role)) {

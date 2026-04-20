@@ -5,7 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
+import { roleIs } from "../shared/roles.ts";
 import { logAudit } from "../shared/logAudit.ts";
 
 const supabase = createClient(
@@ -21,7 +21,8 @@ serve(async (req) => {
     const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     const session = await validateSession(supabase, auth);
     if (!session) return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-    if (!isPrivilegedRole(session.role)) {
+    /** Only platform administrators may delete organizations (not cashiers). */
+    if (!roleIs(session.role, "admin")) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
     if (req.method !== "POST") {
