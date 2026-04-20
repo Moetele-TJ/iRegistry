@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Coins, RefreshCw, List } from "lucide-react";
+import { Building2, CalendarDays, Coins, List, RefreshCw, User } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -285,7 +285,14 @@ export default function CashierRevenuePage() {
                   <div key={p.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-900 truncate">{name}</div>
+                        <div className="text-sm font-semibold text-gray-900 truncate flex items-center gap-2">
+                          {isOrg ? (
+                            <Building2 size={16} className="text-gray-400 shrink-0" aria-label="Organization payment" />
+                          ) : (
+                            <User size={16} className="text-gray-400 shrink-0" aria-label="Individual payment" />
+                          )}
+                          <span className="truncate">{name}</span>
+                        </div>
                         {p.users ? (
                           <div className="text-xs text-gray-500 truncate">
                             {p.users.email || p.users.phone || p.users.id_number || ""}
@@ -342,14 +349,21 @@ export default function CashierRevenuePage() {
                         {p.confirmed_at ? new Date(p.confirmed_at).toLocaleString() : "—"}
                       </td>
                       <td className="px-4 py-3 text-gray-800">
-                        <div className="font-medium">
-                          {String(p.wallet || "") === "org"
-                            ? (p.organization?.name ? `Org: ${p.organization.name}` : `Org: ${p.org_id || "—"}`)
+                        <div className="font-medium flex items-center gap-2">
+                          {String(p.wallet || "") === "org" ? (
+                            <Building2 size={16} className="text-gray-400 shrink-0" aria-label="Organization payment" />
+                          ) : (
+                            <User size={16} className="text-gray-400 shrink-0" aria-label="Individual payment" />
+                          )}
+                          <span className="min-w-0 truncate">
+                            {String(p.wallet || "") === "org"
+                              ? (p.organization?.name ? `Org: ${p.organization.name}` : `Org: ${p.org_id || "—"}`)
                             : p.users
                               ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
                                 p.users.email ||
                                 p.user_id
                               : (p.user_id || "—")}
+                          </span>
                         </div>
                         {p.users ? (
                           <div className="text-xs text-gray-500 truncate">
