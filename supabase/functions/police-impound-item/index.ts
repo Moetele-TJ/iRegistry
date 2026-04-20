@@ -31,12 +31,20 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const serialRaw = typeof body?.serial === "string" ? body.serial.trim() : "";
+    const serial2Raw = typeof body?.serial2 === "string" ? body.serial2.trim() : "";
     const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
+    const category = typeof body?.category === "string" ? body.category.trim() : "";
+    const make = typeof body?.make === "string" ? body.make.trim() : "";
+    const model = typeof body?.model === "string" ? body.model.trim() : "";
 
     if (!serialRaw) return respond({ success: false, message: "Serial is required." }, corsHeaders, 400);
 
     const serialNormalized = normalizeSerial(serialRaw);
     if (!serialNormalized) return respond({ success: false, message: "Invalid serial format." }, corsHeaders, 400);
+    const serial2Normalized = serial2Raw ? normalizeSerial(serial2Raw) : "";
+    if (serial2Raw && !serial2Normalized) {
+      return respond({ success: false, message: "Invalid secondary serial format." }, corsHeaders, 400);
+    }
 
     const station = String(await getPoliceStation(supabase, session.user_id) || "").trim();
     if (!station) {
@@ -50,15 +58,28 @@ serve(async (req) => {
       includeLegacy: false,
     });
 
+    if (!item && (!category || !make || !model)) {
+      return respond(
+        { success: false, message: "Category, make, and model are required when no match is found." },
+        corsHeaders,
+        400,
+      );
+    }
+
     // Always write a found report for audit/history.
     const { data: report, error: repErr } = await supabase
       .from("found_item_reports")
       .insert({
         serial_normalized: serialNormalized,
         serial_raw: serialRaw,
+        serial2_normalized: serial2Normalized || null,
+        serial2_raw: serial2Raw || null,
         station,
         officer_user_id: session.user_id,
         notes: notes || null,
+        category: category || null,
+        make: make || null,
+        model: model || null,
         status: item ? "MATCHED" : "OPEN",
         matched_item_id: item?.id ?? null,
         matched_owner_id: item?.ownerid ?? null,
@@ -76,7 +97,7 @@ serve(async (req) => {
         entityId: report.id,
         action: "impound_recorded",
         message: `Impounded item recorded at ${station} (no match yet)`,
-        metadata: { serial: serialNormalized, station },
+        metadata: { serial: serialNormalized, station, category, make, model },
       });
       return respond(
         {

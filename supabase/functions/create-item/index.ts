@@ -358,11 +358,22 @@ serve(async (req) => {
     // Auto-match: if police previously recorded a found/impounded serial, link it and open a station case.
     const serialsToMatch = [serial1Normalized, serial2Normalized].filter(Boolean);
     if (serialsToMatch.length > 0) {
+      const inList = serialsToMatch
+        .map((s) => `"${String(s).replace(/"/g, '\\"')}"`)
+        .join(",");
+
       const { data: reports } = await supabase
         .from("found_item_reports")
         .select("id, station")
-        .in("serial_normalized", serialsToMatch as string[])
         .eq("status", "OPEN")
+        .or(
+          [
+            inList ? `serial_normalized.in.(${inList})` : null,
+            inList ? `serial2_normalized.in.(${inList})` : null,
+          ]
+            .filter(Boolean)
+            .join(","),
+        )
         .order("created_at", { ascending: false })
         .limit(1);
 

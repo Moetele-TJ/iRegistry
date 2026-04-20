@@ -9,6 +9,10 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 export default function PoliceImpoundPage() {
   const { addToast } = useToast();
   const [serial, setSerial] = useState("");
+  const [serial2, setSerial2] = useState("");
+  const [category, setCategory] = useState("");
+  const [make, setMake] = useState("");
+  const [model, setModel] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [lookup, setLookup] = useState(null);
@@ -26,6 +30,11 @@ export default function PoliceImpoundPage() {
     setLoading(true);
     setResult(null);
     setLookup(null);
+    setSerial2("");
+    setCategory("");
+    setMake("");
+    setModel("");
+    setNotes("");
     try {
       const { data, error } = await invokeWithAuth("police-lookup-serial", { body: { serial: s } });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
@@ -49,11 +58,24 @@ export default function PoliceImpoundPage() {
       addToast({ type: "error", message: "Notes are required when no match is found." });
       return;
     }
+    if (!lookup?.match) {
+      if (!String(category || "").trim() || !String(make || "").trim() || !String(model || "").trim()) {
+        addToast({ type: "error", message: "Category, make, and model are required when no match is found." });
+        return;
+      }
+    }
     setLoading(true);
     setResult(null);
     try {
       const { data, error } = await invokeWithAuth("police-impound-item", {
-        body: { serial: s, notes: String(notes || "").trim() || null },
+        body: {
+          serial: s,
+          serial2: String(serial2 || "").trim() || null,
+          notes: String(notes || "").trim() || null,
+          category: String(category || "").trim() || null,
+          make: String(make || "").trim() || null,
+          model: String(model || "").trim() || null,
+        },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
       setResult(data.result || null);
@@ -179,6 +201,46 @@ export default function PoliceImpoundPage() {
                 <div className="text-sm text-gray-800">
                   A report will be saved for future matching. Please include enough detail for follow-up.
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <label className="block">
+                    <div className="text-sm font-semibold text-gray-800">Category *</div>
+                    <input
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                      placeholder="e.g. Electronics"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="text-sm font-semibold text-gray-800">Make *</div>
+                    <input
+                      value={make}
+                      onChange={(e) => setMake(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                      placeholder="e.g. Samsung"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="text-sm font-semibold text-gray-800">Model *</div>
+                    <input
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                      placeholder="e.g. A52"
+                    />
+                  </label>
+                </div>
+
+                <label className="block pt-2">
+                  <div className="text-sm font-semibold text-gray-800">Serial #2 (optional)</div>
+                  <input
+                    value={serial2}
+                    onChange={(e) => setSerial2(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-mono"
+                    placeholder="Secondary serial, if present"
+                  />
+                </label>
 
                 <label className="block pt-2">
                   <div className="text-sm font-semibold text-gray-800">Notes *</div>
