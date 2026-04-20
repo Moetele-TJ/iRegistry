@@ -102,7 +102,7 @@ export default function AdminRevenuePage() {
           cashier_user_id: channel === "ONLINE" ? null : (cashierId || null),
           channels: channel === "BOTH" ? ["CASHIER", "ONLINE"] : [channel],
           include_transactions: showTransactions,
-          limit: 500,
+            limit: 5000,
         },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load report");
@@ -384,11 +384,15 @@ export default function AdminRevenuePage() {
               {/* Mobile cards */}
               <div className="md:hidden space-y-3 -mx-1">
                 {tx.map((p) => {
-                  const name = p.users
-                    ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
-                      p.users.email ||
-                      p.user_id
-                    : (p.user_id || "—");
+                  const isOrg = String(p.wallet || "") === "org";
+                  const orgLabel = p.organization?.name ? `Org: ${p.organization.name}` : `Org: ${p.org_id || "—"}`;
+                  const name = isOrg
+                    ? orgLabel
+                    : p.users
+                      ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                        p.users.email ||
+                        p.user_id
+                      : (p.user_id || "—");
                   const ref = p.channel === "CASHIER"
                     ? (p.receipt_no || "—")
                     : (p.provider_reference || p.provider || "—");
@@ -397,11 +401,15 @@ export default function AdminRevenuePage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-gray-900 truncate">{name}</div>
-                          {p.users ? (
+                        {p.users ? (
                             <div className="text-xs text-gray-500 truncate">
                               {p.users.email || p.users.phone || p.users.id_number || ""}
                             </div>
-                          ) : null}
+                        ) : isOrg && p.organization ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.organization.slug ? `@${p.organization.slug}` : (p.organization.id || p.org_id || "")}
+                          </div>
+                        ) : null}
                         </div>
                         <div className="text-right shrink-0">
                           <div className="text-sm font-semibold text-gray-900 tabular-nums">
@@ -455,17 +463,23 @@ export default function AdminRevenuePage() {
                         </td>
                         <td className="px-4 py-3 text-gray-800">
                           <div className="font-medium">
-                            {p.users
+                          {String(p.wallet || "") === "org"
+                            ? (p.organization?.name ? `Org: ${p.organization.name}` : `Org: ${p.org_id || "—"}`)
+                            : p.users
                               ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
                                 p.users.email ||
                                 p.user_id
                               : (p.user_id || "—")}
                           </div>
-                          {p.users ? (
+                        {p.users ? (
                             <div className="text-xs text-gray-500 truncate">
                               {p.users.email || p.users.phone || p.users.id_number || ""}
                             </div>
-                          ) : null}
+                        ) : String(p.wallet || "") === "org" && p.organization ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.organization.slug ? `@${p.organization.slug}` : (p.organization.id || p.org_id || "")}
+                          </div>
+                        ) : null}
                         </td>
                         <td className="px-4 py-3 text-gray-700">{p.channel}</td>
                         <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatMoneyAmount(p.currency, p.amount)}</td>

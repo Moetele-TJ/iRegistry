@@ -73,7 +73,7 @@ export default function CashierRevenuePage() {
     setLoading(true);
     try {
       const { data, error } = await invokeWithAuth("revenue-report", {
-        body: { from, to, channels: ["CASHIER"], include_transactions: true, limit: 500 },
+        body: { from, to, channels: ["CASHIER"], include_transactions: true, limit: 5000 },
       });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load report");
       setReport(data);
@@ -273,11 +273,13 @@ export default function CashierRevenuePage() {
             {/* Mobile cards */}
             <div className="md:hidden space-y-3">
               {tx.map((p) => {
+                const isOrg = String(p.wallet || "") === "org";
+                const orgLabel = p.organization?.name ? `Org: ${p.organization.name}` : `Org: ${p.org_id || "—"}`;
                 const name = p.users
                   ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
                     p.users.email ||
                     p.user_id
-                  : (p.user_id || "—");
+                  : (isOrg ? orgLabel : (p.user_id || "—"));
 
                 return (
                   <div key={p.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -287,6 +289,10 @@ export default function CashierRevenuePage() {
                         {p.users ? (
                           <div className="text-xs text-gray-500 truncate">
                             {p.users.email || p.users.phone || p.users.id_number || ""}
+                          </div>
+                        ) : isOrg && p.organization ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.organization.slug ? `@${p.organization.slug}` : (p.organization.id || p.org_id || "")}
                           </div>
                         ) : null}
                       </div>
@@ -337,15 +343,21 @@ export default function CashierRevenuePage() {
                       </td>
                       <td className="px-4 py-3 text-gray-800">
                         <div className="font-medium">
-                          {p.users
-                            ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
-                              p.users.email ||
-                              p.user_id
-                            : (p.user_id || "—")}
+                          {String(p.wallet || "") === "org"
+                            ? (p.organization?.name ? `Org: ${p.organization.name}` : `Org: ${p.org_id || "—"}`)
+                            : p.users
+                              ? `${String(p.users.first_name || "").trim()} ${String(p.users.last_name || "").trim()}`.trim() ||
+                                p.users.email ||
+                                p.user_id
+                              : (p.user_id || "—")}
                         </div>
                         {p.users ? (
                           <div className="text-xs text-gray-500 truncate">
                             {p.users.email || p.users.phone || p.users.id_number || ""}
+                          </div>
+                        ) : String(p.wallet || "") === "org" && p.organization ? (
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.organization.slug ? `@${p.organization.slug}` : (p.organization.id || p.org_id || "")}
                           </div>
                         ) : null}
                       </td>

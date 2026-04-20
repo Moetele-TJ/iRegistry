@@ -12,6 +12,11 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+type UnifiedPayment = Record<string, unknown> & {
+  wallet?: "user" | "org";
+  organization?: { id?: string; name?: string; slug?: string | null } | null;
+};
+
 function parseDateOnly(s: unknown) {
   const raw = String(s || "").trim();
   if (!raw) return null;
@@ -19,6 +24,77 @@ function parseDateOnly(s: unknown) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
   const d = new Date(`${raw}T00:00:00.000Z`);
   return Number.isFinite(d.getTime()) ? d : null;
+}
+
+const USER_SELECT = `
+        id,
+        user_id,
+        channel,
+        status,
+        currency,
+        amount,
+        credits_granted,
+        receipt_no,
+        provider,
+        provider_reference,
+        cashier_user_id,
+        confirmed_at,
+        created_at,
+        reversed_at,
+        reversed_by,
+        reversed_reason,
+        metadata,
+        users!payments_user_id_fkey(first_name,last_name,email,id_number,phone)
+      `;
+
+const ORG_SELECT = `
+        id,
+        org_id,
+        channel,
+        status,
+        currency,
+        amount,
+        credits_granted,
+        receipt_no,
+        provider,
+        provider_reference,
+        cashier_user_id,
+        confirmed_at,
+        created_at,
+        reversed_at,
+        reversed_by,
+        reversed_reason,
+        metadata,
+        orgs:org_id (id, name, slug)
+      `;
+
+function mapUserRow(p: Record<string, unknown>): UnifiedPayment {
+  return {
+    ...p,
+    wallet: "user",
+    organization: null,
+  };
+}
+
+function mapOrgRow(p: Record<string, unknown>): UnifiedPayment {
+  const org = p.orgs as { id?: string; name?: string; slug?: string | null } | null;
+  const { orgs: _drop, ...rest } = p;
+  return {
+    ...rest,
+    wallet: "org",
+    user_id: null,
+    users: null,
+    organization: org
+      ? { id: org.id, name: org.name, slug: org.slug ?? null }
+      : { id: p.org_id as string, name: "—", slug: null },
+  };
+}
+
+function byConfirmedAtDesc(a: UnifiedPayment, b: UnifiedPayment) {
+  const ta = a.confirmed_at ? new Date(String(a.confirmed_at)).getTime() : 0;
+  const tb = b.confirmed_at ? new Date(String(b.confirmed_at)).getTime() : 0;
+  if (tb !== ta) return tb - ta;
+  return String(b.id || "").localeCompare(String(a.id || ""));
 }
 
 serve(async (req) => {
@@ -71,62 +147,78 @@ serve(async (req) => {
       cashierId = cashier_user_id.trim();
     }
 
-    let q = supabase
+    const wantsCashier = finalChannels.includes("CASHIER");
+    const wantsOnline = finalChannels.includes("ONLINE");
+
+    const maxLimit = Math.min(Number(limit) || 200, 5000);
+
+    let userQ = supabase
       .from("payments")
-      .select(
-        `
-        id,
-        user_id,
-        channel,
-        status,
-        currency,
-        amount,
-        credits_granted,
-        receipt_no,
-        provider,
-        provider_reference,
-        cashier_user_id,
-        confirmed_at,
-        created_at,
-        users!payments_user_id_fkey(first_name,last_name,email,id_number,phone)
-      `,
-        { count: "exact" },
-      )
+      .select(USER_SELECT, { count: "exact" })
       .eq("status", "CONFIRMED")
       .is("reversed_at", null)
       .gte("confirmed_at", start.toISOString())
       .lt("confirmed_at", end.toISOString());
 
-    const wantsCashier = finalChannels.includes("CASHIER");
-    const wantsOnline = finalChannels.includes("ONLINE");
+    let orgQ = supabase
+      .from("org_payments")
+      .select(ORG_SELECT, { count: "exact" })
+      .eq("status", "CONFIRMED")
+      .is("reversed_at", null)
+      .gte("confirmed_at", start.toISOString())
+      .lt("confirmed_at", end.toISOString());
 
     if (wantsCashier && wantsOnline) {
       // When including ONLINE + CASHIER together, cashier filtering should only affect CASHIER rows.
       // (ONLINE payments don't have a cashier_user_id.)
       if (cashierId) {
-        q = q.or(`channel.eq.ONLINE,and(channel.eq.CASHIER,cashier_user_id.eq.${cashierId})`);
+        const orExpr = `channel.eq.ONLINE,and(channel.eq.CASHIER,cashier_user_id.eq.${cashierId})`;
+        userQ = userQ.or(orExpr);
+        orgQ = orgQ.or(orExpr);
       } else {
-        q = q.in("channel", ["ONLINE", "CASHIER"]);
+        userQ = userQ.in("channel", ["ONLINE", "CASHIER"]);
+        orgQ = orgQ.in("channel", ["ONLINE", "CASHIER"]);
       }
     } else if (finalChannels.length === 1) {
-      q = q.eq("channel", finalChannels[0]);
-      if (cashierId && finalChannels[0] === "CASHIER") q = q.eq("cashier_user_id", cashierId);
+      userQ = userQ.eq("channel", finalChannels[0]);
+      orgQ = orgQ.eq("channel", finalChannels[0]);
+      if (cashierId && finalChannels[0] === "CASHIER") {
+        userQ = userQ.eq("cashier_user_id", cashierId);
+        orgQ = orgQ.eq("cashier_user_id", cashierId);
+      }
     } else {
       // Defensive fallback (shouldn't happen due to validation above)
-      q = q.in("channel", finalChannels);
-      if (cashierId && wantsCashier && !wantsOnline) q = q.eq("cashier_user_id", cashierId);
+      userQ = userQ.in("channel", finalChannels);
+      orgQ = orgQ.in("channel", finalChannels);
+      if (cashierId && wantsCashier && !wantsOnline) {
+        userQ = userQ.eq("cashier_user_id", cashierId);
+        orgQ = orgQ.eq("cashier_user_id", cashierId);
+      }
     }
 
-    q = q.order("confirmed_at", { ascending: false }).limit(Math.min(Number(limit) || 200, 5000));
+    userQ = userQ.order("confirmed_at", { ascending: false }).limit(maxLimit);
+    orgQ = orgQ.order("confirmed_at", { ascending: false }).limit(maxLimit);
 
-    const { data, error, count } = await q;
-    if (error) return respond({ success: false, message: error.message || "Failed to compute report" }, corsHeaders, 500);
+    const [userRes, orgRes] = await Promise.all([userQ, orgQ]);
+    if (userRes.error || orgRes.error) {
+      const msg = userRes.error?.message || orgRes.error?.message || "Failed to compute report";
+      return respond({ success: false, message: msg }, corsHeaders, 500);
+    }
+
+    const unified: UnifiedPayment[] = [
+      ...(((userRes.data || []) as Record<string, unknown>[]).map(mapUserRow)),
+      ...(((orgRes.data || []) as Record<string, unknown>[]).map(mapOrgRow)),
+    ].sort(byConfirmedAtDesc);
+
+    // Keep response size under control and consistent with prior behavior.
+    const transactions = unified.slice(0, maxLimit);
+    const totalCount = (userRes.count ?? 0) + (orgRes.count ?? 0);
 
     // aggregate in code (small volume; can move to SQL later)
     const byCurrency: Record<string, { amount: number; count: number }> = {};
     const byChannel: Record<string, { amount: number; count: number }> = {};
     const byChannelCurrency: Record<string, Record<string, { amount: number; count: number }>> = {};
-    for (const row of data || []) {
+    for (const row of transactions || []) {
       const ch = String((row as any).channel || "").toUpperCase() || "—";
       const cur = String((row as any).currency || "BWP").toUpperCase();
       const amt = Number((row as any).amount ?? 0);
@@ -155,12 +247,12 @@ serve(async (req) => {
           channels: finalChannels,
         },
         totals: {
-          count: count ?? (data || []).length,
+          count: totalCount,
           by_currency: byCurrency,
           by_channel: byChannel,
           by_channel_currency: byChannelCurrency,
         },
-        transactions: include_transactions ? (data || []) : undefined,
+        transactions: include_transactions ? transactions : undefined,
       },
       corsHeaders,
       200,
