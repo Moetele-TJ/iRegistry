@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../shared/cors.ts";
@@ -27,7 +26,7 @@ function uniqSorted(list: string[]) {
   return [...by.values()].sort((a, b) => a.localeCompare(b));
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -96,7 +95,10 @@ serve(async (req) => {
         categories,
         makes,
         models,
-        scope: { category: category || null, make: make || null },
+        scope: {
+          category: category || null,
+          make: make || null,
+        },
       },
       corsHeaders,
       200,

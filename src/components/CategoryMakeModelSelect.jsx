@@ -3,14 +3,19 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 
 async function fetchTaxonomy({ category, make, limit = 5000, signal }) {
-  const res = await invokeWithAuth("list-item-taxonomy", {
-    body: { category: category || "", make: make || "", limit },
+  const { data, error } = await invokeWithAuth("list-item-taxonomy", {
+    body: {
+      category: category || "",
+      make: make || "",
+      limit,
+    },
     signal,
   });
+  if (error) throw error;
   return {
-    categories: Array.isArray(res?.categories) ? res.categories : [],
-    makes: Array.isArray(res?.makes) ? res.makes : [],
-    models: Array.isArray(res?.models) ? res.models : [],
+    categories: Array.isArray(data?.categories) ? data.categories : [],
+    makes: Array.isArray(data?.makes) ? data.makes : [],
+    models: Array.isArray(data?.models) ? data.models : [],
   };
 }
 
@@ -51,7 +56,11 @@ export default function CategoryMakeModelSelect({
     let alive = true;
     setLoading(true);
 
-    fetchTaxonomy({ category: "", make: "", signal: ac.signal })
+    fetchTaxonomy({
+      category: "",
+      make: "",
+      signal: ac.signal,
+    })
       .then((t) => {
         if (!alive) return;
         setCats(t.categories);
@@ -76,7 +85,11 @@ export default function CategoryMakeModelSelect({
     let alive = true;
     setLoading(true);
 
-    fetchTaxonomy({ category: normalizedCategory, make: "", signal: ac.signal })
+    fetchTaxonomy({
+      category: normalizedCategory,
+      make: "",
+      signal: ac.signal,
+    })
       .then((t) => {
         if (!alive) return;
         setMakes(t.makes);
@@ -102,7 +115,11 @@ export default function CategoryMakeModelSelect({
     let alive = true;
     setLoading(true);
 
-    fetchTaxonomy({ category: normalizedCategory, make: normalizedMake, signal: ac.signal })
+    fetchTaxonomy({
+      category: normalizedCategory,
+      make: normalizedMake,
+      signal: ac.signal,
+    })
       .then((t) => {
         if (!alive) return;
         setModels(t.models);
