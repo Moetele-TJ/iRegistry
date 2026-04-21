@@ -12,6 +12,7 @@ import { normalizePhotos } from "../utils/itemPhotos.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
 import BillingHelpLinks from "../components/BillingHelpLinks.jsx";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
+import CategoryMakeModelSelect from "../components/CategoryMakeModelSelect.jsx";
 import {
   getEditItemPreviewCharges,
   isBalanceBelowMinimumForEdit,
@@ -929,33 +930,18 @@ export default function EditItem() {
             disabled={isItemFrozen(storedItem)}
             className="border-0 p-0 m-0 min-w-0 space-y-6 disabled:opacity-[0.72]"
           >
-          <Field label="Category" required>
-            <input
-              name="category"
-              value={form.category}
-              onChange={(e) => updateField("category", e.target.value)}
-              className={`input ${isFieldInvalid("category") ? "border-red-500 ring-red-500" : ""}`}
-            />
-          </Field>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Make" required>
-              <input
-                name="make"
-                value={form.make}
-                onChange={(e) => updateField("make", e.target.value)}
-                className={`input ${isFieldInvalid("make") ? "border-red-500 ring-red-500" : ""}`}
-              />
-            </Field>
-            <Field label="Model" required>
-              <input
-                name="model"
-                value={form.model}
-                onChange={(e) => updateField("model", e.target.value)}
-                className={`input ${isFieldInvalid("model") ? "border-red-500 ring-red-500" : ""}`}
-              />
-            </Field>
-          </div>
+          <CategoryMakeModelSelect
+            category={form.category}
+            make={form.make}
+            model={form.model}
+            required={true}
+            disabled={isItemFrozen(storedItem)}
+            onCategoryChange={(v) =>
+              setForm((f) => ({ ...f, category: v, make: "", model: "" }))
+            }
+            onMakeChange={(v) => setForm((f) => ({ ...f, make: v, model: "" }))}
+            onModelChange={(v) => updateField("model", v)}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Serial number" required>

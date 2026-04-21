@@ -4,6 +4,7 @@ import { Building2, CheckSquare, Square, User, Users, RefreshCw, Undo2, X, Check
 import PageSectionCard from "./PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
+import CategoryMakeModelSelect from "../../components/CategoryMakeModelSelect.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
@@ -776,31 +777,23 @@ export default function OrganizationItemsPage() {
               <div className="text-xs text-gray-500">Charges organization wallet (ADD_ITEM)</div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
-              <div className="lg:col-span-3">
-                <label className="text-xs text-gray-600">Category</label>
-                <input
-                  value={createCategory}
-                  onChange={(e) => setCreateCategory(e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                  placeholder="e.g. Electronics"
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <label className="text-xs text-gray-600">Make</label>
-                <input
-                  value={createMake}
-                  onChange={(e) => setCreateMake(e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                  placeholder="e.g. Dell"
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <label className="text-xs text-gray-600">Model</label>
-                <input
-                  value={createModel}
-                  onChange={(e) => setCreateModel(e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                  placeholder="e.g. XPS 13"
+              <div className="lg:col-span-7">
+                <CategoryMakeModelSelect
+                  className="mt-1"
+                  category={createCategory}
+                  make={createMake}
+                  model={createModel}
+                  required={true}
+                  onCategoryChange={(v) => {
+                    setCreateCategory(v);
+                    setCreateMake("");
+                    setCreateModel("");
+                  }}
+                  onMakeChange={(v) => {
+                    setCreateMake(v);
+                    setCreateModel("");
+                  }}
+                  onModelChange={(v) => setCreateModel(v)}
                 />
               </div>
               <div className="lg:col-span-2">

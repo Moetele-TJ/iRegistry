@@ -5,6 +5,7 @@ import PageSectionCard from "../shared/PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import CategoryMakeModelSelect from "../../components/CategoryMakeModelSelect.jsx";
 
 export default function PoliceImpoundPage() {
   const { addToast } = useToast();
@@ -203,33 +204,24 @@ export default function PoliceImpoundPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                  <label className="block">
-                    <div className="text-sm font-semibold text-gray-800">Category *</div>
-                    <input
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                      placeholder="e.g. Electronics"
+                  <div className="sm:col-span-3">
+                    <CategoryMakeModelSelect
+                      category={category}
+                      make={make}
+                      model={model}
+                      required={true}
+                      onCategoryChange={(v) => {
+                        setCategory(v);
+                        setMake("");
+                        setModel("");
+                      }}
+                      onMakeChange={(v) => {
+                        setMake(v);
+                        setModel("");
+                      }}
+                      onModelChange={(v) => setModel(v)}
                     />
-                  </label>
-                  <label className="block">
-                    <div className="text-sm font-semibold text-gray-800">Make *</div>
-                    <input
-                      value={make}
-                      onChange={(e) => setMake(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                      placeholder="e.g. Samsung"
-                    />
-                  </label>
-                  <label className="block">
-                    <div className="text-sm font-semibold text-gray-800">Model *</div>
-                    <input
-                      value={model}
-                      onChange={(e) => setModel(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                      placeholder="e.g. A52"
-                    />
-                  </label>
+                  </div>
                 </div>
 
                 <label className="block pt-2">
