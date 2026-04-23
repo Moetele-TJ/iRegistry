@@ -34,7 +34,7 @@ export default function CategoryMakeModelSelect({
   modelLabel = "Model",
 }) {
   const uid = useId();
-  const catListId = `${uid}-cat-list`;
+  const catListboxId = `${uid}-cat-listbox`;
   const makeListId = `${uid}-make-list`;
   const modelListId = `${uid}-model-list`;
 
@@ -44,13 +44,34 @@ export default function CategoryMakeModelSelect({
   const [loadingCats, setLoadingCats] = useState(false);
   const [loadingMakes, setLoadingMakes] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [catsOpen, setCatsOpen] = useState(false);
+  const [catsActiveIndex, setCatsActiveIndex] = useState(-1);
 
   const catsAbortRef = useRef(null);
   const makesAbortRef = useRef(null);
   const modelsAbortRef = useRef(null);
+  const catsInputRef = useRef(null);
 
   const normalizedCategory = useMemo(() => (category || "").trim(), [category]);
   const normalizedMake = useMemo(() => (make || "").trim(), [make]);
+  const categoryOptions = useMemo(() => {
+    const set = new Set(cats);
+    if (normalizedCategory) set.add(normalizedCategory);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [cats, normalizedCategory]);
+
+  const visibleCategoryOptions = useMemo(() => {
+    const raw = categoryOptions;
+    const q = (category || "").trim().toLowerCase();
+
+    // If the input exactly matches an existing option, show all options so the
+    // user can easily switch categories (avoids the native <datalist> behavior).
+    if (!catsOpen) return [];
+    if (!q) return raw;
+    if (raw.some((c) => c.toLowerCase() === q)) return raw;
+
+    return raw.filter((c) => c.toLowerCase().includes(q));
+  }, [categoryOptions, category, catsOpen]);
 
   useEffect(() => {
     catsAbortRef.current?.abort?.();
@@ -160,31 +181,131 @@ export default function CategoryMakeModelSelect({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1">{categoryLabel}</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            disabled={disabled}
-            required={required}
-            placeholder={hint}
-            list={catListId}
-            value={category || ""}
-            onChange={(e) => {
-              const next = e.target.value;
-              const nextTrimmed = next.trim();
+          <div className="relative">
+            <input
+              ref={catsInputRef}
+              className="w-full border rounded px-3 py-2"
+              disabled={disabled}
+              required={required}
+              placeholder={hint}
+              value={category || ""}
+              role="combobox"
+              aria-expanded={catsOpen}
+              aria-controls={catListboxId}
+              aria-autocomplete="list"
+              onFocus={() => {
+                if (disabled) return;
+                setCatsOpen(true);
+                setCatsActiveIndex(-1);
+              }}
+              onBlur={(e) => {
+                // Allow option click (mousedown) to run first.
+                window.setTimeout(() => {
+                  if (!e.currentTarget) return;
+                  setCatsOpen(false);
+                  setCatsActiveIndex(-1);
+                }, 0);
+              }}
+              onChange={(e) => {
+                const next = e.target.value;
+                const nextTrimmed = next.trim();
 
-              // Keep downstream selections consistent when category changes.
-              if (nextTrimmed !== normalizedCategory) {
-                onMakeChange?.("");
-                onModelChange?.("");
-              }
+                if (!catsOpen) setCatsOpen(true);
+                setCatsActiveIndex(-1);
 
-              onCategoryChange?.(next);
-            }}
-          />
-          <datalist id={catListId}>
-            {cats.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
+                // Keep downstream selections consistent when category changes.
+                if (nextTrimmed !== normalizedCategory) {
+                  onMakeChange?.("");
+                  onModelChange?.("");
+                }
+
+                onCategoryChange?.(next);
+              }}
+              onKeyDown={(e) => {
+                if (!catsOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  setCatsOpen(true);
+                  return;
+                }
+
+                if (!catsOpen) return;
+
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setCatsOpen(false);
+                  setCatsActiveIndex(-1);
+                  return;
+                }
+
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setCatsActiveIndex((i) =>
+                    Math.min(i + 1, visibleCategoryOptions.length - 1),
+                  );
+                  return;
+                }
+
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setCatsActiveIndex((i) => Math.max(i - 1, 0));
+                  return;
+                }
+
+                if (e.key === "Enter") {
+                  const pick = visibleCategoryOptions[catsActiveIndex];
+                  if (!pick) return;
+
+                  e.preventDefault();
+                  if (pick.trim() !== normalizedCategory) {
+                    onMakeChange?.("");
+                    onModelChange?.("");
+                  }
+                  onCategoryChange?.(pick);
+                  setCatsOpen(false);
+                  setCatsActiveIndex(-1);
+                  window.setTimeout(() => catsInputRef.current?.blur?.(), 0);
+                }
+              }}
+            />
+
+            {catsOpen && !disabled && visibleCategoryOptions.length > 0 && (
+              <ul
+                id={catListboxId}
+                role="listbox"
+                className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded border bg-white shadow"
+              >
+                {visibleCategoryOptions.map((c, idx) => {
+                  const active = idx === catsActiveIndex;
+                  return (
+                    <li
+                      key={c}
+                      role="option"
+                      aria-selected={active}
+                      className={[
+                        "cursor-pointer px-3 py-2 text-sm",
+                        active ? "bg-gray-100" : "bg-white",
+                      ].join(" ")}
+                      onMouseEnter={() => setCatsActiveIndex(idx)}
+                      onMouseDown={(e) => {
+                        // Prevent blur before we set value.
+                        e.preventDefault();
+
+                        if (c.trim() !== normalizedCategory) {
+                          onMakeChange?.("");
+                          onModelChange?.("");
+                        }
+                        onCategoryChange?.(c);
+                        setCatsOpen(false);
+                        setCatsActiveIndex(-1);
+                        window.setTimeout(() => catsInputRef.current?.blur?.(), 0);
+                      }}
+                    >
+                      {c}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div>
