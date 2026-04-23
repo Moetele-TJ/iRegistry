@@ -101,7 +101,6 @@ serve(async (req) => {
 
         // SYSTEM
         role: "user",
-        status: "active",
         identity_verified: false,
         email_verified: false,
         created_at: new Date().toISOString(),

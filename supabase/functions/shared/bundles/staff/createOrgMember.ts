@@ -124,7 +124,6 @@ export async function run(req: Request): Promise<Response> {
         village: village || null,
         ward: ward || null,
         role: "user",
-        status: "active",
         identity_verified: false,
         email_verified: false,
       })
