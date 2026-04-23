@@ -41,20 +41,24 @@ export default function CategoryMakeModelSelect({
   const [cats, setCats] = useState([]);
   const [makes, setMakes] = useState([]);
   const [models, setModels] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingCats, setLoadingCats] = useState(false);
+  const [loadingMakes, setLoadingMakes] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
 
-  const abortRef = useRef(null);
+  const catsAbortRef = useRef(null);
+  const makesAbortRef = useRef(null);
+  const modelsAbortRef = useRef(null);
 
   const normalizedCategory = useMemo(() => (category || "").trim(), [category]);
   const normalizedMake = useMemo(() => (make || "").trim(), [make]);
 
   useEffect(() => {
-    abortRef.current?.abort?.();
+    catsAbortRef.current?.abort?.();
     const ac = new AbortController();
-    abortRef.current = ac;
+    catsAbortRef.current = ac;
 
     let alive = true;
-    setLoading(true);
+    setLoadingCats(true);
 
     fetchTaxonomy({
       category: "",
@@ -68,7 +72,7 @@ export default function CategoryMakeModelSelect({
       .catch(() => {})
       .finally(() => {
         if (!alive) return;
-        setLoading(false);
+        setLoadingCats(false);
       });
 
     return () => {
@@ -78,12 +82,19 @@ export default function CategoryMakeModelSelect({
   }, []);
 
   useEffect(() => {
-    abortRef.current?.abort?.();
+    // If category is cleared, downstream lists should clear too.
+    if (!normalizedCategory) {
+      setMakes([]);
+      setModels([]);
+      return;
+    }
+
+    makesAbortRef.current?.abort?.();
     const ac = new AbortController();
-    abortRef.current = ac;
+    makesAbortRef.current = ac;
 
     let alive = true;
-    setLoading(true);
+    setLoadingMakes(true);
 
     fetchTaxonomy({
       category: normalizedCategory,
@@ -98,7 +109,7 @@ export default function CategoryMakeModelSelect({
       .catch(() => {})
       .finally(() => {
         if (!alive) return;
-        setLoading(false);
+        setLoadingMakes(false);
       });
 
     return () => {
@@ -108,12 +119,17 @@ export default function CategoryMakeModelSelect({
   }, [normalizedCategory]);
 
   useEffect(() => {
-    abortRef.current?.abort?.();
+    if (!normalizedCategory || !normalizedMake) {
+      setModels([]);
+      return;
+    }
+
+    modelsAbortRef.current?.abort?.();
     const ac = new AbortController();
-    abortRef.current = ac;
+    modelsAbortRef.current = ac;
 
     let alive = true;
-    setLoading(true);
+    setLoadingModels(true);
 
     fetchTaxonomy({
       category: normalizedCategory,
@@ -127,7 +143,7 @@ export default function CategoryMakeModelSelect({
       .catch(() => {})
       .finally(() => {
         if (!alive) return;
-        setLoading(false);
+        setLoadingModels(false);
       });
 
     return () => {
@@ -136,6 +152,7 @@ export default function CategoryMakeModelSelect({
     };
   }, [normalizedCategory, normalizedMake]);
 
+  const loading = loadingCats || loadingMakes || loadingModels;
   const hint = loading ? "Loading options..." : "Type to add a new entry";
 
   return (
@@ -152,6 +169,14 @@ export default function CategoryMakeModelSelect({
             value={category || ""}
             onChange={(e) => {
               const next = e.target.value;
+              const nextTrimmed = next.trim();
+
+              // Keep downstream selections consistent when category changes.
+              if (nextTrimmed !== normalizedCategory) {
+                onMakeChange?.("");
+                onModelChange?.("");
+              }
+
               onCategoryChange?.(next);
             }}
           />
@@ -173,6 +198,13 @@ export default function CategoryMakeModelSelect({
             value={make || ""}
             onChange={(e) => {
               const next = e.target.value;
+              const nextTrimmed = next.trim();
+
+              // Keep model consistent when make changes.
+              if (nextTrimmed !== normalizedMake) {
+                onModelChange?.("");
+              }
+
               onMakeChange?.(next);
             }}
           />
