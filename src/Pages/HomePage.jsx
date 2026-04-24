@@ -304,16 +304,14 @@ export default function HomePage() {
                 <div className="text-sm text-gray-500">No stolen items yet.</div>
               ) : (
                 topStolenItems.slice(0, 5).map((r, idx) => {
-                  const label = [r?.make, r?.model].filter(Boolean).join(" ").trim();
                   const cat = String(r?.category || "").trim();
                   return (
                     <div
-                      key={`${r?.category || "cat"}-${r?.make || "make"}-${r?.model || "model"}-${idx}`}
+                      key={`${r?.category || "cat"}-${idx}`}
                       className="flex justify-between gap-3"
                     >
                       <span className="truncate">
-                        {label || "Unknown item"}
-                        {cat ? <span className="text-gray-400"> · {cat}</span> : null}
+                        {cat || "Uncategorized"}
                       </span>
                       <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
                     </div>
