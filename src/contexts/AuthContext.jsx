@@ -25,7 +25,10 @@ export function AuthProvider({ children }) {
       if (!silent && token) {
         await invokeFn(
           "logout",
-          { headers: { Authorization: `Bearer ${token}` } },
+          {
+            body: { session_token: token },
+            headers: { Authorization: `Bearer ${token}` },
+          },
           { withAuth: false }
         );
       }

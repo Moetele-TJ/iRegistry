@@ -25,7 +25,10 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => null);
-    const token = body?.session_token;
+    const bodyToken = body?.session_token;
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+    const headerToken = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : "";
+    const token = bodyToken || headerToken;
 
     // If no token → logout locally only (idempotent success)
     if (!token) {
