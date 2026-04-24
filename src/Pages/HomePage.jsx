@@ -45,6 +45,8 @@ export default function HomePage() {
     .slice(0, 6);
 
   const totals = stats?.totals || {};
+  const topStolenItems = Array.isArray(stats?.topStolenItems) ? stats.topStolenItems : [];
+  const topUserVillages = Array.isArray(stats?.topUserVillages) ? stats.topUserVillages : [];
 
   const active = totals.activeItems ?? 0;
   const stolen = totals.stolenItems ?? 0;
@@ -203,6 +205,25 @@ export default function HomePage() {
             }
           >
             <div>Registered citizens & institutions.</div>
+
+            <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">
+              Top villages / towns
+            </div>
+            <div className="mt-2 space-y-1">
+              {topUserVillages.length === 0 ? (
+                <div className="text-sm text-gray-500">No location data yet.</div>
+              ) : (
+                topUserVillages.slice(0, 5).map((r) => (
+                  <div
+                    key={r?.village || "Unknown"}
+                    className="flex justify-between gap-3"
+                  >
+                    <span className="truncate">{r?.village || "Unknown"}</span>
+                    <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </StatCard>
 
           <StatCard
@@ -273,6 +294,32 @@ export default function HomePage() {
             <div>Assets flagged as stolen.</div>
             <div className="mt-2">
               Risk level: {stolen > 0 ? "Monitoring Active" : "Stable"}
+            </div>
+
+            <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">
+              Top 5 most stolen
+            </div>
+            <div className="mt-2 space-y-1">
+              {topStolenItems.length === 0 ? (
+                <div className="text-sm text-gray-500">No stolen items yet.</div>
+              ) : (
+                topStolenItems.slice(0, 5).map((r, idx) => {
+                  const label = [r?.make, r?.model].filter(Boolean).join(" ").trim();
+                  const cat = String(r?.category || "").trim();
+                  return (
+                    <div
+                      key={`${r?.category || "cat"}-${r?.make || "make"}-${r?.model || "model"}-${idx}`}
+                      className="flex justify-between gap-3"
+                    >
+                      <span className="truncate">
+                        {label || "Unknown item"}
+                        {cat ? <span className="text-gray-400"> · {cat}</span> : null}
+                      </span>
+                      <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </StatCard>
 
