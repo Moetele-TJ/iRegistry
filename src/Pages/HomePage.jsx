@@ -294,9 +294,6 @@ export default function HomePage() {
             }
           >
             <div>Assets flagged as stolen.</div>
-            <div className="mt-2">
-              Risk level: {stolen > 0 ? "Monitoring Active" : "Stable"}
-            </div>
 
             <div className="mt-3 flex items-center justify-between">
               <div className="text-xs text-gray-400 uppercase tracking-wide">
