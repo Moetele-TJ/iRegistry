@@ -58,7 +58,9 @@ serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth")
+      .select(
+        "id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth, first_name, last_name, email, phone, police_station, village, ward",
+      )
       .eq("id", id)
       .maybeSingle();
 
@@ -73,24 +75,24 @@ serve(async (req) => {
 
     const clean: Record<string, unknown> = {};
 
+    const normNullableString = (v: unknown, max = 200) => {
+      if (v === null || v === undefined) return null;
+      if (typeof v !== "string") return null;
+      const s = v.trim();
+      if (!s) return null;
+      return s.slice(0, max);
+    };
+
     const setIfString = (key: string, max = 200, { required = false } = {}) => {
       if (!(key in updates)) return;
       const v = updates[key];
-      if (v === null) {
-        if (required) {
-          throw new Error(`${key} is required`);
-        }
-        clean[key] = null;
-        return;
+      const next = normNullableString(v, max);
+      if (required && !next) throw new Error(`${key} is required`);
+
+      const prev = normNullableString((existing as any)?.[key], max);
+      if (next !== prev) {
+        clean[key] = next;
       }
-      if (typeof v !== "string") return;
-      const s = v.trim();
-      if (!s) {
-        if (required) throw new Error(`${key} is required`);
-        clean[key] = null;
-        return;
-      }
-      clean[key] = s.slice(0, max);
     };
 
     setIfString("first_name", 100);
