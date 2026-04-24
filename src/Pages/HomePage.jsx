@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
 import { usePublicStats } from "../hooks/usePublicStats.js";
-import { Users, Package, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Users, Package, ShieldCheck, AlertTriangle, ChevronRight } from "lucide-react";
 import CountUp from "react-countup";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import {
@@ -46,6 +46,7 @@ export default function HomePage() {
 
   const totals = stats?.totals || {};
   const topStolenItems = Array.isArray(stats?.topStolenItems) ? stats.topStolenItems : [];
+  const topStolenVillages = Array.isArray(stats?.topStolenVillages) ? stats.topStolenVillages : [];
   const topUserVillages = Array.isArray(stats?.topUserVillages) ? stats.topUserVillages : [];
 
   const active = totals.activeItems ?? 0;
@@ -55,6 +56,7 @@ export default function HomePage() {
   const chartKey = stats?.totals?.totalItems || 0;
 
   const [expandedCard, setExpandedCard] = useState(null);
+  const [stolenPanel, setStolenPanel] = useState("category"); // category | village
   const { user } = useAuth();
   const [, setOpenMenu] = useState(false);
   const menuRef = useRef(null);
@@ -296,28 +298,78 @@ export default function HomePage() {
               Risk level: {stolen > 0 ? "Monitoring Active" : "Stable"}
             </div>
 
-            <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">
-              Top 5 most stolen
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-xs text-gray-400 uppercase tracking-wide">
+                {stolenPanel === "category" ? "Top 5 most stolen" : "Stolen by village / town"}
+              </div>
+              <button
+                type="button"
+                className="p-1 rounded-md hover:bg-gray-50 text-gray-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStolenPanel((p) => (p === "category" ? "village" : "category"));
+                }}
+                aria-label="Toggle stolen stats view"
+                title="Switch view"
+              >
+                <ChevronRight
+                  className={`w-4 h-4 transition-transform duration-300 ${
+                    stolenPanel === "village" ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
             </div>
-            <div className="mt-2 space-y-1">
-              {topStolenItems.length === 0 ? (
-                <div className="text-sm text-gray-500">No stolen items yet.</div>
-              ) : (
-                topStolenItems.slice(0, 5).map((r, idx) => {
-                  const cat = String(r?.category || "").trim();
-                  return (
-                    <div
-                      key={`${r?.category || "cat"}-${idx}`}
-                      className="flex justify-between gap-3"
-                    >
-                      <span className="truncate">
-                        {cat || "Uncategorized"}
-                      </span>
-                      <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
-                    </div>
-                  );
-                })
-              )}
+
+            <div className="relative mt-2 overflow-hidden">
+              <div
+                className={`transition-transform duration-300 ease-in-out ${
+                  stolenPanel === "category" ? "translate-x-0" : "-translate-x-full"
+                }`}
+              >
+                <div className="space-y-1">
+                  {topStolenItems.length === 0 ? (
+                    <div className="text-sm text-gray-500">No stolen items yet.</div>
+                  ) : (
+                    topStolenItems.slice(0, 5).map((r, idx) => {
+                      const cat = String(r?.category || "").trim();
+                      return (
+                        <div
+                          key={`${r?.category || "cat"}-${idx}`}
+                          className="flex justify-between gap-3"
+                        >
+                          <span className="truncate">{cat || "Uncategorized"}</span>
+                          <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div
+                className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+                  stolenPanel === "village" ? "translate-x-0" : "translate-x-full"
+                }`}
+              >
+                <div className="space-y-1">
+                  {topStolenVillages.length === 0 ? (
+                    <div className="text-sm text-gray-500">No village data yet.</div>
+                  ) : (
+                    topStolenVillages.slice(0, 5).map((r, idx) => {
+                      const v = String(r?.village || "").trim();
+                      return (
+                        <div
+                          key={`${r?.village || "v"}-${idx}`}
+                          className="flex justify-between gap-3"
+                        >
+                          <span className="truncate">{v || "Unknown"}</span>
+                          <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           </StatCard>
 
