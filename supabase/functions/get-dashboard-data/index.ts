@@ -248,13 +248,12 @@ serve(async (req) => {
           `,
           { count: "exact" }
         )
-        .neq("actor_id", userId) // exclude own actions
         .order("created_at", { ascending: false })
         .range(offset, offset + safeLimit - 1);
 
-      const roleActivityEnriched = await attachActorDetails(supabase, roleActivity ?? []);
-      roleData.roleActivity = {
-        data: roleActivityEnriched ?? [],
+      const systemActivityEnriched = await attachActorDetails(supabase, roleActivity ?? []);
+      roleData.systemActivity = {
+        data: systemActivityEnriched ?? [],
         pagination: {
           page: safePage,
           limit: safeLimit,

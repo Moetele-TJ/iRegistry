@@ -17,6 +17,7 @@ export default function ActivityPage() {
 
     const [page, setPage] = useState(1);
     const [filter, setFilter] = useState("all");
+    const [scope, setScope] = useState("mine"); // mine | system
 
     const { data, loading } = useDashboard({
         page,
@@ -24,10 +25,12 @@ export default function ActivityPage() {
     });
 
     const privileged = isPrivilegedRole(user?.role);
-    const activity = privileged
-      ? (data?.roleData?.roleActivity?.data || data?.personal?.activity?.data || [])
-      : (data?.personal?.activity?.data || []);
-    const pagination = data?.personal?.activity?.pagination;
+    const mineActivity = data?.personal?.activity?.data || [];
+    const systemActivity = data?.roleData?.systemActivity?.data || [];
+    const activity = privileged && scope === "system" ? systemActivity : mineActivity;
+    const pagination = privileged && scope === "system"
+      ? data?.roleData?.systemActivity?.pagination
+      : data?.personal?.activity?.pagination;
 
     const filteredActivity = activity.filter(item => {
 
@@ -59,6 +62,31 @@ export default function ActivityPage() {
                 icon={<Activity className="w-7 h-7 text-iregistrygreen shrink-0" />}
             >
                 <div className="p-4 sm:p-6 space-y-6">
+                {privileged ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { label: "My activity", value: "mine" },
+                      { label: "System activity", value: "system" },
+                    ].map((s) => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => {
+                          setScope(s.value);
+                          setPage(1);
+                        }}
+                        className={`px-3 py-1 rounded-full text-sm transition ${
+                          scope === s.value
+                            ? "bg-iregistrygreen text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
                 <div className="flex gap-2 flex-wrap">
 
                     {[
