@@ -63,9 +63,10 @@ serve(async (req) => {
       .from("users")
       .update({
         deleted_at: now,
-        status: "disabled",
-        suspended_reason: "Deleted by admin",
-        suspended_at: now,
+        disabled_at: now,
+        disabled_reason: "Deleted by admin",
+        suspended_reason: null,
+        suspended_at: null,
       })
       .eq("id", id);
 

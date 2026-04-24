@@ -334,7 +334,6 @@ serve(async (req) => {
         warrantyexpiry: warrantyExpiry || null,
         reportedstolenat: null,
         deletedat: null,
-        status: "Active",
         serial2: typeof serial2 === "string" ? serial2.trim() || null : null,
         shop: typeof shop === "string" ? shop.trim() || null : null,
         notes: typeof notes === "string" ? notes.trim() || null : null,

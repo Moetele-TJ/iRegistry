@@ -718,14 +718,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         await updateItem(
           id,
           {
-            status: "Stolen",
             reportedStolenAt: new Date().toISOString(),
           },
           trimmed ? { policeStation: trimmed } : {}
         );
       } else {
         await updateItem(id, {
-          status: "Active",
           reportedStolenAt: null,
         });
       }

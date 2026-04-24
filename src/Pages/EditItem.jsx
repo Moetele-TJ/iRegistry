@@ -145,9 +145,9 @@ export default function EditItem() {
     shop: "",
     warrantyExpiry: "",
     notes: "",
-    status: "Active",
   });
   const [policeStation, setPoliceStation] = useState("");
+  const [markStolen, setMarkStolen] = useState(false);
   /** Raw digits while focused; formatted BWP when blurred */
   const [estimatedValueFocused, setEstimatedValueFocused] = useState(false);
 
@@ -306,7 +306,6 @@ export default function EditItem() {
         shop: "",
         warrantyExpiry: "",
         notes: "",
-        status: "Active",
       });
       setHeldAtResidence(false);
       setExistingPhotos([]);
@@ -315,6 +314,7 @@ export default function EditItem() {
         return [];
       });
       setPoliceStation("");
+      setMarkStolen(false);
       return;
     }
 
@@ -343,11 +343,11 @@ export default function EditItem() {
       shop: found.shop || "",
       warrantyExpiry: toDateInputValue(found.warrantyExpiry),
       notes: found.notes || "",
-      status: isItemReportedStolen(found) ? "Stolen" : "Active",
     });
     setExistingPhotos(normalizePhotos(found.photos));
     setPhotoPreviews([]);
     setPoliceStation("");
+    setMarkStolen(isItemReportedStolen(found));
   }, [storedItem, user?.village, user?.ward]);
 
   useEffect(() => {
@@ -763,17 +763,24 @@ export default function EditItem() {
         shop: form.shop.trim(),
         warrantyExpiry: form.warrantyExpiry || undefined,
         notes: form.notes.trim(),
-        status: form.status,
         photos: photosPayload,
       };
 
       const extra = {};
       if (
-        form.status === "Stolen" &&
+        markStolen &&
         !isItemReportedStolen(storedItem) &&
         policeStation.trim()
       ) {
         extra.policeStation = policeStation.trim();
+      }
+
+      // Derived item state: items.status column no longer exists.
+      // Stolen = reportedStolenAt set; Active = reportedStolenAt cleared.
+      if (markStolen && !isItemReportedStolen(storedItem)) {
+        updates.reportedStolenAt = new Date().toISOString();
+      } else if (!markStolen && isItemReportedStolen(storedItem)) {
+        updates.reportedStolenAt = null;
       }
 
       const updated = await updateItem(storedItem.id, updates, extra);
@@ -1027,17 +1034,17 @@ export default function EditItem() {
           </Field>
 
           <Field label="Status">
-            <select
-              value={form.status}
-              onChange={(e) => updateField("status", e.target.value)}
-              className="input"
-            >
-              <option value="Active">Active</option>
-              <option value="Stolen">Stolen</option>
-            </select>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={markStolen}
+                onChange={(e) => setMarkStolen(e.target.checked)}
+              />
+              Mark this item as stolen
+            </label>
           </Field>
 
-          {form.status === "Stolen" && !isItemReportedStolen(storedItem) && (
+          {markStolen && !isItemReportedStolen(storedItem) && (
             <Field label="Reporting station (optional)">
               <PoliceStationSelect
                 label={null}
