@@ -1039,6 +1039,7 @@ export default function ProfilePage() {
             {trustedDevices.map((d) => {
               const did = String(d?.device_id || "");
               const short = did.length > 16 ? `${did.slice(0, 8)}…${did.slice(-4)}` : did || "—";
+              const dn = String(d?.device_name || "").trim();
               const isHere = did && getDeviceId() && String(did) === String(getDeviceId());
               return (
                 <div
@@ -1047,14 +1048,22 @@ export default function ProfilePage() {
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs break-all">{short}</span>
+                      <span className="truncate">{dn || "Trusted browser"}</span>
                       {isHere ? (
                         <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
                           this device
                         </span>
                       ) : null}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Trusted since {fmtDate(d?.verified_at)}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {dn ? (
+                        <span className="font-mono text-[11px] text-gray-400">ID: {short}</span>
+                      ) : (
+                        <span className="font-mono text-[11px] text-gray-400">{short}</span>
+                      )}
+                      <span className="text-gray-300"> · </span>
+                      Trusted since {fmtDate(d?.verified_at)}
+                    </div>
                   </div>
                   <RippleButton
                     type="button"

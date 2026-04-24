@@ -37,7 +37,7 @@ serve(async (req) => {
     if (action === "list") {
       const { data, error } = await supabase
         .from("user_trusted_devices")
-        .select("device_id, verified_at")
+        .select("device_id, device_name, verified_at")
         .eq("user_id", session.user_id)
         .order("verified_at", { ascending: false });
 

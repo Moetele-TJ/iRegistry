@@ -401,6 +401,7 @@ serve(async (req) => {
           user_id: body.user_id,
           device_id: deviceId,
           verified_at: new Date().toISOString(),
+          device_name: deviceName || null,
         },
         { onConflict: "user_id,device_id" },
       );
