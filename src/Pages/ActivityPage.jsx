@@ -7,10 +7,13 @@ import TimeAgo from "../components/TimeAgo";
 import { getIcon } from "../utils/iconResolver";
 import { groupActivityByDate } from "../utils/groupActivityByDate";
 import PageSectionCard from "./shared/PageSectionCard.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
+import { isPrivilegedRole } from "../lib/billingUx.js";
 
 export default function ActivityPage() {
 
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [page, setPage] = useState(1);
     const [filter, setFilter] = useState("all");
@@ -20,7 +23,10 @@ export default function ActivityPage() {
         limit: 20
     });
 
-    const activity = data?.personal?.activity?.data || [];
+    const privileged = isPrivilegedRole(user?.role);
+    const activity = privileged
+      ? (data?.roleData?.roleActivity?.data || data?.personal?.activity?.data || [])
+      : (data?.personal?.activity?.data || []);
     const pagination = data?.personal?.activity?.pagination;
 
     const filteredActivity = activity.filter(item => {
@@ -49,7 +55,7 @@ export default function ActivityPage() {
             <PageSectionCard
                 maxWidthClass="max-w-7xl"
                 title="Activity"
-                subtitle="Your registry activity history"
+                subtitle={privileged ? "Registry activity history" : "Your registry activity history"}
                 icon={<Activity className="w-7 h-7 text-iregistrygreen shrink-0" />}
             >
                 <div className="p-4 sm:p-6 space-y-6">
@@ -133,6 +139,18 @@ export default function ActivityPage() {
                                             <div className="text-xs text-gray-400 mt-1">
                                                 {item.entity_name}
                                             </div>
+
+                                            {privileged && item?.actor?.display_name ? (
+                                              <div className="text-xs text-gray-400 mt-1">
+                                                Performed by{" "}
+                                                <span className="font-medium text-gray-500">
+                                                  {item.actor.display_name}
+                                                </span>
+                                                {item?.actor?.role ? (
+                                                  <span className="text-gray-300"> · {String(item.actor.role)}</span>
+                                                ) : null}
+                                              </div>
+                                            ) : null}
                                         </div>
 
                                     </div>

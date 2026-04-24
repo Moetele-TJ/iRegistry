@@ -14,6 +14,54 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+function displayName(row: any) {
+  const f = String(row?.first_name || "").trim();
+  const l = String(row?.last_name || "").trim();
+  const full = `${f} ${l}`.trim();
+  return full || String(row?.email || "").trim() || (row?.id ? String(row.id) : "—");
+}
+
+async function attachActorDetails(supabaseClient: any, rows: any[]) {
+  const list = Array.isArray(rows) ? rows : [];
+  const actorIds = Array.from(
+    new Set(
+      list
+        .map((r) => (r && typeof r === "object" ? (r as any).actor_id : null))
+        .filter((id) => typeof id === "string" && id.trim()),
+    ),
+  );
+
+  if (actorIds.length === 0) return list;
+
+  const { data: users } = await supabaseClient
+    .from("users")
+    .select("id, first_name, last_name, email, role")
+    .in("id", actorIds);
+
+  const byId = new Map<string, any>();
+  for (const u of users || []) {
+    if (u?.id) byId.set(String(u.id), u);
+  }
+
+  return list.map((r) => {
+    const id = r?.actor_id ? String(r.actor_id) : "";
+    const u = id ? byId.get(id) : null;
+    return {
+      ...r,
+      actor: u
+        ? {
+            id: String(u.id),
+            role: String(u.role || r?.actor_role || "").trim() || null,
+            display_name: displayName(u),
+            email: u.email || null,
+          }
+        : r?.actor_id
+        ? { id: String(r.actor_id), role: r?.actor_role || null, display_name: String(r.actor_id), email: null }
+        : null,
+    };
+  });
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -113,6 +161,8 @@ serve(async (req) => {
       .select(
         `
           id,
+          actor_id,
+          actor_role,
           entity_type,
           entity_id,
           entity_name,
@@ -134,7 +184,8 @@ serve(async (req) => {
       activityQuery = activityQuery.eq("actor_id", userId);
     }
 
-    const { data: personalActivity, count: personalCount } = await activityQuery;
+    const { data: personalActivityRaw, count: personalCount } = await activityQuery;
+    const personalActivity = await attachActorDetails(supabase, personalActivityRaw ?? []);
 
     const personal = {
       summary: {
@@ -185,6 +236,8 @@ serve(async (req) => {
         .select(
           `
             id,
+            actor_id,
+            actor_role,
             entity_type,
             entity_id,
             entity_name,
@@ -199,8 +252,9 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .range(offset, offset + safeLimit - 1);
 
+      const roleActivityEnriched = await attachActorDetails(supabase, roleActivity ?? []);
       roleData.roleActivity = {
-        data: roleActivity ?? [],
+        data: roleActivityEnriched ?? [],
         pagination: {
           page: safePage,
           limit: safeLimit,
