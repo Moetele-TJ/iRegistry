@@ -48,10 +48,10 @@ function shortenId(id) {
 }
 
 const EXTEND_PRESETS = [
-  { label: "+15m", minutes: 15 },
-  { label: "+1h", minutes: 60 },
-  { label: "+4h", minutes: 240 },
-  { label: "+24h", minutes: 1440 },
+  { label: "1 hour", minutes: 60 },
+  { label: "2 hours", minutes: 120 },
+  { label: "5 hours", minutes: 300 },
+  { label: "10 hours", minutes: 600 },
 ];
 
 export default function AdminSessionsPage() {
@@ -75,7 +75,11 @@ export default function AdminSessionsPage() {
     open: false,
     row: null,
   });
-  const [extendRow, setExtendRow] = useState(null);
+  const [extendModal, setExtendModal] = useState({
+    open: false,
+    row: null,
+    minutes: 60,
+  });
   const [busyId, setBusyId] = useState(null);
 
   const load = useCallback(async () => {
@@ -224,7 +228,7 @@ export default function AdminSessionsPage() {
         type: "success",
         message: data.message || "Session extended",
       });
-      setExtendRow(null);
+      setExtendModal({ open: false, row: null, minutes: 60 });
       await load();
     } finally {
       setBusyId(null);
@@ -357,11 +361,13 @@ export default function AdminSessionsPage() {
                         <RippleButton
                           type="button"
                           className="px-2.5 py-1 rounded-md bg-indigo-600 text-white text-xs disabled:opacity-50"
-                          onClick={() =>
-                            setExtendRow((cur) =>
-                              cur?.id === row.id ? null : row,
-                            )
-                          }
+                          onClick={() => {
+                            setExtendModal({
+                              open: true,
+                              row,
+                              minutes: 60,
+                            });
+                          }}
                           disabled={rowBusy}
                         >
                           Extend
@@ -388,21 +394,6 @@ export default function AdminSessionsPage() {
                           Revoke all
                         </RippleButton>
                       </div>
-                      {extendRow?.id === row.id ? (
-                        <div className="mt-2 flex flex-wrap justify-end gap-1">
-                          {EXTEND_PRESETS.map((p) => (
-                            <RippleButton
-                              key={p.minutes}
-                              type="button"
-                              className="px-2 py-0.5 rounded border border-indigo-200 text-indigo-800 text-xs disabled:opacity-50"
-                              disabled={busyId === row.id}
-                              onClick={() => void handleExtend(row.id, p.minutes)}
-                            >
-                              {p.label}
-                            </RippleButton>
-                          ))}
-                        </div>
-                      ) : null}
                     </td>
                   </tr>
                 );
@@ -465,6 +456,44 @@ export default function AdminSessionsPage() {
         confirmLabel="Revoke all"
         danger
       />
+
+      <ConfirmModal
+        isOpen={extendModal.open}
+        onClose={() => setExtendModal({ open: false, row: null, minutes: 60 })}
+        title="Extend session"
+        message="Choose how long to extend this session by."
+        confirmLabel="Extend"
+        confirmDisabled={!extendModal.row?.id || busyId === extendModal.row?.id}
+        onConfirm={async () => {
+          const sid = extendModal.row?.id;
+          if (!sid) return;
+          await handleExtend(sid, extendModal.minutes);
+        }}
+        variant="default"
+      >
+        <div className="space-y-2">
+          {EXTEND_PRESETS.map((p) => {
+            const checked = extendModal.minutes === p.minutes;
+            return (
+              <label
+                key={p.minutes}
+                className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer"
+              >
+                <div className="text-sm text-gray-800">{p.label}</div>
+                <input
+                  type="radio"
+                  name="extendMinutes"
+                  value={p.minutes}
+                  checked={checked}
+                  onChange={() =>
+                    setExtendModal((m) => ({ ...m, minutes: p.minutes }))
+                  }
+                />
+              </label>
+            );
+          })}
+        </div>
+      </ConfirmModal>
     </>
   );
 }

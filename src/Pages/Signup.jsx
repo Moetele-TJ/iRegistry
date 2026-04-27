@@ -305,6 +305,7 @@ export default function Signup() {
                 onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
                 required={false}
                 withAuth={false}
+                variant="combobox"
                 inputClassName="w-full border rounded-lg px-4 py-2"
               />
 

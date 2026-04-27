@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { invokeFn } from "../lib/invokeFn.js";
 import RippleButton from "./RippleButton.jsx";
 
@@ -14,10 +14,12 @@ export default function PoliceStationSelect({
   disabled = false,
   placeholder = "Select a police station…",
   allowOther = true,
+  variant = "select", // "select" | "combobox"
   inputClassName = "w-full border rounded-lg px-4 py-2",
   withAuth = true,
   helpText,
 }) {
+  const listId = useId();
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -60,7 +62,23 @@ export default function PoliceStationSelect({
         </label>
       ) : null}
 
-      {options.length > 0 ? (
+      {options.length > 0 && variant === "combobox" ? (
+        <>
+          <input
+            className={inputClassName}
+            list={listId}
+            value={valueNorm}
+            onChange={(e) => onChange?.(e.target.value)}
+            placeholder={placeholder}
+            disabled={disabled || loading}
+          />
+          <datalist id={listId}>
+            {options.map((s) => (
+              <option key={String(s)} value={norm(s)} />
+            ))}
+          </datalist>
+        </>
+      ) : options.length > 0 ? (
         <>
           <select
             className={inputClassName}
