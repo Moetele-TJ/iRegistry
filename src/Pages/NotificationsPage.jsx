@@ -22,14 +22,6 @@ export default function NotificationsPage() {
 
   async function markNotificationRead(id) {
     try {
-      const ok = await confirm({
-        title: "Confirm",
-        message: "Mark this notification as read?",
-        confirmLabel: "Mark as read",
-        cancelLabel: "Cancel",
-      }).catch(() => false);
-      if (!ok) return;
-
       await invokeWithAuth("mark-notifications-read", {
         body: { ids: [id] }
       });
@@ -41,11 +33,46 @@ export default function NotificationsPage() {
   }
 
   async function handleNotificationClick(n) {
+    if (!n?.id) return;
 
+    // Unread: open a modal first, then mark as read when it closes.
     if (!n.isread) {
+      const hasItem = !!n.items?.slug;
+      const chosen = await confirm({
+        title: "Notification",
+        message: (
+          <div className="space-y-3">
+            {n.items?.name ? (
+              <div className="text-sm text-gray-700">
+                <span className="text-gray-500">Item:</span>{" "}
+                <span className="font-semibold text-gray-900">{n.items.name}</span>
+              </div>
+            ) : null}
+            <div className="text-sm text-gray-900 whitespace-pre-wrap">{n.message}</div>
+            {n.contact ? (
+              <div className="text-sm text-gray-700">
+                <span className="text-gray-500">Contact:</span> {n.contact}
+              </div>
+            ) : null}
+            <div className="text-xs text-gray-500">
+              <TimeAgo date={n.createdon} />
+            </div>
+          </div>
+        ),
+        confirmLabel: hasItem ? "Open item" : "Close",
+        cancelLabel: "Close",
+        variant: hasItem ? "default" : "default",
+      }).catch(() => false);
+
       await markNotificationRead(n.id);
+
+      if (chosen && n.items?.slug) {
+        navigate(`/items/${n.items.slug}`);
+      }
+      return;
     }
 
+    // Read: keep previous behavior (go to item if linked).
     if (n.items?.slug) {
       navigate(`/items/${n.items.slug}`);
     }
