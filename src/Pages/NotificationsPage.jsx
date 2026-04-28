@@ -1,5 +1,5 @@
 // src/pages/NotificationsPage.jsx
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNotificationCenter } from "../contexts/NotificationContext";
 import { useModal } from "../contexts/ModalContext";
@@ -41,6 +41,17 @@ export default function NotificationsPage() {
       await markNotificationRead(n.id);
     }
   }, [markNotificationRead, openNotification]);
+
+  useEffect(() => {
+    if (!openNotification) return;
+    function onKeyDown(e) {
+      if (e.key === "Escape") {
+        closeNotificationModal();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeNotificationModal, openNotification]);
 
   function handleNotificationClick(n) {
     if (!n?.id) return;
@@ -243,15 +254,15 @@ export default function NotificationsPage() {
             className="relative rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 max-h-[90vh] overflow-y-auto z-10 border bg-white border-gray-100"
           >
             {/* Branded header */}
-            <div className="relative rounded-t-xl bg-iregistrygreen px-5 py-4 text-white">
+            <div className="relative rounded-t-xl bg-emerald-50 px-5 py-4 text-emerald-950 border-b border-emerald-100">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center border border-white/20">
-                    <span className="text-sm font-bold">iR</span>
+                  <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center border border-emerald-200">
+                    <span className="text-sm font-bold text-emerald-800">iR</span>
                   </div>
                   <div>
-                    <div className="text-xs text-white/80">iRegistry</div>
-                    <h3 className="text-base font-semibold leading-tight">
+                    <div className="text-xs text-emerald-700">iRegistry</div>
+                    <h3 className="text-base font-semibold leading-tight text-emerald-950">
                       Notification
                     </h3>
                   </div>
@@ -260,7 +271,7 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={closeNotificationModal}
-                  className="rounded-lg px-2 py-1 text-white/90 hover:text-white hover:bg-white/10"
+                  className="rounded-lg px-2 py-1 text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100"
                   aria-label="Close notification"
                 >
                   ✕
@@ -268,7 +279,7 @@ export default function NotificationsPage() {
               </div>
 
               {!openNotification.isread ? (
-                <div className="mt-3 inline-flex items-center rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium border border-white/20">
+                <div className="mt-3 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium border border-emerald-200 text-emerald-900">
                   Unread
                 </div>
               ) : null}
@@ -301,16 +312,6 @@ export default function NotificationsPage() {
               <div className="text-xs text-gray-500">
                 <TimeAgo date={openNotification.createdon} />
               </div>
-            </div>
-
-            <div className="px-5 pb-5 flex justify-end">
-              <button
-                type="button"
-                onClick={closeNotificationModal}
-                className="px-4 py-2 rounded-lg bg-iregistrygreen text-white hover:opacity-90"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
