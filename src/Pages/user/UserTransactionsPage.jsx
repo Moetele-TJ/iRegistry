@@ -111,7 +111,7 @@ export default function UserTransactionsPage() {
 
   return (
     <PageSectionCard
-      maxWidthClass="max-w-6xl"
+      maxWidthClass="max-w-7xl"
       title="Transactions"
       subtitle="Personal wallet and organization top-ups you have access to."
       icon={<ReceiptText className="w-6 h-6 text-iregistrygreen shrink-0" />}
@@ -231,16 +231,7 @@ export default function UserTransactionsPage() {
 
           {/* md+: table */}
           <div className="hidden md:block overflow-x-auto px-4 sm:px-5">
-          <table className="w-full min-w-[52rem] table-fixed border-collapse text-sm">
-            <colgroup>
-              <col className="w-[22%]" />
-              <col className="w-[16%]" />
-              <col className="w-[10%]" />
-              <col className="w-[11%]" />
-              <col className="w-[8%]" />
-              <col className="w-[12%]" />
-              <col className="w-[21%]" />
-            </colgroup>
+          <table className="w-full min-w-[64rem] table-auto border-collapse text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="text-left font-semibold px-3 py-2.5">Date</th>
