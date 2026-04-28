@@ -66,6 +66,27 @@ function promoStatusBadgeClass(key) {
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
+function computeProposedEndAtLocal(startLocal, count, unit) {
+  const start = startLocal ? new Date(startLocal) : null;
+  const n = Number(count);
+  if (!start || Number.isNaN(start.getTime())) return "";
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const u = String(unit || "days");
+
+  const end = new Date(start);
+  if (u === "weeks") {
+    end.setDate(end.getDate() + n * 7);
+  } else if (u === "months") {
+    end.setMonth(end.getMonth() + n);
+  } else {
+    end.setDate(end.getDate() + n);
+  }
+
+  // Prefill to last minute of the picked day (23:59 local)
+  end.setHours(23, 59, 0, 0);
+  return isoDateInputValue(end.toISOString());
+}
+
 function projectLabel(url) {
   if (!url || typeof url !== "string") return "—";
   try {
@@ -106,6 +127,8 @@ export default function AdminSettings() {
   const [systemProposedEndsAt, setSystemProposedEndsAt] = useState("");
   const [systemNote, setSystemNote] = useState("");
   const [systemPromoDraftId, setSystemPromoDraftId] = useState("");
+  const [systemDurationCount, setSystemDurationCount] = useState(60);
+  const [systemDurationUnit, setSystemDurationUnit] = useState("days");
 
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -115,6 +138,8 @@ export default function AdminSettings() {
   const [enrollStartsAt, setEnrollStartsAt] = useState("");
   const [enrollProposedEndsAt, setEnrollProposedEndsAt] = useState("");
   const [enrollNote, setEnrollNote] = useState("");
+  const [enrollDurationCount, setEnrollDurationCount] = useState(60);
+  const [enrollDurationUnit, setEnrollDurationUnit] = useState("days");
   const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [userSearchResults, setUserSearchResults] = useState([]);
 
@@ -637,6 +662,57 @@ export default function AdminSettings() {
                   />
                 </div>
               </div>
+
+              <div className="rounded-xl border border-gray-100 bg-white p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Quick duration
+                </div>
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-end gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-600">Length</label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                      value={systemDurationCount}
+                      onChange={(e) => setSystemDurationCount(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-600">Unit</label>
+                    <select
+                      className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                      value={systemDurationUnit}
+                      onChange={(e) => setSystemDurationUnit(e.target.value)}
+                    >
+                      <option value="days">Days</option>
+                      <option value="weeks">Weeks</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
+                  <RippleButton
+                    type="button"
+                    className="px-4 py-2 rounded-xl border bg-white text-sm"
+                    onClick={() =>
+                      setSystemProposedEndsAt(
+                        computeProposedEndAtLocal(
+                          systemStartsAt,
+                          systemDurationCount,
+                          systemDurationUnit,
+                        ),
+                      )
+                    }
+                    disabled={!systemStartsAt}
+                    title="Sets proposed end to 23:59 on the ending day"
+                  >
+                    Set end
+                  </RippleButton>
+                </div>
+                <div className="mt-1 text-[11px] text-gray-500">
+                  This sets the proposed end to the last minute (23:59) of the calculated day. You can still edit it.
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs text-gray-600">Note (optional)</label>
                 <input
@@ -1065,6 +1141,58 @@ export default function AdminSettings() {
                       onChange={(e) => setEnrollProposedEndsAt(e.target.value)}
                       disabled={enrollBusy}
                     />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-100 bg-white p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                    Quick duration
+                  </div>
+                  <div className="mt-2 flex flex-col sm:flex-row sm:items-end gap-2">
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-600">Length</label>
+                      <input
+                        type="number"
+                        min={1}
+                        className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                        value={enrollDurationCount}
+                        onChange={(e) => setEnrollDurationCount(Number(e.target.value))}
+                        disabled={enrollBusy}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-600">Unit</label>
+                      <select
+                        className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                        value={enrollDurationUnit}
+                        onChange={(e) => setEnrollDurationUnit(e.target.value)}
+                        disabled={enrollBusy}
+                      >
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="months">Months</option>
+                      </select>
+                    </div>
+                    <RippleButton
+                      type="button"
+                      className="px-4 py-2 rounded-xl border bg-white text-sm"
+                      onClick={() =>
+                        setEnrollProposedEndsAt(
+                          computeProposedEndAtLocal(
+                            enrollStartsAt,
+                            enrollDurationCount,
+                            enrollDurationUnit,
+                          ),
+                        )
+                      }
+                      disabled={enrollBusy || !enrollStartsAt}
+                      title="Sets proposed end to 23:59 on the ending day"
+                    >
+                      Set end
+                    </RippleButton>
+                  </div>
+                  <div className="mt-1 text-[11px] text-gray-500">
+                    Sets proposed end to 23:59 on the calculated day; you can edit it after.
                   </div>
                 </div>
 
