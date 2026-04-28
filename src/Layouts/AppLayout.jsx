@@ -7,8 +7,32 @@ import { TransferProvider } from "../contexts/TransferContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { SidebarProvider, useSidebar } from "../contexts/SidebarContext";
 import AppSidebar from "../components/AppSidebar";
+import { useEffect, useRef } from "react";
 
 export default function AppLayout() {
+  const footerWrapRef = useRef(null);
+
+  useEffect(() => {
+    const el = footerWrapRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      const h = Math.max(0, Math.round(el.getBoundingClientRect().height || 0));
+      document.documentElement.style.setProperty("--app-footer-h", `${h}px`);
+    };
+
+    apply();
+
+    const ro = new ResizeObserver(() => apply());
+    ro.observe(el);
+    window.addEventListener("resize", apply);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
+    };
+  }, []);
+
   return (
     <TransferProvider>
       <NotificationProvider>
@@ -18,7 +42,9 @@ export default function AppLayout() {
             <div className="flex flex-1 flex-col min-h-0 pt-[var(--app-header-h)]">
               <LayoutBody />
             </div>
-            <Footer />
+            <div ref={footerWrapRef}>
+              <Footer />
+            </div>
           </div>
         </SidebarProvider>
       </NotificationProvider>

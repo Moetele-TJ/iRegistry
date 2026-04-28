@@ -174,10 +174,11 @@ export default function AppSidebar({ sidebar }) {
     <aside
       ref={asideRef}
       className={`
-        fixed left-0 top-[var(--app-header-h)] bottom-[var(--app-footer-h)] z-[70]
+        fixed left-0 top-[var(--app-header-h)] bottom-auto z-[70]
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         rounded-br-3xl shadow-lg
+        max-h-[calc(100vh-var(--app-header-h)-var(--app-footer-h))]
         transition-[width] ease-out
         ${
           railExpanded && hoverExpand
