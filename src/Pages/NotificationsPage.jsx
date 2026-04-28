@@ -240,13 +240,41 @@ export default function NotificationsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 p-5 max-h-[90vh] overflow-y-auto z-10 border bg-white border-gray-100"
+            className="relative rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 max-h-[90vh] overflow-y-auto z-10 border bg-white border-gray-100"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Notification
-            </h3>
+            {/* Branded header */}
+            <div className="relative rounded-t-xl bg-iregistrygreen px-5 py-4 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center border border-white/20">
+                    <span className="text-sm font-bold">iR</span>
+                  </div>
+                  <div>
+                    <div className="text-xs text-white/80">iRegistry</div>
+                    <h3 className="text-base font-semibold leading-tight">
+                      Notification
+                    </h3>
+                  </div>
+                </div>
 
-            <div className="space-y-3 text-sm text-gray-700 mb-4">
+                <button
+                  type="button"
+                  onClick={closeNotificationModal}
+                  className="rounded-lg px-2 py-1 text-white/90 hover:text-white hover:bg-white/10"
+                  aria-label="Close notification"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {!openNotification.isread ? (
+                <div className="mt-3 inline-flex items-center rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium border border-white/20">
+                  Unread
+                </div>
+              ) : null}
+            </div>
+
+            <div className="px-5 py-4 space-y-3 text-sm text-gray-700 mb-1">
               {openNotification.items?.name ? (
                 <div>
                   <div className="text-xs text-gray-500 mb-1">Item</div>
@@ -275,7 +303,7 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="px-5 pb-5 flex justify-end">
               <button
                 type="button"
                 onClick={closeNotificationModal}
