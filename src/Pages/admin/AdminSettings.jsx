@@ -80,6 +80,7 @@ export default function AdminSettings() {
     note: "",
   });
   const [promoUsers, setPromoUsers] = useState([]);
+  const [promoHistory, setPromoHistory] = useState([]);
 
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -130,6 +131,7 @@ export default function AdminSettings() {
       if (error || !data?.success) {
         setPromoConfig({ enabled: false, starts_at: null, ends_at: null, note: "" });
         setPromoUsers([]);
+        setPromoHistory([]);
         return;
       }
       const cfg = data.config || {};
@@ -140,9 +142,11 @@ export default function AdminSettings() {
         note: cfg.note || "",
       });
       setPromoUsers(Array.isArray(data.enrollments) ? data.enrollments : []);
+      setPromoHistory(Array.isArray(data.history) ? data.history : []);
     } catch {
       setPromoConfig({ enabled: false, starts_at: null, ends_at: null, note: "" });
       setPromoUsers([]);
+      setPromoHistory([]);
     } finally {
       setPromoLoading(false);
     }
@@ -562,6 +566,47 @@ export default function AdminSettings() {
                   placeholder="e.g. Launch promo (2 months)"
                 />
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">Recent promo history</h3>
+                  <p className="text-xs text-gray-500">Last 5 saved promo configurations.</p>
+                </div>
+              </div>
+              {promoLoading ? (
+                <div className="text-sm text-gray-500">Loading…</div>
+              ) : promoHistory.length === 0 ? (
+                <div className="text-sm text-gray-500">No history yet.</div>
+              ) : (
+                <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+                  {promoHistory.map((h) => (
+                    <div key={h.id} className="px-4 py-3 bg-gray-50/40">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="text-sm font-medium text-gray-800">
+                          {h.enabled ? "Promo enabled" : "Promo disabled"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {h.changed_at ? new Date(h.changed_at).toLocaleString() : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        <span className="font-medium">Start:</span>{" "}
+                        {h.starts_at ? new Date(h.starts_at).toLocaleString() : "—"}
+                        <span className="mx-2 text-gray-300">|</span>
+                        <span className="font-medium">End:</span>{" "}
+                        {h.ends_at ? new Date(h.ends_at).toLocaleString() : "—"}
+                      </div>
+                      {h.note ? (
+                        <div className="mt-1 text-xs text-gray-600 truncate">
+                          <span className="font-medium">Note:</span> {h.note}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-3 flex-wrap">

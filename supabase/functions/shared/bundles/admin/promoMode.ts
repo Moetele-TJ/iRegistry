@@ -45,6 +45,14 @@ export async function runGetPromoConfig(req: Request): Promise<Response> {
 
   if (cfgErr) return respond({ success: false, message: cfgErr.message || "Failed to load promo config" }, corsHeaders, 500);
 
+  const { data: historyRows, error: hErr } = await supabase
+    .from("system_promo_history")
+    .select("id, enabled, starts_at, ends_at, note, changed_at, changed_by")
+    .order("changed_at", { ascending: false })
+    .limit(5);
+
+  if (hErr) return respond({ success: false, message: hErr.message || "Failed to load promo history" }, corsHeaders, 500);
+
   const { data: rows, error: eErr } = await supabase
     .from("user_promo_enrollments")
     .select("id, user_id, starts_at, ends_at, note, created_at, created_by, updated_at, updated_by")
@@ -91,6 +99,7 @@ export async function runGetPromoConfig(req: Request): Promise<Response> {
     {
       success: true,
       config: cfg ?? { id: 1, enabled: false, starts_at: null, ends_at: null, note: null },
+      history: Array.isArray(historyRows) ? historyRows : [],
       enrollments: merged,
     },
     corsHeaders,
