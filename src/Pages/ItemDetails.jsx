@@ -251,23 +251,18 @@ export default function ItemDetails() {
     String(item.ownerId) !== String(user.id);
 
   const ownerIdentityLabel = useMemo(() => {
-    const name = `${String(item.ownerFirstName || "").trim()} ${String(
-      item.ownerLastName || ""
+    if (!item) return "";
+    const name = `${String(item?.ownerFirstName || "").trim()} ${String(
+      item?.ownerLastName || ""
     ).trim()}`.trim();
     return (
       name ||
-      item.ownerEmail ||
-      item.ownerIdNumber ||
-      item.ownerId ||
+      item?.ownerEmail ||
+      item?.ownerIdNumber ||
+      item?.ownerId ||
       ""
     );
-  }, [
-    item?.ownerFirstName,
-    item?.ownerLastName,
-    item?.ownerEmail,
-    item?.ownerIdNumber,
-    item?.ownerId,
-  ]);
+  }, [item]);
 
   useEffect(() => {
     setPhotoIndex(0);
