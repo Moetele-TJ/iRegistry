@@ -1,4 +1,5 @@
 // src/pages/NotificationsPage.jsx
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNotificationCenter } from "../contexts/NotificationContext";
 import { useModal } from "../contexts/ModalContext";
@@ -13,6 +14,7 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const { notifications = [], refresh } = useNotificationCenter();
   const { confirm } = useModal();
+  const [openNotification, setOpenNotification] = useState(null);
 
   const grouped = groupNotificationsByDate(notifications);
   const unreadCount = notifications.reduce(
@@ -20,7 +22,7 @@ export default function NotificationsPage() {
     0
   );
 
-  async function markNotificationRead(id) {
+  const markNotificationRead = useCallback(async (id) => {
     try {
       await invokeWithAuth("mark-notifications-read", {
         body: { ids: [id] }
@@ -30,53 +32,30 @@ export default function NotificationsPage() {
     } catch (err) {
       console.error("Failed to mark notification read", err);
     }
-  }
+  }, [refresh]);
 
-  async function handleNotificationClick(n) {
-    if (!n?.id) return;
-
-    // Unread: open a modal first, then mark as read when it closes.
-    if (!n.isread) {
-      const hasItem = !!n.items?.slug;
-      const chosen = await confirm({
-        title: "Notification",
-        message: (
-          <div className="space-y-3">
-            {n.items?.name ? (
-              <div className="text-sm text-gray-700">
-                <span className="text-gray-500">Item:</span>{" "}
-                <span className="font-semibold text-gray-900">{n.items.name}</span>
-              </div>
-            ) : null}
-            <div className="text-sm text-gray-900 whitespace-pre-wrap">{n.message}</div>
-            {n.contact ? (
-              <div className="text-sm text-gray-700">
-                <span className="text-gray-500">Contact:</span> {n.contact}
-              </div>
-            ) : null}
-            <div className="text-xs text-gray-500">
-              <TimeAgo date={n.createdon} />
-            </div>
-          </div>
-        ),
-        confirmLabel: hasItem ? "Open item" : "Close",
-        cancelLabel: "Close",
-        variant: hasItem ? "default" : "default",
-      }).catch(() => false);
-
+  const closeNotificationModal = useCallback(async () => {
+    const n = openNotification;
+    setOpenNotification(null);
+    if (n?.id && !n?.isread) {
       await markNotificationRead(n.id);
-
-      if (chosen && n.items?.slug) {
-        navigate(`/items/${n.items.slug}`);
-      }
-      return;
     }
+  }, [markNotificationRead, openNotification]);
 
-    // Read: keep previous behavior (go to item if linked).
-    if (n.items?.slug) {
-      navigate(`/items/${n.items.slug}`);
-    }
+  function handleNotificationClick(n) {
+    if (!n?.id) return;
+    setOpenNotification(n);
   }
+
+  const handleListItemNameClick = useCallback(async (e, n) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!n?.items?.slug) return;
+    if (n?.id && !n?.isread) {
+      await markNotificationRead(n.id);
+    }
+    navigate(`/items/${n.items.slug}`);
+  }, [markNotificationRead, navigate]);
 
   async function handleMarkAllRead() {
 
@@ -190,7 +169,20 @@ export default function NotificationsPage() {
 
                         {n.items?.name && (
                           <div className="text-xs text-gray-500 mb-1">
-                            Item: {n.items.name}
+                            Item:{" "}
+                            {n.items?.slug ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleListItemNameClick(e, n)}
+                                className="font-medium text-emerald-900 hover:underline"
+                              >
+                                {n.items.name}
+                              </button>
+                            ) : (
+                              <span className="font-medium text-gray-700">
+                                {n.items.name}
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -235,6 +227,66 @@ export default function NotificationsPage() {
 
       ))}
       </div>
+
+      {/* Notification details modal */}
+      {openNotification ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+            onClick={closeNotificationModal}
+            aria-hidden="true"
+          />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 p-5 max-h-[90vh] overflow-y-auto z-10 border bg-white border-gray-100"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Notification
+            </h3>
+
+            <div className="space-y-3 text-sm text-gray-700 mb-4">
+              {openNotification.items?.name ? (
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Item</div>
+                  <div className="font-semibold text-gray-900">
+                    {openNotification.items.name}
+                  </div>
+                </div>
+              ) : null}
+
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Message</div>
+                <div className="text-gray-900 whitespace-pre-wrap">
+                  {openNotification.message}
+                </div>
+              </div>
+
+              {openNotification.contact ? (
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Contact</div>
+                  <div className="text-gray-900">{openNotification.contact}</div>
+                </div>
+              ) : null}
+
+              <div className="text-xs text-gray-500">
+                <TimeAgo date={openNotification.createdon} />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={closeNotificationModal}
+                className="px-4 py-2 rounded-lg bg-iregistrygreen text-white hover:opacity-90"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageSectionCard>
 
   );
