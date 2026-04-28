@@ -15,6 +15,7 @@ import {
   runEndSystemPromo,
   runUpsertUserPromo,
   runEndUserPromo,
+  runDeleteScheduledPromo,
 } from "../shared/bundles/admin/promoMode.ts";
 
 const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
@@ -28,6 +29,7 @@ const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-end-system-promo": runEndSystemPromo,
   "admin-upsert-user-promo": runUpsertUserPromo,
   "admin-end-user-promo": runEndUserPromo,
+  "admin-delete-scheduled-promo": runDeleteScheduledPromo,
 };
 
 serve(async (req) => {

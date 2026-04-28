@@ -105,6 +105,7 @@ export default function AdminSettings() {
   const [systemStartsAt, setSystemStartsAt] = useState("");
   const [systemProposedEndsAt, setSystemProposedEndsAt] = useState("");
   const [systemNote, setSystemNote] = useState("");
+  const [systemPromoDraftId, setSystemPromoDraftId] = useState("");
 
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -170,6 +171,7 @@ export default function AdminSettings() {
       setSystemStartsAt(isoDateInputValue(active?.starts_at) || "");
       setSystemProposedEndsAt(isoDateInputValue(active?.proposed_ends_at) || "");
       setSystemNote(String(active?.note || ""));
+      setSystemPromoDraftId(String(active?.id || ""));
     } catch {
       setSystemPromo(null);
       setSystemHistory([]);
@@ -189,7 +191,7 @@ export default function AdminSettings() {
       const { data, error } = await invokeWithAuth("admin-api", {
         body: {
           operation: "admin-upsert-system-promo",
-          id: systemPromo?.id || null,
+          id: systemPromoDraftId || null,
           starts_at: systemStartsAt ? new Date(systemStartsAt).toISOString() : null,
           proposed_ends_at: systemProposedEndsAt ? new Date(systemProposedEndsAt).toISOString() : null,
           note: systemNote || null,
@@ -346,6 +348,47 @@ export default function AdminSettings() {
     } catch {
       addToast({ type: "error", message: "Failed to end user promo." });
     }
+  }
+
+  async function deleteScheduledPromo(row) {
+    const id = String(row?.id || "").trim();
+    if (!id) return;
+    const ok = await confirm({
+      title: "Delete scheduled promo?",
+      message: "This will permanently remove the scheduled promo.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
+    try {
+      const { data, error } = await invokeWithAuth("admin-api", {
+        body: { operation: "admin-delete-scheduled-promo", id },
+      });
+      if (error || !data?.success) {
+        addToast({ type: "error", message: data?.message || error?.message || "Failed to delete promo." });
+        return;
+      }
+      addToast({ type: "success", message: "Scheduled promo deleted." });
+      await loadPromo();
+    } catch {
+      addToast({ type: "error", message: "Failed to delete promo." });
+    }
+  }
+
+  function loadSystemPromoIntoEditor(row) {
+    setSystemStartsAt(isoDateInputValue(row?.starts_at) || "");
+    setSystemProposedEndsAt(isoDateInputValue(row?.proposed_ends_at) || "");
+    setSystemNote(String(row?.note || ""));
+    setSystemPromoDraftId(String(row?.id || ""));
+  }
+
+  function clearSystemPromoEditor() {
+    setSystemPromoDraftId("");
+    setSystemStartsAt("");
+    setSystemProposedEndsAt("");
+    setSystemNote("");
   }
 
   function beginEditEnrollment(e) {
@@ -545,6 +588,15 @@ export default function AdminSettings() {
                 </RippleButton>
                 <RippleButton
                   type="button"
+                  className="px-4 py-2 rounded-xl border bg-white text-sm"
+                  onClick={clearSystemPromoEditor}
+                  disabled={promoLoading || promoSaving}
+                  title="Clear editor to create a new promo"
+                >
+                  New promo
+                </RippleButton>
+                <RippleButton
+                  type="button"
                   className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
                   onClick={() => void saveSystemPromo()}
                   disabled={promoLoading || promoSaving}
@@ -613,53 +665,136 @@ export default function AdminSettings() {
               ) : systemHistory.length === 0 ? (
                 <div className="text-sm text-gray-500">No history yet.</div>
               ) : (
-                <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
-                  {systemHistory.map((h) => (
-                    <div key={h.id} className="px-4 py-3 bg-gray-50/40">
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="text-sm font-medium text-gray-800">
-                          System promo
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {(() => {
-                            const st = promoStatusForRow(h);
-                            return (
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border ${promoStatusBadgeClass(
-                                  st.key,
-                                )}`}
-                              >
-                                {st.label}
-                              </span>
-                            );
-                          })()}
-                          <div className="text-xs text-gray-500">
-                            {h.created_at ? new Date(h.created_at).toLocaleString() : "—"}
+                <>
+                  {/* Mobile: cards */}
+                  <div className="divide-y rounded-xl border border-gray-100 overflow-hidden lg:hidden">
+                    {systemHistory.map((h) => {
+                      const st = promoStatusForRow(h);
+                      const isScheduled = st.key === "scheduled";
+                      return (
+                        <div key={h.id} className="px-4 py-3 bg-gray-50/40">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="text-sm font-medium text-gray-800">System promo</div>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border ${promoStatusBadgeClass(
+                                st.key,
+                              )}`}
+                            >
+                              {st.label}
+                            </span>
                           </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            Saved: {h.created_at ? new Date(h.created_at).toLocaleString() : "—"}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600 space-y-1">
+                            <div>
+                              <span className="font-medium">Start:</span>{" "}
+                              {h.starts_at ? new Date(h.starts_at).toLocaleString() : "—"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Proposed end:</span>{" "}
+                              {h.proposed_ends_at ? new Date(h.proposed_ends_at).toLocaleString() : "—"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Actual end:</span>{" "}
+                              {h.ended_at ? new Date(h.ended_at).toLocaleString() : "—"}
+                            </div>
+                            {h.note ? (
+                              <div className="truncate">
+                                <span className="font-medium">Note:</span> {h.note}
+                              </div>
+                            ) : null}
+                          </div>
+                          {isScheduled ? (
+                            <div className="mt-3 flex items-center gap-4">
+                              <button
+                                type="button"
+                                className="text-sm text-gray-700 hover:underline"
+                                onClick={() => loadSystemPromoIntoEditor(h)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-sm text-red-700 hover:underline"
+                                onClick={() => void deleteScheduledPromo(h)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-600">
-                        <span className="font-medium">Start:</span>{" "}
-                        {h.starts_at ? new Date(h.starts_at).toLocaleString() : "—"}
-                        <span className="mx-2 text-gray-300">|</span>
-                        <span className="font-medium">End:</span>{" "}
-                        {h.proposed_ends_at ? new Date(h.proposed_ends_at).toLocaleString() : "—"}
-                        {h.ended_at ? (
-                          <>
-                            <span className="mx-2 text-gray-300">|</span>
-                            <span className="font-medium">Actual:</span>{" "}
-                            {new Date(h.ended_at).toLocaleString()}
-                          </>
-                        ) : null}
-                      </div>
-                      {h.note ? (
-                        <div className="mt-1 text-xs text-gray-600 truncate">
-                          <span className="font-medium">Note:</span> {h.note}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Large screens: table */}
+                  <div className="hidden lg:block overflow-auto rounded-xl border border-gray-100">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Status</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Start</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Proposed end</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Actual end</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Note</th>
+                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y bg-white">
+                        {systemHistory.map((h) => {
+                          const st = promoStatusForRow(h);
+                          const isScheduled = st.key === "scheduled";
+                          return (
+                            <tr key={h.id}>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border ${promoStatusBadgeClass(
+                                    st.key,
+                                  )}`}
+                                >
+                                  {st.label}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-700">
+                                {h.starts_at ? new Date(h.starts_at).toLocaleString() : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-gray-700">
+                                {h.proposed_ends_at ? new Date(h.proposed_ends_at).toLocaleString() : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-gray-700">
+                                {h.ended_at ? new Date(h.ended_at).toLocaleString() : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-gray-700 max-w-[26rem] truncate">{h.note || "—"}</td>
+                              <td className="px-4 py-3 text-right">
+                                {isScheduled ? (
+                                  <div className="inline-flex items-center gap-4 justify-end">
+                                    <button
+                                      type="button"
+                                      className="text-sm text-gray-700 hover:underline"
+                                      onClick={() => loadSystemPromoIntoEditor(h)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="text-sm text-red-700 hover:underline"
+                                      onClick={() => void deleteScheduledPromo(h)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-400">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
 
@@ -808,14 +943,31 @@ export default function AdminSettings() {
                               >
                                 Edit
                               </button>
-                              <button
-                                type="button"
-                                className="text-sm text-red-700 hover:underline"
-                                onClick={() => void endUserPromo(e)}
-                                disabled={editPromoBusy || !!editPromoId}
-                              >
-                                End now
-                              </button>
+                              {(() => {
+                                const st = promoStatusForRow(e);
+                                if (st.key === "scheduled") {
+                                  return (
+                                    <button
+                                      type="button"
+                                      className="text-sm text-red-700 hover:underline"
+                                      onClick={() => void deleteScheduledPromo(e)}
+                                      disabled={editPromoBusy || !!editPromoId}
+                                    >
+                                      Delete
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <button
+                                    type="button"
+                                    className="text-sm text-red-700 hover:underline"
+                                    onClick={() => void endUserPromo(e)}
+                                    disabled={editPromoBusy || !!editPromoId}
+                                  >
+                                    End now
+                                  </button>
+                                );
+                              })()}
                             </div>
                           )}
                         </td>

@@ -337,3 +337,59 @@ export async function runEndUserPromo(req: Request): Promise<Response> {
   return respond({ success: true, promo: data ?? null }, corsHeaders, 200);
 }
 
+export async function runDeleteScheduledPromo(req: Request): Promise<Response> {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+
+  const gate = await requireAdmin(req);
+  if (gate.res) return gate.res;
+  const session = gate.session!;
+
+  const body = await req.json().catch(() => ({}));
+  const id = typeof (body as any)?.id === "string" ? String((body as any).id).trim() : "";
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const nowIso = new Date().toISOString();
+
+  const { data: existing } = await supabase
+    .from("promo_campaigns")
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!existing) {
+    return respond({ success: false, message: "Promo not found" }, corsHeaders, 404);
+  }
+
+  // Only scheduled promos can be deleted (not active, not ended early).
+  if (!(existing.starts_at > nowIso) || existing.ended_at != null) {
+    return respond(
+      { success: false, message: "Only scheduled promos (not started yet) can be deleted." },
+      corsHeaders,
+      409,
+    );
+  }
+
+  const { error } = await supabase
+    .from("promo_campaigns")
+    .delete()
+    .eq("id", id);
+
+  if (error) return respond({ success: false, message: error.message || "Failed to delete promo" }, corsHeaders, 500);
+
+  await logAudit({
+    supabase,
+    event: "PROMO_DELETED",
+    user_id: String(session.user_id),
+    channel: "ADMIN",
+    actor_user_id: session.user_id,
+    success: true,
+    severity: "medium",
+    diag: "PROMO-DEL",
+    metadata: { prev: existing },
+    req,
+  });
+
+  return respond({ success: true }, corsHeaders, 200);
+}
+
