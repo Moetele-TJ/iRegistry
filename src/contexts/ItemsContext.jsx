@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useReducer,
   useCallback,
+  useRef,
 } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
@@ -159,6 +160,7 @@ export function ItemsProvider({ children }) {
 
   const [state, dispatch] = useReducer(itemsReducer, initialState);
   const { user } = useAuth();
+  const refreshSeqRef = useRef(0);
 
   /* ---------------- FETCH ITEMS ---------------- */
 
@@ -169,6 +171,7 @@ export function ItemsProvider({ children }) {
         return;
       }
 
+      const seq = (refreshSeqRef.current += 1);
       dispatch({ type: "SET_LOADING", payload: true });
       dispatch({ type: "SET_ERROR", payload: null });
 
@@ -192,6 +195,7 @@ export function ItemsProvider({ children }) {
           },
         });
 
+        if (seq !== refreshSeqRef.current) return;
         if (error || !data?.success) {
           throw new Error(data?.message || "Failed to load items");
         }
@@ -201,12 +205,15 @@ export function ItemsProvider({ children }) {
           payload: (data.items || []).map(normalizeItemFromDB),
         });
       } catch (err) {
+        if (seq !== refreshSeqRef.current) return;
         dispatch({
           type: "SET_ERROR",
           payload: err.message || "Failed to load items",
         });
       } finally {
-        dispatch({ type: "SET_LOADING", payload: false });
+        if (seq === refreshSeqRef.current) {
+          dispatch({ type: "SET_LOADING", payload: false });
+        }
       }
     },
     [user?.id]

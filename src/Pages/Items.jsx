@@ -107,7 +107,11 @@ function formatItemPlace(item) {
   return "—";
 }
 
-function formatItemStation(item) {
+function formatItemStation(item, { preferCaseStation = false } = {}) {
+  if (preferCaseStation) {
+    const cs = String(item?.policeCase?.station || "").trim();
+    if (cs) return cs;
+  }
   return String(item?.station || item?.location || "").trim() || "—";
 }
 
@@ -1366,7 +1370,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                         {formatItemPlace(item)}
                       </td>
                       <td className="py-4 px-5 text-gray-600">
-                        {formatItemStation(item)}
+                        {formatItemStation(item, { preferCaseStation: showStationQueue })}
                       </td>
                       <td className="py-4 px-5 text-right font-medium text-gray-700">
                         {formatBwpCurrency(item.estimatedValue, { empty: "-" })}
@@ -1633,7 +1637,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                         Station
                       </div>
                       <div className="text-gray-700 font-medium truncate">
-                        {formatItemStation(item)}
+                        {formatItemStation(item, { preferCaseStation: showStationQueue })}
                       </div>
                     </div>
 
