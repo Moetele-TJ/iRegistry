@@ -178,7 +178,7 @@ export default function AppSidebar({ sidebar }) {
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         rounded-br-3xl shadow-lg
-        max-h-[calc(100vh-var(--app-header-h)-var(--app-footer-h))]
+        max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))]
         transition-[width] ease-out
         ${
           railExpanded && hoverExpand
@@ -190,7 +190,7 @@ export default function AppSidebar({ sidebar }) {
       onMouseLeave={handleAsideMouseLeave}
     >
       <nav
-        className="app-sidebar-nav max-h-[calc(100vh-var(--app-header-h)-var(--app-footer-h))] overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
+        className="app-sidebar-nav max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))] overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
         aria-label="Main navigation"
       >
         {items.map((it) =>
