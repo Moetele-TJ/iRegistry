@@ -29,6 +29,10 @@ export function useAddItemPreflight() {
 
   const goToAddItem = useCallback(async () => {
     if (tasksLoading) return;
+    if (user?.promo_active) {
+      navigate("/items/add");
+      return;
+    }
     const balance = Number(user?.credit_balance ?? 0);
     const ctx = {
       createdByCount,
@@ -59,6 +63,7 @@ export function useAddItemPreflight() {
     navigate("/items/add");
   }, [
     tasksLoading,
+    user?.promo_active,
     user?.credit_balance,
     user?.role,
     createdByCount,

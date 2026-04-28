@@ -115,6 +115,12 @@ serve(async (req) => {
         ? (user as any).user_credits.balance
         : 0;
 
+    const { data: promoRows, error: promoErr } = await supabase.rpc("is_promo_active", {
+      p_user_id: session.user_id,
+    });
+    if (promoErr) console.error("validate-session promo check:", promoErr.message);
+    const promo_active = typeof promoRows === "boolean" ? promoRows : false;
+
     const { data: lastSessionRow } = await supabase
       .from("session_last_login")
       .select("last_login_at")
@@ -131,6 +137,7 @@ serve(async (req) => {
       ...(user as any),
       credit_balance,
       last_login_at,
+      promo_active,
     };
     delete (normalizedUser as any).user_credits;
 

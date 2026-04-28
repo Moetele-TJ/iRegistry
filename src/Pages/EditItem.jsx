@@ -194,6 +194,9 @@ export default function EditItem() {
 
   const editConfirmNotes = useMemo(() => {
     if (!storedItem) return "";
+    if (user?.promo_active) {
+      return " Promo is active for this session — no credit charge is expected for this save.";
+    }
     if (editPreviewCodes.length === 0) {
       return " Based on your edits, no credit charge is expected for this save.";
     }
@@ -222,6 +225,7 @@ export default function EditItem() {
     storedItem,
     editPreviewCodes,
     getCost,
+    user?.promo_active,
     user?.credit_balance,
     chargesOwnerWallet,
     ownerBal,
@@ -230,6 +234,7 @@ export default function EditItem() {
   /** Immediate warning when the billed account (owner) cannot afford the cheapest step. */
   const showEntryCreditWarning = useMemo(() => {
     if (!storedItem || !user || tasksLoading) return false;
+    if (user?.promo_active) return false;
     if (!chargesOwnerWallet) return false;
     return isBalanceBelowMinimumForEdit(
       ownerBal,

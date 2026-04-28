@@ -412,6 +412,10 @@ export default function ItemDetails() {
     if (isFrozen) return;
     const path = `/items/${item.slug}/edit`;
     if (tasksLoading) return;
+    if (user?.promo_active) {
+      navigate(path);
+      return;
+    }
 
     const role = user?.role;
     const ownerRole = item.ownerRole ?? null;
