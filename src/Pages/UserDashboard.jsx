@@ -9,6 +9,7 @@ import DashboardAlertsPanel from "../components/DashboardAlertsPanel";
 import CreditsSummaryStrip from "../components/CreditsSummaryStrip.jsx";
 import { useDashboard } from "../hooks/useDashboard";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
+import PromoModeBanner from "../components/PromoModeBanner.jsx";
 
 function useCountUp(target = 0, duration = 800) {
   const [value, setValue] = useState(0);
@@ -71,6 +72,7 @@ export default function UserDashboard() {
             <p className="text-sm text-gray-500 mt-1">Here’s a snapshot of your asset portfolio</p>
           </div>
           <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 bg-gradient-to-b from-white to-gray-50/40">
+        <PromoModeBanner />
         <CreditsSummaryStrip />
 
         {!loading && !hasItems && (

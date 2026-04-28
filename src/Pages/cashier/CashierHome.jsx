@@ -16,6 +16,7 @@ import { useNotificationCenter } from "../../contexts/NotificationContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
 import { formatBwpCurrency } from "../../lib/formatBWP.js";
+import PromoModeBanner from "../../components/PromoModeBanner.jsx";
 
 export default function CashierHome() {
   const { user } = useAuth();
@@ -50,6 +51,7 @@ export default function CashierHome() {
         </div>
 
         <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 bg-gradient-to-b from-white to-gray-50/40">
+      <PromoModeBanner />
       {loading && (
         <div className="space-y-4 animate-pulse">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

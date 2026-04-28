@@ -123,6 +123,7 @@ export default function AdminSettings() {
   const [systemHistory, setSystemHistory] = useState([]);
   const [userPromos, setUserPromos] = useState([]);
 
+  const [systemEditorOpen, setSystemEditorOpen] = useState(false);
   const [systemStartsAt, setSystemStartsAt] = useState("");
   const [systemProposedEndsAt, setSystemProposedEndsAt] = useState("");
   const [systemNote, setSystemNote] = useState("");
@@ -149,8 +150,25 @@ export default function AdminSettings() {
   const [editPromoStartsAt, setEditPromoStartsAt] = useState("");
   const [editPromoProposedEndsAt, setEditPromoProposedEndsAt] = useState("");
   const [editPromoNote, setEditPromoNote] = useState("");
+  const [userPromoTab, setUserPromoTab] = useState("active"); // active | ended
 
   const host = useMemo(() => projectLabel(SUPABASE_URL), []);
+
+  const filteredUserPromos = useMemo(() => {
+    const now = Date.now();
+    const list = Array.isArray(userPromos) ? userPromos : [];
+    if (userPromoTab === "ended") {
+      return list.filter((p) => {
+        const st = promoStatusForRow(p, now);
+        return st.key === "ended" || st.key === "ended_early";
+      });
+    }
+    // "active" tab includes scheduled + active promos
+    return list.filter((p) => {
+      const st = promoStatusForRow(p, now);
+      return st.key === "active" || st.key === "scheduled";
+    });
+  }, [userPromos, userPromoTab]);
 
   const loadStats = useCallback(async () => {
     setLoadingStats(true);
@@ -182,6 +200,7 @@ export default function AdminSettings() {
         setSystemPromo(null);
         setSystemHistory([]);
         setUserPromos([]);
+        setSystemEditorOpen(false);
         return;
       }
       const active = data.system_active || null;
@@ -192,15 +211,17 @@ export default function AdminSettings() {
       setSystemHistory(hist);
       setUserPromos(ups);
 
-      // Prefill system editor with active promo (or defaults)
-      setSystemStartsAt(isoDateInputValue(active?.starts_at) || "");
-      setSystemProposedEndsAt(isoDateInputValue(active?.proposed_ends_at) || "");
-      setSystemNote(String(active?.note || ""));
-      setSystemPromoDraftId(String(active?.id || ""));
+      // Keep system editor collapsed by default. Prefill happens when admin opens it.
+      setSystemEditorOpen(false);
+      setSystemStartsAt("");
+      setSystemProposedEndsAt("");
+      setSystemNote("");
+      setSystemPromoDraftId("");
     } catch {
       setSystemPromo(null);
       setSystemHistory([]);
       setUserPromos([]);
+      setSystemEditorOpen(false);
     } finally {
       setPromoLoading(false);
     }
@@ -213,6 +234,51 @@ export default function AdminSettings() {
   async function saveSystemPromo() {
     setPromoSaving(true);
     try {
+      const startsOk = systemStartsAt && !Number.isNaN(new Date(systemStartsAt).getTime());
+      const endsOk =
+        systemProposedEndsAt && !Number.isNaN(new Date(systemProposedEndsAt).getTime());
+      if (!startsOk) {
+        addToast({ type: "error", message: "Start date/time is required." });
+        return;
+      }
+      if (!endsOk) {
+        addToast({ type: "error", message: "Proposed end date/time is required." });
+        return;
+      }
+      const sMs = new Date(systemStartsAt).getTime();
+      const eMs = new Date(systemProposedEndsAt).getTime();
+      if (!(eMs > sMs)) {
+        addToast({ type: "error", message: "Proposed end must be after start." });
+        return;
+      }
+
+      // If there is an active promo and we're scheduling/editing a different promo, prevent overlap by requiring
+      // the new promo start to be on/after the day after the active promo effective end.
+      const editingActive = systemPromo?.id && String(systemPromoDraftId) === String(systemPromo.id);
+      if (systemPromo?.starts_at && systemPromo?.proposed_ends_at && !editingActive) {
+        const activeStartMs = new Date(systemPromo.starts_at).getTime();
+        const activeProposedEndMs = new Date(systemPromo.proposed_ends_at).getTime();
+        const activeEndedMs = systemPromo.ended_at ? new Date(systemPromo.ended_at).getTime() : null;
+        const activeEffectiveEndMs =
+          activeEndedMs != null ? Math.min(activeEndedMs, activeProposedEndMs) : activeProposedEndMs;
+        // Day after effective end at 00:00 local
+        const minStart = new Date(activeEffectiveEndMs);
+        minStart.setDate(minStart.getDate() + 1);
+        minStart.setHours(0, 0, 0, 0);
+        if (sMs < minStart.getTime()) {
+          addToast({
+            type: "error",
+            message: "Scheduled promo start overlaps the running promo. Pick a start date after it ends.",
+          });
+          return;
+        }
+        // Also ensure the scheduled promo doesn't start before the active promo starts (sanity)
+        if (sMs < activeStartMs) {
+          addToast({ type: "error", message: "Start date must not be before the current promo window." });
+          return;
+        }
+      }
+
       const { data, error } = await invokeWithAuth("admin-api", {
         body: {
           operation: "admin-upsert-system-promo",
@@ -407,6 +473,7 @@ export default function AdminSettings() {
     setSystemProposedEndsAt(isoDateInputValue(row?.proposed_ends_at) || "");
     setSystemNote(String(row?.note || ""));
     setSystemPromoDraftId(String(row?.id || ""));
+    setSystemEditorOpen(true);
   }
 
   function clearSystemPromoEditor() {
@@ -414,6 +481,40 @@ export default function AdminSettings() {
     setSystemStartsAt("");
     setSystemProposedEndsAt("");
     setSystemNote("");
+    setSystemEditorOpen(true);
+  }
+
+  function openEditorForActiveSystemPromo() {
+    if (!systemPromo?.id) return;
+    loadSystemPromoIntoEditor(systemPromo);
+  }
+
+  function openEditorForNewScheduledSystemPromo() {
+    // Default start: day after running promo effective end (00:00 local). If no active promo, default to now.
+    const now = new Date();
+    let start = now;
+    if (systemPromo?.proposed_ends_at) {
+      const proposedEndMs = new Date(systemPromo.proposed_ends_at).getTime();
+      const endedMs = systemPromo.ended_at ? new Date(systemPromo.ended_at).getTime() : null;
+      const effectiveEndMs = endedMs != null ? Math.min(endedMs, proposedEndMs) : proposedEndMs;
+      const next = new Date(effectiveEndMs);
+      next.setDate(next.getDate() + 1);
+      next.setHours(0, 0, 0, 0);
+      start = next;
+    }
+
+    setSystemPromoDraftId("");
+    setSystemStartsAt(isoDateInputValue(start.toISOString()));
+    // Prefill end based on current duration helper.
+    setSystemProposedEndsAt(
+      computeProposedEndAtLocal(
+        isoDateInputValue(start.toISOString()),
+        systemDurationCount,
+        systemDurationUnit,
+      ),
+    );
+    setSystemNote("");
+    setSystemEditorOpen(true);
   }
 
   function beginEditEnrollment(e) {
@@ -614,12 +715,31 @@ export default function AdminSettings() {
                 <RippleButton
                   type="button"
                   className="px-4 py-2 rounded-xl border bg-white text-sm"
-                  onClick={clearSystemPromoEditor}
+                  onClick={
+                    systemPromo?.id
+                      ? openEditorForNewScheduledSystemPromo
+                      : clearSystemPromoEditor
+                  }
                   disabled={promoLoading || promoSaving}
-                  title="Clear editor to create a new promo"
+                  title={
+                    systemPromo?.id
+                      ? "Schedule a new promo after the current one"
+                      : "Create a new promo"
+                  }
                 >
-                  New promo
+                  {systemPromo?.id ? "Schedule new promo" : "New promo"}
                 </RippleButton>
+                {systemPromo?.id ? (
+                  <RippleButton
+                    type="button"
+                    className="px-4 py-2 rounded-xl border bg-white text-sm"
+                    onClick={openEditorForActiveSystemPromo}
+                    disabled={promoLoading || promoSaving}
+                    title="Edit the currently running promo"
+                  >
+                    Edit active
+                  </RippleButton>
+                ) : null}
                 <RippleButton
                   type="button"
                   className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
@@ -641,7 +761,8 @@ export default function AdminSettings() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
+            {systemEditorOpen ? (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-600">Start</label>
@@ -727,7 +848,51 @@ export default function AdminSettings() {
                   Actual end: {new Date(systemPromo.ended_at).toLocaleString()}
                 </div>
               ) : null}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-sm text-gray-700 hover:underline"
+                  onClick={() => setSystemEditorOpen(false)}
+                >
+                  Hide editor
+                </button>
+              </div>
             </div>
+            ) : (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4">
+                {systemPromo?.id ? (
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">Active promo running</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Start:{" "}
+                        <span className="font-medium">
+                          {systemPromo.starts_at ? new Date(systemPromo.starts_at).toLocaleString() : "—"}
+                        </span>
+                        <span className="mx-2 text-gray-300">|</span>
+                        Proposed end:{" "}
+                        <span className="font-medium">
+                          {systemPromo.proposed_ends_at ? new Date(systemPromo.proposed_ends_at).toLocaleString() : "—"}
+                        </span>
+                      </div>
+                      {systemPromo.note ? (
+                        <div className="text-xs text-gray-600 mt-1 truncate">
+                          <span className="font-medium">Note:</span> {systemPromo.note}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Use <span className="font-medium">Edit active</span> to change dates, or{" "}
+                      <span className="font-medium">End now</span> to stop promo early.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-700">
+                    No active system promo. Click <span className="font-medium">New promo</span> to create one.
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -891,6 +1056,34 @@ export default function AdminSettings() {
               </RippleButton>
             </div>
 
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                className={`px-3 py-1.5 rounded-xl border text-sm ${
+                  userPromoTab === "active"
+                    ? "bg-emerald-50 border-emerald-100 text-emerald-900"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
+                onClick={() => setUserPromoTab("active")}
+              >
+                Active
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-1.5 rounded-xl border text-sm ${
+                  userPromoTab === "ended"
+                    ? "bg-gray-100 border-gray-200 text-gray-900"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
+                onClick={() => setUserPromoTab("ended")}
+              >
+                Ended
+              </button>
+              <div className="text-xs text-gray-500">
+                Showing {filteredUserPromos.length} of {userPromos.length}
+              </div>
+            </div>
+
             <div className="overflow-auto rounded-2xl border border-gray-100">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 border-b">
@@ -910,14 +1103,16 @@ export default function AdminSettings() {
                         Loading…
                       </td>
                     </tr>
-                  ) : userPromos.length === 0 ? (
+                  ) : filteredUserPromos.length === 0 ? (
                     <tr>
                       <td className="px-4 py-4 text-gray-500" colSpan={6}>
-                        No user promos yet.
+                        {userPromoTab === "ended"
+                          ? "No ended promos yet."
+                          : "No active promos yet."}
                       </td>
                     </tr>
                   ) : (
-                    userPromos.map((e) => (
+                    filteredUserPromos.map((e) => (
                       <tr key={e.id}>
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-800 truncate">

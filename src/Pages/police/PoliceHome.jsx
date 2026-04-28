@@ -7,6 +7,7 @@ import { roleIs } from "../../lib/roleUtils.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import PromoModeBanner from "../../components/PromoModeBanner.jsx";
 
 export default function PoliceHome() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ export default function PoliceHome() {
       icon={<Shield className="w-7 h-7 text-iregistrygreen shrink-0" />}
     >
       <div className="p-4 sm:p-6 space-y-8">
+        <PromoModeBanner />
         {roleIs(user?.role, "admin") && (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             You are signed in as <strong>admin</strong>. Station metrics below are for{" "}

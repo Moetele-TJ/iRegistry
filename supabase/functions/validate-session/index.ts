@@ -121,6 +121,13 @@ serve(async (req) => {
     if (promoErr) console.error("validate-session promo check:", promoErr.message);
     const promo_active = typeof promoRows === "boolean" ? promoRows : false;
 
+    const { data: activePromo, error: promoInfoErr } = await supabase.rpc(
+      "get_active_promo_for_user",
+      { p_user_id: session.user_id },
+    );
+    if (promoInfoErr) console.error("validate-session promo info:", promoInfoErr.message);
+    const promo = Array.isArray(activePromo) ? activePromo[0] : activePromo ?? null;
+
     const { data: lastSessionRow } = await supabase
       .from("session_last_login")
       .select("last_login_at")
@@ -138,6 +145,7 @@ serve(async (req) => {
       credit_balance,
       last_login_at,
       promo_active,
+      promo,
     };
     delete (normalizedUser as any).user_credits;
 

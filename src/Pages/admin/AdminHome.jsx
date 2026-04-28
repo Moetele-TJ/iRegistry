@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
+import PromoModeBanner from "../../components/PromoModeBanner.jsx";
 
 export default function AdminHome() {
   const navigate = useNavigate();
@@ -136,6 +137,7 @@ export default function AdminHome() {
         </div>
 
         <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 bg-gradient-to-b from-white to-gray-50/40">
+      <PromoModeBanner />
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">
           {error}
