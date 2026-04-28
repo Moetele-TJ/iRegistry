@@ -21,6 +21,12 @@ function asIsoOrNull(v: unknown): string | null {
   return d.toISOString();
 }
 
+function asIsoRequired(v: unknown, label: string): string {
+  const iso = asIsoOrNull(v);
+  if (!iso) throw new Error(`${label} is required`);
+  return iso;
+}
+
 async function requireAdmin(req: Request) {
   const auth = req.headers.get("authorization") || req.headers.get("Authorization");
   const session = await validateSession(supabase, auth);
@@ -37,32 +43,41 @@ export async function runGetPromoConfig(req: Request): Promise<Response> {
   if (gate.res) return gate.res;
   const session = gate.session!;
 
-  const { data: cfg, error: cfgErr } = await supabase
-    .from("system_promo_config")
-    .select("id, enabled, starts_at, ends_at, note, updated_at, updated_by")
-    .eq("id", 1)
+  const nowIso = new Date().toISOString();
+
+  const { data: activeSystem, error: aErr } = await supabase
+    .from("promo_campaigns")
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+    .eq("scope", "system")
+    .lte("starts_at", nowIso)
+    .gt("proposed_ends_at", nowIso)
+    .is("ended_at", null)
+    .order("starts_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  if (cfgErr) return respond({ success: false, message: cfgErr.message || "Failed to load promo config" }, corsHeaders, 500);
+  if (aErr) return respond({ success: false, message: aErr.message || "Failed to load active system promo" }, corsHeaders, 500);
 
-  const { data: historyRows, error: hErr } = await supabase
-    .from("system_promo_history")
-    .select("id, enabled, starts_at, ends_at, note, changed_at, changed_by")
-    .order("changed_at", { ascending: false })
+  const { data: systemHistory, error: shErr } = await supabase
+    .from("promo_campaigns")
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+    .eq("scope", "system")
+    .order("created_at", { ascending: false })
     .limit(5);
 
-  if (hErr) return respond({ success: false, message: hErr.message || "Failed to load promo history" }, corsHeaders, 500);
+  if (shErr) return respond({ success: false, message: shErr.message || "Failed to load system promo history" }, corsHeaders, 500);
 
-  const { data: rows, error: eErr } = await supabase
-    .from("user_promo_enrollments")
-    .select("id, user_id, starts_at, ends_at, note, created_at, created_by, updated_at, updated_by")
+  const { data: userRows, error: uPromoErr } = await supabase
+    .from("promo_campaigns")
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+    .eq("scope", "user")
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (eErr) return respond({ success: false, message: eErr.message || "Failed to load promo users" }, corsHeaders, 500);
+  if (uPromoErr) return respond({ success: false, message: uPromoErr.message || "Failed to load user promos" }, corsHeaders, 500);
 
-  const enrollments = Array.isArray(rows) ? rows : [];
-  const userIds = [...new Set(enrollments.map((r: any) => String(r.user_id)))];
+  const promos = Array.isArray(userRows) ? userRows : [];
+  const userIds = [...new Set(promos.map((r: any) => String(r.user_id)).filter(Boolean))];
 
   let usersById = new Map<string, any>();
   if (userIds.length > 0) {
@@ -77,7 +92,7 @@ export async function runGetPromoConfig(req: Request): Promise<Response> {
     }
   }
 
-  const merged = enrollments.map((e: any) => ({
+  const merged = promos.map((e: any) => ({
     ...e,
     user: usersById.get(String(e.user_id)) ?? null,
   }));
@@ -98,16 +113,16 @@ export async function runGetPromoConfig(req: Request): Promise<Response> {
   return respond(
     {
       success: true,
-      config: cfg ?? { id: 1, enabled: false, starts_at: null, ends_at: null, note: null },
-      history: Array.isArray(historyRows) ? historyRows : [],
-      enrollments: merged,
+      system_active: activeSystem ?? null,
+      system_history: Array.isArray(systemHistory) ? systemHistory : [],
+      user_promos: merged,
     },
     corsHeaders,
     200,
   );
 }
 
-export async function runSetPromoConfig(req: Request): Promise<Response> {
+export async function runUpsertSystemPromo(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
@@ -115,112 +130,59 @@ export async function runSetPromoConfig(req: Request): Promise<Response> {
   if (gate.res) return gate.res;
   const session = gate.session!;
 
-  const body = await req.json().catch(() => ({}));
-  const enabled = typeof (body as any)?.enabled === "boolean" ? (body as any).enabled : null;
-  if (enabled == null) return respond({ success: false, message: "enabled is required" }, corsHeaders, 400);
+  try {
+    const body = await req.json().catch(() => ({}));
+    const id = typeof (body as any)?.id === "string" ? String((body as any).id).trim() : "";
+    const starts_at = asIsoRequired((body as any)?.starts_at, "starts_at");
+    const proposed_ends_at = asIsoRequired((body as any)?.proposed_ends_at, "proposed_ends_at");
+    const note = typeof (body as any)?.note === "string" ? String((body as any).note).trim() || null : null;
 
-  const starts_at = asIsoOrNull((body as any)?.starts_at);
-  const ends_at = asIsoOrNull((body as any)?.ends_at);
-  const note = typeof (body as any)?.note === "string" ? String((body as any).note).trim() || null : null;
+    if (new Date(starts_at).getTime() >= new Date(proposed_ends_at).getTime()) {
+      return respond({ success: false, message: "starts_at must be < proposed_ends_at" }, corsHeaders, 400);
+    }
 
-  if (starts_at && ends_at && new Date(starts_at).getTime() > new Date(ends_at).getTime()) {
-    return respond({ success: false, message: "starts_at must be <= ends_at" }, corsHeaders, 400);
+    const payload: Record<string, unknown> = {
+      scope: "system",
+      user_id: null,
+      starts_at,
+      proposed_ends_at,
+      note,
+      updated_by: session.user_id,
+    };
+    if (!id) payload.created_by = session.user_id;
+    if (id) payload.id = id;
+
+    const { data, error } = await supabase
+      .from("promo_campaigns")
+      .upsert(payload, { onConflict: "id" })
+      .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+      .single();
+
+    if (error || !data) {
+      const msg = String(error?.message || "Failed to save system promo");
+      return respond({ success: false, message: msg }, corsHeaders, 500);
+    }
+
+    await logAudit({
+      supabase,
+      event: "PROMO_SYSTEM_UPSERTED",
+      user_id: String(session.user_id),
+      channel: "ADMIN",
+      actor_user_id: session.user_id,
+      success: true,
+      severity: "medium",
+      diag: "PROMO-SYS-UP",
+      metadata: { id: data.id, starts_at: data.starts_at, proposed_ends_at: data.proposed_ends_at },
+      req,
+    });
+
+    return respond({ success: true, promo: data }, corsHeaders, 200);
+  } catch (e: any) {
+    return respond({ success: false, message: e?.message || "Invalid request" }, corsHeaders, 400);
   }
-
-  const { data, error } = await supabase
-    .from("system_promo_config")
-    .upsert(
-      {
-        id: 1,
-        enabled,
-        starts_at,
-        ends_at,
-        note,
-        updated_by: session.user_id,
-      },
-      { onConflict: "id" },
-    )
-    .select("id, enabled, starts_at, ends_at, note, updated_at, updated_by")
-    .single();
-
-  if (error || !data) {
-    return respond({ success: false, message: error?.message || "Failed to save promo config" }, corsHeaders, 500);
-  }
-
-  await logAudit({
-    supabase,
-    event: "PROMO_CONFIG_UPDATED",
-    user_id: String(session.user_id),
-    channel: "ADMIN",
-    actor_user_id: session.user_id,
-    success: true,
-    severity: "medium",
-    diag: "PROMO-SET",
-    metadata: { enabled, starts_at, ends_at },
-    req,
-  });
-
-  return respond({ success: true, config: data }, corsHeaders, 200);
 }
 
-export async function runUpsertPromoEnrollment(req: Request): Promise<Response> {
-  const corsHeaders = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
-
-  const gate = await requireAdmin(req);
-  if (gate.res) return gate.res;
-  const session = gate.session!;
-
-  const body = await req.json().catch(() => ({}));
-  const id = typeof (body as any)?.id === "string" ? String((body as any).id).trim() : "";
-  const user_id = typeof (body as any)?.user_id === "string" ? String((body as any).user_id).trim() : "";
-  if (!user_id) return respond({ success: false, message: "user_id is required" }, corsHeaders, 400);
-
-  const starts_at = asIsoOrNull((body as any)?.starts_at) ?? new Date().toISOString();
-  const ends_at = asIsoOrNull((body as any)?.ends_at);
-  const note = typeof (body as any)?.note === "string" ? String((body as any).note).trim() || null : null;
-
-  if (ends_at && new Date(starts_at).getTime() > new Date(ends_at).getTime()) {
-    return respond({ success: false, message: "starts_at must be <= ends_at" }, corsHeaders, 400);
-  }
-
-  const payload: Record<string, unknown> = {
-    user_id,
-    starts_at,
-    ends_at,
-    note,
-    updated_by: session.user_id,
-  };
-  if (!id) payload.created_by = session.user_id;
-  if (id) payload.id = id;
-
-  const { data, error } = await supabase
-    .from("user_promo_enrollments")
-    .upsert(payload, { onConflict: "id" })
-    .select("id, user_id, starts_at, ends_at, note, created_at, created_by, updated_at, updated_by")
-    .single();
-
-  if (error || !data) {
-    return respond({ success: false, message: error?.message || "Failed to save enrollment" }, corsHeaders, 500);
-  }
-
-  await logAudit({
-    supabase,
-    event: "PROMO_USER_UPSERTED",
-    user_id: String(session.user_id),
-    channel: "ADMIN",
-    actor_user_id: session.user_id,
-    success: true,
-    severity: "medium",
-    diag: "PROMO-USER-UP",
-    metadata: { id: data.id, user_id: data.user_id, starts_at: data.starts_at, ends_at: data.ends_at },
-    req,
-  });
-
-  return respond({ success: true, enrollment: data }, corsHeaders, 200);
-}
-
-export async function runDeletePromoEnrollment(req: Request): Promise<Response> {
+export async function runEndSystemPromo(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
@@ -233,31 +195,145 @@ export async function runDeletePromoEnrollment(req: Request): Promise<Response> 
   if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
 
   const { data: existing } = await supabase
-    .from("user_promo_enrollments")
-    .select("id, user_id, starts_at, ends_at")
+    .from("promo_campaigns")
+    .select("id, scope, starts_at, proposed_ends_at, ended_at")
     .eq("id", id)
+    .eq("scope", "system")
     .maybeSingle();
 
-  const { error } = await supabase
-    .from("user_promo_enrollments")
-    .delete()
-    .eq("id", id);
+  const { data, error } = await supabase
+    .from("promo_campaigns")
+    .update({ ended_at: new Date().toISOString(), updated_by: session.user_id })
+    .eq("id", id)
+    .eq("scope", "system")
+    .is("ended_at", null)
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+    .maybeSingle();
 
-  if (error) return respond({ success: false, message: error.message || "Failed to delete enrollment" }, corsHeaders, 500);
+  if (error) return respond({ success: false, message: error.message || "Failed to end promo" }, corsHeaders, 500);
 
   await logAudit({
     supabase,
-    event: "PROMO_USER_DELETED",
+    event: "PROMO_SYSTEM_ENDED",
     user_id: String(session.user_id),
     channel: "ADMIN",
     actor_user_id: session.user_id,
     success: true,
     severity: "medium",
-    diag: "PROMO-USER-DEL",
-    metadata: { id, user_id: (existing as any)?.user_id ?? null },
+    diag: "PROMO-SYS-END",
+    metadata: { id, prev: existing ?? null },
     req,
   });
 
-  return respond({ success: true }, corsHeaders, 200);
+  return respond({ success: true, promo: data ?? null }, corsHeaders, 200);
+}
+
+export async function runUpsertUserPromo(req: Request): Promise<Response> {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+
+  const gate = await requireAdmin(req);
+  if (gate.res) return gate.res;
+  const session = gate.session!;
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const id = typeof (body as any)?.id === "string" ? String((body as any).id).trim() : "";
+    const user_id = typeof (body as any)?.user_id === "string" ? String((body as any).user_id).trim() : "";
+    if (!user_id) return respond({ success: false, message: "user_id is required" }, corsHeaders, 400);
+
+    const starts_at = asIsoRequired((body as any)?.starts_at, "starts_at");
+    const proposed_ends_at = asIsoRequired((body as any)?.proposed_ends_at, "proposed_ends_at");
+    const note = typeof (body as any)?.note === "string" ? String((body as any).note).trim() || null : null;
+
+    if (new Date(starts_at).getTime() >= new Date(proposed_ends_at).getTime()) {
+      return respond({ success: false, message: "starts_at must be < proposed_ends_at" }, corsHeaders, 400);
+    }
+
+    const payload: Record<string, unknown> = {
+      scope: "user",
+      user_id,
+      starts_at,
+      proposed_ends_at,
+      note,
+      updated_by: session.user_id,
+    };
+    if (!id) payload.created_by = session.user_id;
+    if (id) payload.id = id;
+
+    const { data, error } = await supabase
+      .from("promo_campaigns")
+      .upsert(payload, { onConflict: "id" })
+      .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+      .single();
+
+    if (error || !data) {
+      const msg = String(error?.message || "Failed to save user promo");
+      return respond({ success: false, message: msg }, corsHeaders, 500);
+    }
+
+    await logAudit({
+      supabase,
+      event: "PROMO_USER_UPSERTED",
+      user_id: String(session.user_id),
+      channel: "ADMIN",
+      actor_user_id: session.user_id,
+      success: true,
+      severity: "medium",
+      diag: "PROMO-USER-UP",
+      metadata: { id: data.id, user_id: data.user_id, starts_at: data.starts_at, proposed_ends_at: data.proposed_ends_at },
+      req,
+    });
+
+    return respond({ success: true, promo: data }, corsHeaders, 200);
+  } catch (e: any) {
+    return respond({ success: false, message: e?.message || "Invalid request" }, corsHeaders, 400);
+  }
+}
+
+export async function runEndUserPromo(req: Request): Promise<Response> {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+
+  const gate = await requireAdmin(req);
+  if (gate.res) return gate.res;
+  const session = gate.session!;
+
+  const body = await req.json().catch(() => ({}));
+  const id = typeof (body as any)?.id === "string" ? String((body as any).id).trim() : "";
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const { data: existing } = await supabase
+    .from("promo_campaigns")
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at")
+    .eq("id", id)
+    .eq("scope", "user")
+    .maybeSingle();
+
+  const { data, error } = await supabase
+    .from("promo_campaigns")
+    .update({ ended_at: new Date().toISOString(), updated_by: session.user_id })
+    .eq("id", id)
+    .eq("scope", "user")
+    .is("ended_at", null)
+    .select("id, scope, user_id, starts_at, proposed_ends_at, ended_at, note, created_at, created_by, updated_at, updated_by")
+    .maybeSingle();
+
+  if (error) return respond({ success: false, message: error.message || "Failed to end promo" }, corsHeaders, 500);
+
+  await logAudit({
+    supabase,
+    event: "PROMO_USER_ENDED",
+    user_id: String(session.user_id),
+    channel: "ADMIN",
+    actor_user_id: session.user_id,
+    success: true,
+    severity: "medium",
+    diag: "PROMO-USER-END",
+    metadata: { id, prev: existing ?? null },
+    req,
+  });
+
+  return respond({ success: true, promo: data ?? null }, corsHeaders, 200);
 }
 

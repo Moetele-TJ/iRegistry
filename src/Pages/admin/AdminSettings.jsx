@@ -41,6 +41,31 @@ function formatUserLabel(u) {
   return name || u.email || u.id_number || u.id || "—";
 }
 
+function promoStatusForRow(row, nowMs = Date.now()) {
+  if (!row) return { key: "unknown", label: "Unknown" };
+  const s = row.starts_at ? new Date(row.starts_at).getTime() : NaN;
+  const p = row.proposed_ends_at ? new Date(row.proposed_ends_at).getTime() : NaN;
+  const e = row.ended_at ? new Date(row.ended_at).getTime() : NaN;
+  if (!Number.isFinite(s) || !Number.isFinite(p)) return { key: "unknown", label: "Unknown" };
+
+  const effectiveEnd = Number.isFinite(e) ? Math.min(e, p) : p;
+
+  if (nowMs < s) return { key: "scheduled", label: "Scheduled" };
+  if (nowMs >= s && nowMs < effectiveEnd) return { key: "active", label: "Active" };
+
+  if (Number.isFinite(e) && e < p) return { key: "ended_early", label: "Ended early" };
+  return { key: "ended", label: "Ended" };
+}
+
+function promoStatusBadgeClass(key) {
+  const k = String(key || "");
+  if (k === "active") return "bg-emerald-50 text-emerald-800 border-emerald-100";
+  if (k === "scheduled") return "bg-blue-50 text-blue-800 border-blue-100";
+  if (k === "ended_early") return "bg-amber-50 text-amber-900 border-amber-100";
+  if (k === "ended") return "bg-gray-50 text-gray-700 border-gray-200";
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
 function projectLabel(url) {
   if (!url || typeof url !== "string") return "—";
   try {
@@ -73,14 +98,13 @@ export default function AdminSettings() {
 
   const [promoLoading, setPromoLoading] = useState(true);
   const [promoSaving, setPromoSaving] = useState(false);
-  const [promoConfig, setPromoConfig] = useState({
-    enabled: false,
-    starts_at: null,
-    ends_at: null,
-    note: "",
-  });
-  const [promoUsers, setPromoUsers] = useState([]);
-  const [promoHistory, setPromoHistory] = useState([]);
+  const [systemPromo, setSystemPromo] = useState(null); // active system campaign (or null)
+  const [systemHistory, setSystemHistory] = useState([]);
+  const [userPromos, setUserPromos] = useState([]);
+
+  const [systemStartsAt, setSystemStartsAt] = useState("");
+  const [systemProposedEndsAt, setSystemProposedEndsAt] = useState("");
+  const [systemNote, setSystemNote] = useState("");
 
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -88,7 +112,7 @@ export default function AdminSettings() {
   const [enrollUserQuery, setEnrollUserQuery] = useState("");
   const [enrollUserId, setEnrollUserId] = useState("");
   const [enrollStartsAt, setEnrollStartsAt] = useState("");
-  const [enrollEndsAt, setEnrollEndsAt] = useState("");
+  const [enrollProposedEndsAt, setEnrollProposedEndsAt] = useState("");
   const [enrollNote, setEnrollNote] = useState("");
   const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [userSearchResults, setUserSearchResults] = useState([]);
@@ -97,7 +121,7 @@ export default function AdminSettings() {
   const [editPromoBusy, setEditPromoBusy] = useState(false);
   const [editPromoErr, setEditPromoErr] = useState("");
   const [editPromoStartsAt, setEditPromoStartsAt] = useState("");
-  const [editPromoEndsAt, setEditPromoEndsAt] = useState("");
+  const [editPromoProposedEndsAt, setEditPromoProposedEndsAt] = useState("");
   const [editPromoNote, setEditPromoNote] = useState("");
 
   const host = useMemo(() => projectLabel(SUPABASE_URL), []);
@@ -129,24 +153,27 @@ export default function AdminSettings() {
         body: { operation: "admin-get-promo-config" },
       });
       if (error || !data?.success) {
-        setPromoConfig({ enabled: false, starts_at: null, ends_at: null, note: "" });
-        setPromoUsers([]);
-        setPromoHistory([]);
+        setSystemPromo(null);
+        setSystemHistory([]);
+        setUserPromos([]);
         return;
       }
-      const cfg = data.config || {};
-      setPromoConfig({
-        enabled: !!cfg.enabled,
-        starts_at: cfg.starts_at ?? null,
-        ends_at: cfg.ends_at ?? null,
-        note: cfg.note || "",
-      });
-      setPromoUsers(Array.isArray(data.enrollments) ? data.enrollments : []);
-      setPromoHistory(Array.isArray(data.history) ? data.history : []);
+      const active = data.system_active || null;
+      const hist = Array.isArray(data.system_history) ? data.system_history : [];
+      const ups = Array.isArray(data.user_promos) ? data.user_promos : [];
+
+      setSystemPromo(active);
+      setSystemHistory(hist);
+      setUserPromos(ups);
+
+      // Prefill system editor with active promo (or defaults)
+      setSystemStartsAt(isoDateInputValue(active?.starts_at) || "");
+      setSystemProposedEndsAt(isoDateInputValue(active?.proposed_ends_at) || "");
+      setSystemNote(String(active?.note || ""));
     } catch {
-      setPromoConfig({ enabled: false, starts_at: null, ends_at: null, note: "" });
-      setPromoUsers([]);
-      setPromoHistory([]);
+      setSystemPromo(null);
+      setSystemHistory([]);
+      setUserPromos([]);
     } finally {
       setPromoLoading(false);
     }
@@ -156,34 +183,62 @@ export default function AdminSettings() {
     void loadPromo();
   }, [loadPromo]);
 
-  async function savePromoConfig() {
+  async function saveSystemPromo() {
     setPromoSaving(true);
     try {
       const { data, error } = await invokeWithAuth("admin-api", {
         body: {
-          operation: "admin-set-promo-config",
-          enabled: !!promoConfig.enabled,
-          starts_at: promoConfig.starts_at || null,
-          ends_at: promoConfig.ends_at || null,
-          note: promoConfig.note || null,
+          operation: "admin-upsert-system-promo",
+          id: systemPromo?.id || null,
+          starts_at: systemStartsAt ? new Date(systemStartsAt).toISOString() : null,
+          proposed_ends_at: systemProposedEndsAt ? new Date(systemProposedEndsAt).toISOString() : null,
+          note: systemNote || null,
         },
       });
       if (error || !data?.success) {
         addToast({
           type: "error",
-          message: data?.message || error?.message || "Failed to save promo settings.",
+          message: data?.message || error?.message || "Failed to save system promo.",
         });
         return;
       }
-      addToast({ type: "success", message: "Promo settings saved." });
+      addToast({ type: "success", message: "System promo saved." });
       await loadPromo();
     } catch {
-      addToast({ type: "error", message: "Failed to save promo settings." });
+      addToast({ type: "error", message: "Failed to save system promo." });
     } finally {
       setPromoSaving(false);
     }
   }
 
+  async function endSystemPromo() {
+    if (!systemPromo?.id) return;
+    const ok = await confirm({
+      title: "End system promo now?",
+      message: "This will stop promo billing bypass immediately.",
+      confirmLabel: "End promo",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
+    setPromoSaving(true);
+    try {
+      const { data, error } = await invokeWithAuth("admin-api", {
+        body: { operation: "admin-end-system-promo", id: systemPromo.id },
+      });
+      if (error || !data?.success) {
+        addToast({ type: "error", message: data?.message || error?.message || "Failed to end promo." });
+        return;
+      }
+      addToast({ type: "success", message: "System promo ended." });
+      await loadPromo();
+    } catch {
+      addToast({ type: "error", message: "Failed to end promo." });
+    } finally {
+      setPromoSaving(false);
+    }
+  }
   async function searchUsers(q) {
     const term = String(q || "").trim();
     if (!term) {
@@ -228,7 +283,7 @@ export default function AdminSettings() {
     setEnrollUserQuery("");
     setEnrollUserId("");
     setEnrollStartsAt("");
-    setEnrollEndsAt("");
+    setEnrollProposedEndsAt("");
     setEnrollNote("");
     setUserSearchResults([]);
     setEnrollOpen(true);
@@ -245,10 +300,10 @@ export default function AdminSettings() {
     try {
       const { data, error } = await invokeWithAuth("admin-api", {
         body: {
-          operation: "admin-upsert-promo-user",
+          operation: "admin-upsert-user-promo",
           user_id: uid,
           starts_at: enrollStartsAt ? new Date(enrollStartsAt).toISOString() : null,
-          ends_at: enrollEndsAt ? new Date(enrollEndsAt).toISOString() : null,
+          proposed_ends_at: enrollProposedEndsAt ? new Date(enrollProposedEndsAt).toISOString() : null,
           note: enrollNote || null,
         },
       });
@@ -266,24 +321,30 @@ export default function AdminSettings() {
     }
   }
 
-  async function removeEnrollment(id) {
-    const eid = String(id || "").trim();
-    if (!eid) return;
+  async function endUserPromo(e) {
+    const id = String(e?.id || "").trim();
+    if (!id) return;
+    const ok = await confirm({
+      title: "End user promo now?",
+      message: `End promo early for "${formatUserLabel(e?.user)}"?`,
+      confirmLabel: "End promo",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+
     try {
       const { data, error } = await invokeWithAuth("admin-api", {
-        body: { operation: "admin-delete-promo-user", id: eid },
+        body: { operation: "admin-end-user-promo", id },
       });
       if (error || !data?.success) {
-        addToast({
-          type: "error",
-          message: data?.message || error?.message || "Failed to remove promo user.",
-        });
+        addToast({ type: "error", message: data?.message || error?.message || "Failed to end user promo." });
         return;
       }
-      addToast({ type: "success", message: "Promo user removed." });
+      addToast({ type: "success", message: "User promo ended." });
       await loadPromo();
     } catch {
-      addToast({ type: "error", message: "Failed to remove promo user." });
+      addToast({ type: "error", message: "Failed to end user promo." });
     }
   }
 
@@ -291,7 +352,7 @@ export default function AdminSettings() {
     setEditPromoErr("");
     setEditPromoId(String(e?.id || ""));
     setEditPromoStartsAt(isoDateInputValue(e?.starts_at));
-    setEditPromoEndsAt(isoDateInputValue(e?.ends_at));
+    setEditPromoProposedEndsAt(isoDateInputValue(e?.proposed_ends_at));
     setEditPromoNote(String(e?.note || ""));
   }
 
@@ -300,7 +361,7 @@ export default function AdminSettings() {
     setEditPromoErr("");
     setEditPromoId("");
     setEditPromoStartsAt("");
-    setEditPromoEndsAt("");
+    setEditPromoProposedEndsAt("");
     setEditPromoNote("");
   }
 
@@ -311,11 +372,11 @@ export default function AdminSettings() {
     try {
       const { data, error } = await invokeWithAuth("admin-api", {
         body: {
-          operation: "admin-upsert-promo-user",
+          operation: "admin-upsert-user-promo",
           id: String(e.id),
           user_id: String(e.user_id),
           starts_at: editPromoStartsAt ? new Date(editPromoStartsAt).toISOString() : null,
-          ends_at: editPromoEndsAt ? new Date(editPromoEndsAt).toISOString() : null,
+          proposed_ends_at: editPromoProposedEndsAt ? new Date(editPromoProposedEndsAt).toISOString() : null,
           note: editPromoNote || null,
         },
       });
@@ -333,17 +394,7 @@ export default function AdminSettings() {
     }
   }
 
-  async function confirmRemoveEnrollment(e) {
-    const ok = await confirm({
-      title: "Remove promo user?",
-      message: `Remove promo access for "${formatUserLabel(e?.user)}"? This does not delete the user account.`,
-      confirmLabel: "Remove",
-      cancelLabel: "Cancel",
-      danger: true,
-    }).catch(() => false);
-    if (!ok) return;
-    await removeEnrollment(e?.id);
-  }
+  // Removal is now "end early" for campaign model.
 
   async function copyHost() {
     if (!host || host === "—") return;
@@ -495,77 +546,59 @@ export default function AdminSettings() {
                 <RippleButton
                   type="button"
                   className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
-                  onClick={() => void savePromoConfig()}
+                  onClick={() => void saveSystemPromo()}
                   disabled={promoLoading || promoSaving}
                 >
                   {promoSaving ? "Saving…" : "Save"}
                 </RippleButton>
+                {systemPromo?.id ? (
+                  <RippleButton
+                    type="button"
+                    className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm disabled:opacity-60"
+                    onClick={() => void endSystemPromo()}
+                    disabled={promoLoading || promoSaving}
+                  >
+                    End now
+                  </RippleButton>
+                ) : null}
               </div>
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
-              <label className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!promoConfig.enabled}
-                  onChange={(e) =>
-                    setPromoConfig((c) => ({ ...c, enabled: e.target.checked }))
-                  }
-                />
-                <span className="font-medium text-gray-800">
-                  Enable system promo mode
-                </span>
-                <span className="text-xs text-gray-500">
-                  (bypasses credit charges)
-                </span>
-              </label>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-600">Promo starts (optional)</label>
+                  <label className="text-xs text-gray-600">Start</label>
                   <input
                     type="datetime-local"
                     className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                    value={isoDateInputValue(promoConfig.starts_at)}
-                    onChange={(e) =>
-                      setPromoConfig((c) => ({
-                        ...c,
-                        starts_at: e.target.value
-                          ? new Date(e.target.value).toISOString()
-                          : null,
-                      }))
-                    }
+                    value={systemStartsAt}
+                    onChange={(e) => setSystemStartsAt(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600">Promo ends (optional)</label>
+                  <label className="text-xs text-gray-600">Proposed end</label>
                   <input
                     type="datetime-local"
                     className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                    value={isoDateInputValue(promoConfig.ends_at)}
-                    onChange={(e) =>
-                      setPromoConfig((c) => ({
-                        ...c,
-                        ends_at: e.target.value
-                          ? new Date(e.target.value).toISOString()
-                          : null,
-                      }))
-                    }
+                    value={systemProposedEndsAt}
+                    onChange={(e) => setSystemProposedEndsAt(e.target.value)}
                   />
                 </div>
               </div>
-
               <div>
                 <label className="text-xs text-gray-600">Note (optional)</label>
                 <input
                   className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                  value={promoConfig.note || ""}
-                  onChange={(e) =>
-                    setPromoConfig((c) => ({ ...c, note: e.target.value }))
-                  }
+                  value={systemNote}
+                  onChange={(e) => setSystemNote(e.target.value)}
                   placeholder="e.g. Launch promo (2 months)"
                 />
               </div>
+              {systemPromo?.ended_at ? (
+                <div className="text-xs text-gray-500">
+                  Actual end: {new Date(systemPromo.ended_at).toLocaleString()}
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
@@ -577,18 +610,32 @@ export default function AdminSettings() {
               </div>
               {promoLoading ? (
                 <div className="text-sm text-gray-500">Loading…</div>
-              ) : promoHistory.length === 0 ? (
+              ) : systemHistory.length === 0 ? (
                 <div className="text-sm text-gray-500">No history yet.</div>
               ) : (
                 <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
-                  {promoHistory.map((h) => (
+                  {systemHistory.map((h) => (
                     <div key={h.id} className="px-4 py-3 bg-gray-50/40">
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div className="text-sm font-medium text-gray-800">
-                          {h.enabled ? "Promo enabled" : "Promo disabled"}
+                          System promo
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {h.changed_at ? new Date(h.changed_at).toLocaleString() : "—"}
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const st = promoStatusForRow(h);
+                            return (
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border ${promoStatusBadgeClass(
+                                  st.key,
+                                )}`}
+                              >
+                                {st.label}
+                              </span>
+                            );
+                          })()}
+                          <div className="text-xs text-gray-500">
+                            {h.created_at ? new Date(h.created_at).toLocaleString() : "—"}
+                          </div>
                         </div>
                       </div>
                       <div className="mt-1 text-xs text-gray-600">
@@ -596,7 +643,14 @@ export default function AdminSettings() {
                         {h.starts_at ? new Date(h.starts_at).toLocaleString() : "—"}
                         <span className="mx-2 text-gray-300">|</span>
                         <span className="font-medium">End:</span>{" "}
-                        {h.ends_at ? new Date(h.ends_at).toLocaleString() : "—"}
+                        {h.proposed_ends_at ? new Date(h.proposed_ends_at).toLocaleString() : "—"}
+                        {h.ended_at ? (
+                          <>
+                            <span className="mx-2 text-gray-300">|</span>
+                            <span className="font-medium">Actual:</span>{" "}
+                            {new Date(h.ended_at).toLocaleString()}
+                          </>
+                        ) : null}
                       </div>
                       {h.note ? (
                         <div className="mt-1 text-xs text-gray-600 truncate">
@@ -631,8 +685,9 @@ export default function AdminSettings() {
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">User</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Start</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">End</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Proposed end</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Note</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600">Actions</th>
                   </tr>
@@ -640,18 +695,18 @@ export default function AdminSettings() {
                 <tbody className="divide-y bg-white">
                   {promoLoading ? (
                     <tr>
-                      <td className="px-4 py-4 text-gray-500" colSpan={5}>
+                      <td className="px-4 py-4 text-gray-500" colSpan={6}>
                         Loading…
                       </td>
                     </tr>
-                  ) : promoUsers.length === 0 ? (
+                  ) : userPromos.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-4 text-gray-500" colSpan={5}>
-                        No promo users enrolled.
+                      <td className="px-4 py-4 text-gray-500" colSpan={6}>
+                        No user promos yet.
                       </td>
                     </tr>
                   ) : (
-                    promoUsers.map((e) => (
+                    userPromos.map((e) => (
                       <tr key={e.id}>
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-800 truncate">
@@ -660,6 +715,20 @@ export default function AdminSettings() {
                           <div className="text-xs text-gray-500 font-mono truncate">
                             {String(e.user_id).slice(0, 8)}…
                           </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const st = promoStatusForRow(e);
+                            return (
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border ${promoStatusBadgeClass(
+                                  st.key,
+                                )}`}
+                              >
+                                {st.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
                           {editPromoId && String(editPromoId) === String(e.id) ? (
@@ -681,12 +750,12 @@ export default function AdminSettings() {
                             <input
                               type="datetime-local"
                               className="w-full border rounded-lg px-2 py-1 text-sm bg-white"
-                              value={editPromoEndsAt}
-                              onChange={(ev) => setEditPromoEndsAt(ev.target.value)}
+                              value={editPromoProposedEndsAt}
+                              onChange={(ev) => setEditPromoProposedEndsAt(ev.target.value)}
                               disabled={editPromoBusy}
                             />
-                          ) : e.ends_at ? (
-                            new Date(e.ends_at).toLocaleString()
+                          ) : e.proposed_ends_at ? (
+                            new Date(e.proposed_ends_at).toLocaleString()
                           ) : (
                             "—"
                           )}
@@ -742,10 +811,10 @@ export default function AdminSettings() {
                               <button
                                 type="button"
                                 className="text-sm text-red-700 hover:underline"
-                                onClick={() => void confirmRemoveEnrollment(e)}
+                                onClick={() => void endUserPromo(e)}
                                 disabled={editPromoBusy || !!editPromoId}
                               >
-                                Remove
+                                End now
                               </button>
                             </div>
                           )}
@@ -836,12 +905,12 @@ export default function AdminSettings() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-600">End (optional)</label>
+                    <label className="text-xs text-gray-600">Proposed end</label>
                     <input
                       type="datetime-local"
                       className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
-                      value={enrollEndsAt}
-                      onChange={(e) => setEnrollEndsAt(e.target.value)}
+                      value={enrollProposedEndsAt}
+                      onChange={(e) => setEnrollProposedEndsAt(e.target.value)}
                       disabled={enrollBusy}
                     />
                   </div>

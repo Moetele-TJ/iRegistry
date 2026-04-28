@@ -11,9 +11,10 @@ import { run as runUpsertCreditPackage } from "../shared/bundles/admin/upsertCre
 import { run as runDeleteCreditPackage } from "../shared/bundles/admin/deleteCreditPackage.ts";
 import {
   runGetPromoConfig,
-  runSetPromoConfig,
-  runUpsertPromoEnrollment,
-  runDeletePromoEnrollment,
+  runUpsertSystemPromo,
+  runEndSystemPromo,
+  runUpsertUserPromo,
+  runEndUserPromo,
 } from "../shared/bundles/admin/promoMode.ts";
 
 const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
@@ -23,9 +24,10 @@ const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-upsert-credit-package": runUpsertCreditPackage,
   "admin-delete-credit-package": runDeleteCreditPackage,
   "admin-get-promo-config": runGetPromoConfig,
-  "admin-set-promo-config": runSetPromoConfig,
-  "admin-upsert-promo-user": runUpsertPromoEnrollment,
-  "admin-delete-promo-user": runDeletePromoEnrollment,
+  "admin-upsert-system-promo": runUpsertSystemPromo,
+  "admin-end-system-promo": runEndSystemPromo,
+  "admin-upsert-user-promo": runUpsertUserPromo,
+  "admin-end-user-promo": runEndUserPromo,
 };
 
 serve(async (req) => {
