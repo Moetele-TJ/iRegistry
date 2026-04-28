@@ -20,7 +20,8 @@ export async function getPoliceCaseActivity(
   const { data: openCases } = await supabase
     .from("item_police_cases")
     .select("item_id")
-    .eq("station", station.trim())
+    // Case-insensitive match helps when station capitalization differs.
+    .ilike("station", station.trim())
     .neq("status", "ReturnedToOwner");
 
   const itemIds = openCases?.map((c) => c.item_id) ?? [];

@@ -234,7 +234,9 @@ serve(async (req) => {
           "id, item_id, status, station, station_source, opened_at, cleared_at, returned_at, notes, evidence",
           { count: "exact" },
         )
-        .eq("station", station)
+        // Case-insensitive match helps when station capitalization differs between
+        // user profiles and cases opened from item location defaults.
+        .ilike("station", station)
         .neq("status", "ReturnedToOwner")
         .order("opened_at", { ascending: false })
         .range(from, to);

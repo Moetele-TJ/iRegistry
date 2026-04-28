@@ -21,6 +21,13 @@ const ALLOWED: Record<string, string> = {
   ClearedForReturn: "ReturnedToOwner",
 };
 
+function normalizeStation(v: unknown) {
+  return String(v || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -112,7 +119,7 @@ serve(async (req) => {
       );
     }
 
-    if (String(row.station).trim() !== String(officerStation).trim()) {
+    if (normalizeStation(row.station) !== normalizeStation(officerStation)) {
       return respond(
         {
           success: false,
