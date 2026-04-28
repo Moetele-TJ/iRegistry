@@ -244,6 +244,31 @@ export default function ItemDetails() {
     !isFrozen &&
     (isPrivilegedRole(user.role) || String(user.id) === String(item.ownerId));
 
+  const showOwnerIdentity =
+    !!user &&
+    !!item?.ownerId &&
+    isPrivilegedRole(user.role) &&
+    String(item.ownerId) !== String(user.id);
+
+  const ownerIdentityLabel = useMemo(() => {
+    const name = `${String(item.ownerFirstName || "").trim()} ${String(
+      item.ownerLastName || ""
+    ).trim()}`.trim();
+    return (
+      name ||
+      item.ownerEmail ||
+      item.ownerIdNumber ||
+      item.ownerId ||
+      ""
+    );
+  }, [
+    item?.ownerFirstName,
+    item?.ownerLastName,
+    item?.ownerEmail,
+    item?.ownerIdNumber,
+    item?.ownerId,
+  ]);
+
   useEffect(() => {
     setPhotoIndex(0);
   }, [slug, item?.id]);
@@ -1166,6 +1191,16 @@ export default function ItemDetails() {
                     Quick facts
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">
+                    {showOwnerIdentity ? (
+                      <div className="rounded-2xl bg-amber-50 border border-amber-100 p-3 col-span-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                          Registered owner
+                        </div>
+                        <div className="mt-0.5 font-semibold text-amber-900 truncate">
+                          {ownerIdentityLabel || "—"}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Make / Model</div>
                       <div className="mt-0.5 font-semibold text-gray-900 truncate">

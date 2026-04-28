@@ -16,6 +16,64 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+/** Owner identity fields for staff-only visibility in the UI. */
+async function enrichItemsWithOwnerIdentity(
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const list = rows || [];
+  const ownerIds = [
+    ...new Set(
+      list
+        .map((r) => r?.ownerid)
+        .filter((id): id is string => typeof id === "string" && !!id.trim()),
+    ),
+  ];
+  if (ownerIds.length === 0) return list;
+
+  const { data: userRows, error } = await supabase
+    .from("users")
+    .select("id, first_name, last_name, email, id_number")
+    .in("id", ownerIds);
+
+  if (error) {
+    console.error("get-items owner identity:", error.message);
+    return list;
+  }
+
+  const byId = new Map(
+    (userRows || []).map(
+      (u: {
+        id?: string;
+        first_name?: string | null;
+        last_name?: string | null;
+        email?: string | null;
+        id_number?: string | null;
+      }) => [
+        u.id,
+        {
+          first_name: u.first_name ?? null,
+          last_name: u.last_name ?? null,
+          email: u.email ?? null,
+          id_number: u.id_number ?? null,
+        },
+      ],
+    ),
+  );
+
+  return list.map((row) => {
+    const oid = row?.ownerid;
+    const id = typeof oid === "string" ? oid : null;
+    const ident = id ? byId.get(id) ?? null : null;
+    return {
+      ...row,
+      owner_first_name: ident?.first_name ?? null,
+      owner_last_name: ident?.last_name ?? null,
+      owner_email: ident?.email ?? null,
+      owner_id_number: ident?.id_number ?? null,
+    };
+  });
+}
+
 /** Owner role + credit balance for billing preflight in the UI (mirrors update-item billToUserId). */
 async function enrichItemsWithOwnerBilling(
   rows: Record<string, unknown>[],
@@ -223,15 +281,19 @@ serve(async (req) => {
         .filter(Boolean);
 
       const ordered = await enrichItemsWithOwnerOrgSlug(
-        await enrichItemsWithOwnerBilling(
-          orderedRaw as Record<string, unknown>[],
-        ),
+        await enrichItemsWithOwnerBilling(orderedRaw as Record<string, unknown>[]),
       );
+
+      const withOwnerIdentity = isPrivilegedRole(session?.role)
+        ? await enrichItemsWithOwnerIdentity(
+            ordered as Record<string, unknown>[],
+          )
+        : ordered;
 
       return respond(
         {
           success: true,
-          items: ordered,
+          items: withOwnerIdentity,
           pagination: {
             page: safePage,
             pageSize: safePageSize,
@@ -302,11 +364,15 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    const enriched = await enrichItemsWithOwnerOrgSlug(
-      await enrichItemsWithOwnerBilling(
-        (data || []) as Record<string, unknown>[],
-      ),
+    const enrichedBase = await enrichItemsWithOwnerOrgSlug(
+      await enrichItemsWithOwnerBilling((data || []) as Record<string, unknown>[]),
     );
+
+    const enriched = isPrivilegedRole(session?.role)
+      ? await enrichItemsWithOwnerIdentity(
+          enrichedBase as Record<string, unknown>[],
+        )
+      : enrichedBase;
 
     return respond(
       {

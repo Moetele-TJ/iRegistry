@@ -57,7 +57,11 @@ export async function validateSession(
   // ----------------------------------
   // 4️⃣ Sliding expiration — extend on every authenticated request
   // ----------------------------------
-  const newExpiry = new Date(now + SESSION_TTL_MS);
+  // Never shorten an already-extended session. Admins may push expiry forward;
+  // sliding refresh should only move expiry forward, not backwards.
+  const slideTargetMs = now + SESSION_TTL_MS;
+  const newExpiryMs = Math.max(expiresAt, slideTargetMs);
+  const newExpiry = new Date(newExpiryMs);
 
   let updateError: unknown = null;
   let newToken: string | null = null;

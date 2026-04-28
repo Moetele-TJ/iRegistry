@@ -138,6 +138,11 @@ export function normalizeItemFromDB(row) {
       typeof row.owner_credit_balance === "number"
         ? row.owner_credit_balance
         : null,
+
+    ownerFirstName: row.owner_first_name ?? null,
+    ownerLastName: row.owner_last_name ?? null,
+    ownerEmail: row.owner_email ?? null,
+    ownerIdNumber: row.owner_id_number ?? null,
   };
 }
 
