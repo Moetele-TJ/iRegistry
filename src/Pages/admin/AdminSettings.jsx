@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
@@ -65,6 +66,7 @@ export default function AdminSettings() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addToast } = useToast();
+  const { confirm } = useModal();
 
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -89,6 +91,13 @@ export default function AdminSettings() {
   const [enrollNote, setEnrollNote] = useState("");
   const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [userSearchResults, setUserSearchResults] = useState([]);
+
+  const [editPromoId, setEditPromoId] = useState("");
+  const [editPromoBusy, setEditPromoBusy] = useState(false);
+  const [editPromoErr, setEditPromoErr] = useState("");
+  const [editPromoStartsAt, setEditPromoStartsAt] = useState("");
+  const [editPromoEndsAt, setEditPromoEndsAt] = useState("");
+  const [editPromoNote, setEditPromoNote] = useState("");
 
   const host = useMemo(() => projectLabel(SUPABASE_URL), []);
 
@@ -272,6 +281,64 @@ export default function AdminSettings() {
     } catch {
       addToast({ type: "error", message: "Failed to remove promo user." });
     }
+  }
+
+  function beginEditEnrollment(e) {
+    setEditPromoErr("");
+    setEditPromoId(String(e?.id || ""));
+    setEditPromoStartsAt(isoDateInputValue(e?.starts_at));
+    setEditPromoEndsAt(isoDateInputValue(e?.ends_at));
+    setEditPromoNote(String(e?.note || ""));
+  }
+
+  function cancelEditEnrollment() {
+    if (editPromoBusy) return;
+    setEditPromoErr("");
+    setEditPromoId("");
+    setEditPromoStartsAt("");
+    setEditPromoEndsAt("");
+    setEditPromoNote("");
+  }
+
+  async function saveEditEnrollment(e) {
+    if (!e?.id || !e?.user_id) return;
+    setEditPromoBusy(true);
+    setEditPromoErr("");
+    try {
+      const { data, error } = await invokeWithAuth("admin-api", {
+        body: {
+          operation: "admin-upsert-promo-user",
+          id: String(e.id),
+          user_id: String(e.user_id),
+          starts_at: editPromoStartsAt ? new Date(editPromoStartsAt).toISOString() : null,
+          ends_at: editPromoEndsAt ? new Date(editPromoEndsAt).toISOString() : null,
+          note: editPromoNote || null,
+        },
+      });
+      if (error || !data?.success) {
+        setEditPromoErr(data?.message || error?.message || "Failed to update promo user.");
+        return;
+      }
+      addToast({ type: "success", message: "Promo user updated." });
+      cancelEditEnrollment();
+      await loadPromo();
+    } catch {
+      setEditPromoErr("Failed to update promo user.");
+    } finally {
+      setEditPromoBusy(false);
+    }
+  }
+
+  async function confirmRemoveEnrollment(e) {
+    const ok = await confirm({
+      title: "Remove promo user?",
+      message: `Remove promo access for "${formatUserLabel(e?.user)}"? This does not delete the user account.`,
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      danger: true,
+    }).catch(() => false);
+    if (!ok) return;
+    await removeEnrollment(e?.id);
   }
 
   async function copyHost() {
@@ -550,22 +617,93 @@ export default function AdminSettings() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {e.starts_at ? new Date(e.starts_at).toLocaleString() : "—"}
+                          {editPromoId && String(editPromoId) === String(e.id) ? (
+                            <input
+                              type="datetime-local"
+                              className="w-full border rounded-lg px-2 py-1 text-sm bg-white"
+                              value={editPromoStartsAt}
+                              onChange={(ev) => setEditPromoStartsAt(ev.target.value)}
+                              disabled={editPromoBusy}
+                            />
+                          ) : e.starts_at ? (
+                            new Date(e.starts_at).toLocaleString()
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {e.ends_at ? new Date(e.ends_at).toLocaleString() : "—"}
+                          {editPromoId && String(editPromoId) === String(e.id) ? (
+                            <input
+                              type="datetime-local"
+                              className="w-full border rounded-lg px-2 py-1 text-sm bg-white"
+                              value={editPromoEndsAt}
+                              onChange={(ev) => setEditPromoEndsAt(ev.target.value)}
+                              disabled={editPromoBusy}
+                            />
+                          ) : e.ends_at ? (
+                            new Date(e.ends_at).toLocaleString()
+                          ) : (
+                            "—"
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-gray-700 max-w-[22rem] truncate">
-                          {e.note || "—"}
+                        <td className="px-4 py-3 text-gray-700 max-w-[22rem]">
+                          {editPromoId && String(editPromoId) === String(e.id) ? (
+                            <div className="space-y-1">
+                              <input
+                                className="w-full border rounded-lg px-2 py-1 text-sm bg-white"
+                                value={editPromoNote}
+                                onChange={(ev) => setEditPromoNote(ev.target.value)}
+                                disabled={editPromoBusy}
+                                placeholder="Note"
+                              />
+                              {editPromoErr ? (
+                                <div className="text-xs text-red-700">{editPromoErr}</div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <div className="truncate">{e.note || "—"}</div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            className="text-sm text-red-700 hover:underline"
-                            onClick={() => void removeEnrollment(e.id)}
-                          >
-                            Remove
-                          </button>
+                          {editPromoId && String(editPromoId) === String(e.id) ? (
+                            <div className="inline-flex items-center gap-3 justify-end">
+                              <button
+                                type="button"
+                                className="text-sm text-gray-700 hover:underline"
+                                onClick={cancelEditEnrollment}
+                                disabled={editPromoBusy}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className="text-sm text-iregistrygreen hover:underline"
+                                onClick={() => void saveEditEnrollment(e)}
+                                disabled={editPromoBusy}
+                              >
+                                {editPromoBusy ? "Saving…" : "Save"}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-4 justify-end">
+                              <button
+                                type="button"
+                                className="text-sm text-gray-700 hover:underline"
+                                onClick={() => beginEditEnrollment(e)}
+                                disabled={editPromoBusy || !!editPromoId}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-sm text-red-700 hover:underline"
+                                onClick={() => void confirmRemoveEnrollment(e)}
+                                disabled={editPromoBusy || !!editPromoId}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))
