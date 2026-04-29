@@ -15,16 +15,15 @@ export async function getPoliceCaseActivity(
   const safePage = Math.max(Number(page) || 1, 1);
   const offset = (safePage - 1) * safeLimit;
 
-  /* 1️⃣ Open police cases at this station (case.station matches; not item.location) */
+  /* 1️⃣ Stolen items at officer station (items.station matches users.police_station) */
+  const { data: stolenItems } = await supabase
+    .from("items")
+    .select("id")
+    .is("deletedat", null)
+    .not("reportedstolenat", "is", null)
+    .ilike("station", station.trim());
 
-  const { data: openCases } = await supabase
-    .from("item_police_cases")
-    .select("item_id")
-    // Case-insensitive match helps when station capitalization differs.
-    .ilike("station", station.trim())
-    .neq("status", "ReturnedToOwner");
-
-  const itemIds = openCases?.map((c) => c.item_id) ?? [];
+  const itemIds = (stolenItems || []).map((r: { id: string }) => r.id);
 
   if (itemIds.length === 0) {
     return {

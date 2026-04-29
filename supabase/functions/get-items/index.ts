@@ -224,30 +224,23 @@ serve(async (req) => {
       policeStationStolenView: policeStationStolenView === true,
     });
 
-    /* ----- Police station stolen queue: open cases at this station (not item.location) ----- */
+    /* ----- Police station stolen queue: stolen items where items.station matches officer station ----- */
     if (access.policeCaseQueue && access.policeStation) {
       const station = String(access.policeStation).trim();
 
-      const { data: cases, error: caseErr, count } = await supabase
-        .from("item_police_cases")
-        .select(
-          "id, item_id, status, station, station_source, opened_at, cleared_at, returned_at, notes, evidence",
-          { count: "exact" },
-        )
-        // Case-insensitive match helps when station capitalization differs between
-        // user profiles and cases opened from item location defaults.
+      const { data: stationItems, error: stationItemsErr, count } = await supabase
+        .from("items")
+        .select("*", { count: "exact" })
+        .is("deletedat", null)
+        .not("reportedstolenat", "is", null)
         .ilike("station", station)
-        .neq("status", "ReturnedToOwner")
-        .order("opened_at", { ascending: false })
+        .order("reportedstolenat", { ascending: false })
         .range(from, to);
 
-      if (caseErr) throw caseErr;
+      if (stationItemsErr) throw stationItemsErr;
 
-      const caseRows = cases || [];
-      const ids = caseRows.map((c) => c.item_id);
-      const caseByItemId = new Map(caseRows.map((c) => [c.item_id, c]));
-
-      if (ids.length === 0) {
+      const rows = stationItems || [];
+      if (rows.length === 0) {
         return respond(
           {
             success: true,
@@ -264,23 +257,27 @@ serve(async (req) => {
         );
       }
 
-      const { data: itemRows, error: itemErr } = await supabase
-        .from("items")
-        .select("*")
-        .in("id", ids)
-        .is("deletedat", null);
+      const itemIds = rows
+        .map((r) => r?.id)
+        .filter((id): id is string => typeof id === "string" && !!id);
 
-      if (itemErr) throw itemErr;
+      const { data: openCases, error: caseErr } = await supabase
+        .from("item_police_cases")
+        .select(
+          "id, item_id, status, station, station_source, opened_at, cleared_at, returned_at, notes, evidence",
+        )
+        .in("item_id", itemIds)
+        .neq("status", "ReturnedToOwner");
 
-      const itemMap = new Map((itemRows || []).map((r) => [r.id, r]));
-      const orderedRaw = ids
-        .map((id) => {
-          const row = itemMap.get(id);
-          if (!row) return null;
-          const pc = caseByItemId.get(id);
-          return { ...row, police_case: pc };
-        })
-        .filter(Boolean);
+      if (caseErr) throw caseErr;
+
+      const caseByItemId = new Map(
+        (openCases || []).map((c) => [String(c.item_id), c]),
+      );
+      const orderedRaw = rows.map((row) => ({
+        ...row,
+        police_case: caseByItemId.get(String(row.id)) ?? null,
+      }));
 
       const ordered = await enrichItemsWithOwnerOrgSlug(
         await enrichItemsWithOwnerBilling(orderedRaw as Record<string, unknown>[]),

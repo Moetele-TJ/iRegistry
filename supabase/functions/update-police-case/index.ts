@@ -119,7 +119,19 @@ serve(async (req) => {
       );
     }
 
-    if (normalizeStation(row.station) !== normalizeStation(officerStation)) {
+    const { data: caseItem } = await supabase
+      .from("items")
+      .select("id, station, location")
+      .eq("id", row.item_id)
+      .maybeSingle();
+
+    const caseStationMatchesOfficer =
+      normalizeStation(row.station) === normalizeStation(officerStation);
+    const itemStationMatchesOfficer =
+      normalizeStation(caseItem?.station ?? caseItem?.location) ===
+      normalizeStation(officerStation);
+
+    if (!caseStationMatchesOfficer && !itemStationMatchesOfficer) {
       return respond(
         {
           success: false,
