@@ -254,8 +254,8 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     if (!defaultPoliceStationStolenView) return;
     if (didInitPoliceStationViewRef.current) return;
     didInitPoliceStationViewRef.current = true;
-    void handlePoliceStolenToggle(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPoliceShowStolenAtStation(true);
+    setStatusFilter("Stolen");
   }, [role, defaultPoliceStationStolenView]);
 
   useEffect(() => {
@@ -263,9 +263,13 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     // The main ItemsProvider initial load fetches active items; this overrides it when needed.
     if (!user?.id) return;
     const oid = isPrivileged ? selectedOwnerId || user.id : user.id;
-    void refreshItems(fetchParamsForItemsView(oid));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, user?.id, selectedOwnerId, isPrivileged]);
+    const base = fetchParamsForItemsView(oid);
+    if (roleIs(role, "police") && view === "active" && policeShowStolenAtStation) {
+      void refreshItems({ ...base, policeStationStolenView: true });
+      return;
+    }
+    void refreshItems(base);
+  }, [view, user?.id, selectedOwnerId, isPrivileged, role, policeShowStolenAtStation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isPrivileged) return;
