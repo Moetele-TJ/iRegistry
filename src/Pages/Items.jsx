@@ -917,9 +917,6 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const endIndex = Math.min(page * perPage, total);
 
   const showStationQueue = roleIs(role, "police") && policeShowStolenAtStation;
-  const queueRowReadOnly = (item) =>
-    showStationQueue && item.ownerId !== user?.id;
-
   const tableColCount = showStationQueue ? 9 : 8;
 
   return (
@@ -1381,117 +1378,125 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       </td>
                       <td className="py-4 px-5 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                          <RippleButton
-                            className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
-                            onClick={() => navigate("/items/" + item.slug)}
-                          >
-                            View
-                          </RippleButton>
-
-                          {isOrdinaryUser && isAssignedOrganizationItem(item, sessionUserId) ? (
+                          {showStationQueue ? (
                             <>
-                              {item.organizationName ? (
-                                <span className="text-xs text-gray-500 rounded-full border border-gray-200 bg-white px-2 py-1">
-                                  Organization: {item.organizationName}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-gray-500 rounded-full border border-gray-200 bg-white px-2 py-1">
-                                  Organization-owned
-                                </span>
-                              )}
                               <RippleButton
-                                className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
-                                onClick={() =>
-                                  navigate(
-                                    `/organizations/${orgPathSegment({
-                                      id: item.ownerOrgId,
-                                      slug: item.ownerOrgSlug,
-                                    })}/items`,
-                                  )
-                                }
+                                className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
+                                onClick={() => navigate("/items/" + item.slug)}
                               >
-                                Open organization
+                                View
                               </RippleButton>
-                            </>
-                          ) : null}
-
-                          {showStationQueue &&
-                            item.policeCase &&
-                            (() => {
-                              const step = getNextPoliceCaseStep(
-                                item.policeCase.status,
-                              );
-                              if (!step) return null;
-                              const busy = caseWorkingId === item.policeCase.id;
-                              return (
-                                <RippleButton
-                                  className="px-3 py-1 rounded-md text-xs border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-                                  disabled={busy}
-                                  onClick={() => openPoliceAdvanceModal(item)}
-                                >
-                                  {busy ? "…" : step.label}
-                                </RippleButton>
-                              );
-                            })()}
-
-                          {!queueRowReadOnly(item) &&
-                          !(
-                            isOrdinaryUser &&
-                            isAssignedOrganizationItem(item, sessionUserId) &&
-                            isItemReportedStolen(item)
-                          ) ? (
-                            <>
-                              {view === "active" && !isItemFrozen(item) ? (
-                                <RippleButton
-                                  className={`px-3 py-1 rounded-md text-xs ${
-                                    isItemReportedStolen(item)
-                                      ? "bg-emerald-600 text-white"
-                                      : "bg-red-600 text-white"
-                                  }`}
-                                  onClick={() => confirmToggleStatus(item.id)}
-                                >
-                                  {isItemReportedStolen(item) ? "Mark Active" : "Mark Stolen"}
-                                </RippleButton>
-                              ) : null}
-
-                              {view === "active" &&
-                              !(
-                                isOrdinaryUser &&
-                                isAssignedOrganizationItem(item, sessionUserId) &&
-                                item.ownerOrgId
-                              ) ? (
-                                <>
-                                  <RippleButton
-                                    className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
-                                    onClick={() => confirmLegacy(item.id)}
-                                  >
-                                    Legacy
-                                  </RippleButton>
-                                  <RippleButton
-                                    className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
-                                    onClick={() => confirmDelete(item.id)}
-                                  >
-                                    Delete
-                                  </RippleButton>
-                                </>
-                              ) : view === "deleted" ? (
-                                <RippleButton
-                                  className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
-                                  onClick={() => confirmRestoreDeleted(item.id)}
-                                >
-                                  Restore
-                                </RippleButton>
-                              ) : view === "legacy" ? (
-                                <RippleButton
-                                  className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
-                                  onClick={() => confirmRestoreLegacy(item.id)}
-                                >
-                                  Restore
-                                </RippleButton>
-                              ) : null}
+                              {item.policeCase &&
+                                (() => {
+                                  const step = getNextPoliceCaseStep(item.policeCase.status);
+                                  if (!step) return null;
+                                  const busy = caseWorkingId === item.policeCase.id;
+                                  return (
+                                    <RippleButton
+                                      className="px-3 py-1 rounded-md text-xs border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                                      disabled={busy}
+                                      onClick={() => openPoliceAdvanceModal(item)}
+                                    >
+                                      {busy ? "…" : `Case: ${step.label}`}
+                                    </RippleButton>
+                                  );
+                                })()}
                             </>
                           ) : (
-                            <span className="text-xs text-gray-400">View only</span>
+                            <>
+                              <RippleButton
+                                className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
+                                onClick={() => navigate("/items/" + item.slug)}
+                              >
+                                View
+                              </RippleButton>
+
+                              {isOrdinaryUser && isAssignedOrganizationItem(item, sessionUserId) ? (
+                                <>
+                                  {item.organizationName ? (
+                                    <span className="text-xs text-gray-500 rounded-full border border-gray-200 bg-white px-2 py-1">
+                                      Organization: {item.organizationName}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-500 rounded-full border border-gray-200 bg-white px-2 py-1">
+                                      Organization-owned
+                                    </span>
+                                  )}
+                                  <RippleButton
+                                    className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
+                                    onClick={() =>
+                                      navigate(
+                                        `/organizations/${orgPathSegment({
+                                          id: item.ownerOrgId,
+                                          slug: item.ownerOrgSlug,
+                                        })}/items`,
+                                      )
+                                    }
+                                  >
+                                    Open organization
+                                  </RippleButton>
+                                </>
+                              ) : null}
+
+                              {!(
+                                isOrdinaryUser &&
+                                isAssignedOrganizationItem(item, sessionUserId) &&
+                                isItemReportedStolen(item)
+                              ) ? (
+                                <>
+                                  {view === "active" && !isItemFrozen(item) ? (
+                                    <RippleButton
+                                      className={`px-3 py-1 rounded-md text-xs ${
+                                        isItemReportedStolen(item)
+                                          ? "bg-emerald-600 text-white"
+                                          : "bg-red-600 text-white"
+                                      }`}
+                                      onClick={() => confirmToggleStatus(item.id)}
+                                    >
+                                      {isItemReportedStolen(item) ? "Mark Active" : "Mark Stolen"}
+                                    </RippleButton>
+                                  ) : null}
+
+                                  {view === "active" &&
+                                  !(
+                                    isOrdinaryUser &&
+                                    isAssignedOrganizationItem(item, sessionUserId) &&
+                                    item.ownerOrgId
+                                  ) ? (
+                                    <>
+                                      <RippleButton
+                                        className="px-2 py-1 rounded-md bg-white text-slate-700 border border-slate-200 text-xs"
+                                        onClick={() => confirmLegacy(item.id)}
+                                      >
+                                        Legacy
+                                      </RippleButton>
+                                      <RippleButton
+                                        className="px-2 py-1 rounded-md bg-white text-red-600 border border-red-100 text-xs"
+                                        onClick={() => confirmDelete(item.id)}
+                                      >
+                                        Delete
+                                      </RippleButton>
+                                    </>
+                                  ) : view === "deleted" ? (
+                                    <RippleButton
+                                      className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
+                                      onClick={() => confirmRestoreDeleted(item.id)}
+                                    >
+                                      Restore
+                                    </RippleButton>
+                                  ) : view === "legacy" ? (
+                                    <RippleButton
+                                      className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
+                                      onClick={() => confirmRestoreLegacy(item.id)}
+                                    >
+                                      Restore
+                                    </RippleButton>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-400">View only</span>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -1688,15 +1693,38 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
 
                   {/* Actions */}
                   <div className="mt-4 flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <RippleButton
-                        className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                        onClick={() => navigate("/items/" + item.slug)}
-                      >
-                        View
-                      </RippleButton>
-
-                      {!queueRowReadOnly(item) ? (
+                    {showStationQueue ? (
+                      <>
+                        <RippleButton
+                          className="w-full py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
+                          onClick={() => navigate("/items/" + item.slug)}
+                        >
+                          View
+                        </RippleButton>
+                        {item.policeCase &&
+                          (() => {
+                            const step = getNextPoliceCaseStep(item.policeCase.status);
+                            if (!step) return null;
+                            const busy = caseWorkingId === item.policeCase.id;
+                            return (
+                              <RippleButton
+                                className="w-full py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-800"
+                                disabled={busy}
+                                onClick={() => openPoliceAdvanceModal(item)}
+                              >
+                                {busy ? "Updating…" : `Case: ${step.label}`}
+                              </RippleButton>
+                            );
+                          })()}
+                      </>
+                    ) : (
+                      <div className="flex gap-2">
+                        <RippleButton
+                          className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
+                          onClick={() => navigate("/items/" + item.slug)}
+                        >
+                          View
+                        </RippleButton>
                         <RippleButton
                           className={`flex-1 py-2 rounded-xl text-sm font-medium ${
                             isStolen
@@ -1707,28 +1735,8 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                         >
                           {isStolen ? "Mark Active" : "Mark Stolen"}
                         </RippleButton>
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl py-2">
-                          View only
-                        </div>
-                      )}
-                    </div>
-                    {showStationQueue &&
-                      item.policeCase &&
-                      (() => {
-                        const step = getNextPoliceCaseStep(item.policeCase.status);
-                        if (!step) return null;
-                        const busy = caseWorkingId === item.policeCase.id;
-                        return (
-                          <RippleButton
-                            className="w-full py-2 rounded-xl text-sm font-medium border border-slate-300 bg-white text-slate-800"
-                            disabled={busy}
-                            onClick={() => openPoliceAdvanceModal(item)}
-                          >
-                            {busy ? "Updating…" : `Case: ${step.label}`}
-                          </RippleButton>
-                        );
-                      })()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
