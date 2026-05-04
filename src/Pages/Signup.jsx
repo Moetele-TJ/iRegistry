@@ -12,7 +12,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    // STEP 1 (7 required)
+    // STEP 1 — identity + contact (police station optional but encouraged)
     first_name: "",
     last_name: "",
     id_number: "",
@@ -20,15 +20,15 @@ export default function Signup() {
     country: "",
     phone: "",
     email: "",
+    police_station: "",
 
-    // STEP 2 (optional) — village/ward match items + validate-session profile
+    // STEP 2 (optional) — address / extra phones for profile + items
     state: "",
     village: "",
     postal_code: "",
     ward: "",
     alt_phone: "",
     landline: "",
-    police_station: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -253,6 +253,17 @@ export default function Signup() {
                 }
               />
 
+              <PoliceStationSelect
+                label="Nearest police station"
+                value={form.police_station}
+                onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
+                required={false}
+                withAuth={false}
+                variant="searchable"
+                placeholder="Select or Type your nearest Police Station"
+                helpText="Pick a station from the list, search to narrow it, or type a name if yours is not listed."
+              />
+
               <Input
                 label="Email address"
                 type="email"
@@ -335,16 +346,6 @@ export default function Signup() {
                   required={false}
                 />
               </div>
-
-              <PoliceStationSelect
-                label="Police station"
-                value={form.police_station}
-                onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
-                required={false}
-                withAuth={false}
-                variant="combobox"
-                inputClassName="w-full border rounded-lg px-4 py-2"
-              />
 
               <div className="text-center text-sm text-gray-600">
                 Already have an account?{" "}
