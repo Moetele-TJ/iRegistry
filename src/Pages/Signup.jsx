@@ -185,57 +185,60 @@ export default function Signup() {
 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-        <div className="bg-white w-full max-w-sm rounded-2xl shadow-lg p-6">
-          <h1 className="text-2xl font-bold text-iregistrygreen mb-2">
+      <div className="flex w-full flex-1 min-h-0 flex-col items-center justify-center bg-gray-100 px-4 py-12 pb-24 sm:px-6 sm:py-14 sm:pb-28 md:py-16 md:pb-32">
+        <div className="bg-white w-full max-w-lg rounded-2xl shadow-lg p-6 sm:max-w-2xl sm:p-8 lg:max-w-4xl lg:p-10 xl:max-w-5xl">
+          <h1 className="text-2xl font-bold text-iregistrygreen mb-2 sm:text-3xl">
             Create Account
           </h1>
 
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 mb-6 sm:mb-8">
             Step {step} of 2
           </p>
 
           {/* ================= STEP 1 ================= */}
           {step === 1 && (
-            <>
-              <Input
-                label="First name"
-                value={form.first_name}
-                error={errors.first_name}
-                onChange={(v) =>
-                  setForm((f) => ({ ...f, first_name: v }))
-                }
-              />
+            <div className="flex flex-col gap-4 sm:gap-5">
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                <Input
+                  label="First name"
+                  value={form.first_name}
+                  error={errors.first_name}
+                  onChange={(v) =>
+                    setForm((f) => ({ ...f, first_name: v }))
+                  }
+                />
 
-              <Input
-                label="Last name"
-                value={form.last_name}
-                error={errors.last_name}
-                onChange={(v) =>
-                  setForm((f) => ({ ...f, last_name: v }))
-                }
-              />
+                <Input
+                  label="Last name"
+                  value={form.last_name}
+                  error={errors.last_name}
+                  onChange={(v) =>
+                    setForm((f) => ({ ...f, last_name: v }))
+                  }
+                />
+              </div>
 
-              <Input
-                label="ID / Passport number"
-                value={form.id_number}
-                error={errors.id_number}
-                onChange={(v) =>
-                  setForm((f) => ({ ...f, id_number: v }))
-                }
-              />
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                <Input
+                  label="ID / Passport number"
+                  value={form.id_number}
+                  error={errors.id_number}
+                  onChange={(v) =>
+                    setForm((f) => ({ ...f, id_number: v }))
+                  }
+                />
 
-              <Input
-                type="date"
-                label="Date of birth"
-                value={form.date_of_birth}
-                error={errors.date_of_birth}
-                onChange={(v) =>
-                  setForm((f) => ({ ...f, date_of_birth: v }))
-                }
-              />
+                <Input
+                  type="date"
+                  label="Date of birth"
+                  value={form.date_of_birth}
+                  error={errors.date_of_birth}
+                  onChange={(v) =>
+                    setForm((f) => ({ ...f, date_of_birth: v }))
+                  }
+                />
+              </div>
 
-              {/* 🔒 WORKING SNIPPET — UNTOUCHED */}
               <CountryPhoneInput
                 country={form.country}
                 phone={form.phone}
@@ -256,7 +259,7 @@ export default function Signup() {
                 }
               />
 
-              <div className="text-sm text-center mb-6">
+              <div className="text-sm text-center pt-2 sm:pt-4">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -275,53 +278,59 @@ export default function Signup() {
               >
                 {loading ? "Checking..." : "Continue"}
               </button>
-            </>
+            </div>
           )}
 
           {/* ================= STEP 2 ================= */}
           {step === 2 && (
-            <>
-              <Input
-                label="District"
-                value={form.state}
-                onChange={(v) => setForm((f) => ({ ...f, state: v }))}
-                required={false}
-              />
+            <div className="flex flex-col gap-4 sm:gap-5">
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                <Input
+                  label="District"
+                  value={form.state}
+                  onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+                  required={false}
+                />
 
-              <Input
-                label="Town / village"
-                value={form.village}
-                onChange={(v) => setForm((f) => ({ ...f, village: v }))}
-                required={false}
-              />
+                <Input
+                  label="Postal code"
+                  value={form.postal_code}
+                  onChange={(v) => setForm((f) => ({ ...f, postal_code: v }))}
+                  required={false}
+                />
+              </div>
 
-              <Input
-                label="Postal code"
-                value={form.postal_code}
-                onChange={(v) => setForm((f) => ({ ...f, postal_code: v }))}
-                required={false}
-              />
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                <Input
+                  label="Town / village"
+                  value={form.village}
+                  onChange={(v) => setForm((f) => ({ ...f, village: v }))}
+                  required={false}
+                />
 
-              <Input
-                label="Ward / street"
-                value={form.ward}
-                onChange={(v) => setForm((f) => ({ ...f, ward: v }))}
-                required={false}
-              />
+                <Input
+                  label="Ward / street"
+                  value={form.ward}
+                  onChange={(v) => setForm((f) => ({ ...f, ward: v }))}
+                  required={false}
+                />
+              </div>
 
-              <Input
-                label="Alt. phone"
-                value={form.alt_phone}
-                onChange={(v) => setForm((f) => ({ ...f, alt_phone: v }))}
-                required={false}
-              />
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                <Input
+                  label="Alt. phone"
+                  value={form.alt_phone}
+                  onChange={(v) => setForm((f) => ({ ...f, alt_phone: v }))}
+                  required={false}
+                />
 
-              <Input
-                label="Landline"
-                value={form.landline}
-                onChange={(v) => setForm((f) => ({ ...f, landline: v }))}
-                required={false}
-              />
+                <Input
+                  label="Landline"
+                  value={form.landline}
+                  onChange={(v) => setForm((f) => ({ ...f, landline: v }))}
+                  required={false}
+                />
+              </div>
 
               <PoliceStationSelect
                 label="Police station"
@@ -333,7 +342,7 @@ export default function Signup() {
                 inputClassName="w-full border rounded-lg px-4 py-2"
               />
 
-              <div className="text-sm text-center mb-6">
+              <div className="text-sm text-center pt-2 sm:pt-4">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -344,11 +353,11 @@ export default function Signup() {
                 </button>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="w-1/2 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold"
+                  className="w-full py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold sm:w-auto sm:min-w-[10rem]"
                 >
                   Back
                 </button>
@@ -357,12 +366,12 @@ export default function Signup() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="w-1/2 py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60 sm:w-auto sm:min-w-[12rem] lg:min-w-[14rem]"
                 >
                   {loading ? "Creating..." : "Create account"}
                 </button>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -443,7 +452,7 @@ function Input({
   error,
 }) {
   return (
-    <div className="mb-4">
+    <div className="min-w-0">
       <label className="block text-sm mb-1">
         {label} {required && <span className="text-red-600">*</span>}
       </label>
