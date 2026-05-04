@@ -1,6 +1,6 @@
 // src/Pages/Signup.jsx
 import { useNavigate } from "react-router-dom";
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
@@ -183,18 +183,31 @@ export default function Signup() {
     }
   }
 
+  const stepBlurb =
+    step === 1
+      ? "Enter your details to get started. After you create your account you'll sign in with a one-time code."
+      : "Optional details help match your items to your area and nearest police station. You can skip fields you're unsure about.";
+
   return (
     <>
-      <div className="flex w-full flex-1 min-h-0 flex-col items-center justify-center bg-gray-100 px-4 py-12 pb-24 sm:px-6 sm:py-14 sm:pb-28 md:py-16 md:pb-32">
-        <div className="bg-white w-full max-w-lg rounded-2xl shadow-lg p-6 sm:max-w-2xl sm:p-8 lg:max-w-4xl lg:p-10 xl:max-w-5xl">
-          <h1 className="text-2xl font-bold text-iregistrygreen mb-2 sm:text-3xl">
-            Create Account
-          </h1>
+      <div className="flex w-full flex-1 min-h-0 flex-col bg-gray-100">
+        <header className="w-full shrink-0 border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+          <div className="mx-auto w-full max-w-lg sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
+              Step {step} of 2
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-iregistrygreen sm:text-3xl">
+              Create Account
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-600 sm:mt-3">
+              {stepBlurb}
+            </p>
+          </div>
+        </header>
 
-          <p className="text-sm text-gray-500 mb-6 sm:mb-8">
-            Step {step} of 2
-          </p>
-
+        <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4 py-10 pb-24 sm:px-6 sm:py-12 sm:pb-28 md:py-14 md:pb-32">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-100 bg-white shadow-lg sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
+            <div className="p-6 sm:p-8 lg:p-10">
           {/* ================= STEP 1 ================= */}
           {step === 1 && (
             <div className="flex flex-col gap-4 sm:gap-5">
@@ -373,6 +386,8 @@ export default function Signup() {
               </div>
             </div>
           )}
+            </div>
+          </div>
         </div>
       </div>
 
