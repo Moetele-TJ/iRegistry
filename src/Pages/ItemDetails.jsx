@@ -112,6 +112,26 @@ function formatPoliceCaseStatusLabel(status) {
   return map[status] || status;
 }
 
+function normalizeStation(v) {
+  return String(v || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function getNextPoliceCaseStep(status) {
+  switch (status) {
+    case "Open":
+      return { label: "In custody", nextStatus: "InCustody" };
+    case "InCustody":
+      return { label: "Cleared for return", nextStatus: "ClearedForReturn" };
+    case "ClearedForReturn":
+      return { label: "Returned to owner", nextStatus: "ReturnedToOwner" };
+    default:
+      return null;
+  }
+}
+
 function normalizePoliceCaseRow(row) {
   if (!row || typeof row !== "object") return null;
   return {
@@ -147,6 +167,9 @@ export default function ItemDetails() {
   const [lookupResolved, setLookupResolved] = useState(false);
   const [policeCaseDetail, setPoliceCaseDetail] = useState(null);
   const [policeCaseLoading, setPoliceCaseLoading] = useState(false);
+  const [policeAdvanceModal, setPoliceAdvanceModal] = useState(null);
+  const [policeAdvanceNote, setPoliceAdvanceNote] = useState("");
+  const [policeAdvanceEvidenceLine, setPoliceAdvanceEvidenceLine] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false); // modal state
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -237,11 +260,26 @@ export default function ItemDetails() {
   const isStolen = !isFrozen && isItemReportedStolen(item);
   const derivedState = getItemDerivedState(item);
 
+  const isPolice = roleIs(user?.role, "police");
+  const isOwner = !!user?.id && !!item?.ownerId && String(user.id) === String(item.ownerId);
+  const officerStation = String(user?.police_station || "").trim();
+  const itemStation = String(item?.station || item?.location || "").trim();
+  const stationMatchesOfficer =
+    !!officerStation &&
+    !!itemStation &&
+    normalizeStation(officerStation) === normalizeStation(itemStation);
+
+  // Police modes:
+  // - personal: officer owns the item → full UI like any user
+  // - station case: item belongs to someone else but is a stolen item reported to officer station → restricted police UI
+  const stationCaseMode = isPolice && !isOwner && isStolen && stationMatchesOfficer;
+
   // Admins/cashiers may edit photos on any item. All other roles (including police) only on items they own.
   const canManagePhotos =
     !!user &&
     !!item &&
     !isFrozen &&
+    !stationCaseMode &&
     (isPrivilegedRole(user.role) || String(user.id) === String(item.ownerId));
 
   const showOwnerIdentity =
@@ -363,6 +401,84 @@ export default function ItemDetails() {
     };
   }, [item?.id, isStolen]);
 
+  function openPoliceAdvanceModal() {
+    if (!stationCaseMode) return;
+    if (!policeCaseDetail?.id) return;
+    const step = getNextPoliceCaseStep(policeCaseDetail.status);
+    if (!step) return;
+    setPoliceAdvanceModal({ step });
+    setPoliceAdvanceNote("");
+    setPoliceAdvanceEvidenceLine("");
+  }
+
+  function closePoliceAdvanceModal() {
+    if (working) return;
+    setPoliceAdvanceModal(null);
+    setPoliceAdvanceNote("");
+    setPoliceAdvanceEvidenceLine("");
+  }
+
+  async function submitPoliceAdvanceModal() {
+    if (!stationCaseMode) return;
+    if (!policeAdvanceModal?.step) return;
+    if (!policeCaseDetail?.id) return;
+
+    const step = policeAdvanceModal.step;
+    const note = policeAdvanceNote.trim();
+    const evLine = policeAdvanceEvidenceLine.trim();
+    const evidence = evLine ? { summary: evLine } : undefined;
+
+    const ok = await confirm({
+      title: "Confirm",
+      message: `Update case to "${step.label}"?`,
+      confirmLabel: "Update case",
+      cancelLabel: "Cancel",
+    }).catch(() => false);
+    if (!ok) return;
+
+    setWorking(true);
+    try {
+      const body = {
+        caseId: policeCaseDetail.id,
+        nextStatus: step.nextStatus,
+      };
+      if (note) body.note = note;
+      if (evidence) body.evidence = evidence;
+
+      const { data, error } = await invokeWithAuth("update-police-case", { body });
+      if (error && !data?.message) throw new Error(error.message || "Failed");
+      if (!data?.success) throw new Error(data?.message || "Failed to update case");
+
+      if (data?.case) {
+        setPoliceCaseDetail(normalizePoliceCaseRow(data.case));
+      }
+
+      // If case is closed, the edge function also marks item active (reportedStolenAt null).
+      // Refresh the item snapshot so this page reflects the new state.
+      if (step.nextStatus === "ReturnedToOwner") {
+        const { data: refetch } = await invokeWithAuth("get-items", {
+          body: {
+            itemLookup: item?.id || slug,
+            includeDeleted: true,
+            includeLegacy: true,
+            page: 1,
+            pageSize: 1,
+          },
+        });
+        if (refetch?.success && refetch.items?.[0]) {
+          setFetchedItem(normalizeItemFromDB(refetch.items[0]));
+        }
+      }
+
+      showToastMsg(`Case: ${step.label}`, "success");
+      closePoliceAdvanceModal();
+    } catch (e) {
+      showToastMsg(e?.message || "Case update failed", "error");
+    } finally {
+      setWorking(false);
+    }
+  }
+
   function openDeleteModal() {
     setConfirmOpen(true);
   }
@@ -410,6 +526,7 @@ export default function ItemDetails() {
   async function goToEdit() {
     if (!item?.slug) return;
     if (isFrozen) return;
+    if (!isPrivilegedRole(user?.role) && !isOwner) return;
     const path = `/items/${item.slug}/edit`;
     if (tasksLoading) return;
     if (user?.promo_active) {
@@ -979,7 +1096,7 @@ export default function ItemDetails() {
                   </RippleButton>
                 ) : null}
 
-                {!isFrozen ? (
+                {!isFrozen && !stationCaseMode ? (
                   <>
                     <RippleButton
                       className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
@@ -997,6 +1114,23 @@ export default function ItemDetails() {
                       Delete
                     </RippleButton>
                   </>
+                ) : null}
+
+                {stationCaseMode ? (
+                  <RippleButton
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-white text-sm disabled:opacity-60"
+                    onClick={openPoliceAdvanceModal}
+                    disabled={working || !getNextPoliceCaseStep(policeCaseDetail?.status)}
+                    title={
+                      getNextPoliceCaseStep(policeCaseDetail?.status)
+                        ? undefined
+                        : "No further case action available"
+                    }
+                  >
+                    {getNextPoliceCaseStep(policeCaseDetail?.status)
+                      ? `Case: ${getNextPoliceCaseStep(policeCaseDetail?.status).label}`
+                      : "Case action"}
+                  </RippleButton>
                 ) : null}
               </div>
             </div>
@@ -1216,10 +1350,17 @@ export default function ItemDetails() {
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Last seen</div>
                       <div className="mt-0.5 font-semibold text-gray-900 truncate">{item.lastSeen || "—"}</div>
                     </div>
-                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Purchased</div>
-                      <div className="mt-0.5 font-semibold text-gray-900 truncate">{item.purchaseDate || "—"}</div>
-                    </div>
+                    {!stationCaseMode ? (
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Purchased</div>
+                        <div className="mt-0.5 font-semibold text-gray-900 truncate">{item.purchaseDate || "—"}</div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Station</div>
+                        <div className="mt-0.5 font-semibold text-gray-900 truncate">{itemStation || "—"}</div>
+                      </div>
+                    )}
                     {isStolen && item.reportedStolenAt ? (
                       <div className="rounded-2xl bg-red-50 border border-red-100 p-3 col-span-2">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
@@ -1291,6 +1432,19 @@ export default function ItemDetails() {
                             <div className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{policeCaseDetail.notes}</div>
                           </div>
                         ) : null}
+                        {stationCaseMode && getNextPoliceCaseStep(policeCaseDetail.status) ? (
+                          <div className="sm:col-span-2 pt-1">
+                            <RippleButton
+                              className="w-full px-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-semibold disabled:opacity-60"
+                              onClick={openPoliceAdvanceModal}
+                              disabled={working}
+                            >
+                              {working
+                                ? "Updating…"
+                                : `Advance case → ${getNextPoliceCaseStep(policeCaseDetail.status).label}`}
+                            </RippleButton>
+                          </div>
+                        ) : null}
                       </div>
                     ) : user ? (
                       <p className="text-sm text-slate-500">
@@ -1300,67 +1454,129 @@ export default function ItemDetails() {
                   </div>
                 ) : null}
 
-                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
-                    Item details
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-xs text-gray-500">Town/Village</div>
-                      <div className="text-gray-900 font-medium">{item.village || "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Ward/Street</div>
-                      <div className="text-gray-900 font-medium">{item.ward || "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Nearest police station</div>
-                      <div className="text-gray-900 font-medium">{item.station || item.location || "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Serial 2</div>
-                      <div className="text-gray-900 font-medium">{item.serial2 || "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Bought from (Shop)</div>
-                      <div className="text-gray-900 font-medium">{item.shop || "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Warranty expiry</div>
-                      <div className="text-gray-900 font-medium">{item.warrantyExpiry || "—"}</div>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <div className="text-xs text-gray-500">Notes</div>
-                      <div className="text-gray-900 whitespace-pre-wrap">{item.ownerInfo || item.notes || "—"}</div>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <div className="text-xs text-gray-500">Description</div>
-                      <div className="text-gray-900 whitespace-pre-wrap">{item.description || "—"}</div>
-                    </div>
-                    <div className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-                      <div>
-                        <div className="text-xs text-gray-500">Created</div>
-                        <div className="text-gray-900 font-medium">{fmtDate(item.createdOn) || "—"}</div>
+                {!stationCaseMode ? (
+                  <>
+                    <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                        Item details
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Updated</div>
-                        <div className="text-gray-900 font-medium">{fmtDate(item.updatedOn) || "—"}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs text-gray-500">Town/Village</div>
+                          <div className="text-gray-900 font-medium">{item.village || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Ward/Street</div>
+                          <div className="text-gray-900 font-medium">{item.ward || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Nearest police station</div>
+                          <div className="text-gray-900 font-medium">{item.station || item.location || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Serial 2</div>
+                          <div className="text-gray-900 font-medium">{item.serial2 || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Bought from (Shop)</div>
+                          <div className="text-gray-900 font-medium">{item.shop || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Warranty expiry</div>
+                          <div className="text-gray-900 font-medium">{item.warrantyExpiry || "—"}</div>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <div className="text-xs text-gray-500">Notes</div>
+                          <div className="text-gray-900 whitespace-pre-wrap">{item.ownerInfo || item.notes || "—"}</div>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <div className="text-xs text-gray-500">Description</div>
+                          <div className="text-gray-900 whitespace-pre-wrap">{item.description || "—"}</div>
+                        </div>
+                        <div className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                          <div>
+                            <div className="text-xs text-gray-500">Created</div>
+                            <div className="text-gray-900 font-medium">{fmtDate(item.createdOn) || "—"}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500">Updated</div>
+                            <div className="text-gray-900 font-medium">{fmtDate(item.updatedOn) || "—"}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
-                    Activity
-                  </div>
-                  <ItemActivityTimeline events={activity} loading={activityLoading} />
-                </div>
+                    <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                        Activity
+                      </div>
+                      <ItemActivityTimeline events={activity} loading={activityLoading} />
+                    </div>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {stationCaseMode && policeAdvanceModal ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            onClick={() => !working && closePoliceAdvanceModal()}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative bg-white rounded-xl shadow-lg w-full max-w-md mx-4 p-5 z-10 border border-gray-100"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              {policeAdvanceModal.step.label}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Optional note is appended to the case file. Evidence summary is stored as structured data.
+            </p>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Note (optional)</label>
+            <textarea
+              value={policeAdvanceNote}
+              onChange={(e) => setPoliceAdvanceNote(e.target.value)}
+              rows={3}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3"
+              placeholder="e.g. Item tagged at central exhibit room"
+            />
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Evidence summary (optional)
+            </label>
+            <input
+              type="text"
+              value={policeAdvanceEvidenceLine}
+              onChange={(e) => setPoliceAdvanceEvidenceLine(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4"
+              placeholder="Reference ID, exhibit number, or short description"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={!!working}
+                onClick={closePoliceAdvanceModal}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!!working}
+                onClick={() => void submitPoliceAdvanceModal()}
+                className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900 disabled:opacity-50"
+              >
+                {working ? "Saving…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* ConfirmModal (shared component) */}
       <ConfirmModal
