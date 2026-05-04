@@ -185,33 +185,24 @@ export default function Signup() {
 
   const stepBlurb =
     step === 1
-      ? "Enter your details to get started. After you create your account you'll sign in with a one-time code."
-      : "Optional details help match your items to your area and nearest police station. You can skip fields you're unsure about.";
+      ? "Step 1 of 2 · Enter your details, then continue."
+      : "Step 2 of 2 · Optional address and contact details.";
 
   return (
     <>
       <div className="flex w-full flex-1 min-h-0 flex-col bg-gray-100">
-        <header className="w-full shrink-0 border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
-          <div className="mx-auto w-full max-w-lg sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
-              Step {step} of 2
-            </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-iregistrygreen sm:text-3xl">
-              Create Account
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-600 sm:mt-3">
-              {stepBlurb}
-            </p>
-          </div>
-        </header>
+        <div className="mx-auto w-full max-w-3xl flex-1 p-4 pb-24 sm:p-6 sm:pb-28 md:pb-32">
+          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-lg">
+            <div className="border-b border-emerald-100/90 bg-emerald-50/90 px-5 py-4 sm:px-6 sm:py-5">
+              <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
+              <p className="mt-1 text-sm text-gray-600">{stepBlurb}</p>
+            </div>
 
-        <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4 py-10 pb-24 sm:px-6 sm:py-12 sm:pb-28 md:py-14 md:pb-32">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-100 bg-white shadow-lg sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
-            <div className="p-6 sm:p-8 lg:p-10">
-          {/* ================= STEP 1 ================= */}
-          {step === 1 && (
-            <div className="flex flex-col gap-4 sm:gap-5">
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+            <div className="p-6 sm:p-8">
+              {/* ================= STEP 1 ================= */}
+              {step === 1 && (
+                <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="First name"
                   value={form.first_name}
@@ -231,7 +222,7 @@ export default function Signup() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="ID / Passport number"
                   value={form.id_number}
@@ -272,7 +263,7 @@ export default function Signup() {
                 }
               />
 
-              <div className="text-sm text-center pt-2 sm:pt-4">
+              <div className="text-center text-sm text-gray-600">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -287,17 +278,17 @@ export default function Signup() {
                 type="button"
                 onClick={checkStep1Details}
                 disabled={loading}
-                className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                className="w-full rounded-lg bg-iregistrygreen py-3 font-semibold text-white disabled:opacity-60"
               >
                 {loading ? "Checking..." : "Continue"}
               </button>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* ================= STEP 2 ================= */}
-          {step === 2 && (
-            <div className="flex flex-col gap-4 sm:gap-5">
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+              {/* ================= STEP 2 ================= */}
+              {step === 2 && (
+                <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="District"
                   value={form.state}
@@ -313,7 +304,7 @@ export default function Signup() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Town / village"
                   value={form.village}
@@ -329,7 +320,7 @@ export default function Signup() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Alt. phone"
                   value={form.alt_phone}
@@ -355,7 +346,7 @@ export default function Signup() {
                 inputClassName="w-full border rounded-lg px-4 py-2"
               />
 
-              <div className="text-sm text-center pt-2 sm:pt-4">
+              <div className="text-center text-sm text-gray-600">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -370,7 +361,7 @@ export default function Signup() {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="w-full py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold sm:w-auto sm:min-w-[10rem]"
+                  className="w-full rounded-lg border border-gray-300 py-3 font-semibold text-gray-700 sm:w-auto sm:min-w-[10rem]"
                 >
                   Back
                 </button>
@@ -379,13 +370,13 @@ export default function Signup() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60 sm:w-auto sm:min-w-[12rem] lg:min-w-[14rem]"
+                  className="w-full rounded-lg bg-iregistrygreen py-3 font-semibold text-white disabled:opacity-60 sm:w-auto sm:min-w-[12rem] lg:min-w-[14rem]"
                 >
                   {loading ? "Creating..." : "Create account"}
                 </button>
               </div>
-            </div>
-          )}
+                </div>
+              )}
             </div>
           </div>
         </div>
