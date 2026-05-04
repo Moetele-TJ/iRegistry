@@ -40,7 +40,7 @@ export default function Signup() {
     type: "",
   });
 
-    useEffect(() => {
+  useEffect(() => {
     if (modal.type === "success") {
       const t = setTimeout(() => {
         navigate("/login", { replace: true });
@@ -185,10 +185,9 @@ export default function Signup() {
 
   return (
     <>
-      
       <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-        <div className="bg-white w-full max-w-lg rounded-2xl shadow-lg p-6">
-          <h1 className="text-2xl font-bold text-iregistrygreen mb-1">
+        <div className="bg-white w-full max-w-sm rounded-2xl shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-iregistrygreen mb-2">
             Create Account
           </h1>
 
@@ -257,7 +256,7 @@ export default function Signup() {
                 }
               />
 
-              <div className="text-sm text-center mt-2">
+              <div className="text-sm text-center mb-6">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -269,9 +268,10 @@ export default function Signup() {
               </div>
 
               <button
+                type="button"
                 onClick={checkStep1Details}
                 disabled={loading}
-                className="w-full mt-4 py-3 bg-iregistrygreen text-white rounded-lg"
+                className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60"
               >
                 {loading ? "Checking..." : "Continue"}
               </button>
@@ -281,23 +281,47 @@ export default function Signup() {
           {/* ================= STEP 2 ================= */}
           {step === 2 && (
             <>
-              <Input label="State" value={form.state}
-                onChange={(v) => setForm(f => ({ ...f, state: v }))} required={false} />
+              <Input
+                label="District"
+                value={form.state}
+                onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+                required={false}
+              />
 
-              <Input label="Town / village" value={form.village}
-                onChange={(v) => setForm(f => ({ ...f, village: v }))} required={false} />
+              <Input
+                label="Town / village"
+                value={form.village}
+                onChange={(v) => setForm((f) => ({ ...f, village: v }))}
+                required={false}
+              />
 
-              <Input label="Postal code" value={form.postal_code}
-                onChange={(v) => setForm(f => ({ ...f, postal_code: v }))} required={false} />
+              <Input
+                label="Postal code"
+                value={form.postal_code}
+                onChange={(v) => setForm((f) => ({ ...f, postal_code: v }))}
+                required={false}
+              />
 
-              <Input label="Ward / street" value={form.ward}
-                onChange={(v) => setForm(f => ({ ...f, ward: v }))} required={false} />
+              <Input
+                label="Ward / street"
+                value={form.ward}
+                onChange={(v) => setForm((f) => ({ ...f, ward: v }))}
+                required={false}
+              />
 
-              <Input label="Alt. phone" value={form.alt_phone}
-                onChange={(v) => setForm(f => ({ ...f, alt_phone: v }))} required={false} />
+              <Input
+                label="Alt. phone"
+                value={form.alt_phone}
+                onChange={(v) => setForm((f) => ({ ...f, alt_phone: v }))}
+                required={false}
+              />
 
-              <Input label="Landline" value={form.landline}
-                onChange={(v) => setForm(f => ({ ...f, landline: v }))} required={false} />
+              <Input
+                label="Landline"
+                value={form.landline}
+                onChange={(v) => setForm((f) => ({ ...f, landline: v }))}
+                required={false}
+              />
 
               <PoliceStationSelect
                 label="Police station"
@@ -309,24 +333,7 @@ export default function Signup() {
                 inputClassName="w-full border rounded-lg px-4 py-2"
               />
 
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => setStep(1)}
-                  className="w-1/2 border py-3 rounded-lg"
-                >
-                  Back
-                </button>
-
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="w-1/2 bg-iregistrygreen text-white py-3 rounded-lg"
-                >
-                  {loading ? "Creating..." : "Create account"}
-                </button>
-              </div>
-
-              <div className="text-sm text-center mt-2">
+              <div className="text-sm text-center mb-6">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -337,6 +344,24 @@ export default function Signup() {
                 </button>
               </div>
 
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-1/2 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="w-1/2 py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+                >
+                  {loading ? "Creating..." : "Create account"}
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -388,7 +413,7 @@ export default function Signup() {
                 onClick={() =>
                   setModal({ open: false, title: "", message: "", type: "" })
                 }
-                className="w-full py-2 bg-iregistrygreen text-white rounded-lg"
+                className="w-full py-2 rounded-lg bg-iregistrygreen text-white font-semibold"
               >
                 OK
               </button>

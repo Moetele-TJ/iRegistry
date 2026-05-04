@@ -34,7 +34,9 @@ serve(async (req) => {
       );
     }
 
-    const session = await validateSession(supabase, auth, { rotateJwt: true });
+    // Slide DB expiry only — do not rotate JWT here. Rotating on every validate
+    // replaces `sessions.token` and races across browser tabs sharing one token.
+    const session = await validateSession(supabase, auth, { rotateJwt: false });
 
     if (!session) {
       return respond(
