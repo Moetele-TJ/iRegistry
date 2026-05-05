@@ -327,16 +327,14 @@ export default function EditItem() {
     const v = String(found.village || "").trim();
     const w = String(found.ward || "").trim();
     const st = String(found.station || found.location || "").trim();
-    const uv = String(user?.village || "").trim();
-    const uw = String(user?.ward || "").trim();
     setForm({
       category: found.category || "",
       make: found.make || "",
       model: found.model || "",
       serial1: found.serial1 || "",
       serial2: found.serial2 || "",
-      village: v || uv,
-      ward: w || uw,
+      village: v,
+      ward: w,
       station: st,
       purchaseDate: toDateInputValue(found.purchaseDate || found.lastSeen),
       estimatedValue:
