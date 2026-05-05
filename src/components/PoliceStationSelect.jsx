@@ -86,13 +86,6 @@ function SearchableStationPicker({
     setQuery("");
   }
 
-  function onTriggerKeyDown(e) {
-    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
-      e.preventDefault();
-      if (!disabled && !loading) setOpen(true);
-    }
-  }
-
   function onSearchKeyDown(e) {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -123,48 +116,59 @@ function SearchableStationPicker({
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
-        type="button"
-        disabled={busy}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        onClick={() => !busy && setOpen((o) => !o)}
-        onKeyDown={onTriggerKeyDown}
-        className={`flex w-full items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-base transition hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-iregistrygreen focus:ring-offset-0 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70 ${triggerClassName}`.trim()}
-      >
-        <span className={valueNorm ? "truncate text-gray-900" : "truncate text-gray-500"}>
-          {loading ? "Loading stations…" : valueNorm || placeholder}
-        </span>
+      <div className="relative">
+        <input
+          type="text"
+          disabled={busy}
+          value={open ? query : valueNorm}
+          placeholder={loading ? "Loading stations…" : placeholder}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="police-station-listbox"
+          aria-autocomplete="list"
+          className={`w-full rounded-lg border border-gray-200 bg-white px-4 py-3 pr-10 text-base transition hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-iregistrygreen focus:ring-offset-0 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70 ${triggerClassName}`.trim()}
+          onFocus={() => {
+            if (busy) return;
+            setOpen(true);
+            setHighlight(0);
+            setQuery(valueNorm);
+          }}
+          onBlur={(e) => {
+            // Allow option click (mousedown) to run first.
+            window.setTimeout(() => {
+              if (!e.currentTarget) return;
+              setOpen(false);
+              setHighlight(0);
+              setQuery("");
+            }, 0);
+          }}
+          onChange={(e) => {
+            const next = e.target.value;
+            setQuery(next);
+            if (!open) setOpen(true);
+            if (allowOther) {
+              onChange?.(next);
+            }
+          }}
+          onKeyDown={onSearchKeyDown}
+        />
         <ChevronDown
-          className={`h-5 w-5 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden
         />
-      </button>
+      </div>
 
       {open && !loading ? (
         <div
           className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
           role="presentation"
         >
-          <div className="sticky top-0 flex items-center gap-2 border-b border-gray-100 bg-gray-50/95 px-3 py-2">
-            <Search className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-            <input
-              autoFocus
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onSearchKeyDown}
-              placeholder="Search by name…"
-              className="min-w-0 flex-1 border-0 bg-transparent py-1 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-              aria-autocomplete="list"
-            />
-          </div>
-
           <ul
             ref={listRef}
             role="listbox"
             className="max-h-56 overflow-y-auto py-1"
             aria-label="Police stations"
+            id="police-station-listbox"
           >
             {filtered.length === 0 ? (
               <li className="px-4 py-3 text-sm text-gray-500">No matching stations.</li>

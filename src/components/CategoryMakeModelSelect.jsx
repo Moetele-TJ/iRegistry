@@ -33,6 +33,7 @@ export default function CategoryMakeModelSelect({
   makeLabel = "Make",
   modelLabel = "Model",
 }) {
+  const wrapRef = useRef(null);
   const uid = useId();
   const catListboxId = `${uid}-cat-listbox`;
   const makeListboxId = `${uid}-make-listbox`;
@@ -57,6 +58,23 @@ export default function CategoryMakeModelSelect({
   const catsInputRef = useRef(null);
   const makesInputRef = useRef(null);
   const modelsInputRef = useRef(null);
+
+  const anyOpen = catsOpen || makesOpen || modelsOpen;
+  useEffect(() => {
+    if (!anyOpen) return;
+    function onDocMouseDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setCatsOpen(false);
+        setCatsActiveIndex(-1);
+        setMakesOpen(false);
+        setMakesActiveIndex(-1);
+        setModelsOpen(false);
+        setModelsActiveIndex(-1);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [anyOpen]);
 
   const normalizedCategory = useMemo(() => (category || "").trim(), [category]);
   const normalizedMake = useMemo(() => (make || "").trim(), [make]);
@@ -214,7 +232,7 @@ export default function CategoryMakeModelSelect({
   const hint = loading ? "Loading options..." : "Type to add a new entry";
 
   return (
-    <div className={className}>
+    <div ref={wrapRef} className={className}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1">{categoryLabel}</label>
