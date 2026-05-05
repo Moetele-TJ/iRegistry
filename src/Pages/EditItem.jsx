@@ -329,8 +329,6 @@ export default function EditItem() {
     const st = String(found.station || found.location || "").trim();
     const uv = String(user?.village || "").trim();
     const uw = String(user?.ward || "").trim();
-    const atHome = (!v && !w) || (uv && uw && v === uv && w === uw);
-    setHeldAtResidence(!!atHome && !!uv);
     setForm({
       category: found.category || "",
       make: found.make || "",
