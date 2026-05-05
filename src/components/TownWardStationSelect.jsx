@@ -36,7 +36,6 @@ function ComboboxInput({
     if (!open) return [];
     const q = norm(value).toLowerCase();
     if (!q) return normalizedOptions;
-    if (normalizedOptions.some((o) => o.toLowerCase() === q)) return normalizedOptions;
     return normalizedOptions.filter((o) => o.toLowerCase().includes(q));
   }, [open, value, normalizedOptions]);
 

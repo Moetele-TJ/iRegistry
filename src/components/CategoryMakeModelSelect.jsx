@@ -89,12 +89,8 @@ export default function CategoryMakeModelSelect({
     const raw = categoryOptions;
     const q = (category || "").trim().toLowerCase();
 
-    // If the input exactly matches an existing option, show all options so the
-    // user can easily switch categories (avoids the native <datalist> behavior).
     if (!catsOpen) return [];
     if (!q) return raw;
-    if (raw.some((c) => c.toLowerCase() === q)) return raw;
-
     return raw.filter((c) => c.toLowerCase().includes(q));
   }, [categoryOptions, category, catsOpen]);
 
@@ -109,7 +105,6 @@ export default function CategoryMakeModelSelect({
     const q = (make || "").trim().toLowerCase();
     if (!makesOpen) return [];
     if (!q) return raw;
-    if (raw.some((m) => m.toLowerCase() === q)) return raw;
     return raw.filter((m) => m.toLowerCase().includes(q));
   }, [makeOptions, make, makesOpen]);
 
@@ -124,7 +119,6 @@ export default function CategoryMakeModelSelect({
     const q = (model || "").trim().toLowerCase();
     if (!modelsOpen) return [];
     if (!q) return raw;
-    if (raw.some((m) => m.toLowerCase() === q)) return raw;
     return raw.filter((m) => m.toLowerCase().includes(q));
   }, [modelOptions, model, modelsOpen]);
 
