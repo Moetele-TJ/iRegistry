@@ -11,8 +11,8 @@ import { compressImage } from "../utils/imageCompression.js";
 import { normalizePhotos } from "../utils/itemPhotos.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
 import BillingHelpLinks from "../components/BillingHelpLinks.jsx";
-import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import CategoryMakeModelSelect from "../components/CategoryMakeModelSelect.jsx";
+import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import {
   getEditItemPreviewCharges,
   isBalanceBelowMinimumForEdit,
@@ -396,7 +396,8 @@ export default function EditItem() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items, user?.ward]);
 
-  // stationOptions now loaded from DB via PoliceStationSelect
+  // Town/Ward/Station suggestions are derived from previously captured item/user locations
+  // via TownWardStationSelect.
 
   useEffect(() => {
     if (!form.serial1.trim()) {
@@ -989,52 +990,19 @@ export default function EditItem() {
               />
               Item is held at my place of residence
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Town/Village</label>
-                <input
-                  name="village"
-                  value={form.village}
-                  onChange={(e) => updateField("village", e.target.value)}
-                  className="input"
-                  list="edit-village-options"
-                  disabled={heldAtResidence}
-                />
-                <datalist id="edit-village-options">
-                  {villageOptions.map((v) => (
-                    <option key={v} value={v} />
-                  ))}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ward/Street</label>
-                <input
-                  name="ward"
-                  value={form.ward}
-                  onChange={(e) => updateField("ward", e.target.value)}
-                  className="input"
-                  list="edit-ward-options"
-                  disabled={heldAtResidence}
-                />
-                <datalist id="edit-ward-options">
-                  {wardOptions.map((w) => (
-                    <option key={w} value={w} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-          </Field>
-
-          <Field label="Nearest police station" required>
-            <PoliceStationSelect
-              label={null}
-              value={form.station}
-              onChange={(v) => updateField("station", v)}
-              required={true}
-              withAuth={true}
-              inputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
-              placeholder="Select nearest police station…"
-              allowOther={true}
+            <TownWardStationSelect
+              town={form.village}
+              ward={form.ward}
+              station={form.station}
+              items={items}
+              user={user}
+              disabled={heldAtResidence}
+              inputClassName="input"
+              requiredStation={true}
+              stationInputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
+              onTownChange={(v) => setForm((f) => ({ ...f, village: v, ward: "", station: "" }))}
+              onWardChange={(v) => updateField("ward", v)}
+              onStationChange={(v) => updateField("station", v)}
             />
           </Field>
 
@@ -1051,17 +1019,23 @@ export default function EditItem() {
 
           {markStolen && !isItemReportedStolen(storedItem) && (
             <Field label="Reporting station (optional)">
-              <PoliceStationSelect
-                label={null}
-                value={policeStation}
-                onChange={(v) => setPoliceStation(v)}
-                required={false}
-                withAuth={true}
+              <TownWardStationSelect
+                town={form.village}
+                station={policeStation}
+                items={items}
+                user={user}
+                disabled={false}
                 inputClassName="input"
-                placeholder="Select reporting station (optional)…"
-                allowOther={true}
-                helpText="Leave blank to default to the nearest police station on file."
+                showTown={false}
+                showWard={false}
+                stationLabel={null}
+                onTownChange={null}
+                onWardChange={null}
+                onStationChange={(v) => setPoliceStation(v)}
               />
+              <div className="text-xs text-gray-500">
+                Leave blank to default to the nearest police station on file.
+              </div>
             </Field>
           )}
 

@@ -9,8 +9,8 @@ import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
-import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import CategoryMakeModelSelect from "../components/CategoryMakeModelSelect.jsx";
+import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import {
@@ -182,29 +182,8 @@ export default function AddItem() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  const villageOptions = useMemo(() => {
-    const s = new Set(
-      (items || [])
-        .map((it) => String(it?.village || "").trim())
-        .filter(Boolean)
-    );
-    const u = String(user?.village || "").trim();
-    if (u) s.add(u);
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [items, user?.village]);
-
-  const wardOptions = useMemo(() => {
-    const s = new Set(
-      (items || [])
-        .map((it) => String(it?.ward || "").trim())
-        .filter(Boolean)
-    );
-    const u = String(user?.ward || "").trim();
-    if (u) s.add(u);
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [items, user?.ward]);
-
-  // stationOptions now loaded from DB via PoliceStationSelect
+  // Town/Ward/Station suggestions are derived from previously captured item/user locations
+  // via TownWardStationSelect.
 
   function handleCurrencyChange(e) {
     let raw = e.target.value;
@@ -680,60 +659,25 @@ export default function AddItem() {
               />
               Item is held at my place of residence
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Town/Village</label>
-                <input
-                  name="village"
-                  value={form.village}
-                  onChange={(e) => updateField("village", e.target.value)}
-                  className="input"
-                  placeholder="e.g. Gantsi"
-                  list="add-village-options"
-                  disabled={heldAtResidence}
-                />
-                <datalist id="add-village-options">
-                  {villageOptions.map((v) => (
-                    <option key={v} value={v} />
-                  ))}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ward/Street</label>
-                <input
-                  name="ward"
-                  value={form.ward}
-                  onChange={(e) => updateField("ward", e.target.value)}
-                  className="input"
-                  placeholder="e.g. Ward 3"
-                  list="add-ward-options"
-                  disabled={heldAtResidence}
-                />
-                <datalist id="add-ward-options">
-                  {wardOptions.map((w) => (
-                    <option key={w} value={w} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
+            <TownWardStationSelect
+              town={form.village}
+              ward={form.ward}
+              station={form.station}
+              items={items}
+              user={user}
+              disabled={heldAtResidence}
+              inputClassName="input"
+              requiredStation={true}
+              stationInputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
+              onTownChange={(v) => setForm((f) => ({ ...f, village: v, ward: "", station: "" }))}
+              onWardChange={(v) => updateField("ward", v)}
+              onStationChange={(v) => updateField("station", v)}
+            />
             {heldAtResidence && (
               <p className="text-xs text-gray-500 mt-2">
                 Town/Village and Ward/Street are taken from your profile. Uncheck to enter a different place.
               </p>
             )}
-          </Field>
-
-          <Field label="Nearest police station" required>
-            <PoliceStationSelect
-              label={null}
-              value={form.station}
-              onChange={(v) => updateField("station", v)}
-              required={true}
-              withAuth={true}
-              inputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
-              placeholder="Select nearest police station…"
-              allowOther={true}
-            />
           </Field>
 
           <Field label="Shop / retailer">
