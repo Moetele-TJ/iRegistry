@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 
 function norm(v) {
   return String(v ?? "").trim().replace(/\s+/g, " ");
@@ -184,43 +185,139 @@ export default function TownWardStationSelect({
   wardLabel = "Ward/Street",
   stationLabel = "Nearest police station",
 }) {
-  const normalizedTown = norm(town);
+  const normalizedTown = useMemo(() => norm(town), [town]);
 
-  const townOptions = useMemo(() => {
-    const fromItems = (items || []).map((it) => it?.village);
-    const fromUser = user?.village;
-    return uniqSorted([...(fromItems || []), fromUser, town]);
+  const [villages, setVillages] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [stations, setStations] = useState([]);
+  const [loadingVillages, setLoadingVillages] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [loadingStations, setLoadingStations] = useState(false);
+
+  const villagesAbortRef = useRef(null);
+  const wardsAbortRef = useRef(null);
+  const stationsAbortRef = useRef(null);
+
+  async function fetchLocationTaxonomy({ village, signal }) {
+    const { data, error } = await invokeWithAuth("list-location-taxonomy", {
+      body: { village: village || "", limit: 5000 },
+      signal,
+    });
+    if (error) throw error;
+    return {
+      villages: Array.isArray(data?.villages) ? data.villages : [],
+      wards: Array.isArray(data?.wards) ? data.wards : [],
+      stations: Array.isArray(data?.stations) ? data.stations : [],
+    };
+  }
+
+  // 1) Villages (independent list)
+  useEffect(() => {
+    villagesAbortRef.current?.abort?.();
+    const ac = new AbortController();
+    villagesAbortRef.current = ac;
+
+    let alive = true;
+    setLoadingVillages(true);
+
+    fetchLocationTaxonomy({ village: "", signal: ac.signal })
+      .then((t) => {
+        if (!alive) return;
+        setVillages(t.villages);
+      })
+      .catch(() => {
+        // Fallback to local memory if API unavailable.
+        const fromItems = (items || []).map((it) => it?.village);
+        const fromUser = user?.village;
+        if (!alive) return;
+        setVillages(uniqSorted([...(fromItems || []), fromUser, town]));
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoadingVillages(false);
+      });
+
+    return () => {
+      alive = false;
+      ac.abort();
+    };
   }, [items, user?.village, town]);
 
-  const wardOptions = useMemo(() => {
-    const filtered = (items || []).filter((it) => {
-      const v = norm(it?.village);
-      return normalizedTown ? v.toLowerCase() === normalizedTown.toLowerCase() : true;
-    });
-    const fromItems = filtered.map((it) => it?.ward);
-    const fromUser =
-      normalizedTown &&
-      norm(user?.village).toLowerCase() === normalizedTown.toLowerCase()
-        ? user?.ward
-        : null;
-    return uniqSorted([...(fromItems || []), fromUser, ward]);
-  }, [items, user?.village, user?.ward, normalizedTown, ward]);
+  // 2) Wards + stations (filtered by village)
+  useEffect(() => {
+    // If town is cleared, downstream lists should clear too.
+    if (!normalizedTown) {
+      setWards([]);
+      setStations([]);
+      return;
+    }
 
-  const stationOptions = useMemo(() => {
-    const filtered = (items || []).filter((it) => {
-      const v = norm(it?.village);
-      return normalizedTown ? v.toLowerCase() === normalizedTown.toLowerCase() : true;
-    });
-    const fromItems = filtered.map((it) => it?.station || it?.location);
-    const fromUser =
-      normalizedTown &&
-      norm(user?.village).toLowerCase() === normalizedTown.toLowerCase()
-        ? user?.police_station
-        : null;
-    return uniqSorted([...(fromItems || []), fromUser, station]);
-  }, [items, user?.village, user?.police_station, normalizedTown, station]);
+    wardsAbortRef.current?.abort?.();
+    stationsAbortRef.current?.abort?.();
+    const wardsAc = new AbortController();
+    const stationsAc = new AbortController();
+    wardsAbortRef.current = wardsAc;
+    stationsAbortRef.current = stationsAc;
 
-  const hint = "Type to add a new entry";
+    let alive = true;
+    setLoadingWards(true);
+    setLoadingStations(true);
+
+    // Use one request for both wards + stations.
+    fetchLocationTaxonomy({ village: normalizedTown, signal: wardsAc.signal })
+      .then((t) => {
+        if (!alive) return;
+        setWards(t.wards);
+        setStations(t.stations);
+      })
+      .catch(() => {
+        // Fallback: filter local items by selected town.
+        const filtered = (items || []).filter((it) => {
+          const v = norm(it?.village);
+          return v && v.toLowerCase() === normalizedTown.toLowerCase();
+        });
+        const fromWards = filtered.map((it) => it?.ward);
+        const fromStations = filtered.map((it) => it?.station || it?.location);
+        const fromUserWard =
+          norm(user?.village).toLowerCase() === normalizedTown.toLowerCase()
+            ? user?.ward
+            : null;
+        const fromUserStation =
+          norm(user?.village).toLowerCase() === normalizedTown.toLowerCase()
+            ? user?.police_station
+            : null;
+        if (!alive) return;
+        setWards(uniqSorted([...(fromWards || []), fromUserWard, ward]));
+        setStations(uniqSorted([...(fromStations || []), fromUserStation, station]));
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoadingWards(false);
+        setLoadingStations(false);
+      });
+
+    return () => {
+      alive = false;
+      wardsAc.abort();
+      stationsAc.abort();
+    };
+  }, [normalizedTown, items, user?.village, user?.ward, user?.police_station, ward, station]);
+
+  const townOptions = useMemo(
+    () => uniqSorted([...(villages || []), town]),
+    [villages, town],
+  );
+  const wardOptions = useMemo(
+    () => uniqSorted([...(wards || []), ward]),
+    [wards, ward],
+  );
+  const stationOptions = useMemo(
+    () => uniqSorted([...(stations || []), station]),
+    [stations, station],
+  );
+
+  const locationLoading = loadingVillages || loadingWards || loadingStations;
+  const hint = locationLoading ? "Loading options..." : "Type to add a new entry";
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
