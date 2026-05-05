@@ -35,8 +35,8 @@ export default function CategoryMakeModelSelect({
 }) {
   const uid = useId();
   const catListboxId = `${uid}-cat-listbox`;
-  const makeListId = `${uid}-make-list`;
-  const modelListId = `${uid}-model-list`;
+  const makeListboxId = `${uid}-make-listbox`;
+  const modelListboxId = `${uid}-model-listbox`;
 
   const [cats, setCats] = useState([]);
   const [makes, setMakes] = useState([]);
@@ -46,14 +46,21 @@ export default function CategoryMakeModelSelect({
   const [loadingModels, setLoadingModels] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
   const [catsActiveIndex, setCatsActiveIndex] = useState(-1);
+  const [makesOpen, setMakesOpen] = useState(false);
+  const [makesActiveIndex, setMakesActiveIndex] = useState(-1);
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const [modelsActiveIndex, setModelsActiveIndex] = useState(-1);
 
   const catsAbortRef = useRef(null);
   const makesAbortRef = useRef(null);
   const modelsAbortRef = useRef(null);
   const catsInputRef = useRef(null);
+  const makesInputRef = useRef(null);
+  const modelsInputRef = useRef(null);
 
   const normalizedCategory = useMemo(() => (category || "").trim(), [category]);
   const normalizedMake = useMemo(() => (make || "").trim(), [make]);
+  const normalizedModel = useMemo(() => (model || "").trim(), [model]);
   const categoryOptions = useMemo(() => {
     const set = new Set(cats);
     if (normalizedCategory) set.add(normalizedCategory);
@@ -72,6 +79,36 @@ export default function CategoryMakeModelSelect({
 
     return raw.filter((c) => c.toLowerCase().includes(q));
   }, [categoryOptions, category, catsOpen]);
+
+  const makeOptions = useMemo(() => {
+    const set = new Set(makes);
+    if (normalizedMake) set.add(normalizedMake);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [makes, normalizedMake]);
+
+  const visibleMakeOptions = useMemo(() => {
+    const raw = makeOptions;
+    const q = (make || "").trim().toLowerCase();
+    if (!makesOpen) return [];
+    if (!q) return raw;
+    if (raw.some((m) => m.toLowerCase() === q)) return raw;
+    return raw.filter((m) => m.toLowerCase().includes(q));
+  }, [makeOptions, make, makesOpen]);
+
+  const modelOptions = useMemo(() => {
+    const set = new Set(models);
+    if (normalizedModel) set.add(normalizedModel);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [models, normalizedModel]);
+
+  const visibleModelOptions = useMemo(() => {
+    const raw = modelOptions;
+    const q = (model || "").trim().toLowerCase();
+    if (!modelsOpen) return [];
+    if (!q) return raw;
+    if (raw.some((m) => m.toLowerCase() === q)) return raw;
+    return raw.filter((m) => m.toLowerCase().includes(q));
+  }, [modelOptions, model, modelsOpen]);
 
   useEffect(() => {
     catsAbortRef.current?.abort?.();
@@ -310,51 +347,224 @@ export default function CategoryMakeModelSelect({
 
         <div>
           <label className="block text-sm font-medium mb-1">{makeLabel}</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            disabled={disabled || !normalizedCategory}
-            required={required}
-            placeholder={normalizedCategory ? hint : "Pick a category first"}
-            list={makeListId}
-            value={make || ""}
-            onChange={(e) => {
-              const next = e.target.value;
-              const nextTrimmed = next.trim();
+          <div className="relative">
+            <input
+              ref={makesInputRef}
+              className="w-full border rounded px-3 py-2"
+              disabled={disabled || !normalizedCategory}
+              required={required}
+              placeholder={normalizedCategory ? hint : "Pick a category first"}
+              value={make || ""}
+              role="combobox"
+              aria-expanded={makesOpen}
+              aria-controls={makeListboxId}
+              aria-autocomplete="list"
+              onFocus={() => {
+                if (disabled || !normalizedCategory) return;
+                setMakesOpen(true);
+                setMakesActiveIndex(-1);
+              }}
+              onBlur={(e) => {
+                window.setTimeout(() => {
+                  if (!e.currentTarget) return;
+                  setMakesOpen(false);
+                  setMakesActiveIndex(-1);
+                }, 0);
+              }}
+              onChange={(e) => {
+                const next = e.target.value;
+                const nextTrimmed = next.trim();
 
-              // Keep model consistent when make changes.
-              if (nextTrimmed !== normalizedMake) {
-                onModelChange?.("");
-              }
+                if (!makesOpen) setMakesOpen(true);
+                setMakesActiveIndex(-1);
 
-              onMakeChange?.(next);
-            }}
-          />
-          <datalist id={makeListId}>
-            {makes.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
+                // Keep model consistent when make changes.
+                if (nextTrimmed !== normalizedMake) {
+                  onModelChange?.("");
+                }
+
+                onMakeChange?.(next);
+              }}
+              onKeyDown={(e) => {
+                if (!makesOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  setMakesOpen(true);
+                  return;
+                }
+                if (!makesOpen) return;
+
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setMakesOpen(false);
+                  setMakesActiveIndex(-1);
+                  return;
+                }
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setMakesActiveIndex((i) =>
+                    Math.min(i + 1, visibleMakeOptions.length - 1),
+                  );
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setMakesActiveIndex((i) => Math.max(i - 1, 0));
+                  return;
+                }
+                if (e.key === "Enter") {
+                  const pick = visibleMakeOptions[makesActiveIndex];
+                  if (!pick) return;
+                  e.preventDefault();
+                  if (pick.trim() !== normalizedMake) {
+                    onModelChange?.("");
+                  }
+                  onMakeChange?.(pick);
+                  setMakesOpen(false);
+                  setMakesActiveIndex(-1);
+                  window.setTimeout(() => makesInputRef.current?.blur?.(), 0);
+                }
+              }}
+            />
+
+            {makesOpen && !(disabled || !normalizedCategory) && visibleMakeOptions.length > 0 && (
+              <ul
+                id={makeListboxId}
+                role="listbox"
+                className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded border bg-white shadow"
+              >
+                {visibleMakeOptions.map((m, idx) => {
+                  const active = idx === makesActiveIndex;
+                  return (
+                    <li
+                      key={m}
+                      role="option"
+                      aria-selected={active}
+                      className={[
+                        "cursor-pointer px-3 py-2 text-sm",
+                        active ? "bg-gray-100" : "bg-white",
+                      ].join(" ")}
+                      onMouseEnter={() => setMakesActiveIndex(idx)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (m.trim() !== normalizedMake) {
+                          onModelChange?.("");
+                        }
+                        onMakeChange?.(m);
+                        setMakesOpen(false);
+                        setMakesActiveIndex(-1);
+                        window.setTimeout(() => makesInputRef.current?.blur?.(), 0);
+                      }}
+                    >
+                      {m}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">{modelLabel}</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            disabled={disabled || !normalizedCategory || !normalizedMake}
-            required={required}
-            placeholder={normalizedMake ? hint : "Pick a make first"}
-            list={modelListId}
-            value={model || ""}
-            onChange={(e) => {
-              const next = e.target.value;
-              onModelChange?.(next);
-            }}
-          />
-          <datalist id={modelListId}>
-            {models.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
+          <div className="relative">
+            <input
+              ref={modelsInputRef}
+              className="w-full border rounded px-3 py-2"
+              disabled={disabled || !normalizedCategory || !normalizedMake}
+              required={required}
+              placeholder={normalizedMake ? hint : "Pick a make first"}
+              value={model || ""}
+              role="combobox"
+              aria-expanded={modelsOpen}
+              aria-controls={modelListboxId}
+              aria-autocomplete="list"
+              onFocus={() => {
+                if (disabled || !normalizedCategory || !normalizedMake) return;
+                setModelsOpen(true);
+                setModelsActiveIndex(-1);
+              }}
+              onBlur={(e) => {
+                window.setTimeout(() => {
+                  if (!e.currentTarget) return;
+                  setModelsOpen(false);
+                  setModelsActiveIndex(-1);
+                }, 0);
+              }}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (!modelsOpen) setModelsOpen(true);
+                setModelsActiveIndex(-1);
+                onModelChange?.(next);
+              }}
+              onKeyDown={(e) => {
+                if (!modelsOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  setModelsOpen(true);
+                  return;
+                }
+                if (!modelsOpen) return;
+
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setModelsOpen(false);
+                  setModelsActiveIndex(-1);
+                  return;
+                }
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setModelsActiveIndex((i) =>
+                    Math.min(i + 1, visibleModelOptions.length - 1),
+                  );
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setModelsActiveIndex((i) => Math.max(i - 1, 0));
+                  return;
+                }
+                if (e.key === "Enter") {
+                  const pick = visibleModelOptions[modelsActiveIndex];
+                  if (!pick) return;
+                  e.preventDefault();
+                  onModelChange?.(pick);
+                  setModelsOpen(false);
+                  setModelsActiveIndex(-1);
+                  window.setTimeout(() => modelsInputRef.current?.blur?.(), 0);
+                }
+              }}
+            />
+
+            {modelsOpen && !(disabled || !normalizedCategory || !normalizedMake) && visibleModelOptions.length > 0 && (
+              <ul
+                id={modelListboxId}
+                role="listbox"
+                className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded border bg-white shadow"
+              >
+                {visibleModelOptions.map((m, idx) => {
+                  const active = idx === modelsActiveIndex;
+                  return (
+                    <li
+                      key={m}
+                      role="option"
+                      aria-selected={active}
+                      className={[
+                        "cursor-pointer px-3 py-2 text-sm",
+                        active ? "bg-gray-100" : "bg-white",
+                      ].join(" ")}
+                      onMouseEnter={() => setModelsActiveIndex(idx)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onModelChange?.(m);
+                        setModelsOpen(false);
+                        setModelsActiveIndex(-1);
+                        window.setTimeout(() => modelsInputRef.current?.blur?.(), 0);
+                      }}
+                    >
+                      {m}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
