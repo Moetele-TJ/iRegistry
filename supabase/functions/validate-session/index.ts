@@ -34,9 +34,9 @@ serve(async (req) => {
       );
     }
 
-    // Slide DB expiry only — do not rotate JWT here. Rotating on every validate
-    // replaces `sessions.token` and races across browser tabs sharing one token.
-    const session = await validateSession(supabase, auth, { rotateJwt: false });
+    // Slide DB expiry and rotate JWT so the client's `exp` stays fresh.
+    // Multi-tab safety is handled client-side (storage sync + retry-on-401 with latest token).
+    const session = await validateSession(supabase, auth, { rotateJwt: true });
 
     if (!session) {
       return respond(

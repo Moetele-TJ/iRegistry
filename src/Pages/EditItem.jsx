@@ -370,28 +370,6 @@ export default function EditItem() {
     }));
   }, [heldAtResidence, user?.village, user?.ward, user?.police_station]);
 
-  const villageOptions = useMemo(() => {
-    const s = new Set(
-      (items || [])
-        .map((it) => String(it?.village || "").trim())
-        .filter(Boolean)
-    );
-    const u = String(user?.village || "").trim();
-    if (u) s.add(u);
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [items, user?.village]);
-
-  const wardOptions = useMemo(() => {
-    const s = new Set(
-      (items || [])
-        .map((it) => String(it?.ward || "").trim())
-        .filter(Boolean)
-    );
-    const u = String(user?.ward || "").trim();
-    if (u) s.add(u);
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [items, user?.ward]);
-
   // Town/Ward/Station suggestions are derived from previously captured item/user locations
   // via TownWardStationSelect.
 
