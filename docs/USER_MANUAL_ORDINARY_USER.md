@@ -79,6 +79,22 @@ Depending on your role and deployment, the verification screen may allow actions
 
 iRegistry helps you **register valuable items** (with photos and serials), **prove ownership**, and work with **police and recovery** if something is lost or stolen. Your **user dashboard** is the home for everything tied to your account: items, alerts, credits, and profile details.
 
+### 2.1 Your digital “info bank” (keep proof in one place)
+
+Think of iRegistry as your personal **information bank** for valuables.
+
+After you buy something important, add it to iRegistry and keep all the key details together — serial numbers, photos, and supporting proof. Later, when you need to **prove ownership**, **sell responsibly**, **insure**, **travel**, or **report theft**, you are not searching for papers or old messages: your record is already organized and time‑stamped.
+
+**Catchy rule:** *Buy it → Register it → Keep it safe.*
+
+### 2.2 Safety of your information
+
+iRegistry is built to protect user information:
+
+- Your item records are tied to your account and are not meant to be publicly browsed like a social profile.
+- Sensitive actions (editing, transfers, notifications) require being signed in and using the permissions your registry allows.
+- If you think your account is at risk, use **Profile → Sessions / trusted devices** and sign out old sessions.
+
 ---
 
 ## 3. Signing in
@@ -112,6 +128,7 @@ When you are logged in as an ordinary user, the **left sidebar** (expand it by m
 | **Notifications** | Alerts about your items (e.g. contact attempts) |
 | **Activity** | Broader activity feed for your account |
 | **Transactions** | Credit purchases and movements (top-ups, charges where applicable) |
+| **Organizations** | Invitations, memberships, and (where enabled) organization items and wallet |
 | **Top up** | Add credits to your account (where available) |
 | **Pricing** | What actions cost in credits and how billing works |
 
@@ -143,6 +160,15 @@ You may also see **recent activity** and shortcuts such as **Add your first item
 
 Keep your phone and email accurate so OTP and alerts work.
 
+### 6.1 Sessions and trusted devices (security)
+
+Depending on your deployment, **Profile** may also show security tools such as:
+
+- **Active sessions**: see where your account is currently signed in, and sign out old sessions if needed.
+- **Trusted devices**: devices you have approved for easier login (for example, where SMS/OTP rules are relaxed).
+
+Use these tools on shared devices, or if you suspect someone else may have access to your account.
+
 ---
 
 ## 7. Items — active, deleted, and legacy
@@ -154,12 +180,17 @@ Keep your phone and email accurate so OTP and alerts work.
 - **Search and filter** (e.g. by category or status where available).
 - **Open an item** to see full details (public-style view).
 - **Edit** an item (where allowed), **report stolen**, move to **legacy**, or **delete** (soft delete), depending on policy and credits.
+ - **Export** (where available): download your list as a file for personal record-keeping.
 
 **Adding a new item**
 
 - Use **+ Add Item** (or equivalent) from the items area or dashboard.  
 - Registration usually opens the **Add item** flow at `/items/add`.  
 - Some actions may **cost credits** after free allowances; the app should show **cost and balance** before you confirm.
+
+**Organization-assigned items (if enabled)**
+
+Some ordinary users can be assigned items that belong to an organization (for example, a company phone or tool). These items may appear alongside your own items, but will show an organization label. Your actions may be limited by the organization’s policy.
 
 ### 7.2 Deleted Items
 
@@ -178,11 +209,46 @@ Keep your phone and email accurate so OTP and alerts work.
 
 If something fails because of **insufficient credits**, the app should tell you and point you to **Pricing** or **Top up**.
 
+### 8.1 Reporting stolen and recovery steps
+
+If an item is stolen:
+
+- Use the item actions to **report it stolen** (or mark it as active again if recovered).
+- If your deployment supports it, you may see a **police case** section with simple status steps (for example “Open”, “In custody”, “Cleared for return”, “Returned to owner”).
+
+Always follow official reporting requirements outside the app as directed by your organization.
+
+### 8.2 Photos and supporting documents
+
+Item photos are not only for appearance — they are evidence.
+
+- Add clear photos of the item, including the **serial label**.
+- Where possible, include supporting proof such as a **receipt photo** or **warranty label** within the allowed photo slots.
+- The first photo is typically used as the **main image** in lists and on the item page.
+
+### 8.3 Deleting, restoring, and legacy
+
+The system may support “soft delete” and legacy storage so you can correct mistakes:
+
+- **Delete**: removes an item from your active list (depending on your role/policy).
+- **Deleted items**: you can often **restore** a deleted item later.
+- **Move to legacy**: hides an item from your active list but keeps it for reference; you can restore it back to active.
+
+### 8.4 Ownership transfers (when applicable)
+
+If someone tries to claim or buy an item that is registered to you, the system may allow an **ownership transfer request**:
+
+- You may see **pending transfer requests** on your dashboard.
+- Approving a request moves the item to the requester’s account (and may use credits depending on policy).
+- Rejecting keeps the item under your account.
+
 ---
 
 ## 9. Notifications
 
 **Notifications** lists events such as someone trying to reach you about a registered item. Mark alerts as read when you have handled them so your dashboard stays clear.
+
+Tip: Some screens also group alerts by item. Opening the item and marking its alerts as read will reduce the unread count.
 
 ---
 
@@ -204,14 +270,25 @@ The **credits strip** on the dashboard often shows **balance** and quick links t
 
 ---
 
-## 12. Signing out and security
+## 12. Organizations (memberships, invitations, and wallets)
+
+If your account is linked to organizations, you can manage that under **Organizations**:
+
+- **Invitations**: accept or reject an invitation to join an organization.
+- **My organizations**: open an organization to view its **wallet** (where enabled) or **items** list.
+
+Organizations are typically used for workplaces, schools, shops, or institutions that register or manage items on behalf of users.
+
+---
+
+## 13. Signing out and security
 
 - Use **Sign out** / logout in the header or account menu when you finish on a shared computer.
 - You can manage **active sessions** where the product exposes that option (e.g. signing out other devices).
 
 ---
 
-## 13. If something goes wrong
+## 14. If something goes wrong
 
 - **Login fails** — Check last name and ID, wait for a new OTP if the old one expired, and try another channel (email vs SMS) if offered.
 - **“Insufficient credits”** — Check **Pricing**, then **Top up** or ask your registry how to add credits.
@@ -221,7 +298,7 @@ For account or data issues that the app cannot solve, use the **support channel*
 
 ---
 
-## 14. Glossary (quick)
+## 15. Glossary (quick)
 
 | Term | Meaning |
 |------|--------|

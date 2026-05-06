@@ -58,9 +58,10 @@ const toc = [
   { id: "s9", num: "9", label: "Notifications" },
   { id: "s10", num: "10", label: "Activity" },
   { id: "s11", num: "11", label: "Credits, pricing, transactions" },
-  { id: "s12", num: "12", label: "Signing out and security" },
-  { id: "s13", num: "13", label: "If something goes wrong" },
-  { id: "s14", num: "14", label: "Glossary" },
+  { id: "s12", num: "12", label: "Organizations" },
+  { id: "s13", num: "13", label: "Signing out and security" },
+  { id: "s14", num: "14", label: "If something goes wrong" },
+  { id: "s15", num: "15", label: "Glossary" },
 ];
 
 export default function UserManualPage() {
@@ -250,6 +251,28 @@ export default function UserManualPage() {
                     notifications, activity, credits, pricing, top-ups, and profile. The rest of this guide walks through
                     each area in order.
                   </p>
+                  <p className="font-semibold text-gray-900 mt-6">Your digital “info bank” (keep proof in one place)</p>
+                  <p>
+                    Think of iRegistry as your personal <strong>information bank</strong> for valuables. After you buy something
+                    important, register it here and keep the key details together — serials, photos, and supporting proof — so
+                    you can retrieve it later when you need to prove ownership, sell responsibly, insure, travel, or report a
+                    loss.
+                  </p>
+                  <p className="font-semibold text-gray-900">Catchy rule</p>
+                  <p className="italic">Buy it → Register it → Keep it safe.</p>
+                  <p className="font-semibold text-gray-900 mt-6">Safety of your information</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      Your item records are tied to your account and are not meant to be publicly browsed like a social profile.
+                    </li>
+                    <li>
+                      Sensitive actions (editing, transfers, notifications) require being signed in and the right permissions.
+                    </li>
+                    <li>
+                      If you think your account is at risk, use <strong>Profile → Sessions / trusted devices</strong> and sign out
+                      old sessions.
+                    </li>
+                  </ul>
                 </Prose>
               </SectionHeading>
 
@@ -341,6 +364,12 @@ export default function UserManualPage() {
                           <td className="px-4 py-3">Credit purchases and movements (top-ups, charges where applicable)</td>
                         </tr>
                         <tr>
+                          <td className="px-4 py-3 font-medium text-gray-900">Organizations</td>
+                          <td className="px-4 py-3">
+                            Invitations, memberships, and (where enabled) organization items and wallet
+                          </td>
+                        </tr>
+                        <tr>
                           <td className="px-4 py-3 font-medium text-gray-900">Top up</td>
                           <td className="px-4 py-3">Add credits to your account (where available)</td>
                         </tr>
@@ -412,6 +441,17 @@ export default function UserManualPage() {
                     </li>
                   </ul>
                   <p className="mt-3">Keep your phone and email accurate so OTP and alerts work.</p>
+                  <p className="font-semibold text-gray-900 mt-6">Sessions and trusted devices (security)</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      <strong>Active sessions</strong>: see where your account is currently signed in, and sign out old
+                      sessions if needed.
+                    </li>
+                    <li>
+                      <strong>Trusted devices</strong>: devices you have approved for easier login (depending on your
+                      deployment’s OTP rules).
+                    </li>
+                  </ul>
                 </Prose>
               </SectionHeading>
 
@@ -433,6 +473,9 @@ export default function UserManualPage() {
                         <strong>Edit</strong> an item (where allowed), <strong>report stolen</strong>, move to{" "}
                         <strong>legacy</strong>, or <strong>delete</strong> (soft delete), depending on policy and
                         credits.
+                      </li>
+                      <li>
+                        <strong>Export</strong> (where available): download your list for personal record-keeping.
                       </li>
                     </ul>
                     <p className="font-semibold text-gray-900 mt-4">Adding a new item</p>
@@ -493,6 +536,53 @@ export default function UserManualPage() {
                     </Link>
                     .
                   </p>
+                  <p className="font-semibold text-gray-900 mt-6">Reporting stolen and recovery steps</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      Use the item actions to <strong>report it stolen</strong> (or mark it as active again if recovered).
+                    </li>
+                    <li>
+                      Where enabled, the item may show a simple <strong>police case</strong> area with status steps (for
+                      example “Open”, “In custody”, “Cleared for return”, “Returned to owner”).
+                    </li>
+                  </ul>
+                  <p className="font-semibold text-gray-900 mt-6">Photos and supporting documents</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      Add clear photos of the item, including the <strong>serial label</strong>.
+                    </li>
+                    <li>
+                      Where possible, include supporting proof (for example a <strong>receipt photo</strong> or warranty label)
+                      within the allowed photo slots.
+                    </li>
+                    <li>
+                      The first photo is typically used as the <strong>main image</strong> in lists and on the item page.
+                    </li>
+                  </ul>
+                  <p className="font-semibold text-gray-900 mt-6">Deleting, restoring, and legacy</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      <strong>Delete</strong>: removes an item from your active list (depending on your role/policy).
+                    </li>
+                    <li>
+                      <strong>Deleted items</strong>: you can often <strong>restore</strong> a deleted item later.
+                    </li>
+                    <li>
+                      <strong>Move to legacy</strong>: hides an item from active items but keeps it for reference; you can restore it.
+                    </li>
+                  </ul>
+                  <p className="font-semibold text-gray-900 mt-6">Ownership transfers (when applicable)</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      You may see <strong>pending transfer requests</strong> on your dashboard.
+                    </li>
+                    <li>
+                      Approving a request moves the item to the requester’s account (and may use credits depending on policy).
+                    </li>
+                    <li>
+                      Rejecting keeps the item under your account.
+                    </li>
+                  </ul>
                 </Prose>
               </SectionHeading>
 
@@ -501,6 +591,10 @@ export default function UserManualPage() {
                   <p className="mt-4">
                     <strong>Notifications</strong> lists events such as someone trying to reach you about a registered
                     item. Mark alerts as read when you have handled them so your dashboard stays clear.
+                  </p>
+                  <p className="mt-3 text-sm text-gray-600">
+                    Tip: Some screens group alerts by item. Opening the item and marking its alerts as read will reduce
+                    the unread count.
                   </p>
                 </Prose>
               </SectionHeading>
@@ -546,7 +640,29 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s12" num="12" title="Signing out and security">
+              <SectionHeading id="s12" num="12" title="Organizations">
+                <Prose>
+                  <p className="mt-4">
+                    If your account is linked to organizations, you can manage that under{" "}
+                    <strong>Organizations</strong>:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600 mt-2">
+                    <li>
+                      <strong>Invitations</strong>: accept or reject an invitation to join an organization.
+                    </li>
+                    <li>
+                      <strong>My organizations</strong>: open an organization to view its <strong>wallet</strong> (where
+                      enabled) or <strong>items</strong> list.
+                    </li>
+                  </ul>
+                  <p className="mt-3">
+                    Organizations are typically used for workplaces, schools, shops, or institutions that register or
+                    manage items on behalf of users.
+                  </p>
+                </Prose>
+              </SectionHeading>
+
+              <SectionHeading id="s13" num="13" title="Signing out and security">
                 <Prose>
                   <ul className="mt-4 list-disc pl-5 space-y-2 marker:text-emerald-600">
                     <li>
@@ -561,7 +677,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s13" num="13" title="If something goes wrong">
+              <SectionHeading id="s14" num="14" title="If something goes wrong">
                 <Prose>
                   <ul className="mt-4 list-disc pl-5 space-y-2 marker:text-emerald-600">
                     <li>
@@ -591,7 +707,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s14" num="14" title="Glossary (quick)">
+              <SectionHeading id="s15" num="15" title="Glossary (quick)">
                 <div className="mt-4 overflow-x-auto rounded-xl border border-emerald-100 shadow-sm">
                   <table className="min-w-full text-sm">
                     <thead>
