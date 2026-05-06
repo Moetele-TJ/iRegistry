@@ -8,7 +8,12 @@ This guide is for people who use iRegistry with a **standard user** account (the
 
 Verification is the **primary feature** of iRegistry for day-to-day safety: it helps you check an item **before you buy** (or before you accept it) so you do not accidentally purchase stolen property.
 
-You can use verification **even while logged out** from the home page. Logged-in users may also see extra actions after a match is found.
+Verification is **free to use** and is available to **everyone**:
+
+- You can check a serial number from the home page **while logged out** (public use).
+- You can also verify while **logged in** — and may see extra actions after a match is found.
+
+Because verification is public and free, iRegistry is also **self‑protecting**: if checks are heavily repeated or appear abusive, the app may temporarily **limit** the number of checks or ask you to **sign in / use credits** to continue. This keeps the service reliable for normal users.
 
 ### 1.1 What you can verify
 

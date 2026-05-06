@@ -139,8 +139,14 @@ export default function UserManualPage() {
                     property.
                   </p>
                   <p>
-                    You can use verification from the home page even while logged out. Logged-in users may also see extra
-                    actions after a match is found.
+                    Verification is <strong>free to use</strong> and available to <strong>everyone</strong>: you can verify from
+                    the home page while logged out (public use), or while logged in (which may unlock extra actions after a
+                    match is found).
+                  </p>
+                  <p>
+                    Because verification is public and free, iRegistry is also <strong>self‑protecting</strong>. If checks are
+                    heavily repeated or appear abusive, the app may temporarily <strong>limit</strong> checks or ask you to{" "}
+                    <strong>sign in / use credits</strong> to continue — so the service stays reliable for normal users.
                   </p>
                   <p className="font-semibold text-gray-900">What you can verify</p>
                   <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
