@@ -47,19 +47,20 @@ function Prose({ children }) {
 }
 
 const toc = [
-  { id: "s1", num: "1", label: "Purpose of iRegistry (what it is for)" },
-  { id: "s2", num: "2", label: "Signing in" },
-  { id: "s3", num: "3", label: "Finding your way around" },
-  { id: "s4", num: "4", label: "Dashboard home" },
-  { id: "s5", num: "5", label: "Profile" },
-  { id: "s6", num: "6", label: "Items — active, deleted, legacy" },
-  { id: "s7", num: "7", label: "Item details and editing" },
-  { id: "s8", num: "8", label: "Notifications" },
-  { id: "s9", num: "9", label: "Activity" },
-  { id: "s10", num: "10", label: "Credits, pricing, transactions" },
-  { id: "s11", num: "11", label: "Signing out and security" },
-  { id: "s12", num: "12", label: "If something goes wrong" },
-  { id: "s13", num: "13", label: "Glossary" },
+  { id: "s1", num: "1", label: "Verification (Buyer Protection) — check before you buy" },
+  { id: "s2", num: "2", label: "Purpose of iRegistry (what it is for)" },
+  { id: "s3", num: "3", label: "Signing in" },
+  { id: "s4", num: "4", label: "Finding your way around" },
+  { id: "s5", num: "5", label: "Dashboard home" },
+  { id: "s6", num: "6", label: "Profile" },
+  { id: "s7", num: "7", label: "Items — active, deleted, legacy" },
+  { id: "s8", num: "8", label: "Item details and editing" },
+  { id: "s9", num: "9", label: "Notifications" },
+  { id: "s10", num: "10", label: "Activity" },
+  { id: "s11", num: "11", label: "Credits, pricing, transactions" },
+  { id: "s12", num: "12", label: "Signing out and security" },
+  { id: "s13", num: "13", label: "If something goes wrong" },
+  { id: "s14", num: "14", label: "Glossary" },
 ];
 
 export default function UserManualPage() {
@@ -130,7 +131,78 @@ export default function UserManualPage() {
             </nav>
 
             <div className="space-y-12">
-              <SectionHeading id="s1" num="1" title="What iRegistry is for — purpose and intent">
+              <SectionHeading id="s1" num="1" title="Verification (Buyer Protection) — check before you buy">
+                <Prose>
+                  <p className="mt-4">
+                    Verification is the <strong>primary safety feature</strong> of iRegistry. It helps you check an item{" "}
+                    <strong>before you buy</strong> (or before you accept it) so you do not accidentally purchase stolen
+                    property.
+                  </p>
+                  <p>
+                    You can use verification from the home page even while logged out. Logged-in users may also see extra
+                    actions after a match is found.
+                  </p>
+                  <p className="font-semibold text-gray-900">What you can verify</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      <strong>Serial number</strong> — type the serial as printed on the device label, packaging, or in
+                      the device settings.
+                    </li>
+                    <li>
+                      <strong>Photo (where available)</strong> — use your camera to capture the serial/label area so the
+                      app can try to match what it sees.
+                    </li>
+                  </ul>
+                  <p className="font-semibold text-gray-900 mt-6">How to verify (serial)</p>
+                  <ol className="list-decimal pl-5 space-y-2 marker:font-semibold marker:text-emerald-700">
+                    <li>Open <strong>Buyer Protection Verification</strong> on the home page.</li>
+                    <li>Enter the item’s <strong>serial number</strong>.</li>
+                    <li>Tap <strong>Verify</strong>.</li>
+                    <li>Read the result and follow the guidance below.</li>
+                  </ol>
+                  <p className="font-semibold text-gray-900 mt-6">How to verify (photo)</p>
+                  <ol className="list-decimal pl-5 space-y-2 marker:font-semibold marker:text-emerald-700">
+                    <li>Tap the <strong>camera</strong> option in the verification panel.</li>
+                    <li>Aim at the <strong>serial label</strong> or identifying plate and hold steady.</li>
+                    <li>Wait for the capture and result.</li>
+                  </ol>
+                  <p className="font-semibold text-gray-900 mt-6">What the results mean</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      <strong>Not found in registry</strong>: the serial is not currently registered. This does{" "}
+                      <strong>not</strong> prove the item is safe — ask for proof of ownership.
+                    </li>
+                    <li>
+                      <strong>Found / registered</strong>: the item is registered to someone. Ask the seller for proof
+                      they are the rightful owner (or have the right to sell it).
+                    </li>
+                    <li>
+                      <strong>Reported stolen</strong>: do <strong>not</strong> buy the item. Follow the app guidance for
+                      notifying the owner or authorities where enabled.
+                    </li>
+                  </ul>
+                  <p className="font-semibold text-gray-900 mt-6">After a match (what you can do)</p>
+                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
+                    <li>
+                      <strong>Notify the registered owner</strong>: send a message so they are aware the item was seen or
+                      offered for sale.
+                    </li>
+                    <li>
+                      <strong>Request ownership transfer</strong> (logged in): the registered owner must approve before
+                      the item can move to your account.
+                    </li>
+                    <li>
+                      <strong>Inform law enforcement</strong> (where enabled): for stolen matches, some deployments allow
+                      a report to support recovery workflows.
+                    </li>
+                  </ul>
+                  <p className="mt-4">
+                    Verification is a safety check and a record signal. It does not replace legal ownership documents.
+                  </p>
+                </Prose>
+              </SectionHeading>
+
+              <SectionHeading id="s2" num="2" title="What iRegistry is for — purpose and intent">
                 <Prose>
                   <p className="mt-4">
                     The <strong>main intention</strong> of iRegistry is to reduce theft and disputed sales of valuable
@@ -175,7 +247,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s2" num="2" title="Signing in">
+              <SectionHeading id="s3" num="3" title="Signing in">
                 <Prose>
                   <ol className="mt-4 list-decimal pl-5 space-y-2 marker:font-semibold marker:text-emerald-700">
                     <li>
@@ -220,7 +292,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s3" num="3" title="Finding your way around (user dashboard)">
+              <SectionHeading id="s4" num="4" title="Finding your way around (user dashboard)">
                 <Prose>
                   <p className="mt-4">
                     When you are logged in as an ordinary user, the <strong>left sidebar</strong> (expand it by moving
@@ -289,7 +361,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s4" num="4" title="Dashboard home">
+              <SectionHeading id="s5" num="5" title="Dashboard home">
                 <Prose>
                   <p className="mt-4">The <strong>Dashboard</strong> page summarizes:</p>
                   <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600 mt-2">
@@ -315,7 +387,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s5" num="5" title="Profile">
+              <SectionHeading id="s6" num="6" title="Profile">
                 <Prose>
                   <p className="mt-4">
                     <strong>Profile</strong> holds information used to identify you and reach you:
@@ -337,9 +409,9 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s6" num="6" title="Items — active, deleted, and legacy">
+              <SectionHeading id="s7" num="7" title="Items — active, deleted, and legacy">
                 <div className="mt-4 space-y-0">
-                  <SubHeading id="s6-1" num="6.1" title="Active Items">
+                  <SubHeading id="s7-1" num="7.1" title="Active Items">
                     <p>
                       <strong>Active Items</strong> lists things you still treat as current registrations. From here you
                       can:
@@ -373,7 +445,7 @@ export default function UserManualPage() {
                     </ul>
                   </SubHeading>
 
-                  <SubHeading id="s6-2" num="6.2" title="Deleted Items">
+                  <SubHeading id="s7-2" num="7.2" title="Deleted Items">
                     <p>
                       <strong>Deleted Items</strong> lists items you (or someone allowed) <strong>removed</strong> from
                       the active list but that can often be <strong>restored</strong>. Use this if you deleted something
@@ -381,7 +453,7 @@ export default function UserManualPage() {
                     </p>
                   </SubHeading>
 
-                  <SubHeading id="s6-3" num="6.3" title="Legacy items">
+                  <SubHeading id="s7-3" num="7.3" title="Legacy items">
                     <p>
                       <strong>Legacy</strong> is for items that are <strong>obsolete or kept for reference</strong> (no
                       longer in your main active list). You may <strong>restore</strong> an item back to active when
@@ -391,7 +463,7 @@ export default function UserManualPage() {
                 </div>
               </SectionHeading>
 
-              <SectionHeading id="s7" num="7" title="Item details and editing">
+              <SectionHeading id="s8" num="8" title="Item details and editing">
                 <Prose>
                   <ul className="mt-4 list-disc pl-5 space-y-2 marker:text-emerald-600">
                     <li>
@@ -418,7 +490,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s8" num="8" title="Notifications">
+              <SectionHeading id="s9" num="9" title="Notifications">
                 <Prose>
                   <p className="mt-4">
                     <strong>Notifications</strong> lists events such as someone trying to reach you about a registered
@@ -427,7 +499,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s9" num="9" title="Activity">
+              <SectionHeading id="s10" num="10" title="Activity">
                 <Prose>
                   <p className="mt-4">
                     <strong>Activity</strong> shows a wider stream of what happened on your account (for example
@@ -437,7 +509,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s10" num="10" title="Credits, pricing, and transactions">
+              <SectionHeading id="s11" num="11" title="Credits, pricing, and transactions">
                 <Prose>
                   <p className="mt-4">Many operations use <strong>credits</strong> (a balance on your account).</p>
                   <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600 mt-3">
@@ -468,7 +540,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s11" num="11" title="Signing out and security">
+              <SectionHeading id="s12" num="12" title="Signing out and security">
                 <Prose>
                   <ul className="mt-4 list-disc pl-5 space-y-2 marker:text-emerald-600">
                     <li>
@@ -483,7 +555,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s12" num="12" title="If something goes wrong">
+              <SectionHeading id="s13" num="13" title="If something goes wrong">
                 <Prose>
                   <ul className="mt-4 list-disc pl-5 space-y-2 marker:text-emerald-600">
                     <li>
@@ -513,7 +585,7 @@ export default function UserManualPage() {
                 </Prose>
               </SectionHeading>
 
-              <SectionHeading id="s13" num="13" title="Glossary (quick)">
+              <SectionHeading id="s14" num="14" title="Glossary (quick)">
                 <div className="mt-4 overflow-x-auto rounded-xl border border-emerald-100 shadow-sm">
                   <table className="min-w-full text-sm">
                     <thead>
@@ -556,7 +628,7 @@ export default function UserManualPage() {
             </div>
 
             <p className="text-center text-xs text-gray-500 pt-4 border-t border-gray-100">
-              Document version 1.0 — ordinary user scope. Align section numbers if you add role-specific manuals later.
+              Document version 1.1 — ordinary user scope. Align section numbers if you add role-specific manuals later.
             </p>
           </div>
         </div>

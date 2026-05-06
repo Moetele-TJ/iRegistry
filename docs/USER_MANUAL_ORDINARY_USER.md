@@ -4,13 +4,79 @@ This guide is for people who use iRegistry with a **standard user** account (the
 
 ---
 
-## 1. What iRegistry is for
+## 1. Verification (Buyer Protection) — check before you buy
+
+Verification is the **primary feature** of iRegistry for day-to-day safety: it helps you check an item **before you buy** (or before you accept it) so you do not accidentally purchase stolen property.
+
+You can use verification **even while logged out** from the home page. Logged-in users may also see extra actions after a match is found.
+
+### 1.1 What you can verify
+
+- **Serial number verification**: Type the serial number exactly as printed on the device label, packaging, or in the device settings.
+- **Photo verification (where available)**: Use your camera to capture the item label/serial area. The app tries to read and match what it sees.
+
+### 1.2 How to verify by serial number
+
+1. On the home page, open **Buyer Protection Verification**.
+2. Enter the item’s **serial number**.
+3. Tap **Verify**.
+4. Read the result and follow the guidance in **1.4 What the results mean**.
+
+**Tips for better results**
+
+- Type carefully — a single wrong character can change the outcome.
+- Check multiple labels if the item has more than one identifier (e.g. device serial vs box serial).
+- If a seller cannot provide a serial number, treat that as a risk and ask for proof of ownership.
+
+### 1.3 How to verify by photo (camera)
+
+1. Tap the **camera** option in the verification panel.
+2. Hold the device steady and aim at the **serial label** or identifying plate.
+3. Let the app capture a photo (or capture manually if prompted).
+4. Wait for the result.
+
+**Tips for better photo checks**
+
+- Use good lighting (avoid glare and reflections).
+- Move closer so the serial label is readable.
+- Keep the serial label centered in the frame.
+
+### 1.4 What the results mean
+
+iRegistry normally shows one of these outcomes:
+
+- **Not found in registry**: The serial is not currently registered.
+  - This does **not** prove the item is safe.
+  - Ask the seller for proof of ownership (receipt, matching box, or other evidence).
+- **Found / Registered**: The serial belongs to an item that is registered to someone.
+  - Ask the seller to show proof that they are the registered owner (or have the right to sell it).
+  - If you are logged in, you may be able to contact the registered owner through the app.
+- **Warning / Reported stolen**: The serial matches an item that was reported stolen.
+  - **Do not buy** the item.
+  - Follow the app guidance for reporting or notifying the owner if available.
+
+### 1.5 What you can do next (after a match)
+
+Depending on your role and deployment, the verification screen may allow actions such as:
+
+- **Notify the registered owner**: Send a message to the owner so they are aware that the item was seen or offered for sale.
+- **Request ownership transfer (logged-in)**: If the seller claims the item is legitimately yours (or is being sold to you), you can request a transfer. The registered owner must approve.
+- **Inform law enforcement (for stolen matches, where enabled)**: Some deployments include an option to flag the sighting to support recovery workflows.
+
+**Important**
+
+- Verification is a safety check and a record signal. It does not replace legal ownership documents.
+- Always use common sense: if anything looks suspicious, do not proceed with the purchase.
+
+---
+
+## 2. What iRegistry is for
 
 iRegistry helps you **register valuable items** (with photos and serials), **prove ownership**, and work with **police and recovery** if something is lost or stolen. Your **user dashboard** is the home for everything tied to your account: items, alerts, credits, and profile details.
 
 ---
 
-## 2. Signing in
+## 3. Signing in
 
 1. Open the **Login** page.
 2. Enter your **last name** and **ID number** exactly as registered (national ID or passport, as used on your account).
@@ -29,7 +95,7 @@ iRegistry helps you **register valuable items** (with photos and serials), **pro
 
 ---
 
-## 3. Finding your way around (user dashboard)
+## 4. Finding your way around (user dashboard)
 
 When you are logged in as an ordinary user, the **left sidebar** (expand it by moving the pointer over the green bar) includes:
 
@@ -49,7 +115,7 @@ All of these live under `/user/…` — for example `/user/items`, `/user/profil
 
 ---
 
-## 4. Dashboard home
+## 5. Dashboard home
 
 The **Dashboard** page summarizes:
 
@@ -62,7 +128,7 @@ You may also see **recent activity** and shortcuts such as **Add your first item
 
 ---
 
-## 5. Profile
+## 6. Profile
 
 **Profile** holds information used to identify you and reach you:
 
@@ -74,9 +140,9 @@ Keep your phone and email accurate so OTP and alerts work.
 
 ---
 
-## 6. Items — active, deleted, and legacy
+## 7. Items — active, deleted, and legacy
 
-### 6.1 Active Items
+### 7.1 Active Items
 
 **Active Items** lists things you still treat as current registrations. From here you can:
 
@@ -90,17 +156,17 @@ Keep your phone and email accurate so OTP and alerts work.
 - Registration usually opens the **Add item** flow at `/items/add`.  
 - Some actions may **cost credits** after free allowances; the app should show **cost and balance** before you confirm.
 
-### 6.2 Deleted Items
+### 7.2 Deleted Items
 
 **Deleted Items** lists items you (or someone allowed) **removed** from the active list but that can often be **restored**. Use this if you deleted something by mistake.
 
-### 6.3 Legacy items
+### 7.3 Legacy items
 
 **Legacy** is for items that are **obsolete or kept for reference** (no longer in your main active list). You may **restore** an item back to active when policy allows.
 
 ---
 
-## 7. Item details and editing
+## 8. Item details and editing
 
 - **View**: Open an item from the list; details are shown using the item’s link (e.g. `/items/your-item-slug`).
 - **Edit**: Where you have permission, use edit to update photos, description, location, or status — subject to **credit rules** for certain changes.
@@ -109,19 +175,19 @@ If something fails because of **insufficient credits**, the app should tell you 
 
 ---
 
-## 8. Notifications
+## 9. Notifications
 
 **Notifications** lists events such as someone trying to reach you about a registered item. Mark alerts as read when you have handled them so your dashboard stays clear.
 
 ---
 
-## 9. Activity
+## 10. Activity
 
 **Activity** shows a wider stream of what happened on your account (for example item-related events), beyond a single short list on the dashboard. Exact content depends on system configuration.
 
 ---
 
-## 10. Credits, pricing, and transactions
+## 11. Credits, pricing, and transactions
 
 Many operations use **credits** (a balance on your account).
 
@@ -133,14 +199,14 @@ The **credits strip** on the dashboard often shows **balance** and quick links t
 
 ---
 
-## 11. Signing out and security
+## 12. Signing out and security
 
 - Use **Sign out** / logout in the header or account menu when you finish on a shared computer.
 - You can manage **active sessions** where the product exposes that option (e.g. signing out other devices).
 
 ---
 
-## 12. If something goes wrong
+## 13. If something goes wrong
 
 - **Login fails** — Check last name and ID, wait for a new OTP if the old one expired, and try another channel (email vs SMS) if offered.
 - **“Insufficient credits”** — Check **Pricing**, then **Top up** or ask your registry how to add credits.
@@ -150,7 +216,7 @@ For account or data issues that the app cannot solve, use the **support channel*
 
 ---
 
-## 13. Glossary (quick)
+## 14. Glossary (quick)
 
 | Term | Meaning |
 |------|--------|
@@ -163,4 +229,4 @@ For account or data issues that the app cannot solve, use the **support channel*
 
 ---
 
-*Document version: 1.0 — ordinary user scope. Align section numbers if you add role-specific manuals later.*
+*Document version: 1.1 — ordinary user scope. Align section numbers if you add role-specific manuals later.*

@@ -10,6 +10,13 @@ import { emitSessionTokenRefreshed } from "./sessionEvents";
  * - session_token rotation: store and broadcast refreshed token
  */
 export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
+  if (!supabase) {
+    return {
+      data: null,
+      error: { message: "Supabase client is not configured (missing env vars)." },
+    };
+  }
+
   const headers = {
     ...(withAuth ? getAuthHeaders() : {}),
     ...(options.headers || {}),
