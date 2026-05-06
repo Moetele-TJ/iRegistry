@@ -4,7 +4,29 @@ This guide is for people who use iRegistry with a **standard user** account (the
 
 ---
 
-## 1. Verification (Buyer Protection) — check before you buy
+## 1. What iRegistry is for
+
+iRegistry helps you **register valuable items** (with photos and serials), **prove ownership**, and work with **police and recovery** if something is lost or stolen. Your **user dashboard** is the home for everything tied to your account: items, alerts, credits, and profile details.
+
+### 1.1 Your digital “info bank” (keep proof in one place)
+
+Think of iRegistry as your personal **information bank** for valuables.
+
+After you buy something important, add it to iRegistry and keep all the key details together — serial numbers, photos, and supporting proof. Later, when you need to **prove ownership**, **sell responsibly**, **insure**, **travel**, or **report theft**, you are not searching for papers or old messages: your record is already organized and time‑stamped.
+
+**Catchy rule:** *Buy it → Register it → Keep it safe.*
+
+### 1.2 Safety of your information
+
+iRegistry is built to protect user information:
+
+- Your item records are tied to your account and are not meant to be publicly browsed like a social profile.
+- Sensitive actions (editing, transfers, notifications) require being signed in and using the permissions your registry allows.
+- If you think your account is at risk, use **Profile → Sessions / trusted devices** and sign out old sessions.
+
+---
+
+## 2. Verification (Buyer Protection) — check before you buy
 
 Verification is the **primary feature** of iRegistry for day-to-day safety: it helps you check an item **before you buy** (or before you accept it) so you do not accidentally purchase stolen property.
 
@@ -15,17 +37,17 @@ Verification is **free to use** and is available to **everyone**:
 
 Because verification is public and free, iRegistry is also **self‑protecting**: if checks are heavily repeated or appear abusive, the app may temporarily **limit** the number of checks or ask you to **sign in / use credits** to continue. This keeps the service reliable for normal users.
 
-### 1.1 What you can verify
+### 2.1 What you can verify
 
 - **Serial number verification**: Type the serial number exactly as printed on the device label, packaging, or in the device settings.
 - **Photo verification (where available)**: Use your camera to capture the item label/serial area. The app tries to read and match what it sees.
 
-### 1.2 How to verify by serial number
+### 2.2 How to verify by serial number
 
 1. On the home page, open **Buyer Protection Verification**.
 2. Enter the item’s **serial number**.
 3. Tap **Verify**.
-4. Read the result and follow the guidance in **1.4 What the results mean**.
+4. Read the result and follow the guidance in **2.4 What the results mean**.
 
 **Tips for better results**
 
@@ -33,7 +55,7 @@ Because verification is public and free, iRegistry is also **self‑protecting**
 - Check multiple labels if the item has more than one identifier (e.g. device serial vs box serial).
 - If a seller cannot provide a serial number, treat that as a risk and ask for proof of ownership.
 
-### 1.3 How to verify by photo (camera)
+### 2.3 How to verify by photo (camera)
 
 1. Tap the **camera** option in the verification panel.
 2. Hold the device steady and aim at the **serial label** or identifying plate.
@@ -46,7 +68,7 @@ Because verification is public and free, iRegistry is also **self‑protecting**
 - Move closer so the serial label is readable.
 - Keep the serial label centered in the frame.
 
-### 1.4 What the results mean
+### 2.4 What the results mean
 
 iRegistry normally shows one of these outcomes:
 
@@ -60,7 +82,7 @@ iRegistry normally shows one of these outcomes:
   - **Do not buy** the item.
   - Follow the app guidance for reporting or notifying the owner if available.
 
-### 1.5 What you can do next (after a match)
+### 2.5 What you can do next (after a match)
 
 Depending on your role and deployment, the verification screen may allow actions such as:
 
@@ -72,28 +94,6 @@ Depending on your role and deployment, the verification screen may allow actions
 
 - Verification is a safety check and a record signal. It does not replace legal ownership documents.
 - Always use common sense: if anything looks suspicious, do not proceed with the purchase.
-
----
-
-## 2. What iRegistry is for
-
-iRegistry helps you **register valuable items** (with photos and serials), **prove ownership**, and work with **police and recovery** if something is lost or stolen. Your **user dashboard** is the home for everything tied to your account: items, alerts, credits, and profile details.
-
-### 2.1 Your digital “info bank” (keep proof in one place)
-
-Think of iRegistry as your personal **information bank** for valuables.
-
-After you buy something important, add it to iRegistry and keep all the key details together — serial numbers, photos, and supporting proof. Later, when you need to **prove ownership**, **sell responsibly**, **insure**, **travel**, or **report theft**, you are not searching for papers or old messages: your record is already organized and time‑stamped.
-
-**Catchy rule:** *Buy it → Register it → Keep it safe.*
-
-### 2.2 Safety of your information
-
-iRegistry is built to protect user information:
-
-- Your item records are tied to your account and are not meant to be publicly browsed like a social profile.
-- Sensitive actions (editing, transfers, notifications) require being signed in and using the permissions your registry allows.
-- If you think your account is at risk, use **Profile → Sessions / trusted devices** and sign out old sessions.
 
 ---
 

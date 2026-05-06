@@ -47,8 +47,8 @@ function Prose({ children }) {
 }
 
 const toc = [
-  { id: "s1", num: "1", label: "Verification (Buyer Protection) — check before you buy" },
-  { id: "s2", num: "2", label: "Purpose of iRegistry (what it is for)" },
+  { id: "s1", num: "1", label: "Purpose of iRegistry (what it is for)" },
+  { id: "s2", num: "2", label: "Verification (Buyer Protection) — check before you buy" },
   { id: "s3", num: "3", label: "Signing in" },
   { id: "s4", num: "4", label: "Finding your way around" },
   { id: "s5", num: "5", label: "Dashboard home" },
@@ -132,7 +132,20 @@ export default function UserManualPage() {
             </nav>
 
             <div className="space-y-12">
-              <SectionHeading id="s1" num="1" title="Verification (Buyer Protection) — check before you buy">
+              <SectionHeading id="s1" num="1" title="What iRegistry is for — purpose and intent">
+                <Prose>
+                  <p className="mt-4">
+                    The <strong>main intention</strong> of iRegistry is to reduce theft and disputed sales of valuable
+                    goods by giving each registered item a <strong>clear, time-stamped record</strong> in one national
+                    registry: who registered it, what it is (including identifiers such as serial numbers), and — when
+                    relevant — whether it has been reported stolen. That record is designed to support{" "}
+                    <strong>honest trade</strong> (buyers can check before they pay), <strong>owner alerts</strong>, and{" "}
+                    <strong>cooperation with police and recovery</strong> according to how your deployment is set up.
+                  </p>
+                </Prose>
+              </SectionHeading>
+
+              <SectionHeading id="s2" num="2" title="Verification (Buyer Protection) — check before you buy">
                 <Prose>
                   <p className="mt-4">
                     Verification is the <strong>primary safety feature</strong> of iRegistry. It helps you check an item{" "}
@@ -206,73 +219,6 @@ export default function UserManualPage() {
                   <p className="mt-4">
                     Verification is a safety check and a record signal. It does not replace legal ownership documents.
                   </p>
-                </Prose>
-              </SectionHeading>
-
-              <SectionHeading id="s2" num="2" title="What iRegistry is for — purpose and intent">
-                <Prose>
-                  <p className="mt-4">
-                    The <strong>main intention</strong> of iRegistry is to reduce theft and disputed sales of valuable
-                    goods by giving each registered item a <strong>clear, time-stamped record</strong> in one national
-                    registry: who registered it, what it is (including identifiers such as serial numbers), and — when
-                    relevant — whether it has been reported stolen. That record is designed to support{" "}
-                    <strong>honest trade</strong> (buyers can check before they pay), <strong>owner alerts</strong>, and{" "}
-                    <strong>cooperation with police and recovery</strong> according to how your deployment is set up.
-                  </p>
-                  <p>
-                    In practice, the app is built so you can <strong>document your property digitally</strong> (photos,
-                    descriptions, serials, categories), <strong>keep that record up to date</strong>, and{" "}
-                    <strong>use it as evidence of your claim to the item</strong> in everyday situations — for example
-                    when someone asks for proof, when you insure or move an asset, or when you need to report a loss.
-                    It does not replace the law or official documents by itself; it <strong>complements</strong> them by
-                    making consistent, shareable information available in one system.
-                  </p>
-                  <p className="font-semibold text-gray-900">What you are expected to use it for</p>
-                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
-                    <li>
-                      <strong>Register</strong> items you care about — electronics, tools, vehicles, or other supported
-                      categories — so they are on record under your account.
-                    </li>
-                    <li>
-                      <strong>Verify</strong> (including from the public home page) whether a serial or item appears in
-                      the registry before you buy, so you are less likely to purchase stolen property.
-                    </li>
-                    <li>
-                      <strong>Report and respond</strong> when something is stolen: update status, receive
-                      notifications, and follow the paths your registry offers to contact owners or involve authorities.
-                    </li>
-                    <li>
-                      <strong>Manage your account</strong>: profile and contact details (for OTP and alerts), credits
-                      where billing applies, and a full history of transactions you can reconcile.
-                    </li>
-                  </ul>
-                  <p>
-                    Your <strong>user dashboard</strong> is the hub for everything tied to your login: registered items,
-                    notifications, activity, credits, pricing, top-ups, and profile. The rest of this guide walks through
-                    each area in order.
-                  </p>
-                  <p className="font-semibold text-gray-900 mt-6">Your digital “info bank” (keep proof in one place)</p>
-                  <p>
-                    Think of iRegistry as your personal <strong>information bank</strong> for valuables. After you buy something
-                    important, register it here and keep the key details together — serials, photos, and supporting proof — so
-                    you can retrieve it later when you need to prove ownership, sell responsibly, insure, travel, or report a
-                    loss.
-                  </p>
-                  <p className="font-semibold text-gray-900">Catchy rule</p>
-                  <p className="italic">Buy it → Register it → Keep it safe.</p>
-                  <p className="font-semibold text-gray-900 mt-6">Safety of your information</p>
-                  <ul className="list-disc pl-5 space-y-2 marker:text-emerald-600">
-                    <li>
-                      Your item records are tied to your account and are not meant to be publicly browsed like a social profile.
-                    </li>
-                    <li>
-                      Sensitive actions (editing, transfers, notifications) require being signed in and the right permissions.
-                    </li>
-                    <li>
-                      If you think your account is at risk, use <strong>Profile → Sessions / trusted devices</strong> and sign out
-                      old sessions.
-                    </li>
-                  </ul>
                 </Prose>
               </SectionHeading>
 
