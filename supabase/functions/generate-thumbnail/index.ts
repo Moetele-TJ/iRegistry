@@ -26,18 +26,38 @@ serve(async (req) => {
 
   const buffer = await data.arrayBuffer();
 
-  const thumb = await sharp(buffer)
-    .resize(400)
-    .jpeg({ quality: 70 })
-    .toBuffer();
+  let thumb;
+  try {
+    thumb = await sharp(buffer)
+      .resize(400)
+      .jpeg({ quality: 70 })
+      .toBuffer();
+  } catch {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Could not read or resize the image.",
+      }),
+      { status: 400 }
+    );
+  }
 
-  await supabase
-    .storage
+  const { error: uploadError } = await supabase.storage
     .from("item-photos")
     .upload(thumbPath, thumb, {
       contentType: "image/jpeg",
-      upsert: true
+      upsert: true,
     });
+
+  if (uploadError) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: uploadError.message || "Thumbnail upload failed.",
+      }),
+      { status: 500 }
+    );
+  }
 
   return new Response(JSON.stringify({ success: true }));
 });

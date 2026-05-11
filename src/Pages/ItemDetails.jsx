@@ -1,6 +1,6 @@
 // src/Pages/ItemDetails.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import Toast from "../components/Toast.jsx";
@@ -150,6 +150,7 @@ function normalizePoliceCaseRow(row) {
 export default function ItemDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     items,
     deleteItem,
@@ -194,12 +195,17 @@ export default function ItemDetails() {
 
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  /** True from clearing registration navigation state until deferred upload finishes (covers gap before isUploading). */
+  const [deferredRegistrationUploadActive, setDeferredRegistrationUploadActive] =
+    useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentUpload, setCurrentUpload] = useState(0);
   const [totalUploads, setTotalUploads] = useState(0);
   const activeXhrs = useRef([]);
   const uploadCancelledRef = useRef(false);
   const photoInputRef = useRef(null);
+  /** Prevents double "registration photo" upload if the effect runs twice before location.state clears. */
+  const handledDeferredRegistrationNonceRef = useRef(null);
 
   const itemFromList = useMemo(
     () =>
@@ -282,6 +288,21 @@ export default function ItemDetails() {
     !stationCaseMode &&
     (isPrivilegedRole(user.role) || String(user.id) === String(item.ownerId));
 
+  const hasPendingRegistrationPhotos = useMemo(() => {
+    const p = location.state?.pendingRegistrationPhotos;
+    return (
+      !!p?.itemId &&
+      !!item?.id &&
+      String(p.itemId) === String(item.id)
+    );
+  }, [location.state, item?.id]);
+
+  /** Registration photos from Add Item, hand-off after navigation, or any in-progress photo upload. */
+  const photosBusy =
+    isUploading ||
+    (canManagePhotos &&
+      (hasPendingRegistrationPhotos || deferredRegistrationUploadActive));
+
   const showOwnerIdentity =
     !!user &&
     !!item?.ownerId &&
@@ -305,6 +326,11 @@ export default function ItemDetails() {
   useEffect(() => {
     setPhotoIndex(0);
   }, [slug, item?.id]);
+
+  useEffect(() => {
+    handledDeferredRegistrationNonceRef.current = null;
+    setDeferredRegistrationUploadActive(false);
+  }, [slug]);
 
   // If `item-photos` is not public, we need signed URLs for <img src>.
   // This keeps the page working regardless of bucket visibility.
@@ -767,11 +793,16 @@ export default function ItemDetails() {
     e.stopPropagation();
     setDragActive(false);
     if (!canManagePhotos || !item || !e.dataTransfer?.files?.length) return;
+    if (photosBusy) {
+      showToastMsg("Photos are still loading — try again in a moment.", "warning");
+      return;
+    }
     await processFiles(e.dataTransfer.files);
   }
 
   async function processFiles(fileList) {
     if (!item || !canManagePhotos) return;
+    if (photosBusy) return;
     const room = MAX_PHOTOS - photosNormalized.length;
     const selected = Array.from(fileList).slice(0, Math.max(0, room));
     if (selected.length === 0) {
@@ -787,15 +818,18 @@ export default function ItemDetails() {
     await uploadCompressedPreviews(previews);
   }
 
-  async function uploadCompressedPreviews(previews) {
+  async function uploadCompressedPreviews(previews, options = {}) {
+    const { skipConfirm = false } = options;
     if (!item || previews.length === 0) return;
-    const ok = await confirm({
-      title: "Upload photos",
-      message: `Upload ${previews.length} new photo(s) to this item? This will update the item record.`,
-      confirmLabel: "Upload",
-      cancelLabel: "Cancel",
-    }).catch(() => false);
-    if (!ok) return;
+    if (!skipConfirm) {
+      const ok = await confirm({
+        title: "Upload photos",
+        message: `Upload ${previews.length} new photo(s) to this item? This will update the item record.`,
+        confirmLabel: "Upload",
+        cancelLabel: "Cancel",
+      }).catch(() => false);
+      if (!ok) return;
+    }
 
     uploadCancelledRef.current = false;
     setIsUploading(true);
@@ -817,7 +851,7 @@ export default function ItemDetails() {
         throw new Error(uploadInit?.message || "Could not start photo upload.");
       }
       let completed = 0;
-      const totalBytes = previews.reduce((sum, p) => sum + p.file.size, 0);
+      const totalBytes = Math.max(1, previews.reduce((sum, p) => sum + p.file.size, 0));
       let uploadedBytes = 0;
       await Promise.all(
         uploadInit.uploads.map((upload, i) => {
@@ -849,25 +883,33 @@ export default function ItemDetails() {
               activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
               reject(new Error("Upload failed."));
             };
+            xhr.onabort = () => {
+              activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
+              reject(new Error("Upload aborted."));
+            };
             xhr.send(file);
           });
         })
       );
       setUploadProgress(100);
-      await Promise.all(
-        uploadInit.uploads.map((u) =>
-          invokeWithAuth("generate-thumbnail", {
-            body: { originalPath: u.path, thumbPath: u.thumbPath },
-          })
-        )
-      );
+      for (const u of uploadInit.uploads) {
+        const { data: thData, error: thErr } = await invokeWithAuth("generate-thumbnail", {
+          body: { originalPath: u.path, thumbPath: u.thumbPath },
+        });
+        if (thErr) {
+          throw new Error(thErr.message || "Thumbnail generation failed.");
+        }
+        if (thData?.success === false) {
+          throw new Error(thData.message || "Thumbnail generation failed.");
+        }
+      }
       const newEntries = uploadInit.uploads.map((u) => ({ original: u.path, thumb: u.thumbPath }));
       const merged = [
         ...photosNormalized.map((p) => ({ original: p.original, thumb: p.thumb })),
         ...newEntries,
       ];
       await updateItem(item.id, { photos: merged });
-      await Promise.all(
+      await Promise.allSettled(
         uploadInit.uploads.map((u) =>
           invokeWithAuth("create-embedding-job", {
             body: { itemId: item.id, photoPath: u.path, thumbPath: u.thumbPath },
@@ -892,10 +934,67 @@ export default function ItemDetails() {
     }
   }
 
+  /* After Add Item: land here with `pendingRegistrationPhotos` then finish uploads on this page. */
+  /* eslint-disable react-hooks/exhaustive-deps -- match routing state + item id once; upload uses item from that render */
+  useEffect(() => {
+    const pending = location.state?.pendingRegistrationPhotos;
+    if (!pending?.itemId || !Array.isArray(pending.previews) || pending.previews.length === 0) {
+      return;
+    }
+    if (!item?.id || String(item.id) !== String(pending.itemId)) return;
+
+    const previews = pending.previews;
+    const clearRegistrationState = () => {
+      navigate(
+        {
+          pathname: location.pathname,
+          search: location.search,
+          hash: location.hash,
+        },
+        { replace: true, state: {} }
+      );
+    };
+
+    if (!canManagePhotos) {
+      showToastMsg("Item is ready. Add photos from this page when you can.", "warning");
+      clearRegistrationState();
+      return;
+    }
+
+    const nonce = pending.nonce || pending.itemId;
+    if (handledDeferredRegistrationNonceRef.current === nonce) return;
+    handledDeferredRegistrationNonceRef.current = nonce;
+
+    setDeferredRegistrationUploadActive(true);
+    clearRegistrationState();
+    showToastMsg("Uploading registration photos…", "info");
+    void (async () => {
+      try {
+        await uploadCompressedPreviews(previews, { skipConfirm: true });
+      } finally {
+        setDeferredRegistrationUploadActive(false);
+      }
+    })();
+  }, [
+    item?.id,
+    canManagePhotos,
+    location.state,
+    location.pathname,
+    location.search,
+    location.hash,
+    navigate,
+  ]);
+  /* eslint-enable react-hooks/exhaustive-deps */
+
   async function handlePhotoInputChange(e) {
     const input = e.target;
     const files = input.files;
     if (!files?.length) return;
+    if (photosBusy) {
+      input.value = "";
+      showToastMsg("Photos are still loading — try again in a moment.", "warning");
+      return;
+    }
     try {
       await processFiles(files);
     } catch (err) {
@@ -906,7 +1005,7 @@ export default function ItemDetails() {
   }
 
   function openPhotoPicker() {
-    if (!canManagePhotos || isUploading || !item) return;
+    if (!canManagePhotos || photosBusy || !item) return;
     const room = MAX_PHOTOS - photosNormalized.length;
     if (room <= 0) {
       showToastMsg(`Maximum ${MAX_PHOTOS} photos per item.`, "warning");
@@ -916,7 +1015,7 @@ export default function ItemDetails() {
   }
 
   async function applyPhotoReorder(fromIndex, toIndex) {
-    if (!item || fromIndex === toIndex) return;
+    if (!item || fromIndex === toIndex || photosBusy) return;
     const next = [...photosNormalized];
     const [moved] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, moved);
@@ -934,7 +1033,7 @@ export default function ItemDetails() {
   }
 
   function requestPhotoReorder(fromIndex, toIndex) {
-    if (fromIndex === toIndex) return;
+    if (fromIndex === toIndex || photosBusy) return;
     void confirm({
       title: "Apply new photo order?",
       message:
@@ -949,7 +1048,7 @@ export default function ItemDetails() {
   }
 
   async function applyPhotoRemove(index) {
-    if (!item) return;
+    if (!item || photosBusy) return;
     const next = photosNormalized.filter((_, i) => i !== index);
     try {
       await updateItem(item.id, { photos: next });
@@ -960,6 +1059,7 @@ export default function ItemDetails() {
   }
 
   function requestPhotoRemove(index) {
+    if (photosBusy) return;
     void confirm({
       title: "Remove this photo?",
       message:
@@ -1141,10 +1241,33 @@ export default function ItemDetails() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Media + quick facts */}
               <div className="lg:col-span-5 space-y-4">
-                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                <div
+                  className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4"
+                  aria-busy={canManagePhotos && photosBusy ? true : undefined}
+                >
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                     Photos
                   </div>
+                  {canManagePhotos && photosBusy ? (
+                    <div
+                      className="mb-3 w-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-950"
+                      role="status"
+                    >
+                      {isUploading ? (
+                        <>
+                          <span className="font-semibold">Uploading photos</span>
+                          <span className="text-sky-900/90">
+                            {" "}
+                            ({currentUpload}/{totalUploads}) — wait before adding or reordering photos.
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-medium">
+                          Registration photos are loading — please wait before adding or changing photos.
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
                   <div className="flex flex-col items-center justify-center gap-3">
                     <input
                       ref={photoInputRef}
@@ -1158,19 +1281,37 @@ export default function ItemDetails() {
                     {canManagePhotos ? (
                       <>
                         <div
-                          className={`relative w-full max-w-[22rem] aspect-square rounded-2xl border-2 overflow-hidden cursor-pointer transition-colors ${
+                          className={`relative w-full max-w-[22rem] aspect-square rounded-2xl border-2 overflow-hidden transition-colors ${
+                            photosBusy ? "cursor-wait" : "cursor-pointer"
+                          } ${
                             dragActive
                               ? "border-iregistrygreen bg-emerald-50"
                               : "border-gray-200 bg-gray-50 hover:border-iregistrygreen/50"
-                          } ${isUploading ? "cursor-wait" : ""}`}
+                          }`}
                           onDragEnter={handleDragZone}
                           onDragLeave={handleDragZone}
                           onDragOver={handleDragZone}
                           onDrop={handleDropFiles}
-                          onClick={openPhotoPicker}
+                          onClick={() => {
+                            if (photosBusy) {
+                              showToastMsg(
+                                "Photos are still loading — try again in a moment.",
+                                "warning"
+                              );
+                              return;
+                            }
+                            openPhotoPicker();
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
+                              if (photosBusy) {
+                                showToastMsg(
+                                  "Photos are still loading — try again in a moment.",
+                                  "warning"
+                                );
+                                return;
+                              }
                               openPhotoPicker();
                             }
                           }}
@@ -1197,30 +1338,42 @@ export default function ItemDetails() {
                               </span>
                             </div>
                           )}
-                          {isUploading && (
-                            <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center text-white text-xs px-2">
-                              <div className="w-[90%] bg-white/25 rounded-full h-1.5 mb-2 overflow-hidden">
-                                <div
-                                  className="bg-iregistrygreen h-1.5 rounded-full transition-all"
-                                  style={{ width: `${uploadProgress}%` }}
-                                />
-                              </div>
-                              <span>
-                                Uploading {currentUpload}/{totalUploads}
-                              </span>
-                              <button
-                                type="button"
-                                className="mt-2 text-[11px] underline text-white/90"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  cancelUpload();
-                                }}
-                              >
-                                Cancel
-                              </button>
+                          {photosBusy && (
+                            <div className="absolute inset-0 z-[1] bg-black/55 flex flex-col items-center justify-center text-white text-xs px-2 text-center">
+                              {isUploading ? (
+                                <>
+                                  <div className="w-[90%] bg-white/25 rounded-full h-1.5 mb-2 overflow-hidden">
+                                    <div
+                                      className="bg-iregistrygreen h-1.5 rounded-full transition-all"
+                                      style={{ width: `${uploadProgress}%` }}
+                                    />
+                                  </div>
+                                  <span>
+                                    Uploading {currentUpload}/{totalUploads}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="mt-2 text-[11px] underline text-white/90"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      cancelUpload();
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="font-medium px-1 leading-snug">
+                                  Registration photos are loading…
+                                  <br />
+                                  <span className="font-normal text-white/85 mt-1 inline-block">
+                                    Please wait before adding more.
+                                  </span>
+                                </span>
+                              )}
                             </div>
                           )}
-                          {!isUploading && photoRoom > 0 && (
+                          {!photosBusy && photoRoom > 0 && (
                             <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[10px] text-center py-1 px-1">
                               {photosNormalized.length === 0 ? "Add up to 5 photos" : `${photoRoom} slot(s) left`}
                             </div>
@@ -1238,10 +1391,14 @@ export default function ItemDetails() {
                               {thumbPhotoUrls.map((url, i) => (
                                 <div
                                   key={`${url}-${i}`}
-                                  draggable
-                                  onDragStart={(e) => e.dataTransfer.setData("exIndex", String(i))}
+                                  draggable={!photosBusy}
+                                  onDragStart={(e) => {
+                                    if (photosBusy) return;
+                                    e.dataTransfer.setData("exIndex", String(i));
+                                  }}
                                   onDragOver={(e) => e.preventDefault()}
                                   onDrop={(e) => {
+                                    if (photosBusy) return;
                                     const from = Number(e.dataTransfer.getData("exIndex"));
                                     if (!Number.isNaN(from)) requestPhotoReorder(from, i);
                                   }}
@@ -1266,9 +1423,15 @@ export default function ItemDetails() {
                                   <button
                                     type="button"
                                     title="Remove photo"
-                                    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-[10px] leading-5 opacity-0 group-hover:opacity-100 transition shadow"
+                                    disabled={photosBusy}
+                                    className={`absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-[10px] leading-5 transition shadow ${
+                                      photosBusy
+                                        ? "opacity-30 cursor-not-allowed"
+                                        : "opacity-0 group-hover:opacity-100"
+                                    }`}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      if (photosBusy) return;
                                       requestPhotoRemove(i);
                                     }}
                                   >

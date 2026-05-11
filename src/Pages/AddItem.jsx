@@ -82,12 +82,6 @@ export default function AddItem() {
   const [serialError, setSerialError] = useState(null);
   const [serialCheckWarning, setSerialCheckWarning] = useState(null);
   const [photoPreviews, setPhotoPreviews] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  const [currentUpload, setCurrentUpload] = useState(0);
-  const [totalUploads, setTotalUploads] = useState(0);
-  const activeXhrs = useRef([]);
-  const uploadCancelledRef = useRef(false);
   const [dragActive, setDragActive] = useState(false);
 
   const [heldAtResidence, setHeldAtResidence] = useState(true);
@@ -298,18 +292,6 @@ export default function AddItem() {
 
   const isFormInvalid = loading || !!serialError || requiredFields.some(f => !form[f]?.trim());
 
-  function cancelUpload() {
-    uploadCancelledRef.current = true;
-
-    activeXhrs.current.forEach(xhr => xhr.abort());
-    activeXhrs.current = [];
-
-    setIsUploading(false);
-    setUploadProgress(0);
-    setCurrentUpload(0);
-    setTotalUploads(0);
-  }
-
   function goToCreatedItem(slug) {
     if (slug) navigate(`/items/${slug}`);
     else navigate("/items");
@@ -384,9 +366,6 @@ export default function AddItem() {
       return;
     }
     
-    let itemId;
-    let itemSlug;
-
     try {
       const confirmed = await confirm({
         title: "Confirm",
@@ -407,186 +386,23 @@ export default function AddItem() {
         payload.estimatedValue = Number(payload.estimatedValue);
       }
 
-      // API: station required; village/ward optional (legacy `location` mirrored server-side)
       const created = await addItem(payload);
 
-      itemId = created.id;
-      itemSlug = created.slug;
-
-      // If no photos selected, just redirect
-      if (photoPreviews.length === 0) {
-        goToCreatedItem(itemSlug);
-        return;
-      }
-
-      // 1️⃣ Request signed upload URLs
-      const { data: uploadInit, error: uploadError } =
-        await invokeWithAuth("generate-upload-urls", {
-          body: {
-            itemId,
-            files: photoPreviews.map(p => ({
-              name: p.file.name,
-              type: p.file.type,
-              size: p.file.size,
-            })),
-          },
-      });
-      
-      if (uploadError || !uploadInit?.success) {
-        await alert({
-          title: "Item Created",
-          message:
-            "The item was saved successfully, but photo upload failed. You can add photos later.",
-          variant: "warning",
-          mode: "alert",
-        });
-
-        goToCreatedItem(itemSlug);
-        return;
-      }
-
-      // 2️⃣ Upload files to signed URLs
-      uploadCancelledRef.current = false;
-      setIsUploading(true);
-      setUploadProgress(0);
-      setCurrentUpload(0);
-      setTotalUploads(uploadInit.uploads.length);
-
-      try {
-        let completed = 0;
-        const totalBytes = photoPreviews.reduce((sum, p) => sum + p.file.size, 0);
-        let uploadedBytes = 0;
-
-        await Promise.all(
-          uploadInit.uploads.map((upload, i) => {
-            const file = photoPreviews[i]?.file;
-
-            if (!file) {
-              throw new Error("Photo upload mismatch.");
-            }
-
-            return new Promise((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              activeXhrs.current.push(xhr);
-
-              xhr.open("PUT", upload.signedUrl);
-              xhr.setRequestHeader("Content-Type", file.type);
-
-              xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                  const previous = xhr._lastLoaded || 0;
-                  const delta = event.loaded - previous;
-                  xhr._lastLoaded = event.loaded;
-
-                  uploadedBytes += delta;
-
-                  const percent = Math.round((uploadedBytes / totalBytes) * 100);
-                  setUploadProgress(Math.min(percent, 100));
-                }
-              };
-
-              xhr.onload = () => {
-                activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
-
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  completed++;
-                  setCurrentUpload(completed);
-                  resolve();
-                } else {
-                  reject(new Error("Failed to upload one of the photos."));
-                }
-              };
-
-              xhr.onerror = () => {
-                activeXhrs.current = activeXhrs.current.filter(x => x !== xhr);
-                reject(new Error("Upload failed."));
-              };
-
-              xhr.send(file);
-            });
-          })
-        );
-      }finally{
-        setIsUploading(false);
-      }
-
-      setUploadProgress(100);
-
-      /* ---------- Generate thumbnails ---------- */
-
-      await Promise.all(
-        uploadInit.uploads.map(u =>
-          invokeWithAuth("generate-thumbnail", {
-            body: {
-              originalPath: u.path,
-              thumbPath: u.thumbPath
-            }
-          })
-        )
-      );
-
-      // 3️⃣ Save photo paths in DB
-      
-      const { data: updateData, error: updateError } =
-        await invokeWithAuth("update-item", {
-          body: {
-            id: itemId,
-            updates: {
-              photos: uploadInit.uploads.map(u => ({
-                original: u.path,
-                thumb: u.thumbPath
-              }))
+      if (photoPreviews.length > 0) {
+        navigate(`/items/${created.slug}`, {
+          state: {
+            pendingRegistrationPhotos: {
+              itemId: created.id,
+              nonce: `${created.id}-${Date.now()}`,
+              previews: photoPreviews,
             },
           },
         });
-
-      if (updateError || !updateData?.success) {
-        throw new Error(
-          updateData?.message || "Photos uploaded but failed to save references."
-        );
-      }
-
-      /* ---------- Queue AI embedding ---------- */
-
-      await Promise.all(
-        uploadInit.uploads.map(u =>
-          invokeWithAuth("create-embedding-job", {
-            body: {
-              itemId,
-              photoPath: u.path,
-              thumbPath: u.thumbPath
-            }
-          })
-        )
-      );
-
-      await alert({
-        title: "Item Created",
-        message: "Your item has been successfully registered.",
-        variant: "success",
-        mode: "alert",
-      });
-
-      goToCreatedItem(itemSlug);
-
-      setCurrentUpload(0);
-      setTotalUploads(0);
-      setUploadProgress(0);
-      
-    }     
-    catch (err) {
-
-      if (uploadCancelledRef.current) {
-        await alert({
-          title: "Upload Cancelled",
-          message: "Photo upload was cancelled by the user.",
-          variant: "warning",
-        });
-
-        goToCreatedItem(itemSlug);
         return;
       }
 
+      goToCreatedItem(created.slug);
+    } catch (err) {
       await alert({
         title: "Failed to Add Item",
         message: formatBilling(err),
@@ -834,35 +650,6 @@ export default function AddItem() {
             </Field>
           </div>
 
-          {isUploading && (
-            <div className="mb-4 space-y-3">
-
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-iregistrygreen h-2 transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-
-              {/* Text Below Bar */}
-              <p className="text-xs text-gray-400 text-right tracking-wide">
-                Uploading photo {currentUpload} of {totalUploads}...
-              </p>
-
-              {/* Cancel Button */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={cancelUpload}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium"
-                >
-                  Cancel Upload
-                </button>
-              </div>
-            </div>
-          )}
-
           {chargesOwnerForAdd ? (
             <BillingCostBanner
               taskCodes={willChargeAddItem ? ["ADD_ITEM"] : []}
@@ -895,14 +682,10 @@ export default function AddItem() {
 
             <RippleButton
               type="submit"
-              disabled={isFormInvalid || isUploading}
+              disabled={isFormInvalid}
               className="px-5 py-2 rounded-lg bg-iregistrygreen text-white"
             >
-              {isUploading
-                ? `Uploading ${currentUpload}/${totalUploads}`
-                : loading
-                ? "Saving..."
-                : "Submit"}
+              {loading ? "Saving..." : "Submit"}
             </RippleButton>
           </div>
           </div>
