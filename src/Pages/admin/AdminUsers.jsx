@@ -52,6 +52,70 @@ function normStr(v) {
   return String(v ?? "").trim();
 }
 
+function parseSortableTime(iso) {
+  if (iso == null || iso === "") return NaN;
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? NaN : t;
+}
+
+/** Client-side sort for the manage users list. @param {"asc"|"desc"} dir */
+function compareAdminUsersRow(a, b, sortKey, dir) {
+  const asc = dir === "asc";
+  const sign = asc ? 1 : -1;
+  const tieId = () => String(a?.id ?? "").localeCompare(String(b?.id ?? ""), undefined, { numeric: true });
+  const cmpStr = (xa, xb) => {
+    const c = String(xa ?? "").localeCompare(String(xb ?? ""), undefined, { sensitivity: "base", numeric: true });
+    if (c !== 0) return c * sign;
+    return tieId();
+  };
+  const cmpDateNullLast = (isoA, isoB) => {
+    const ta = parseSortableTime(isoA);
+    const tb = parseSortableTime(isoB);
+    const na = Number.isNaN(ta);
+    const nb = Number.isNaN(tb);
+    if (na && nb) return tieId();
+    if (na) return 1;
+    if (nb) return -1;
+    const d = ta - tb;
+    if (d !== 0) return asc ? d : -d;
+    return tieId();
+  };
+
+  switch (sortKey) {
+    case "first_name":
+      return cmpStr(normStr(a?.first_name), normStr(b?.first_name));
+    case "last_name":
+      return cmpStr(normStr(a?.last_name), normStr(b?.last_name));
+    case "role":
+      return cmpStr(String(a?.role || "").toLowerCase(), String(b?.role || "").toLowerCase());
+    case "status":
+      return cmpStr(deriveUserStatus(a) || "", deriveUserStatus(b) || "");
+    case "police_station":
+      return cmpStr(normStr(a?.police_station), normStr(b?.police_station));
+    case "created_at":
+      return cmpDateNullLast(a?.created_at, b?.created_at);
+    case "last_login_at":
+      return cmpDateNullLast(a?.last_login_at, b?.last_login_at);
+    default:
+      return tieId();
+  }
+}
+
+const USER_SORT_OPTIONS = [
+  { value: "first_name", label: "First name" },
+  { value: "last_name", label: "Last name" },
+  { value: "role", label: "Role" },
+  { value: "status", label: "Status" },
+  { value: "police_station", label: "Police station" },
+  { value: "created_at", label: "Date created" },
+  { value: "last_login_at", label: "Last login" },
+];
+
+const USER_SORT_DIR_OPTIONS = [
+  { value: "asc", label: "Ascending" },
+  { value: "desc", label: "Descending" },
+];
+
 function normEmail(v) {
   const s = String(v ?? "").trim();
   return s === "" ? null : s;
@@ -342,6 +406,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stationFilter, setStationFilter] = useState("");
+  const [sortBy, setSortBy] = useState("last_name");
+  const [sortDir, setSortDir] = useState("asc");
 
   const [quickRowId, setQuickRowId] = useState("");
   const [suspendModal, setSuspendModal] = useState({ isOpen: false, user: null });
@@ -471,7 +537,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     const roleQ = String(roleFilter || "all").trim().toLowerCase();
     const statusQ = String(statusFilter || "all").trim().toLowerCase();
 
-    return (users || []).filter((u) => {
+    const list = (users || []).filter((u) => {
       if (!u) return false;
       if (roleQ !== "all" && String(u.role || "").toLowerCase() !== roleQ) return false;
       if (statusQ !== "all" && deriveUserStatus(u) !== statusQ) return false;
@@ -496,7 +562,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
       return hay.includes(query);
     });
-  }, [users, q, roleFilter, statusFilter, stationFilter]);
+    const sorted = [...list];
+    sorted.sort((a, b) => compareAdminUsersRow(a, b, sortBy, sortDir));
+    return sorted;
+  }, [users, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir]);
 
   async function refresh() {
     const r = await refreshUsers();
@@ -1041,6 +1110,40 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   placeholder="Gantsi Police…"
                 />
               </div>
+              <div className="sm:w-48 min-w-[11rem]">
+                <label className="text-xs text-gray-600" htmlFor="admin-users-sort-by">
+                  Sort by
+                </label>
+                <select
+                  id="admin-users-sort-by"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
+                >
+                  {USER_SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:w-44 min-w-[10rem]">
+                <label className="text-xs text-gray-600" htmlFor="admin-users-sort-dir">
+                  Order
+                </label>
+                <select
+                  id="admin-users-sort-dir"
+                  value={sortDir}
+                  onChange={(e) => setSortDir(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
+                >
+                  {USER_SORT_DIR_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <RippleButton
                 type="button"
                 className="px-3 py-2 rounded border bg-white shrink-0"
@@ -1051,6 +1154,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     setStatusFilter("all");
                   }
                   setStationFilter("");
+                  setSortBy("last_name");
+                  setSortDir("asc");
                 }}
               >
                 Clear
