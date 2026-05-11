@@ -66,15 +66,23 @@ export default function HomePage() {
     [stats?.dailyItemTrend],
   );
 
-  const itemTimelineYMax = useMemo(() => {
-    const peak = itemTimelineData.reduce((m, d) => Math.max(m, d.count), 0);
-    return Math.max(peak, 1);
-  }, [itemTimelineData]);
-
-  const itemTimelineYTicks = useMemo(
-    () => yAxisTicksForMax(itemTimelineYMax),
-    [itemTimelineYMax],
+  const userTimelineData14 = useMemo(
+    () => normalizeDailyTrend(stats?.dailyUserTrend, 14),
+    [stats?.dailyUserTrend],
   );
+
+  const [trendMetric, setTrendMetric] = useState("items"); // "items" | "users"
+
+  const activityChart = useMemo(() => {
+    const data = trendMetric === "users" ? userTimelineData14 : itemTimelineData;
+    const peak = data.reduce((m, d) => Math.max(m, d.count), 0);
+    const yMax = Math.max(peak, 1);
+    return {
+      data,
+      yMax,
+      yTicks: yAxisTicksForMax(yMax),
+    };
+  }, [trendMetric, itemTimelineData, userTimelineData14]);
 
   const itemTrend = useMemo(
     () => normalizeDailyTrend(stats?.dailyItemTrend, 7),
@@ -458,8 +466,49 @@ export default function HomePage() {
 
           {/* Timeline */}
           <div className="bg-white rounded-3xl p-6 shadow-sm">
-            <div className="text-sm font-semibold text-gray-700 mb-4">
-              Items Added (Last 14 Days)
+            <div className="mb-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-800">14-day activity</div>
+                  <p className="text-xs text-gray-500 mt-1 max-w-md leading-snug">
+                    {trendMetric === "users"
+                      ? "New user accounts created each day (UTC), from signup timestamps."
+                      : "New assets registered each day (UTC). This is not the same as new user signups — use Users to compare signup volume."}
+                  </p>
+                </div>
+                <div
+                  className="inline-flex rounded-xl border border-gray-200 p-1 bg-gray-50 shrink-0"
+                  role="tablist"
+                  aria-label="Chart metric"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={trendMetric === "items"}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                      trendMetric === "items"
+                        ? "bg-white text-iregistrygreen shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    onClick={() => setTrendMetric("items")}
+                  >
+                    Items
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={trendMetric === "users"}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                      trendMetric === "users"
+                        ? "bg-white text-iregistrygreen shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    onClick={() => setTrendMetric("users")}
+                  >
+                    Users
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div style={{ height: 220 }}>
@@ -467,7 +516,7 @@ export default function HomePage() {
                 <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart key={chartKey} data={itemTimelineData}>
+                  <AreaChart key={`${chartKey}-${trendMetric}`} data={activityChart.data}>
                     <defs>
                       <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.4} />
@@ -492,9 +541,10 @@ export default function HomePage() {
                       type="number"
                       allowDecimals={false}
                       allowDataOverflow
-                      domain={[0, itemTimelineYMax]}
-                      ticks={itemTimelineYTicks}
-                      width={48}
+                      domain={[0, activityChart.yMax]}
+                      ticks={activityChart.yTicks}
+                      interval={0}
+                      width={52}
                     />
                     <CartesianGrid strokeDasharray="3 3" />
                     <RechartsTooltip
@@ -505,11 +555,16 @@ export default function HomePage() {
                           year: "numeric",
                         })
                       }
+                      formatter={(value) => [
+                        String(value),
+                        trendMetric === "users" ? "New users" : "Items registered",
+                      ]}
                     />
 
                     <Area
                       type="monotone"
                       dataKey="count"
+                      name={trendMetric === "users" ? "New users" : "Items registered"}
                       stroke={IREG_GREEN}
                       fill="url(#g)"
                     />
