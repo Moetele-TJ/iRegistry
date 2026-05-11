@@ -11,12 +11,11 @@ import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
+import { displayUser } from "../../lib/userDisplay.js";
+import { useListUsers } from "../../hooks/useListUsers.js";
 
 function displayName(u) {
-  const first = String(u?.first_name || "").trim();
-  const last = String(u?.last_name || "").trim();
-  const full = `${first} ${last}`.trim();
-  return full || u?.email || u?.id || "—";
+  return displayUser(u) || "—";
 }
 
 function fmtDateTime(iso) {
@@ -312,7 +311,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
   const profileListBase = canAdminister ? "/admin/profile" : "/cashier/profile";
 
-  const [users, setUsers] = useState([]);
+  const {
+    users,
+    loading: usersDirectoryLoading,
+    error: usersDirectoryError,
+    refresh: refreshUsers,
+  } = useListUsers();
   const [editing, setEditing] = useState(null); // user being edited or null
   const [form, setForm] = useState({
     first_name: "",
@@ -356,33 +360,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const currentUserId = currentUser?.id != null ? String(currentUser.id) : "";
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError("");
-      try {
-        const { data, error } = await invokeWithAuth("list-users");
-        if (cancelled) return;
-        if (error || !data?.success) {
-          setUsers([]);
-          const msg = data?.message || error?.message || "Failed to load users";
-          setError(msg);
-          addToast({ type: "error", message: msg });
-          return;
-        }
-        setUsers(data.users || []);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [addToast]);
+    if (!usersDirectoryError) return;
+    setError(usersDirectoryError);
+    addToast({ type: "error", message: usersDirectoryError });
+  }, [usersDirectoryError, addToast]);
 
   useLayoutEffect(() => {
     if (mode === "idle") return;
@@ -518,11 +499,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }, [users, q, roleFilter, statusFilter, stationFilter]);
 
   async function refresh() {
-    const { data, error } = await invokeWithAuth("list-users");
-    if (error || !data?.success) {
-      throw new Error(data?.message || error?.message || "Failed to refresh");
-    }
-    setUsers(data.users || []);
+    const r = await refreshUsers();
+    if (!r.ok) throw new Error(r.message || "Failed to refresh");
   }
 
   async function handleSave(e) {
@@ -1083,7 +1061,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 type="button"
                 className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60 shrink-0"
                 onClick={startAdd}
-                disabled={loading}
+                disabled={loading || usersDirectoryLoading}
               >
                 Add user
               </RippleButton>
@@ -1113,7 +1091,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 type="button"
                 className="text-sm text-gray-500 hover:text-gray-700"
                 onClick={closeForm}
-                disabled={loading}
+                disabled={loading || usersDirectoryLoading}
               >
                 Close
               </button>
@@ -1127,7 +1105,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
                   placeholder="Jane"
-                  disabled={loading}
+                  disabled={loading || usersDirectoryLoading}
                 />
               </div>
 
@@ -1139,7 +1117,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   className="mt-1 w-full border rounded-lg px-3 py-2"
                   placeholder="Doe"
                   required
-                  disabled={loading}
+                  disabled={loading || usersDirectoryLoading}
                 />
               </div>
 
@@ -1152,7 +1130,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     className="mt-1 w-full border rounded-lg px-3 py-2"
                     placeholder="123456789"
                     required
-                    disabled={loading}
+                    disabled={loading || usersDirectoryLoading}
                   />
                 </div>
               ) : null}
@@ -1165,7 +1143,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     value={form.date_of_birth}
                     onChange={(e) => setForm((s) => ({ ...s, date_of_birth: e.target.value }))}
                     className="mt-1 w-full border rounded-lg px-3 py-2"
-                    disabled={loading}
+                    disabled={loading || usersDirectoryLoading}
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {isAdding
@@ -1182,7 +1160,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
                   placeholder="jane@example.com"
-                  disabled={loading}
+                  disabled={loading || usersDirectoryLoading}
                 />
               </div>
 
@@ -1194,7 +1172,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   className="mt-1 w-full border rounded-lg px-3 py-2"
                   placeholder="+267…"
                   required
-                  disabled={loading}
+                  disabled={loading || usersDirectoryLoading}
                 />
               </div>
 
@@ -1206,7 +1184,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       value={form.role}
                       onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
-                      disabled={loading || (isEditing && isSelf(editing))}
+                      disabled={loading || usersDirectoryLoading || (isEditing && isSelf(editing))}
                     >
                       <option value="user">User</option>
                       <option value="police">Police</option>
@@ -1226,7 +1204,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         setForm((s) => ({ ...s, status: e.target.value }))
                       }
                       className="mt-1 w-full border rounded-lg px-3 py-2"
-                      disabled={loading || (isEditing && isSelf(editing))}
+                      disabled={loading || usersDirectoryLoading || (isEditing && isSelf(editing))}
                     >
                       <option value="active">Active</option>
                       <option value="suspended">Suspended</option>
@@ -1253,7 +1231,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         inputClassName="w-full border rounded-lg px-3 py-2"
                         placeholder="Select police station…"
                         allowOther={true}
-                        disabled={loading}
+                        disabled={loading || usersDirectoryLoading}
                       />
                     </div>
                   </div>
@@ -1265,7 +1243,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
                       placeholder="(optional)"
-                      disabled={loading}
+                      disabled={loading || usersDirectoryLoading}
                     />
                   </div>
 
@@ -1276,7 +1254,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
                       placeholder="(optional)"
-                      disabled={loading}
+                      disabled={loading || usersDirectoryLoading}
                     />
                   </div>
                 </>
@@ -1295,7 +1273,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     className="mt-1 w-full border rounded-lg px-3 py-2"
                     placeholder="Required"
                     required
-                    disabled={loading}
+                    disabled={loading || usersDirectoryLoading}
                   />
                 </div>
               ) : null}
@@ -1305,14 +1283,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   type="button"
                   className="px-4 py-2 rounded border bg-white disabled:opacity-60"
                   onClick={closeForm}
-                  disabled={loading}
+                  disabled={loading || usersDirectoryLoading}
                 >
                   Cancel
                 </RippleButton>
                 <RippleButton
                   type="submit"
                   className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
-                  disabled={loading}
+                  disabled={loading || usersDirectoryLoading}
                 >
                   {isAdding ? "Create user" : "Save changes"}
                 </RippleButton>
@@ -1324,7 +1302,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <h2 className="text-lg font-semibold mb-3">Users</h2>
 
-          {loading && users.length === 0 ? (
+          {(usersDirectoryLoading || loading) && users.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">Loading…</div>
           ) : filteredUsers.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">No users yet.</div>
@@ -1374,7 +1352,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         statusLower={st}
                         self={self}
                         rowBusy={rowBusy}
-                        loading={loading}
+                        loading={loading || usersDirectoryLoading}
                         canAdminister={canAdminister}
                         onRoleChange={(next) => void quickChangeRole(u, next)}
                         onMobileAction={(action) => {

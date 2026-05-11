@@ -3,18 +3,12 @@ import { FileText, RefreshCw, Search } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { displayUser } from "../../lib/userDisplay.js";
+import { useListUsers } from "../../hooks/useListUsers.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 const PAGE_SIZE = 40;
-
-function displayUser(u) {
-  if (!u) return null;
-  const first = String(u.first_name || "").trim();
-  const last = String(u.last_name || "").trim();
-  const full = `${first} ${last}`.trim();
-  return full || u.email || null;
-}
 
 function shortenIp(ip) {
   if (!ip || typeof ip !== "string") return "—";
@@ -48,8 +42,11 @@ export default function AdminAuditLogs() {
   const [userIdFilter, setUserIdFilter] = useState("");
   const [userMatch, setUserMatch] = useState("any"); // any | actor | target
 
-  const [users, setUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const {
+    users,
+    loading: loadingUsers,
+    error: usersFetchError,
+  } = useListUsers();
 
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -60,28 +57,9 @@ export default function AdminAuditLogs() {
   const [facetCodes, setFacetCodes] = useState([]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadUsers() {
-      setLoadingUsers(true);
-      try {
-        const { data, error } = await invokeWithAuth("list-users");
-        if (cancelled) return;
-        if (error || !data?.success) {
-          throw new Error(data?.message || error?.message || "Failed to load users");
-        }
-        setUsers(data.users || []);
-      } catch (e) {
-        addToast({ type: "error", message: e.message || "Failed to load users" });
-        setUsers([]);
-      } finally {
-        if (!cancelled) setLoadingUsers(false);
-      }
-    }
-    void loadUsers();
-    return () => {
-      cancelled = true;
-    };
-  }, [addToast]);
+    if (!usersFetchError) return;
+    addToast({ type: "error", message: usersFetchError });
+  }, [usersFetchError, addToast]);
 
   useEffect(() => {
     let cancelled = false;

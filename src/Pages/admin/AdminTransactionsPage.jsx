@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, RotateCcw, ReceiptText, Filter, Building2, User } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { displayUser } from "../../lib/userDisplay.js";
+import { useListUsers } from "../../hooks/useListUsers.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -8,10 +10,7 @@ import { formatMoneyAmount } from "../../lib/formatBWP.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 function displayName(u) {
-  const first = String(u?.first_name || "").trim();
-  const last = String(u?.last_name || "").trim();
-  const full = `${first} ${last}`.trim();
-  return full || u?.email || u?.id_number || u?.phone || u?.id || "—";
+  return displayUser(u) || "—";
 }
 
 function orgLabel(o) {
@@ -49,8 +48,11 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
     [],
   );
 
-  const [users, setUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const {
+    users,
+    loading: loadingUsers,
+    error: usersFetchError,
+  } = useListUsers();
   const [orgs, setOrgs] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
 
@@ -69,26 +71,9 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
   const [reverseModal, setReverseModal] = useState({ isOpen: false, payment: null });
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadUsers() {
-      setLoadingUsers(true);
-      try {
-        const { data, error } = await invokeWithAuth("list-users");
-        if (cancelled) return;
-        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load users");
-        setUsers(data.users || []);
-      } catch (e) {
-        addToast({ type: "error", message: e.message || "Failed to load users" });
-        setUsers([]);
-      } finally {
-        if (!cancelled) setLoadingUsers(false);
-      }
-    }
-    void loadUsers();
-    return () => {
-      cancelled = true;
-    };
-  }, [addToast]);
+    if (!usersFetchError) return;
+    addToast({ type: "error", message: usersFetchError });
+  }, [usersFetchError, addToast]);
 
   useEffect(() => {
     let cancelled = false;

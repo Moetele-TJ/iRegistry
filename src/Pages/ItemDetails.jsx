@@ -27,6 +27,8 @@ import {
 } from "../lib/itemState.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { roleIs } from "../lib/roleUtils.js";
+import { displayUser } from "../lib/userDisplay.js";
+import { useListUsers } from "../hooks/useListUsers.js";
 
 const MAX_PHOTOS = 5;
 
@@ -188,8 +190,16 @@ export default function ItemDetails() {
   const [newOwnerId, setNewOwnerId] = useState("");
   const [evidenceType, setEvidenceType] = useState("ADMIN_TRANSFER");
   const [evidenceFile, setEvidenceFile] = useState(null);
-  const [ownerUsers, setOwnerUsers] = useState([]);
-  const [ownerUsersLoading, setOwnerUsersLoading] = useState(false);
+  const ownerListEnabled = transferOpen && roleIs(user?.role, "admin");
+  const {
+    users: listedUsers,
+    loading: ownerUsersLoading,
+    error: ownerUsersListError,
+  } = useListUsers({ enabled: ownerListEnabled });
+  const ownerUsers = useMemo(
+    () => listedUsers.filter((u) => roleIs(u?.role, "user")),
+    [listedUsers],
+  );
   const [ownerQuery, setOwnerQuery] = useState("");
   const [ownerPickerOpen, setOwnerPickerOpen] = useState(false);
 
@@ -725,35 +735,9 @@ export default function ItemDetails() {
   }
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadOwners() {
-      if (!transferOpen) return;
-      if (!roleIs(user?.role, "admin")) return;
-      setOwnerUsersLoading(true);
-      try {
-        const { data, error } = await invokeWithAuth("list-users");
-        if (cancelled) return;
-        if (error || !data?.success) {
-          throw new Error(data?.message || error?.message || "Failed to load users");
-        }
-        const all = Array.isArray(data?.users) ? data.users : [];
-        // "registered owner" = normal app users (exclude staff roles)
-        const owners = all.filter((u) => roleIs(u?.role, "user"));
-        setOwnerUsers(owners);
-      } catch (e) {
-        if (!cancelled) {
-          setOwnerUsers([]);
-          setTransferErr(e?.message || "Failed to load users");
-        }
-      } finally {
-        if (!cancelled) setOwnerUsersLoading(false);
-      }
-    }
-    void loadOwners();
-    return () => {
-      cancelled = true;
-    };
-  }, [transferOpen, user?.role]);
+    if (!ownerListEnabled || !ownerUsersListError) return;
+    setTransferErr(ownerUsersListError);
+  }, [ownerListEnabled, ownerUsersListError]);
 
   const filteredOwners = useMemo(() => {
     const q = String(ownerQuery || "").trim().toLowerCase();
@@ -776,9 +760,7 @@ export default function ItemDetails() {
   const selectedOwnerLabel = useMemo(() => {
     if (!newOwnerId) return "";
     const u = (ownerUsers || []).find((x) => String(x?.id) === String(newOwnerId));
-    if (!u) return "";
-    const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
-    return name || u?.email || u?.id_number || u?.id || "";
+    return u ? displayUser(u) : "";
   }, [newOwnerId, ownerUsers]);
 
   function handleDragZone(e) {
@@ -1818,8 +1800,7 @@ export default function ItemDetails() {
                 ) : (
                   <div className="divide-y">
                     {filteredOwners.slice(0, 50).map((u) => {
-                      const name = `${String(u?.first_name || "").trim()} ${String(u?.last_name || "").trim()}`.trim();
-                      const primary = name || u?.email || u?.id_number || u?.id;
+                      const primary = displayUser(u) || String(u?.id ?? "");
                       const secondary = [u?.email, u?.id_number, u?.phone].filter(Boolean).join(" • ");
                       return (
                         <button

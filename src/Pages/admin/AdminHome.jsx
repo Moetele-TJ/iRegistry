@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle, MessageSquare } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
 import PromoModeBanner from "../../components/PromoModeBanner.jsx";
 
@@ -76,7 +77,7 @@ export default function AdminHome() {
       if (usersRes.status === "fulfilled") {
         const { data, error } = usersRes.value;
         if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load users");
-        const all = Array.isArray(data?.users) ? data.users : [];
+        const all = sortUsersAlphabetically(Array.isArray(data?.users) ? data.users : []);
         const susp = all.filter((u) => {
           const st = String(u?.status || "").toLowerCase();
           return st === "suspended" || st === "disabled";

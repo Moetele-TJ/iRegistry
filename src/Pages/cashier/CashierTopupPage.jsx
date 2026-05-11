@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, Receipt, Wallet, User, ChevronRight, Hourglass, Building2 } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { displayUser } from "../../lib/userDisplay.js";
+import { useListUsers } from "../../hooks/useListUsers.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
@@ -14,18 +16,19 @@ function pkgLabel(p) {
 }
 
 function displayName(u) {
-  const first = String(u?.first_name || "").trim();
-  const last = String(u?.last_name || "").trim();
-  const full = `${first} ${last}`.trim();
-  return full || u?.email || u?.id_number || u?.id || "—";
+  return displayUser(u) || "—";
 }
 
 export default function CashierTopupPage() {
   const { addToast } = useToast();
   const { confirm } = useModal();
   const [targetType, setTargetType] = useState("user"); // user | organization
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [users, setUsers] = useState([]);
+  const {
+    users,
+    loading: loadingUsers,
+    error: usersFetchError,
+    refresh: refreshUsers,
+  } = useListUsers();
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [orgs, setOrgs] = useState([]);
   const [q, setQ] = useState("");
@@ -45,26 +48,9 @@ export default function CashierTopupPage() {
   const [completingPending, setCompletingPending] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadUsers() {
-      setLoadingUsers(true);
-      try {
-        const { data, error } = await invokeWithAuth("list-users");
-        if (cancelled) return;
-        if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load users");
-        setUsers(data.users || []);
-      } catch (e) {
-        addToast({ type: "error", message: e.message || "Failed to load users" });
-        setUsers([]);
-      } finally {
-        if (!cancelled) setLoadingUsers(false);
-      }
-    }
-    void loadUsers();
-    return () => {
-      cancelled = true;
-    };
-  }, [addToast]);
+    if (!usersFetchError) return;
+    addToast({ type: "error", message: usersFetchError });
+  }, [usersFetchError, addToast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,13 +248,7 @@ export default function CashierTopupPage() {
       });
       if (typeof data.new_balance === "number") {
         if (targetType === "user") {
-          setUsers((prev) =>
-            (prev || []).map((u) =>
-              String(u.id) === String(selectedUserId)
-                ? { ...u, credit_balance: data.new_balance }
-                : u,
-            ),
-          );
+          void refreshUsers();
         } else if (targetType === "organization") {
           setOrgs((prev) =>
             (prev || []).map((o) =>
@@ -325,11 +305,7 @@ export default function CashierTopupPage() {
       setPendingReceipt("");
       setPendingStaffNote("");
       if (typeof data.new_balance === "number") {
-        setUsers((prev) =>
-          (prev || []).map((u) =>
-            String(u.id) === String(selectedUserId) ? { ...u, credit_balance: data.new_balance } : u,
-          ),
-        );
+        void refreshUsers();
       }
     } catch (e) {
       addToast({ type: "error", message: e.message || "Could not complete" });

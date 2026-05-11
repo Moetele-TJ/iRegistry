@@ -18,6 +18,15 @@ function clampDays(raw: unknown) {
   return Math.min(Math.max(x, 1), 365);
 }
 
+function isUuid(s: unknown): s is string {
+  return (
+    typeof s === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      s,
+    )
+  );
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -42,9 +51,12 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const days = clampDays(body?.days);
+    const rawUserId = body?.user_id;
+    const pUserId = isUuid(rawUserId) ? rawUserId : null;
 
     const { data, error } = await supabase.rpc("admin_sms_otp_usage_stats", {
       p_days: days,
+      p_user_id: pUserId,
     });
 
     if (error) {
@@ -72,6 +84,7 @@ serve(async (req) => {
       {
         success: true,
         days: parsed.days,
+        filter_user_id: parsed.filter_user_id ?? null,
         totals: parsed.totals,
         by_day: parsed.by_day,
       },

@@ -22,6 +22,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -345,7 +346,7 @@ export default function AdminSettings() {
         setUserSearchResults([]);
         return;
       }
-      const all = Array.isArray(data.users) ? data.users : [];
+      const all = sortUsersAlphabetically(Array.isArray(data.users) ? data.users : []);
       const needle = term.toLowerCase();
       const filtered = all
         .filter((u) => String(u?.role || "").toLowerCase() === "user")

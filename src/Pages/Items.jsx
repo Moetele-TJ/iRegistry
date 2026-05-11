@@ -7,6 +7,8 @@ import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { displayUser } from "../lib/userDisplay.js";
+import { useListUsers } from "../hooks/useListUsers.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
@@ -184,12 +186,11 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   // - privileged (admin/cashier): can choose which user's items to view
   const [policeShowStolenAtStation, setPoliceShowStolenAtStation] = useState(false);
   const didInitPoliceStationViewRef = useRef(false);
-  const [usersList, setUsersList] = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
   const [selectedOwnerId, setSelectedOwnerId] = useState(user?.id || "");
   const [assignedOrgItems, setAssignedOrgItems] = useState([]);
 
   const isPrivileged = isPrivilegedRole(role);
+  const { users: usersList, loading: usersLoading } = useListUsers({ enabled: isPrivileged });
   const isOrdinaryUser = roleIs(role, "user");
 
   useEffect(() => {
@@ -270,34 +271,6 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     }
     void refreshItems(base);
   }, [view, user?.id, selectedOwnerId, isPrivileged, role, policeShowStolenAtStation]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!isPrivileged) return;
-    let cancelled = false;
-
-    async function loadUsers() {
-      setUsersLoading(true);
-      try {
-        const { data, error } = await invokeWithAuth("list-users");
-        if (cancelled) return;
-
-        if (error || !data?.success) {
-          setUsersList([]);
-          return;
-        }
-
-        setUsersList(data.users || []);
-      } finally {
-        if (!cancelled) setUsersLoading(false);
-      }
-    }
-
-    void loadUsers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isPrivileged]);
 
   // Confirm modal state (new pattern: action + arg passed into modal)
   const [confirmState, setConfirmState] = useState({
@@ -1173,10 +1146,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                     >
                       {(usersList || []).map((u) => {
-                        const label =
-                          [u.first_name, u.last_name].filter(Boolean).join(" ") ||
-                          u.email ||
-                          u.id;
+                        const label = displayUser(u) || String(u.id ?? "");
                         return (
                           <option key={u.id} value={u.id}>
                             {label}
