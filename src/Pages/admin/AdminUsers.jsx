@@ -1020,7 +1020,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Name, email, ID…"
+                  placeholder="Name, email, phone, ID…"
                 />
               </div>
               {canAdminister ? (
@@ -1356,7 +1356,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
                       </div>
                       <div className="text-xs text-gray-500">
-                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {st || "—"} • ID / Passport: {u.id_number || "—"} • Last login: {fmtDateTime(u.last_login_at)} • ID: {u.id}
+                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {st || "—"} • Phone: {u.phone || "—"} • ID / Passport: {u.id_number || "—"} • Last login: {fmtDateTime(u.last_login_at)} • ID: {u.id}
                         {u.police_station ? ` • Station: ${u.police_station}` : ""}
                       </div>
                       {(u.suspended_reason || u.disabled_reason) && st !== "active" ? (
