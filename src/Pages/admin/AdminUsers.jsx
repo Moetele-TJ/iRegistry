@@ -1334,8 +1334,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         required={false}
                         withAuth={true}
                         inputClassName="w-full border rounded-lg px-3 py-2"
-                        placeholder="Select police station…"
+                        placeholder={
+                          canAdminister
+                            ? "Search, pick from list, or type a station name…"
+                            : "Select police station…"
+                        }
                         allowOther={true}
+                        variant={canAdminister ? "searchable" : "select"}
                         disabled={loading || usersDirectoryLoading}
                       />
                     </div>
