@@ -23,13 +23,38 @@ import {
 const IREG_GREEN = "#1FA463";
 const IREG_RED = "#E53E3E";
 
-/** Coerce RPC JSON counts to numbers so chart scales use real maxima (strings break Recharts domains). */
+/** Coerce RPC / JSON row to a non-negative integer count (handles strings and alternate keys). */
+function coerceDailyCount(row) {
+  if (!row || typeof row !== "object") return 0;
+  const raw = row.count ?? row.Count ?? row.value;
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.max(0, Math.floor(raw));
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw.trim());
+    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+  }
+  return 0;
+}
+
 function normalizeDailyTrend(rows, takeLast) {
   const r = Array.isArray(rows) ? rows.slice(-takeLast) : [];
   return r.map((row) => ({
-    date: row?.date ?? "",
-    count: Math.max(0, Math.round(Number(row?.count)) || 0),
+    date: row?.date ?? row?.Date ?? "",
+    count: coerceDailyCount(row),
   }));
+}
+
+/** Y ticks that always include 0 and the true max so the axis does not look capped at a low tick. */
+function yAxisTicksForMax(maxValue) {
+  const m = Math.max(0, Math.floor(Number(maxValue)) || 0);
+  if (m <= 0) return [0, 1];
+  const maxTicks = 9;
+  if (m < maxTicks) {
+    return Array.from({ length: m + 1 }, (_, i) => i);
+  }
+  const step = Math.ceil(m / (maxTicks - 1));
+  const out = new Set([0, m]);
+  for (let v = step; v < m; v += step) out.add(Math.min(v, m));
+  return [...out].sort((a, b) => a - b);
 }
 
 export default function HomePage() {
@@ -42,10 +67,14 @@ export default function HomePage() {
   );
 
   const itemTimelineYMax = useMemo(() => {
-    const max = itemTimelineData.reduce((m, d) => Math.max(m, d.count), 0);
-    if (max <= 0) return 1;
-    return Math.ceil(max * 1.06);
+    const peak = itemTimelineData.reduce((m, d) => Math.max(m, d.count), 0);
+    return Math.max(peak, 1);
   }, [itemTimelineData]);
+
+  const itemTimelineYTicks = useMemo(
+    () => yAxisTicksForMax(itemTimelineYMax),
+    [itemTimelineYMax],
+  );
 
   const itemTrend = useMemo(
     () => normalizeDailyTrend(stats?.dailyItemTrend, 7),
@@ -90,6 +119,25 @@ export default function HomePage() {
   const { user } = useAuth();
   const [, setOpenMenu] = useState(false);
   const menuRef = useRef(null);
+  const statCardsRef = useRef(null);
+
+  useEffect(() => {
+    if (!expandedCard) return undefined;
+    function collapseIfOutside(e) {
+      if (!statCardsRef.current?.contains(e.target)) {
+        setExpandedCard(null);
+      }
+    }
+    function collapseOnEscape(e) {
+      if (e.key === "Escape") setExpandedCard(null);
+    }
+    document.addEventListener("mousedown", collapseIfOutside);
+    document.addEventListener("keydown", collapseOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", collapseIfOutside);
+      document.removeEventListener("keydown", collapseOnEscape);
+    };
+  }, [expandedCard]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -222,7 +270,10 @@ export default function HomePage() {
         <VerificationPanel/>
 
         {/* STAT CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
+        <div
+          ref={statCardsRef}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start"
+        >
 
           <StatCard
             id = "users"
@@ -440,8 +491,10 @@ export default function HomePage() {
                     <YAxis
                       type="number"
                       allowDecimals={false}
+                      allowDataOverflow
                       domain={[0, itemTimelineYMax]}
-                      width={44}
+                      ticks={itemTimelineYTicks}
+                      width={48}
                     />
                     <CartesianGrid strokeDasharray="3 3" />
                     <RechartsTooltip
