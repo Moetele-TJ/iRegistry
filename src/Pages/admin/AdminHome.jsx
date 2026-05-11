@@ -1,7 +1,7 @@
 // src/Pages/admin/AdminHome.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle } from "lucide-react";
+import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle, MessageSquare } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
 import PromoModeBanner from "../../components/PromoModeBanner.jsx";
@@ -244,6 +244,7 @@ function QuickActions({ onGo }) {
     { label: "Pricing", to: "/admin/pricing", icon: Tag },
     { label: "Notifications", to: "/admin/notifications", icon: Bell },
     { label: "Activity", to: "/admin/activity", icon: Activity },
+    { label: "SMS OTP usage", to: "/admin/sms-otp-usage", icon: MessageSquare },
   ];
 
   return (
