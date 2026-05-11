@@ -1,5 +1,5 @@
 // src/Pages/HomePage.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
@@ -23,16 +23,46 @@ import {
 const IREG_GREEN = "#1FA463";
 const IREG_RED = "#E53E3E";
 
+/** Coerce RPC JSON counts to numbers so chart scales use real maxima (strings break Recharts domains). */
+function normalizeDailyTrend(rows, takeLast) {
+  const r = Array.isArray(rows) ? rows.slice(-takeLast) : [];
+  return r.map((row) => ({
+    date: row?.date ?? "",
+    count: Math.max(0, Math.round(Number(row?.count)) || 0),
+  }));
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
 
-  const timeline = stats?.dailyItemTrend || [];
+  const itemTimelineData = useMemo(
+    () => normalizeDailyTrend(stats?.dailyItemTrend, 14),
+    [stats?.dailyItemTrend],
+  );
 
-  const itemTrend = (stats?.dailyItemTrend || []).slice(-7);
-  const userTrend = (stats?.dailyUserTrend || []).slice(-7);
-  const stolenTrend = (stats?.dailyStolenTrend || []).slice(-7);
-  const activeTrend = (stats?.dailyActiveTrend || []).slice(-7);
+  const itemTimelineYMax = useMemo(() => {
+    const max = itemTimelineData.reduce((m, d) => Math.max(m, d.count), 0);
+    if (max <= 0) return 1;
+    return Math.ceil(max * 1.06);
+  }, [itemTimelineData]);
+
+  const itemTrend = useMemo(
+    () => normalizeDailyTrend(stats?.dailyItemTrend, 7),
+    [stats?.dailyItemTrend],
+  );
+  const userTrend = useMemo(
+    () => normalizeDailyTrend(stats?.dailyUserTrend, 7),
+    [stats?.dailyUserTrend],
+  );
+  const stolenTrend = useMemo(
+    () => normalizeDailyTrend(stats?.dailyStolenTrend, 7),
+    [stats?.dailyStolenTrend],
+  );
+  const activeTrend = useMemo(
+    () => normalizeDailyTrend(stats?.dailyActiveTrend, 7),
+    [stats?.dailyActiveTrend],
+  );
 
   const stolenCategoryData = Object.entries(
     stats?.stolenCategoryBreakdown || {}
@@ -386,7 +416,7 @@ export default function HomePage() {
                 <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart key={chartKey} data={timeline}>
+                  <AreaChart key={chartKey} data={itemTimelineData}>
                     <defs>
                       <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={IREG_GREEN} stopOpacity={0.4} />
@@ -407,7 +437,12 @@ export default function HomePage() {
                       }}
                     />
 
-                    <YAxis allowDecimals={false} />
+                    <YAxis
+                      type="number"
+                      allowDecimals={false}
+                      domain={[0, itemTimelineYMax]}
+                      width={44}
+                    />
                     <CartesianGrid strokeDasharray="3 3" />
                     <RechartsTooltip
                       labelFormatter={(value) =>
