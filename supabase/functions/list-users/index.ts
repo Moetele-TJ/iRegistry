@@ -81,11 +81,36 @@ serve(async (req) => {
       }
     }
 
+    const activeItemCountByOwner = new Map<string, number>();
+    const { data: countRows, error: cntErr } = await supabase.rpc(
+      "list_owner_active_item_counts",
+    );
+    if (cntErr) {
+      console.error("list-users list_owner_active_item_counts:", cntErr.message);
+    } else {
+      for (const row of countRows || []) {
+        const oid = (row as any)?.owner_id;
+        const c = (row as any)?.item_count;
+        if (oid == null) continue;
+        const n = typeof c === "number" && Number.isFinite(c) ? c : Number(c);
+        if (Number.isFinite(n)) activeItemCountByOwner.set(String(oid), Math.max(0, Math.floor(n)));
+      }
+    }
+
     const normalized = list.map((u: any) => {
       const bal = typeof u?.user_credits?.balance === "number" ? u.user_credits.balance : 0;
       const lastLogin = lastLoginByUserId.get(String(u?.id || "")) || null;
       const status = deriveUserStatus(u);
-      return { ...u, status, credit_balance: bal, last_login_at: lastLogin, user_credits: undefined };
+      const uidStr = String(u?.id || "");
+      const active_items_count = activeItemCountByOwner.get(uidStr) ?? 0;
+      return {
+        ...u,
+        status,
+        credit_balance: bal,
+        last_login_at: lastLogin,
+        active_items_count,
+        user_credits: undefined,
+      };
     });
 
     return respond({ success: true, users: normalized }, corsHeaders, 200);

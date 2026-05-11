@@ -472,8 +472,8 @@ export default function HomePage() {
                   <div className="text-sm font-semibold text-gray-800">14-day activity</div>
                   <p className="text-xs text-gray-500 mt-1 max-w-md leading-snug">
                     {trendMetric === "users"
-                      ? "New user accounts created each day (UTC), from signup timestamps."
-                      : "New assets registered each day (UTC). This is not the same as new user signups — use Users to compare signup volume."}
+                      ? "New user accounts created each day."
+                      : "New assets registered each day."}
                   </p>
                 </div>
                 <div

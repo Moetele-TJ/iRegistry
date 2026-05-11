@@ -1146,7 +1146,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                     >
                       {(usersList || []).map((u) => {
-                        const label = displayUser(u) || String(u.id ?? "");
+                        const name = displayUser(u) || String(u.id ?? "");
+                        const n = Math.max(0, Math.floor(Number(u?.active_items_count) || 0));
+                        const label = `${name} (${n})`;
                         return (
                           <option key={u.id} value={u.id}>
                             {label}
