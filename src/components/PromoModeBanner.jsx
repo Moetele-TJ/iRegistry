@@ -1,43 +1,46 @@
 import { useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
-function formatEndLabel(iso) {
-  if (!iso) return null;
+function formatPromoEndLabel(iso) {
+  if (!iso) return "30 June";
   try {
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleString();
+    if (Number.isNaN(d.getTime())) return "30 June";
+    return d.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   } catch {
-    return null;
+    return "30 June";
   }
 }
 
 export default function PromoModeBanner({ className = "" } = {}) {
   const { user } = useAuth();
 
-  const message = useMemo(() => {
+  const endLabel = useMemo(() => {
     if (!user?.promo_active) return null;
     const ends = user?.promo?.effective_ends_at || user?.promo?.proposed_ends_at || null;
-    const endsLabel = formatEndLabel(ends);
-    if (endsLabel) return `Promotional mode until ${endsLabel}.`;
-    return "Promotional mode is active.";
+    return formatPromoEndLabel(ends);
   }, [user?.promo_active, user?.promo?.effective_ends_at, user?.promo?.proposed_ends_at]);
 
-  if (!message) return null;
+  if (!endLabel) return null;
 
   return (
     <div
       className={[
-        "rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900",
+        "rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
       role="status"
     >
-      <div className="font-semibold">Promotional mode</div>
-      <div className="text-amber-900/90">{message}</div>
+      <div className="font-semibold">Free registration until {endLabel}</div>
+      <div className="text-emerald-900/90 mt-0.5">
+        Register as many items as you like — no credits or cashier top-up required.
+      </div>
     </div>
   );
 }
-

@@ -14,6 +14,7 @@ import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
+import PromoModeBanner from "../components/PromoModeBanner.jsx";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import {
   resolveOwnerBalanceForItem,
@@ -192,6 +193,8 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const isPrivileged = isPrivilegedRole(role);
   const { users: usersList, loading: usersLoading } = useListUsers({ enabled: isPrivileged });
   const isOrdinaryUser = roleIs(role, "user");
+  const promoActive = Boolean(user?.promo_active);
+  const showUserPromoUx = isOrdinaryUser && view === "active" && promoActive;
 
   useEffect(() => {
     let cancelled = false;
@@ -1003,7 +1006,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       ? "Soft-deleted items you can restore back to active."
                       : view === "legacy"
                         ? "Obsolete items kept for reference (read-only). Restore to bring them back to active."
-                        : "Manage and monitor your registered assets"}
+                        : showUserPromoUx
+                          ? "Free registration is on — add as many items as you like"
+                          : "Manage and monitor your registered assets"}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
@@ -1012,9 +1017,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
                     onClick={() => void goToAddItem()}
                     disabled={addPreflightLoading}
-                    title={addPreflightLoading ? "Loading credit prices…" : undefined}
+                    title={addPreflightLoading ? "Loading…" : undefined}
                   >
-                    + Add Item
+                    {showUserPromoUx ? "+ Register an item" : "+ Add item"}
                   </RippleButton>
                 ) : null}
                 <RippleButton
@@ -1028,6 +1033,29 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
           </div>
 
           <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 bg-gradient-to-b from-white to-gray-50/40">
+        {showUserPromoUx && <PromoModeBanner />}
+
+        {showUserPromoUx && !loading && items.length === 0 && (
+          <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm p-6 sm:p-8 text-center">
+            <div className="text-4xl mb-3">📦</div>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+              Start protecting what matters to you
+            </h2>
+            <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto leading-relaxed">
+              Add a phone, laptop, bicycle, or any valuable item — takes about 3 minutes.
+              No credits or cashier top-up required during the promotion.
+            </p>
+            <RippleButton
+              className="mt-5 px-6 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
+              onClick={() => void goToAddItem()}
+              disabled={addPreflightLoading}
+              title={addPreflightLoading ? "Loading…" : undefined}
+            >
+              Register my first item — free
+            </RippleButton>
+          </div>
+        )}
+
         {/* filters row */}
         <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-5 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -1717,26 +1745,41 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
 
           {!loading && pageItems.length === 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-              
               <div className="text-4xl mb-3">📦</div>
 
-              <div className="text-lg font-semibold text-gray-800">
-                No items found
-              </div>
-
-              <p className="text-sm text-gray-500 mt-2">
-                Try adjusting your search or filters.
-              </p>
-
-              {items.length === 0 && (
-                <RippleButton
-                  className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
-                  onClick={() => void goToAddItem()}
-                  disabled={addPreflightLoading}
-                  title={addPreflightLoading ? "Loading credit prices…" : undefined}
-                >
-                  + Add Your First Item
-                </RippleButton>
+              {items.length === 0 && showUserPromoUx ? (
+                <>
+                  <div className="text-lg font-semibold text-gray-800">
+                    Your registry is empty
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Use Register my first item above — it only takes a few minutes.
+                  </p>
+                </>
+              ) : items.length === 0 ? (
+                <>
+                  <div className="text-lg font-semibold text-gray-800">
+                    No items registered yet
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Register your first item to start protecting it and tracking ownership.
+                  </p>
+                  <RippleButton
+                    className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
+                    onClick={() => void goToAddItem()}
+                    disabled={addPreflightLoading}
+                    title={addPreflightLoading ? "Loading…" : undefined}
+                  >
+                    + Add your first item
+                  </RippleButton>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-semibold text-gray-800">No items found</div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Try adjusting your search or filters.
+                  </p>
+                </>
               )}
             </div>
           )}

@@ -1,11 +1,14 @@
 //  src/components/QuickActionsPanel.jsx
 import { useNavigate } from "react-router-dom";
 import RippleButton from "./RippleButton";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 
 export default function QuickActionsPanel() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { goToAddItem, tasksLoading } = useAddItemPreflight();
+  const promoActive = Boolean(user?.promo_active);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
@@ -20,7 +23,7 @@ export default function QuickActionsPanel() {
           disabled={tasksLoading}
           title={tasksLoading ? "Loading credit prices…" : undefined}
         >
-          + Register New Item
+          {promoActive ? "+ Register an item" : "+ Register new item"}
         </RippleButton>
 
         <RippleButton

@@ -61,6 +61,9 @@ export default function UserDashboard() {
   const pagination = data?.personal?.activity?.pagination;
   const totalPages = pagination?.totalPages || 1;
 
+  const promoActive = Boolean(user?.promo_active);
+  const showFirstItemCallout = !loading && !hasItems;
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
@@ -69,37 +72,53 @@ export default function UserDashboard() {
             <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight animate-fade-up">
               Welcome back{user?.last_name ? `, ${user.last_name}` : ""} 👋
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Here’s a snapshot of your asset portfolio</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {showFirstItemCallout
+                ? "Register your first item to start protecting what matters to you"
+                : "Here’s a snapshot of your asset portfolio"}
+            </p>
           </div>
           <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 bg-gradient-to-b from-white to-gray-50/40">
         <PromoModeBanner />
-        <CreditsSummaryStrip />
-
-        {!loading && !hasItems && (
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 text-center">
+        {showFirstItemCallout && (
+          <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm p-8 text-center">
 
             <div className="text-4xl mb-3">📦</div>
 
-            <h2 className="text-lg font-semibold text-gray-800">
-              No items registered yet
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+              {promoActive
+                ? "Protect your first asset — registration is free right now"
+                : "Protect your first asset on iRegistry"}
             </h2>
 
-            <p className="text-sm text-gray-500 mt-2">
-              Register your first item to start protecting it and tracking ownership.
+            <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto leading-relaxed">
+              {promoActive ? (
+                <>
+                  Add a phone, laptop, bicycle, or any valuable item — takes about 3 minutes.
+                  You&apos;ll get a verifiable record on Botswana&apos;s digital asset registry.
+                </>
+              ) : (
+                <>
+                  Your first two lifetime registrations are free. After that, registrations use
+                  credits — but getting started costs you nothing today.
+                </>
+              )}
             </p>
 
             <button
               type="button"
               onClick={() => void goToAddItem()}
               disabled={addPreflightLoading}
-              title={addPreflightLoading ? "Loading credit prices…" : undefined}
-              className="mt-5 bg-iregistrygreen text-white px-5 py-2 rounded-xl text-sm font-medium hover:shadow-md transition disabled:opacity-60"
+              title={addPreflightLoading ? "Loading…" : undefined}
+              className="mt-5 bg-iregistrygreen text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:shadow-md transition disabled:opacity-60"
             >
-              + Add Your First Item
+              {promoActive ? "Register my first item — free" : "+ Add your first item"}
             </button>
 
           </div>
         )}
+
+        {!promoActive && <CreditsSummaryStrip />}
 
         {/* ===== Summary Cards ===== */}
         <div className="space-y-4">

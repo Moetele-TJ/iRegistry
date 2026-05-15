@@ -55,10 +55,14 @@ export default function AddItem() {
   );
 
   const willChargeAddItem = addItemPaidCost != null;
+  const promoActive = Boolean(user?.promo_active);
 
   const addItemConfirmNotes = useMemo(() => {
     if (!chargesOwnerForAdd) {
       return " Registry policy: staff registrations do not debit the registrant's wallet for ADD_ITEM.";
+    }
+    if (promoActive) {
+      return " During our promotional period, this registration is free — you won't be charged credits.";
     }
     if (!willChargeAddItem) {
       return ` This will be free registration ${createdByCount + 1} of 2 included with your account.`;
@@ -78,6 +82,7 @@ export default function AddItem() {
     createdByCount,
     addItemPaidCost,
     user?.credit_balance,
+    promoActive,
   ]);
   const [serialError, setSerialError] = useState(null);
   const [serialCheckWarning, setSerialCheckWarning] = useState(null);
@@ -420,8 +425,12 @@ export default function AddItem() {
           className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
         >
           <div className="px-5 py-4 sm:px-6 sm:py-5 bg-emerald-50/90 border-b border-emerald-100/90">
-            <h1 className="text-2xl font-bold text-gray-900">Add New Item</h1>
-            <p className="text-sm text-gray-600 mt-1">Register a new item in your inventory</p>
+            <h1 className="text-2xl font-bold text-gray-900">Add new item</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              {promoActive
+                ? "Takes about 3 minutes. During our June promotion, registration is free — no credits charged."
+                : "Register a phone, laptop, bicycle, or any valuable item in your inventory."}
+            </p>
           </div>
           <div className="p-6 sm:p-8 space-y-6">
 
@@ -650,7 +659,15 @@ export default function AddItem() {
             </Field>
           </div>
 
-          {chargesOwnerForAdd ? (
+          {promoActive ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+              <div className="font-semibold">Free registration</div>
+              <p className="mt-1 text-emerald-900/90">
+                Promotional registration is active — you won&apos;t be charged credits for this
+                submission.
+              </p>
+            </div>
+          ) : chargesOwnerForAdd ? (
             <BillingCostBanner
               taskCodes={willChargeAddItem ? ["ADD_ITEM"] : []}
               title="Registration & credits"
