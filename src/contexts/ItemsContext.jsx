@@ -420,14 +420,23 @@ export function ItemsProvider({ children }) {
     dispatch({ type: "SET_ERROR", payload: null });
 
     try {
-      const { error } = await invokeWithAuth(
+      const { data, error } = await invokeWithAuth(
         "hard-delete-item",
         { body: { id } }
       );
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || "Network error");
+      }
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to permanently delete item");
+      }
 
-      // Always trust DB as source of truth
+      dispatch({
+        type: "REMOVE_ITEM",
+        payload: id,
+      });
+
       await refreshItems({ includeDeleted: true });
 
     } catch (err) {

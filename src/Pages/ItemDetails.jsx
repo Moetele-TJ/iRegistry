@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
+import PrivilegedItemDeleteModal from "../components/PrivilegedItemDeleteModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems, normalizeItemFromDB } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -26,9 +27,18 @@ import {
   isItemReportedStolen,
 } from "../lib/itemState.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
+import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import { roleIs } from "../lib/roleUtils.js";
 import { displayUser } from "../lib/userDisplay.js";
 import { useListUsers } from "../hooks/useListUsers.js";
+import {
+  canManagePersonalItemLifecycle,
+  canPermanentlyDeleteDeletedItem,
+  findActiveReplacementForDeletedItem,
+  isStaffDeletingOthersItem,
+  SOFT_DELETE_CONFIRM_MESSAGE,
+  PERMANENT_DELETE_CONFIRM_MESSAGE,
+} from "../lib/itemLifecycleUx.js";
 
 const MAX_PHOTOS = 5;
 
@@ -160,11 +170,14 @@ export default function ItemDetails() {
     transferOwnership,
     restoreItem,
     restoreLegacyItem,
+    markLegacyItem,
+    hardDeleteItem,
     loading: itemsLoading,
   } = useItems();
   const { user } = useAuth();
   const { confirm, alert } = useModal();
   const { getCost, loading: tasksLoading } = useTaskPricing();
+  const formatBilling = useBillingErrorMessage();
 
   const [fetchedItem, setFetchedItem] = useState(null);
   const [lookupResolved, setLookupResolved] = useState(false);
@@ -173,7 +186,10 @@ export default function ItemDetails() {
   const [policeAdvanceModal, setPoliceAdvanceModal] = useState(null);
   const [policeAdvanceNote, setPoliceAdvanceNote] = useState("");
   const [policeAdvanceEvidenceLine, setPoliceAdvanceEvidenceLine] = useState("");
-  const [confirmOpen, setConfirmOpen] = useState(false); // modal state
+  const [confirmOpen, setConfirmOpen] = useState(false); // soft-delete modal (owner)
+  const [staffDeleteOpen, setStaffDeleteOpen] = useState(false);
+  const [stolenStationDraft, setStolenStationDraft] = useState("");
+  const [ownerActiveItems, setOwnerActiveItems] = useState([]);
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
 
@@ -276,6 +292,27 @@ export default function ItemDetails() {
   const isStolen = !isFrozen && isItemReportedStolen(item);
   const derivedState = getItemDerivedState(item);
 
+  const lifecyclePool = useMemo(() => {
+    const byId = new Map();
+    for (const it of items || []) byId.set(it.id, it);
+    for (const it of ownerActiveItems || []) byId.set(it.id, it);
+    if (item?.id) byId.set(item.id, item);
+    return Array.from(byId.values());
+  }, [items, ownerActiveItems, item]);
+
+  const replacementItem = useMemo(
+    () => (isDeleted && item ? findActiveReplacementForDeletedItem(item, lifecyclePool) : null),
+    [isDeleted, item, lifecyclePool]
+  );
+
+  const canPermanentDelete = useMemo(
+    () =>
+      isDeleted && item
+        ? canPermanentlyDeleteDeletedItem(item, lifecyclePool, user?.role)
+        : false,
+    [isDeleted, item, lifecyclePool, user?.role]
+  );
+
   const isPolice = roleIs(user?.role, "police");
   const isOwner = !!user?.id && !!item?.ownerId && String(user.id) === String(item.ownerId);
   const officerStation = String(user?.police_station || "").trim();
@@ -289,6 +326,9 @@ export default function ItemDetails() {
   // - personal: officer owns the item → full UI like any user
   // - station case: item belongs to someone else but is a stolen item reported to officer station → restricted police UI
   const stationCaseMode = isPolice && !isOwner && isStolen && stationMatchesOfficer;
+
+  const canManageLifecycle =
+    !!item && !!user && canManagePersonalItemLifecycle(item, user) && !stationCaseMode;
 
   // Admins/cashiers may edit photos on any item. All other roles (including police) only on items they own.
   const canManagePhotos =
@@ -332,6 +372,35 @@ export default function ItemDetails() {
       ""
     );
   }, [item]);
+
+  useEffect(() => {
+    if (!item?.id || !isDeleted || !user?.id) {
+      setOwnerActiveItems([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await invokeWithAuth("get-items", {
+          body: {
+            ownerId: user.id,
+            includeDeleted: false,
+            includeLegacy: false,
+            page: 1,
+            pageSize: 200,
+          },
+        });
+        if (cancelled || error || !data?.success) return;
+        const rows = Array.isArray(data.items) ? data.items : [];
+        setOwnerActiveItems(rows.map((r) => normalizeItemFromDB(r)));
+      } catch {
+        if (!cancelled) setOwnerActiveItems([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.id, isDeleted, user?.id]);
 
   useEffect(() => {
     setPhotoIndex(0);
@@ -515,8 +584,16 @@ export default function ItemDetails() {
     }
   }
 
-  function openDeleteModal() {
+  function openDeleteFlow() {
+    if (item && isStaffDeletingOthersItem(item, user)) {
+      setStaffDeleteOpen(true);
+      return;
+    }
     setConfirmOpen(true);
+  }
+
+  function openDeleteModal() {
+    openDeleteFlow();
   }
 
   function closeDeleteModal() {
@@ -533,11 +610,14 @@ export default function ItemDetails() {
         await res;
       }
       // show success toast briefly then navigate
-      setToast({ visible: true, message: `${item.name || item.id} deleted`, type: "success" });
-      // small delay so user sees toast before navigation
+      setToast({
+        visible: true,
+        message: `${item.name || item.id} moved to recycle bin`,
+        type: "success",
+      });
       setTimeout(() => {
         setToast({ visible: false, message: "", type: "info" });
-        navigate("/items");
+        navigate("/items/deleted");
       }, 900);
     } catch (e) {
       console.error("Failed to delete item:", e);
@@ -660,9 +740,12 @@ export default function ItemDetails() {
 
   async function confirmRestoreFrozen() {
     if (!item?.id) return;
-    const msg = isDeleted
+    let msg = isDeleted
       ? `Restore "${item.name || item.id}" back to active items?`
       : `Restore "${item.name || item.id}" from legacy back to active items?`;
+    if (isDeleted && replacementItem) {
+      msg += `\n\nYou already have an active registration with the same serial ("${replacementItem.name || replacementItem.id}"). Restore may fail — consider permanently deleting this recycle-bin copy instead.`;
+    }
     const ok = await confirm({
       title: "Confirm",
       message: msg,
@@ -672,6 +755,166 @@ export default function ItemDetails() {
     }).catch(() => false);
     if (!ok) return;
     await restoreFrozenItem();
+  }
+
+  async function doToggleStolenStatus(policeStation) {
+    if (!item?.id) return;
+    const nextStolen = !isItemReportedStolen(item);
+    try {
+      setWorking(true);
+      if (nextStolen) {
+        const trimmed = String(policeStation ?? "").trim();
+        await updateItem(
+          item.id,
+          { reportedStolenAt: new Date().toISOString() },
+          trimmed ? { policeStation: trimmed } : {}
+        );
+        showToastMsg(`${item.name || item.id} reported stolen`, "success");
+      } else {
+        await updateItem(item.id, { reportedStolenAt: null });
+        showToastMsg(`${item.name || item.id} marked active`, "success");
+      }
+      const { data: refetch } = await invokeWithAuth("get-items", {
+        body: {
+          itemLookup: item.slug || item.id,
+          includeDeleted: true,
+          includeLegacy: true,
+          page: 1,
+          pageSize: 1,
+        },
+      });
+      if (refetch?.success && refetch.items?.[0]) {
+        setFetchedItem(normalizeItemFromDB(refetch.items[0]));
+      }
+    } catch (e) {
+      showToastMsg(formatBilling(e), "error");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function confirmToggleStolen() {
+    if (!item?.id || isFrozen) return;
+    const nextStolen = !isItemReportedStolen(item);
+    if (!nextStolen) {
+      const ok = await confirm({
+        title: "Mark active",
+        message: `Mark "${item.name || item.id}" as active again?`,
+        confirmLabel: "Mark active",
+        cancelLabel: "Cancel",
+        variant: "default",
+      }).catch(() => false);
+      if (!ok) return;
+      await doToggleStolenStatus();
+      return;
+    }
+
+    setStolenStationDraft(String(item.station || item.location || "").trim());
+    const ownerRole = item.ownerRole ?? null;
+    const chargesOwner = willUpdateItemChargeOwnerWallet(user?.role, ownerRole);
+    const ownerBal = resolveOwnerBalanceForItem(item, user);
+    let stolenMsg = `Report "${item.name || item.id}" as stolen? A police case is opened for the station you choose.`;
+    if (chargesOwner) {
+      const cost = getCost("MARK_STOLEN");
+      if (cost != null) {
+        stolenMsg += ` This costs ${cost} credits. Your balance: ${ownerBal}.`;
+        if (ownerBal < cost) {
+          stolenMsg += ` Add ${cost - ownerBal} more credits before this can succeed.`;
+        }
+      }
+    }
+
+    const ok = await confirm({
+      title: "Report stolen",
+      message: stolenMsg,
+      confirmLabel: "Mark stolen",
+      cancelLabel: "Cancel",
+      variant: "warning",
+    }).catch(() => false);
+    if (!ok) return;
+    await doToggleStolenStatus(stolenStationDraft);
+  }
+
+  async function confirmMoveToLegacy() {
+    if (!item?.id || isFrozen) return;
+    const ok = await confirm({
+      title: "Move to legacy",
+      message: `Move "${item.name || item.id}" to legacy? It will no longer appear in active items, but you can restore it later.`,
+      confirmLabel: "Move to legacy",
+      cancelLabel: "Cancel",
+      variant: "default",
+    }).catch(() => false);
+    if (!ok) return;
+    try {
+      setWorking(true);
+      await markLegacyItem(item.id, { reason: null });
+      showToastMsg(`${item.name || item.id} moved to legacy`, "success");
+      setTimeout(() => navigate("/items/legacy"), 600);
+    } catch (e) {
+      showToastMsg(e?.message || "Failed to move item to legacy", "error");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function handleStaffDeleteConfirm(mode) {
+    if (!item?.id) return;
+    try {
+      setWorking(true);
+      if (mode === "permanent") {
+        await hardDeleteItem(item.id);
+        showToastMsg(`${item.name || item.id} permanently deleted`, "success");
+        setTimeout(() => navigate("/items"), 600);
+      } else {
+        await deleteItem(item.id);
+        showToastMsg(`${item.name || item.id} moved to recycle bin`, "success");
+        setTimeout(() => navigate("/items"), 600);
+      }
+      setStaffDeleteOpen(false);
+    } catch (e) {
+      showToastMsg(e?.message || "Failed to delete item", "error");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  const staffDeleteOwnerLabel = useMemo(() => {
+    if (!item) return null;
+    const name = ownerIdentityLabel?.trim();
+    return name || item.ownerEmail || item.ownerId || null;
+  }, [item, ownerIdentityLabel]);
+
+  async function confirmPermanentDelete() {
+    if (!item?.id || !isDeleted) return;
+    if (!canPermanentDelete) {
+      showToastMsg(
+        "Permanent delete is only available when you have an active item registered with the same serial number.",
+        "error"
+      );
+      return;
+    }
+    let msg = PERMANENT_DELETE_CONFIRM_MESSAGE;
+    if (replacementItem) {
+      msg += `\n\nActive replacement: "${replacementItem.name || replacementItem.id}" (same serial).`;
+    }
+    const ok = await confirm({
+      title: "Delete permanently",
+      message: msg,
+      confirmLabel: "Delete permanently",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    try {
+      setWorking(true);
+      await hardDeleteItem(item.id);
+      showToastMsg(`${item.name || item.id} permanently deleted`, "success");
+      setTimeout(() => navigate("/items/deleted"), 600);
+    } catch (e) {
+      showToastMsg(e?.message || "Failed to permanently delete item", "error");
+    } finally {
+      setWorking(false);
+    }
   }
 
   async function submitTransferOwnership() {
@@ -1162,13 +1405,24 @@ export default function ItemDetails() {
                 </RippleButton>
 
                 {isFrozen ? (
-                  <RippleButton
-                    className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:opacity-95 disabled:opacity-60"
-                    onClick={() => void confirmRestoreFrozen()}
-                    disabled={working}
-                  >
-                    {working ? "Restoring…" : "Restore"}
-                  </RippleButton>
+                  <>
+                    <RippleButton
+                      className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:opacity-95 disabled:opacity-60"
+                      onClick={() => void confirmRestoreFrozen()}
+                      disabled={working}
+                    >
+                      {working ? "Restoring…" : "Restore"}
+                    </RippleButton>
+                    {isDeleted && canPermanentDelete ? (
+                      <RippleButton
+                        className="px-4 py-2 rounded-xl bg-red-700 text-white text-sm font-semibold shadow-sm hover:opacity-95 disabled:opacity-60"
+                        onClick={() => void confirmPermanentDelete()}
+                        disabled={working}
+                      >
+                        Delete permanently
+                      </RippleButton>
+                    ) : null}
+                  </>
                 ) : roleIs(user?.role, "admin") ? (
                   <RippleButton
                     className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm"
@@ -1178,7 +1432,7 @@ export default function ItemDetails() {
                   </RippleButton>
                 ) : null}
 
-                {!isFrozen && !stationCaseMode ? (
+                {!isFrozen && canManageLifecycle ? (
                   <>
                     <RippleButton
                       className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
@@ -1189,11 +1443,35 @@ export default function ItemDetails() {
                       Edit
                     </RippleButton>
 
+                    {!item?.ownerOrgId ? (
+                      <>
+                        <RippleButton
+                          className={`px-4 py-2 rounded-xl text-white text-sm disabled:opacity-60 ${
+                            isStolen
+                              ? "bg-emerald-600 hover:bg-emerald-700"
+                              : "bg-red-600 hover:bg-red-700"
+                          }`}
+                          onClick={() => void confirmToggleStolen()}
+                          disabled={working}
+                        >
+                          {isStolen ? "Mark active" : "Mark stolen"}
+                        </RippleButton>
+
+                        <RippleButton
+                          className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm disabled:opacity-60"
+                          onClick={() => void confirmMoveToLegacy()}
+                          disabled={working}
+                        >
+                          Legacy
+                        </RippleButton>
+                      </>
+                    ) : null}
+
                     <RippleButton
                       className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm"
-                      onClick={openDeleteModal}
+                      onClick={openDeleteFlow}
                     >
-                      Delete
+                      {isStaffDeletingOthersItem(item, user) ? "Delete" : "Recycle bin"}
                     </RippleButton>
                   </>
                 ) : null}
@@ -1220,6 +1498,16 @@ export default function ItemDetails() {
 
           {/* Body */}
           <div className="p-5 sm:p-6">
+            {isDeleted && canManageLifecycle ? (
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+                <div className="font-semibold">In your recycle bin</div>
+                <p className="mt-1 text-amber-900/90">
+                  {replacementItem
+                    ? `You have an active item with the same serial ("${replacementItem.name || replacementItem.id}"). Restore may not be possible — you can permanently delete this copy instead.`
+                    : "You can restore this item to active, or permanently delete it once you register a replacement with the same serial."}
+                </p>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Media + quick facts */}
               <div className="lg:col-span-5 space-y-4">
@@ -1723,6 +2011,17 @@ export default function ItemDetails() {
         </div>
       ) : null}
 
+      <PrivilegedItemDeleteModal
+        isOpen={staffDeleteOpen}
+        onClose={() => !working && setStaffDeleteOpen(false)}
+        itemName={item?.name || item?.id || "Item"}
+        ownerLabel={staffDeleteOwnerLabel}
+        allowSoft={!item?.deletedAt}
+        allowPermanent
+        loading={working}
+        onConfirm={handleStaffDeleteConfirm}
+      />
+
       {/* ConfirmModal (shared component) */}
       <ConfirmModal
         isOpen={confirmOpen}
@@ -1734,15 +2033,16 @@ export default function ItemDetails() {
           /* performDelete already shows toast and navigates; keep extra safety */
           // no-op here (performDelete handles toast/navigation)
         }}
-        title="Confirm delete"
+        title="Move to recycle bin"
         message={
           <>
-            Are you sure you want to delete <span className="font-medium">{item.name || item.id}</span>? This action cannot be undone.
+            Move <span className="font-medium">{item.name || item.id}</span> to your recycle bin?
+            <span className="block mt-2 text-gray-600">{SOFT_DELETE_CONFIRM_MESSAGE}</span>
           </>
         }
-        confirmLabel={working ? "Deleting..." : "Delete"}
+        confirmLabel={working ? "Moving…" : "Move to recycle bin"}
         cancelLabel="Cancel"
-        danger={true}
+        danger={false}
       />
 
       {/* Admin transfer ownership modal */}

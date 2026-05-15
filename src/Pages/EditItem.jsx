@@ -25,6 +25,8 @@ import {
 import { isItemFrozen, isItemReportedStolen } from "../lib/itemState.js";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
+import PrivilegedItemDeleteModal from "../components/PrivilegedItemDeleteModal.jsx";
+import { isStaffDeletingOthersItem } from "../lib/itemLifecycleUx.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -73,11 +75,14 @@ export default function EditItem() {
     loading: itemsLoading,
     updateItem,
     deleteItem,
+    hardDeleteItem,
   } = useItems();
   const { user } = useAuth();
   const { getCost, loading: tasksLoading } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
 
+  const [staffDeleteOpen, setStaffDeleteOpen] = useState(false);
+  const [staffDeleteBusy, setStaffDeleteBusy] = useState(false);
   const [heldAtResidence, setHeldAtResidence] = useState(false);
   const [fetchedItem, setFetchedItem] = useState(null);
   const [lookupResolved, setLookupResolved] = useState(false);
@@ -798,20 +803,47 @@ export default function EditItem() {
     }
   }
 
+  async function handleStaffDeleteConfirm(mode) {
+    if (!storedItem?.id) return;
+    setStaffDeleteBusy(true);
+    try {
+      if (mode === "permanent") {
+        await hardDeleteItem(storedItem.id);
+      } else {
+        await deleteItem(storedItem.id);
+      }
+      navigate("/items");
+    } catch (err) {
+      await alert({
+        title: "Delete failed",
+        message: err.message || "Could not delete item.",
+        variant: "error",
+      });
+    } finally {
+      setStaffDeleteBusy(false);
+      setStaffDeleteOpen(false);
+    }
+  }
+
   async function handleDelete() {
     if (!storedItem) return;
+    if (isStaffDeletingOthersItem(storedItem, user)) {
+      setStaffDeleteOpen(true);
+      return;
+    }
     const confirmed = await confirm({
-      title: "Confirm",
-      message: "Delete this item? This cannot be undone.",
-      confirmLabel: "Delete",
+      title: "Move to recycle bin",
+      message:
+        "Move this item to your recycle bin? You can restore it later from Deleted items.",
+      confirmLabel: "Move to recycle bin",
       cancelLabel: "Cancel",
-      danger: true,
+      danger: false,
     }).catch(() => false);
     if (!confirmed) return;
 
     try {
       await deleteItem(storedItem.id);
-      navigate("/items");
+      navigate("/items/deleted");
     } catch (err) {
       await alert({
         title: "Delete failed",
@@ -860,6 +892,22 @@ export default function EditItem() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <PrivilegedItemDeleteModal
+        isOpen={staffDeleteOpen}
+        onClose={() => !staffDeleteBusy && setStaffDeleteOpen(false)}
+        itemName={storedItem?.name || storedItem?.id || "Item"}
+        ownerLabel={
+          storedItem
+            ? `${String(storedItem.ownerFirstName || "").trim()} ${String(storedItem.ownerLastName || "").trim()}`.trim() ||
+              storedItem.ownerEmail ||
+              storedItem.ownerId
+            : null
+        }
+        allowSoft={!storedItem?.deletedAt}
+        allowPermanent
+        loading={staffDeleteBusy}
+        onConfirm={handleStaffDeleteConfirm}
+      />
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
         {showEntryCreditWarning ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">

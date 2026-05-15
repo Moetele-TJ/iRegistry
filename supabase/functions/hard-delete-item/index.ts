@@ -6,7 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { logActivity } from "../shared/logActivity.ts";
 import { validateSession } from "../shared/validateSession.ts";
-import { roleIs } from "../shared/roles.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -80,9 +80,9 @@ serve(async (req) => {
     }
 
     const isOwner = item.ownerid === actorUserId;
-    const isAdmin = roleIs(actorRole, "admin");
+    const isPrivileged = isPrivilegedRole(actorRole);
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isPrivileged) {
       return respond(
         {
           success: false,
@@ -98,7 +98,7 @@ serve(async (req) => {
 
     let auditMetadata: Record<string, unknown> = {};
 
-    if (!isAdmin) {
+    if (!isPrivileged) {
       if (!item.deletedat) {
         return respond(
           {
@@ -162,7 +162,9 @@ serve(async (req) => {
       };
     } else {
       auditMetadata = {
-        reason: "ADMIN_ACTION",
+        reason: "STAFF_ACTION",
+        staff_role: actorRole,
+        target_owner_id: item.ownerid,
       };
     }
 
@@ -173,7 +175,7 @@ serve(async (req) => {
       .delete()
       .eq("id", id);
 
-    if (!isAdmin) {
+    if (!isPrivileged) {
       deleteQuery = deleteQuery.not("deletedat", "is", null);
     }
 

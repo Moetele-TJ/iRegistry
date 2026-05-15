@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useMatch } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
+import PrivilegedItemDeleteModal from "../components/PrivilegedItemDeleteModal.jsx";
 import Toast from "../components/Toast.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -29,6 +30,13 @@ import {
 } from "../lib/itemState.js";
 import { normalizeItemFromDB } from "../contexts/ItemsContext.jsx";
 import { orgPathSegment } from "../lib/orgPath.js";
+import {
+  findActiveReplacementForDeletedItem,
+  canPermanentlyDeleteDeletedItem,
+  isStaffDeletingOthersItem,
+  SOFT_DELETE_CONFIRM_MESSAGE,
+  PERMANENT_DELETE_CONFIRM_MESSAGE,
+} from "../lib/itemLifecycleUx.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function formatPoliceCaseStatus(status) {
@@ -161,6 +169,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     restoreItem,
     markLegacyItem,
     restoreLegacyItem,
+    hardDeleteItem,
     refreshItems,
   } = useItems();
 
@@ -297,6 +306,14 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const [policeAdvanceModal, setPoliceAdvanceModal] = useState(null);
   const [policeAdvanceNote, setPoliceAdvanceNote] = useState("");
   const [policeAdvanceEvidenceLine, setPoliceAdvanceEvidenceLine] = useState("");
+  const [staffDeleteTarget, setStaffDeleteTarget] = useState(null);
+  const [staffDeleteBusy, setStaffDeleteBusy] = useState(false);
+
+  function formatItemOwnerLabel(it) {
+    if (!it) return null;
+    const name = `${String(it.ownerFirstName || "").trim()} ${String(it.ownerLastName || "").trim()}`.trim();
+    return name || it.ownerEmail || it.ownerId || null;
+  }
 
   function openConfirm(opts = {}) {
     setConfirmState({
@@ -594,15 +611,66 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   function confirmRestoreDeleted(id) {
     const it = items.find((x) => x.id === id);
     if (!it) return;
+    const replacement = findActiveReplacementForDeletedItem(it, items);
+    let message = `Restore "${it.name || it.id}" back to your active items?`;
+    if (replacement) {
+      message += `\n\nYou already have an active registration with the same serial ("${replacement.name || replacement.id}"). Restore may fail — consider permanently deleting this recycle-bin copy instead.`;
+    }
     openConfirm({
       title: "Restore item",
-      message: `Restore "${it.name || it.id}" back to your active items?`,
+      message,
       confirmLabel: "Restore",
       cancelLabel: "Cancel",
       danger: false,
       action: doRestoreDeleted,
       arg: id,
       afterConfirmMessage: `${it.name || it.id} restored`,
+    });
+  }
+
+  async function doPermanentDelete(id) {
+    try {
+      await hardDeleteItem(id);
+    } catch (err) {
+      setToast({
+        message: err.message || "Failed to permanently delete item",
+        type: "error",
+        visible: true,
+      });
+      setTimeout(() => {
+        setToast((t) => ({ ...t, visible: false }));
+      }, 4000);
+      throw err;
+    }
+  }
+
+  function confirmPermanentDelete(id) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    if (!canPermanentlyDeleteDeletedItem(it, items, role)) {
+      setToast({
+        message:
+          "Permanent delete is only available when you have an active item registered with the same serial number.",
+        type: "error",
+        visible: true,
+      });
+      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 4000);
+      return;
+    }
+    const replacement = findActiveReplacementForDeletedItem(it, items);
+    let message = PERMANENT_DELETE_CONFIRM_MESSAGE;
+    if (replacement) {
+      message += `\n\nActive replacement: "${replacement.name || replacement.id}" (same serial).`;
+    }
+    openConfirm({
+      title: "Delete permanently",
+      message,
+      confirmLabel: "Delete permanently",
+      cancelLabel: "Cancel",
+      danger: true,
+      action: doPermanentDelete,
+      arg: id,
+      afterConfirmMessage: `${it.name || it.id} permanently deleted`,
     });
   }
 
@@ -812,19 +880,58 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     });
   }
 
+  async function handleStaffDeleteConfirm(mode) {
+    const it = staffDeleteTarget;
+    if (!it?.id) return;
+    setStaffDeleteBusy(true);
+    try {
+      if (mode === "permanent") {
+        await hardDeleteItem(it.id);
+        setToast({
+          message: `${it.name || it.id} permanently deleted`,
+          type: "success",
+          visible: true,
+        });
+      } else {
+        await deleteItem(it.id);
+        setToast({
+          message: `${it.name || it.id} moved to recycle bin`,
+          type: "success",
+          visible: true,
+        });
+      }
+      setStaffDeleteTarget(null);
+      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
+    } catch (err) {
+      setToast({
+        message: err.message || "Failed to delete item",
+        type: "error",
+        visible: true,
+      });
+      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 4000);
+    } finally {
+      setStaffDeleteBusy(false);
+    }
+  }
+
   function confirmDelete(id) {
     const it = items.find((x) => x.id === id);
     if (!it) return;
 
+    if (isStaffDeletingOthersItem(it, user)) {
+      setStaffDeleteTarget(it);
+      return;
+    }
+
     openConfirm({
-      title: "Delete item",
-      message: `Delete "${it.name || it.id}" permanently?\n\nThis action cannot be undone.`,
-      confirmLabel: "Delete",
+      title: "Move to recycle bin",
+      message: `Move "${it.name || it.id}" to your recycle bin?\n\n${SOFT_DELETE_CONFIRM_MESSAGE}`,
+      confirmLabel: "Move to recycle bin",
       cancelLabel: "Cancel",
-      danger: true,
+      danger: false,
       action: doDelete,
       arg: id,
-      afterConfirmMessage: `${it.name || it.id} deleted`,
+      afterConfirmMessage: `${it.name || it.id} moved to recycle bin`,
     });
   }
 
@@ -911,6 +1018,17 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         cancelLabel={confirmState.cancelLabel}
         danger={confirmState.danger}
         children={confirmState.children}
+      />
+
+      <PrivilegedItemDeleteModal
+        isOpen={!!staffDeleteTarget}
+        onClose={() => !staffDeleteBusy && setStaffDeleteTarget(null)}
+        itemName={staffDeleteTarget?.name || staffDeleteTarget?.id || "Item"}
+        ownerLabel={formatItemOwnerLabel(staffDeleteTarget)}
+        allowSoft={!staffDeleteTarget?.deletedAt}
+        allowPermanent
+        loading={staffDeleteBusy}
+        onConfirm={handleStaffDeleteConfirm}
       />
 
       {policeAdvanceModal ? (
@@ -1003,7 +1121,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                   {showStationQueue
                     ? "Open cases reported to your station (matched on the case record). Item status and case pipeline are shown below."
                     : view === "deleted"
-                      ? "Soft-deleted items you can restore back to active."
+                      ? "Recycle bin — restore items or permanently delete when you have replaced them with an active registration."
                       : view === "legacy"
                         ? "Obsolete items kept for reference (read-only). Restore to bring them back to active."
                         : showUserPromoUx
@@ -1478,12 +1596,22 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                                       </RippleButton>
                                     </>
                                   ) : view === "deleted" ? (
-                                    <RippleButton
-                                      className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
-                                      onClick={() => confirmRestoreDeleted(item.id)}
-                                    >
-                                      Restore
-                                    </RippleButton>
+                                    <>
+                                      <RippleButton
+                                        className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
+                                        onClick={() => confirmRestoreDeleted(item.id)}
+                                      >
+                                        Restore
+                                      </RippleButton>
+                                      {canPermanentlyDeleteDeletedItem(item, items, role) ? (
+                                        <RippleButton
+                                          className="px-2 py-1 rounded-md bg-white text-red-700 border border-red-100 text-xs"
+                                          onClick={() => confirmPermanentDelete(item.id)}
+                                        >
+                                          Delete permanently
+                                        </RippleButton>
+                                      ) : null}
+                                    </>
                                   ) : view === "legacy" ? (
                                     <RippleButton
                                       className="px-2 py-1 rounded-md bg-white text-emerald-700 border border-emerald-100 text-xs"
@@ -1717,6 +1845,44 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                             );
                           })()}
                       </>
+                    ) : view === "deleted" ? (
+                      <div className="flex flex-col gap-2">
+                        <RippleButton
+                          className="w-full py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
+                          onClick={() => navigate("/items/" + item.slug)}
+                        >
+                          View
+                        </RippleButton>
+                        <RippleButton
+                          className="w-full py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium"
+                          onClick={() => confirmRestoreDeleted(item.id)}
+                        >
+                          Restore
+                        </RippleButton>
+                        {canPermanentlyDeleteDeletedItem(item, items, role) ? (
+                          <RippleButton
+                            className="w-full py-2 rounded-xl bg-red-700 text-white text-sm font-medium"
+                            onClick={() => confirmPermanentDelete(item.id)}
+                          >
+                            Delete permanently
+                          </RippleButton>
+                        ) : null}
+                      </div>
+                    ) : view === "legacy" ? (
+                      <div className="flex gap-2">
+                        <RippleButton
+                          className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
+                          onClick={() => navigate("/items/" + item.slug)}
+                        >
+                          View
+                        </RippleButton>
+                        <RippleButton
+                          className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium"
+                          onClick={() => confirmRestoreLegacy(item.id)}
+                        >
+                          Restore
+                        </RippleButton>
+                      </div>
                     ) : (
                       <div className="flex gap-2">
                         <RippleButton
