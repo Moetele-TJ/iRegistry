@@ -10,6 +10,7 @@ import CreditsSummaryStrip from "../components/CreditsSummaryStrip.jsx";
 import { useDashboard } from "../hooks/useDashboard";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 import PromoModeBanner from "../components/PromoModeBanner.jsx";
+import { filterActivityForViewer } from "../lib/activityVisibility.js";
 
 function useCountUp(target = 0, duration = 800) {
   const [value, setValue] = useState(0);
@@ -55,7 +56,11 @@ export default function UserDashboard() {
   const stolenAnimated = useCountUp(stolenCount);
   const notifAnimated = useCountUp(notifTotal);
 
-  const activity = data?.personal?.activity?.data || [];
+  const activity = filterActivityForViewer(
+    data?.personal?.activity?.data || [],
+    user?.id,
+    user?.role
+  );
   const activityLoading = loading;
 
   const pagination = data?.personal?.activity?.pagination;
@@ -94,7 +99,7 @@ export default function UserDashboard() {
             <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto leading-relaxed">
               {promoActive ? (
                 <>
-                  Add a phone, laptop, bicycle, or any valuable item — takes about 3 minutes.
+                  Add a phone, laptop, bicycle, or any valuable item with a serial number— takes about 2 minutes.
                   You&apos;ll get a verifiable record on Botswana&apos;s digital asset registry.
                 </>
               ) : (

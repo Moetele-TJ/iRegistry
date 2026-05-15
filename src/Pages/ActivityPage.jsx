@@ -9,6 +9,7 @@ import { groupActivityByDate } from "../utils/groupActivityByDate";
 import PageSectionCard from "./shared/PageSectionCard.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { isPrivilegedRole } from "../lib/billingUx.js";
+import { filterActivityForViewer } from "../lib/activityVisibility.js";
 
 export default function ActivityPage() {
 
@@ -25,7 +26,12 @@ export default function ActivityPage() {
     });
 
     const privileged = isPrivilegedRole(user?.role);
-    const mineActivity = data?.personal?.activity?.data || [];
+    const mineActivityRaw = data?.personal?.activity?.data || [];
+    const mineActivity = filterActivityForViewer(
+      mineActivityRaw,
+      user?.id,
+      user?.role
+    );
     const systemActivity = data?.roleData?.systemActivity?.data || [];
     const activity = privileged && scope === "system" ? systemActivity : mineActivity;
     const pagination = privileged && scope === "system"

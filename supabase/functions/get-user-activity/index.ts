@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
+import { isActivityVisibleToViewer } from "../shared/activityVisibility.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -80,18 +81,28 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    const activity = (rows || []).map((r: Record<string, unknown>) => ({
-      id: r.id,
-      entity_type: "user",
-      entity_id: r.user_id,
-      entity_name: r.user_display_name,
-      action: r.action,
-      message: r.message,
-      metadata: r.metadata,
-      created_at: r.created_at,
-      actor_id: r.actor_id,
-      actor_role: r.actor_role,
-    }));
+    const viewerRole = String(session.role || "user");
+    const viewerId = String(session.user_id);
+    const viewingSelf = String(userId) === viewerId;
+
+    const activity = (rows || [])
+      .map((r: Record<string, unknown>) => ({
+        id: r.id,
+        entity_type: "user",
+        entity_id: r.user_id,
+        entity_name: r.user_display_name,
+        action: r.action,
+        message: r.message,
+        metadata: r.metadata,
+        created_at: r.created_at,
+        actor_id: r.actor_id,
+        actor_role: r.actor_role,
+      }))
+      .filter((row) =>
+        !viewingSelf ||
+        isPrivilegedRole(viewerRole) ||
+        isActivityVisibleToViewer(row, viewerId, viewerRole)
+      );
 
     return respond(
       {

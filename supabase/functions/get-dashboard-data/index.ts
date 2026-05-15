@@ -7,7 +7,8 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
-import { getPoliceCaseActivity } from "../shared/getPoliceCaseActivity.ts"
+import { getPoliceCaseActivity } from "../shared/getPoliceCaseActivity.ts";
+import { isActivityVisibleToViewer } from "../shared/activityVisibility.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -19,6 +20,66 @@ function displayName(row: any) {
   const l = String(row?.last_name || "").trim();
   const full = `${f} ${l}`.trim();
   return full || String(row?.email || "").trim() || (row?.id ? String(row.id) : "—");
+}
+
+const PERSONAL_ACTIVITY_SELECT = `
+  id,
+  actor_id,
+  actor_role,
+  entity_type,
+  entity_id,
+  entity_name,
+  action,
+  message,
+  metadata,
+  created_at
+`;
+
+async function fetchFilteredPersonalActivity(
+  supabaseClient: ReturnType<typeof createClient>,
+  userId: string,
+  role: string,
+  itemIds: string[],
+  page: number,
+  limit: number,
+) {
+  const batchSize = Math.max(limit * 5, 25);
+  const maxScan = 2000;
+  const allVisible: Record<string, unknown>[] = [];
+  let dbOffset = 0;
+
+  while (dbOffset < maxScan) {
+    let q = supabaseClient
+      .from("unified_activity_feed")
+      .select(PERSONAL_ACTIVITY_SELECT)
+      .order("created_at", { ascending: false })
+      .range(dbOffset, dbOffset + batchSize - 1);
+
+    if (itemIds.length > 0) {
+      q = q.or(`actor_id.eq.${userId},entity_id.in.(${itemIds.join(",")})`);
+    } else {
+      q = q.eq("actor_id", userId);
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    const rows = (data ?? []) as Record<string, unknown>[];
+    for (const row of rows) {
+      if (isActivityVisibleToViewer(row as any, userId, role)) {
+        allVisible.push(row);
+      }
+    }
+
+    dbOffset += rows.length;
+    if (rows.length < batchSize) break;
+  }
+
+  const targetStart = (page - 1) * limit;
+  return {
+    pageData: allVisible.slice(targetStart, targetStart + limit),
+    total: allVisible.length,
+  };
 }
 
 async function attachActorDetails(supabaseClient: any, rows: any[]) {
@@ -97,7 +158,6 @@ serve(async (req) => {
 
     const safeLimit = Math.min(Number(limit) || 5, 50);
     const safePage = Math.max(Number(page) || 1, 1);
-    const offset = (safePage - 1) * safeLimit;
 
     /* ================================
        1️⃣ PERSONAL SCOPE (ALWAYS)
@@ -156,36 +216,16 @@ serve(async (req) => {
 
     const itemIds = (userItems || []).map(i => i.id);
 
-    let activityQuery = supabase
-      .from("unified_activity_feed")
-      .select(
-        `
-          id,
-          actor_id,
-          actor_role,
-          entity_type,
-          entity_id,
-          entity_name,
-          action,
-          message,
-          metadata,
-          created_at
-        `,
-        { count: "exact" }
-      )
-      .order("created_at", { ascending: false })
-      .range(offset, offset + safeLimit - 1);
-
-    if (itemIds.length > 0) {
-      activityQuery = activityQuery.or(
-        `actor_id.eq.${userId},entity_id.in.(${itemIds.join(",")})`
+    const { pageData: personalActivityRaw, total: personalCount } =
+      await fetchFilteredPersonalActivity(
+        supabase,
+        userId,
+        role,
+        itemIds,
+        safePage,
+        safeLimit,
       );
-    } else {
-      activityQuery = activityQuery.eq("actor_id", userId);
-    }
-
-    const { data: personalActivityRaw, count: personalCount } = await activityQuery;
-    const personalActivity = await attachActorDetails(supabase, personalActivityRaw ?? []);
+    const personalActivity = await attachActorDetails(supabase, personalActivityRaw);
 
     const personal = {
       summary: {
