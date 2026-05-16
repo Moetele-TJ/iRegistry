@@ -1678,70 +1678,61 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                   {/* Top Section */}
                   <div className="flex gap-3">
                     
-                    {/* Thumbnail */}
-                    <div className={`
-                      w-16 h-16 rounded-xl overflow-hidden flex-shrink-0
+                    {/* Thumbnail + status below */}
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
+                      <div
+                        className={`
+                      w-16 h-16 rounded-xl overflow-hidden
                       ${isStolen
                         ? "ring-1 ring-red-200 bg-red-50"
                         : "ring-1 ring-emerald-200 bg-emerald-50"}
-                    `}>
-                      {itemThumbnailSrc(item) ? (
-                        <img
-                          src={
-                            signedThumbByItemId?.[item.id] ||
-                            itemThumbnailSrc(item)
-                          }
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
-                          No Image
-                        </div>
-                      )}
+                    `}
+                      >
+                        {itemThumbnailSrc(item) ? (
+                          <img
+                            src={
+                              signedThumbByItemId?.[item.id] ||
+                              itemThumbnailSrc(item)
+                            }
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        className={`
+                          inline-flex w-full justify-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold border text-center leading-tight
+                          ${isStolen
+                            ? "bg-red-100 text-red-700 border-red-200"
+                            : "bg-emerald-100 text-emerald-700 border-emerald-200"}
+                        `}
+                      >
+                        {st}
+                      </span>
                     </div>
 
                     {/* Title + Meta */}
                     <div className="flex-1 min-w-0">
                       <div
                         onClick={() => navigate("/items/" + item.slug)}
-                        className="font-semibold text-gray-900 truncate cursor-pointer hover:text-iregistrygreen transition"
+                        className="font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-iregistrygreen transition"
                       >
                         {item.name}
                       </div>
 
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 mt-1 uppercase tracking-wide">
                         {item.category}
                       </div>
 
-                      <div className="text-xs text-gray-400 mt-1 tracking-wide">
+                      <div className="text-xs text-gray-400 mt-1 tracking-wide break-all">
                         Serial: {item.serial1 || "—"}
                       </div>
                     </div>
 
-                    {/* Status Badge */}
-                    <div>
-                      <div className="flex flex-col items-end">
-
-                        <span
-                          className={`
-                            inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border
-                            ${isStolen
-                              ? "bg-red-100 text-red-700 border-red-200"
-                              : "bg-emerald-100 text-emerald-700 border-emerald-200"}
-                          `}
-                        >
-                          {st}
-                        </span>
-
-                        {isStolen && item.reportedStolenAt && (
-                          <div className="text-[11px] text-red-500 mt-1">
-                            Reported {new Date(item.reportedStolenAt).toLocaleDateString("en-BW")}
-                          </div>
-                        )}
-
-                      </div>
-                    </div>
                   </div>
 
                   {/* Divider */}
