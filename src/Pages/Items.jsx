@@ -195,7 +195,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [sortBy] = useState("name"); // name | lastSeen | status
   const [page, setPage] = useState(1);
-  const perPage = 8;
+  const perPage = 10;
 
   // If bucket is private, we need signed URLs for thumbnails.
   const [signedThumbByItemId, setSignedThumbByItemId] = useState({});
@@ -720,16 +720,13 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     return list;
   }, [items, statusFilter, categoryFilter, query, sortBy]);
 
-  useEffect(() => {
-  setPage(1);
-}, [query, statusFilter, categoryFilter, sortBy]);
-
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / perPage));
 
   useEffect(() => {
+    if (!scopeRestored || loading || total === 0) return;
     setPage((p) => (p > totalPages ? totalPages : p));
-  }, [totalPages]);
+  }, [totalPages, scopeRestored, loading, total]);
 
   const pageItems = useMemo(() => {
     const start = (page - 1) * perPage;
@@ -2215,12 +2212,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         </div>
 
         {/* pagination */}
-        <div className="flex items-center justify-between pt-1 border-t border-gray-100/80">
-          <div className="text-sm text-gray-600">
+        <div className="flex flex-col gap-3 pt-3 border-t border-gray-100/80 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:pt-1">
+          <div className="text-sm text-gray-600 text-center sm:text-left">
             Showing <strong>{startIndex}</strong> - <strong>{endIndex}</strong> of <strong>{total}</strong>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 sm:justify-end">
             <RippleButton
               className="px-3 py-1 rounded-md bg-white border border-gray-200"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
