@@ -37,10 +37,15 @@ import {
   SOFT_DELETE_CONFIRM_MESSAGE,
   PERMANENT_DELETE_CONFIRM_MESSAGE,
 } from "../lib/itemLifecycleUx.js";
+import {
+  PRIVILEGED_VIEW_ALL,
+  readItemsListScope,
+  writeItemsListScope,
+  clearAllItemsListScopeForUser,
+  getItemsListScrollY,
+  setItemsListScrollY,
+} from "../lib/itemsListScopeStorage.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
-/** Admin/cashier "View as" — load items for every owner (no ownerId filter). */
-const PRIVILEGED_VIEW_ALL = "__all__";
 
 function formatPoliceCaseStatus(status) {
   if (!status) return "—";
@@ -200,6 +205,11 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const [policeShowStolenAtStation, setPoliceShowStolenAtStation] = useState(false);
   const didInitPoliceStationViewRef = useRef(false);
   const [selectedOwnerId, setSelectedOwnerId] = useState(user?.id || "");
+  /** Privileged list: wait for sessionStorage restore before fetching (avoids flashing "my items"). */
+  const [scopeRestored, setScopeRestored] = useState(false);
+  const sessionKeyRef = useRef(null);
+  const pendingScrollYRef = useRef(null);
+  const didRestoreScrollRef = useRef(false);
   const [assignedOrgItems, setAssignedOrgItems] = useState([]);
 
   const isPrivileged = isPrivilegedRole(role);
@@ -262,11 +272,99 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   }
 
   useEffect(() => {
-    // Reset scope defaults when switching sessions/roles.
-    setPoliceShowStolenAtStation(false);
-    didInitPoliceStationViewRef.current = false;
-    setSelectedOwnerId(user?.id || "");
+    const key = user?.id ? `${user.id}:${role ?? ""}` : null;
+    if (!key) {
+      setScopeRestored(false);
+      sessionKeyRef.current = null;
+      return;
+    }
+
+    const prev = sessionKeyRef.current;
+    sessionKeyRef.current = key;
+
+    if (prev && prev !== key) {
+      setPoliceShowStolenAtStation(false);
+      didInitPoliceStationViewRef.current = false;
+      const prevUserId = prev.split(":")[0];
+      const nextUserId = key.split(":")[0];
+      if (prevUserId && nextUserId && prevUserId !== nextUserId) {
+        clearAllItemsListScopeForUser(prevUserId);
+      }
+    }
   }, [user?.id, role]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setScopeRestored(false);
+      return;
+    }
+    const saved = readItemsListScope(user.id, view);
+    if (isPrivileged) {
+      if (saved?.ownerScope) setSelectedOwnerId(saved.ownerScope);
+      else setSelectedOwnerId(user.id);
+    } else {
+      setSelectedOwnerId(user.id);
+    }
+    if (typeof saved?.query === "string") setQuery(saved.query);
+    if (saved?.statusFilter) setStatusFilter(saved.statusFilter);
+    if (saved?.categoryFilter) setCategoryFilter(saved.categoryFilter);
+    const p = Number(saved?.page);
+    if (p >= 1) setPage(p);
+    const sy = Number(saved?.scrollY);
+    pendingScrollYRef.current =
+      Number.isFinite(sy) && sy > 0 ? sy : null;
+    didRestoreScrollRef.current = false;
+
+    setScopeRestored(true);
+  }, [user?.id, isPrivileged, view]);
+
+  function persistItemsListScope(scrollY = getItemsListScrollY()) {
+    if (!user?.id || !scopeRestored) return;
+    const scope = {
+      query,
+      statusFilter,
+      categoryFilter,
+      page,
+      scrollY,
+    };
+    if (isPrivileged) scope.ownerScope = selectedOwnerId;
+    writeItemsListScope(user.id, view, scope);
+  }
+
+  useEffect(() => {
+    persistItemsListScope();
+  }, [
+    user?.id,
+    isPrivileged,
+    scopeRestored,
+    view,
+    selectedOwnerId,
+    query,
+    statusFilter,
+    categoryFilter,
+    page,
+  ]);
+
+  useEffect(() => {
+    if (!user?.id || !scopeRestored) return;
+    let timer;
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => persistItemsListScope(), 120);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [user?.id, scopeRestored, view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    return () => {
+      if (!user?.id) return;
+      persistItemsListScope(getItemsListScrollY());
+    };
+  }, [user?.id, view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!roleIs(role, "police")) return;
@@ -280,7 +378,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   useEffect(() => {
     // When used as a dedicated page (deleted/legacy), refresh the backing list accordingly.
     // The main ItemsProvider initial load fetches active items; this overrides it when needed.
-    if (!user?.id) return;
+    if (!user?.id || !scopeRestored) return;
     const base = isPrivileged
       ? fetchParamsForItemsView(selectedOwnerId || user.id)
       : fetchParamsForItemsView(user.id);
@@ -289,7 +387,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
       return;
     }
     void refreshItems(base);
-  }, [view, user?.id, selectedOwnerId, isPrivileged, role, policeShowStolenAtStation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, user?.id, selectedOwnerId, isPrivileged, role, policeShowStolenAtStation, scopeRestored]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Confirm modal state (new pattern: action + arg passed into modal)
   const [confirmState, setConfirmState] = useState({
@@ -507,9 +605,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
 
   async function handlePrivilegedOwnerChange(nextOwnerId) {
     setSelectedOwnerId(nextOwnerId);
-    await refreshItems(fetchParamsForItemsView(nextOwnerId));
     setStatusFilter("All");
     setPage(1);
+    pendingScrollYRef.current = null;
+    didRestoreScrollRef.current = true;
+    setItemsListScrollY(0);
+    await refreshItems(fetchParamsForItemsView(nextOwnerId));
   }
 
   const categories = useMemo(() => {
@@ -627,6 +728,16 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
       cancelled = true;
     };
   }, [pageItems]);
+
+  useEffect(() => {
+    if (!scopeRestored || loading) return;
+    const y = pendingScrollYRef.current;
+    if (y == null || didRestoreScrollRef.current) return;
+    didRestoreScrollRef.current = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setItemsListScrollY(y));
+    });
+  }, [scopeRestored, loading, page, pageItems.length, filtered.length]);
 
   const stats = useMemo(() => {
     const totalItems = items.length;
