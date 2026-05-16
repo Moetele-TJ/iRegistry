@@ -1346,7 +1346,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                   <th className="text-left py-3 px-4">Case</th>
                 ) : null}
                 <th className="text-left py-3 px-4">Last Seen</th>
-                <th className="text-left py-3 px-4">Place</th>
+                <th className="text-left py-3 px-4">Held at</th>
                 <th className="text-left py-3 px-4">Station</th>
                 <th className="text-right py-3 px-4">Est.Value</th>
                 <th className="text-right py-3 px-4">Actions</th>
@@ -1485,7 +1485,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       <td className="py-4 px-5 text-gray-600">
                         {item.lastSeen || "-"}
                       </td>
-                      <td className="py-4 px-5 text-gray-600">
+                      <td className="py-4 px-5 text-gray-600 max-w-[12rem] break-words">
                         {formatItemPlace(item)}
                       </td>
                       <td className="py-4 px-5 text-gray-600">
@@ -1751,12 +1751,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       </div>
                     </div>
 
-                    {/* Place + station */}
+                    {/* Held at + station */}
                     <div>
                       <div className="text-[11px] text-gray-400 uppercase tracking-wide">
-                        Place
+                        Held at
                       </div>
-                      <div className="text-gray-700 font-medium truncate">
+                      <div className="text-gray-700 font-medium break-words">
                         {formatItemPlace(item)}
                       </div>
                     </div>
