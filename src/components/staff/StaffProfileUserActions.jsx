@@ -80,6 +80,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   const displayName = displayUser(targetUser) || "this user";
   const statusLower = deriveUserStatus(targetUser) || "active";
   const accountActive = statusLower === "active";
+  const isDeleted = statusLower === "deleted";
   const lockoutRestricted = statusLower === "suspended" || statusLower === "disabled";
 
   const roleLabel = useMemo(() => ROLE_LABEL, []);
@@ -231,19 +232,24 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
 
   async function quickReactivate() {
     if (isSelf) return;
-    if (statusLower === "active") {
+    if (accountActive) {
       addToast({ type: "info", message: "User is already active." });
       return;
     }
     const ok = await confirm({
       title: "Confirm",
-      message: `Reactivate ${displayName}? They will be able to sign in again.`,
-      confirmLabel: "Reactivate",
+      message: isDeleted
+        ? `Restore ${displayName}? They will be able to sign in again.`
+        : `Reactivate ${displayName}? They will be able to sign in again.`,
+      confirmLabel: isDeleted ? "Restore" : "Reactivate",
       cancelLabel: "Cancel",
       variant: "success",
     }).catch(() => false);
     if (!ok) return;
-    await quickUpdateUser({ status: "active" }, "User reactivated.");
+    await quickUpdateUser(
+      { status: "active" },
+      isDeleted ? "User restored." : "User reactivated.",
+    );
   }
 
   async function handleDelete() {
@@ -253,7 +259,8 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
     }
     const ok = await confirm({
       title: "Confirm",
-      message: "Delete this user? This action cannot be undone.",
+      message:
+        "Close this registry account? The user will be removed from active lists. An administrator can restore the account later.",
       confirmLabel: "Delete",
       cancelLabel: "Cancel",
       danger: true,
@@ -321,7 +328,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   const suspendVerb = suspendStatus === "disabled" ? "Disable" : "Suspend";
   const disabled = busy || addItemLoading;
   const showAccountDropdown =
-    !lockoutRestricted || canAdminister;
+    isDeleted || !lockoutRestricted || canAdminister;
 
   const navButtons = (
     <>
@@ -349,7 +356,18 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
     </>
   );
 
-  const accountButtons = lockoutRestricted ? (
+  const accountButtons = isDeleted ? (
+    canAdminister ? (
+      <RippleButton
+        type="button"
+        className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium whitespace-nowrap disabled:opacity-50"
+        onClick={() => void quickReactivate()}
+        disabled={disabled || isSelf}
+      >
+        Restore
+      </RippleButton>
+    ) : null
+  ) : lockoutRestricted ? (
     canAdminister ? (
       <>
         <RippleButton
@@ -510,7 +528,9 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
               disabled={disabled}
             >
               <option value="">Choose action…</option>
-              {lockoutRestricted ? (
+              {isDeleted ? (
+                canAdminister ? <option value="reactivate">Restore account</option> : null
+              ) : lockoutRestricted ? (
                 <>
                   {canAdminister ? <option value="reactivate">Reactivate</option> : null}
                   {canAdminister ? <option value="delete">Delete user…</option> : null}
@@ -524,7 +544,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
                       <option value="change_role">Change role…</option>
                     </>
                   ) : null}
-                  {canAdminister && !accountActive && statusLower !== "deleted" ? (
+                  {canAdminister && !accountActive ? (
                     <option value="reactivate">Reactivate</option>
                   ) : null}
                   {accountActive ? <option value="edit">Edit user</option> : null}
@@ -535,7 +555,9 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
           </div>
         ) : (
           <p className="text-xs text-gray-500 leading-snug sm:flex-1">
-            Suspended or disabled accounts can only be reactivated or removed by an administrator.
+            {isDeleted
+              ? "Deleted accounts can only be restored by an administrator."
+              : "Suspended or disabled accounts can only be reactivated or removed by an administrator."}
           </p>
         )}
         <div className="min-w-0 flex-1">

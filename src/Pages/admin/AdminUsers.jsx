@@ -197,6 +197,7 @@ function UserRowActionControls({
   /** Suspended or disabled: no edit / role change — only reactivate or delete. */
   const lockoutRestricted =
     statusLower === "suspended" || statusLower === "disabled";
+  const isDeleted = statusLower === "deleted";
 
   /** Cashiers may only open Edit; suspend/reactivate/delete/role are admin-only on the server. */
   const showAdminActions = !!canAdminister;
@@ -229,9 +230,11 @@ function UserRowActionControls({
     >
       {/* Mobile: single action dropdown (no buttons/role dropdown) */}
       <div className="sm:hidden">
-        {lockoutRestricted && !showAdminActions ? (
+        {((lockoutRestricted || isDeleted) && !showAdminActions) ? (
           <p className="text-xs text-gray-500 mt-1 max-w-[18rem] leading-snug">
-            Suspended or disabled accounts can only be reactivated or removed by an administrator.
+            {isDeleted
+              ? "Deleted accounts can only be restored by an administrator."
+              : "Suspended or disabled accounts can only be reactivated or removed by an administrator."}
           </p>
         ) : (
           <>
@@ -252,7 +255,9 @@ function UserRowActionControls({
               disabled={loading || rowBusy}
             >
               <option value="">Select…</option>
-              {lockoutRestricted ? (
+              {isDeleted ? (
+                <option value="reactivate">Restore account</option>
+              ) : lockoutRestricted ? (
                 <>
                   <option value="reactivate">Reactivate</option>
                   <option value="delete">Delete…</option>
@@ -308,7 +313,17 @@ function UserRowActionControls({
         </div>
       ) : null}
       <div ref={btnRowRef} className="hidden sm:flex flex-row flex-nowrap items-center gap-2 self-start">
-        {showAdminActions && statusLower !== "active" ? (
+        {showAdminActions && isDeleted ? (
+          <RippleButton
+            type="button"
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50 whitespace-nowrap"
+            onClick={onReactivate}
+            disabled={loading || rowBusy || self}
+          >
+            Restore
+          </RippleButton>
+        ) : null}
+        {showAdminActions && !isDeleted && statusLower !== "active" ? (
           <RippleButton
             type="button"
             className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm disabled:opacity-50 whitespace-nowrap"
@@ -338,7 +353,7 @@ function UserRowActionControls({
             </RippleButton>
           </>
         ) : null}
-        {!lockoutRestricted ? (
+        {!lockoutRestricted && !isDeleted ? (
           <RippleButton
             className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
             onClick={onEdit}
@@ -347,7 +362,7 @@ function UserRowActionControls({
             Edit
           </RippleButton>
         ) : null}
-        {showAdminActions ? (
+        {showAdminActions && !isDeleted ? (
           <RippleButton
             className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border text-sm disabled:opacity-50 whitespace-nowrap"
             onClick={onDelete}
@@ -935,15 +950,22 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       addToast({ type: "info", message: "User is already active." });
       return;
     }
+    const deleted = st === "deleted";
     const ok = await confirm({
       title: "Confirm",
-      message: `Reactivate ${displayName(u)}? They will be able to sign in again.`,
-      confirmLabel: "Reactivate",
+      message: deleted
+        ? `Restore ${displayName(u)}? They will be able to sign in again.`
+        : `Reactivate ${displayName(u)}? They will be able to sign in again.`,
+      confirmLabel: deleted ? "Restore" : "Reactivate",
       cancelLabel: "Cancel",
       variant: "success",
     }).catch(() => false);
     if (!ok) return;
-    await quickUpdateUser(u.id, { status: "active" }, "User reactivated.");
+    await quickUpdateUser(
+      u.id,
+      { status: "active" },
+      deleted ? "User restored." : "User reactivated.",
+    );
   }
 
   async function handleDelete(id) {
@@ -953,7 +975,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     }
     const ok = await confirm({
       title: "Confirm",
-      message: "Delete this user? This action cannot be undone.",
+      message:
+        "Close this registry account? The user will be removed from active lists. An administrator can restore the account later.",
       confirmLabel: "Delete",
       cancelLabel: "Cancel",
       danger: true,

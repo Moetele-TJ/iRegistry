@@ -64,8 +64,108 @@ serve(async (req) => {
       .eq("id", id)
       .maybeSingle();
 
-    if (fetchErr || !existing || existing.deleted_at) {
+    if (fetchErr || !existing) {
       return respond({ success: false, message: "User not found" }, corsHeaders, 404);
+    }
+
+    // Soft-deleted users can only be restored (admin, status => active).
+    if (existing.deleted_at) {
+      if (!roleIs(session.role, "admin")) {
+        return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+      }
+      const nextStatus = "status" in updates
+        ? String((updates as { status?: unknown }).status ?? "").trim().toLowerCase()
+        : "";
+      const restoreOnly =
+        nextStatus === "active" &&
+        Object.keys(updates).every((k) => k === "status");
+      if (!restoreOnly) {
+        return respond(
+          {
+            success: false,
+            message:
+              "This account is deleted. Restore it before making other changes.",
+          },
+          corsHeaders,
+          403,
+        );
+      }
+
+      const { data: restored, error: restoreErr } = await supabase
+        .from("users")
+        .update({
+          deleted_at: null,
+          suspended_at: null,
+          suspended_reason: null,
+          disabled_at: null,
+          disabled_reason: null,
+        })
+        .eq("id", id)
+        .select(
+          "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, date_of_birth",
+        )
+        .single();
+
+      if (restoreErr || !restored) {
+        return respond(
+          { success: false, message: restoreErr?.message || "Failed to restore user" },
+          corsHeaders,
+          500,
+        );
+      }
+
+      await supabase
+        .from("sessions")
+        .update({ revoked: true })
+        .eq("user_id", id)
+        .eq("revoked", false);
+
+      await logAudit({
+        supabase,
+        event: "USER_STATUS_CHANGED",
+        user_id: id,
+        channel: "ADMIN",
+        actor_user_id: session.user_id,
+        target_user_id: id,
+        success: true,
+        severity: "high",
+        diag: "USR-RESTORE",
+        metadata: {
+          actor_user_id: session.user_id,
+          target_user_id: id,
+          from: "deleted",
+          to: "active",
+          soft_delete_restore: true,
+        },
+        req,
+      });
+
+      const ru = restored as Record<string, unknown>;
+      const restoredName =
+        [ru.first_name, ru.last_name].filter(Boolean).join(" ").trim() ||
+        String(ru.email || "").trim() ||
+        "User";
+      await logUserActivity(supabase, {
+        actorId: session.user_id,
+        actorRole: String(session.role || "admin"),
+        targetUserId: id,
+        targetDisplayName: restoredName,
+        action: "USER_RESTORED",
+        message: "This registry account was restored by an administrator.",
+        metadata: { soft_delete_restore: true },
+      });
+
+      return respond(
+        {
+          success: true,
+          user: {
+            ...restored,
+            status: deriveUserStatus(restored),
+          },
+        },
+        corsHeaders,
+        200,
+      );
     }
 
     // Prevent privileged users from editing themselves into a lockout accidentally.
