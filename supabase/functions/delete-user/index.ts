@@ -59,14 +59,16 @@ serve(async (req) => {
 
     const now = new Date().toISOString();
 
+    // Soft-delete: deleted_at only. users_derived_status_check requires
+    // disabled_at and suspended_at to be null when deleted_at is set.
     const { error: delErr } = await supabase
       .from("users")
       .update({
         deleted_at: now,
-        disabled_at: now,
-        disabled_reason: "Deleted by admin",
-        suspended_reason: null,
+        disabled_at: null,
+        disabled_reason: null,
         suspended_at: null,
+        suspended_reason: null,
       })
       .eq("id", id);
 

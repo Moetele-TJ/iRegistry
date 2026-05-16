@@ -1106,8 +1106,9 @@ export default function ProfilePage() {
       <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">Profile</h1>
                 <p className="mt-1 text-sm text-gray-500">
                   {viewingOther
@@ -1115,13 +1116,15 @@ export default function ProfilePage() {
                     : "Your account details and registry identity"}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-start md:self-auto shrink-0">
                 {viewingOther && isPrivilegedRole(sessionUser?.role) ? (
-                  <StaffProfileUserActions
-                    targetUser={user}
-                    sessionUser={sessionUser}
-                    onUserUpdated={loadProfile}
-                  />
+                  <div className="hidden md:block">
+                    <StaffProfileUserActions
+                      targetUser={user}
+                      sessionUser={sessionUser}
+                      onUserUpdated={loadProfile}
+                    />
+                  </div>
                 ) : null}
                 {!viewingOther && !editing && !isInactiveLockout(user) ? (
                   <RippleButton
@@ -1161,6 +1164,16 @@ export default function ProfilePage() {
                   Back
                 </RippleButton>
               </div>
+              </div>
+              {viewingOther && isPrivilegedRole(sessionUser?.role) ? (
+                <div className="md:hidden">
+                  <StaffProfileUserActions
+                    targetUser={user}
+                    sessionUser={sessionUser}
+                    onUserUpdated={loadProfile}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1178,8 +1191,8 @@ export default function ProfilePage() {
             {viewingOther ? (
               <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                 You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
-                belong to the account holder. Use the action buttons above for items, credits, transactions, and account
-                management.
+                belong to the account holder. Use the buttons above to suspend, edit, delete, or manage this user’s items and
+                credits.
               </div>
             ) : null}
 

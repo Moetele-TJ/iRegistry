@@ -46,6 +46,10 @@ function btnPrimaryClass(extra = "") {
   return `px-3 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 whitespace-nowrap disabled:opacity-50 ${extra}`.trim();
 }
 
+function btnMobileFull(extra = "") {
+  return `w-full px-3 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 ${extra}`.trim();
+}
+
 /**
  * Staff actions when viewing another user's profile (`/profile?user=…`).
  */
@@ -60,7 +64,6 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   const usersPath = `${base}/users`;
 
   const [busy, setBusy] = useState(false);
-  const [mobileAction, setMobileAction] = useState("");
 
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const [roleNext, setRoleNext] = useState("");
@@ -262,33 +265,6 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
     }
   }
 
-  function runMobileAction(action) {
-    switch (action) {
-      case "items":
-        return goToItems();
-      case "add_item":
-        return void goToAddItem({ ownerId: targetId, ownerLabel: displayName });
-      case "topup":
-        return goToTopup();
-      case "transactions":
-        return goToTransactions();
-      case "edit":
-        return goToEdit();
-      case "change_role":
-        return openRoleModal();
-      case "suspend":
-        return openSuspendModal("suspended");
-      case "disable":
-        return openSuspendModal("disabled");
-      case "reactivate":
-        return void quickReactivate();
-      case "delete":
-        return void handleDelete();
-      default:
-        break;
-    }
-  }
-
   const suspendVerb = suspendStatus === "disabled" ? "Disable" : "Suspend";
   const disabled = busy || addItemLoading;
 
@@ -464,48 +440,137 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
         </div>
       </ConfirmModal>
 
-      <div className="md:hidden w-full min-w-[10rem] max-w-xs">
-        <label className="text-xs text-gray-600" htmlFor="staff-profile-actions-mobile">
-          User actions
-        </label>
-        <select
-          id="staff-profile-actions-mobile"
-          value={mobileAction}
-          onChange={(e) => {
-            const v = e.target.value;
-            setMobileAction(v);
-            if (!v) return;
-            runMobileAction(v);
-            setTimeout(() => setMobileAction(""), 0);
-          }}
-          className="mt-1 w-full border rounded-lg px-2 py-2 text-sm bg-white disabled:opacity-50"
-          disabled={disabled}
-        >
-          <option value="">Select action…</option>
-          <option value="items">View items</option>
-          <option value="add_item">Add item</option>
-          <option value="topup">Top up</option>
-          <option value="transactions">Transactions</option>
+      <div className="md:hidden w-full space-y-4">
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Account management
+          </h3>
           {lockoutRestricted ? (
             <>
-              {canAdminister ? <option value="reactivate">Reactivate</option> : null}
-              {canAdminister ? <option value="delete">Delete…</option> : null}
+              {canAdminister ? (
+                <>
+                  <RippleButton
+                    type="button"
+                    className={btnMobileFull("bg-emerald-600 text-white")}
+                    onClick={() => void quickReactivate()}
+                    disabled={disabled || isSelf}
+                  >
+                    Reactivate
+                  </RippleButton>
+                  <RippleButton
+                    type="button"
+                    className={btnMobileFull("bg-red-600 text-white")}
+                    onClick={() => void handleDelete()}
+                    disabled={disabled || isSelf}
+                  >
+                    Delete user
+                  </RippleButton>
+                </>
+              ) : (
+                <p className="text-xs text-gray-500 leading-snug">
+                  Suspended or disabled accounts can only be reactivated or removed by an administrator.
+                </p>
+              )}
             </>
           ) : (
             <>
-              <option value="edit">Edit</option>
-              {canAdminister ? <option value="change_role">Change role…</option> : null}
+              {canAdminister && statusLower !== "active" ? (
+                <RippleButton
+                  type="button"
+                  className={btnMobileFull("bg-emerald-600 text-white")}
+                  onClick={() => void quickReactivate()}
+                  disabled={disabled || isSelf}
+                >
+                  Reactivate
+                </RippleButton>
+              ) : null}
               {canAdminister && statusLower === "active" ? (
                 <>
-                  <option value="suspend">Suspend…</option>
-                  <option value="disable">Disable…</option>
+                  <RippleButton
+                    type="button"
+                    className={btnMobileFull("bg-amber-500 text-white")}
+                    onClick={() => openSuspendModal("suspended")}
+                    disabled={disabled || isSelf}
+                  >
+                    Suspend
+                  </RippleButton>
+                  <RippleButton
+                    type="button"
+                    className={btnMobileFull("bg-gray-800 text-white")}
+                    onClick={() => openSuspendModal("disabled")}
+                    disabled={disabled || isSelf}
+                  >
+                    Disable
+                  </RippleButton>
                 </>
               ) : null}
-              {canAdminister && statusLower !== "active" ? <option value="reactivate">Reactivate</option> : null}
-              {canAdminister ? <option value="delete">Delete…</option> : null}
+              <RippleButton
+                type="button"
+                className={btnMobileFull("border border-gray-200 bg-white text-gray-800 shadow-sm")}
+                onClick={goToEdit}
+                disabled={disabled}
+              >
+                Edit user
+              </RippleButton>
+              {canAdminister ? (
+                <RippleButton
+                  type="button"
+                  className={btnMobileFull("border border-gray-200 bg-white text-gray-800 shadow-sm")}
+                  onClick={openRoleModal}
+                  disabled={disabled || isSelf}
+                >
+                  Change role
+                </RippleButton>
+              ) : null}
+              {canAdminister ? (
+                <RippleButton
+                  type="button"
+                  className={btnMobileFull("bg-red-50 text-red-700 border border-red-100")}
+                  onClick={() => void handleDelete()}
+                  disabled={disabled || isSelf}
+                >
+                  Delete user
+                </RippleButton>
+              ) : null}
             </>
           )}
-        </select>
+        </section>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Registry</h3>
+          <RippleButton
+            type="button"
+            className={btnMobileFull("border border-gray-200 bg-white text-gray-800 shadow-sm")}
+            onClick={goToItems}
+            disabled={disabled}
+          >
+            View items
+          </RippleButton>
+          <RippleButton
+            type="button"
+            className={btnMobileFull("bg-iregistrygreen text-white")}
+            onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
+            disabled={disabled || lockoutRestricted}
+          >
+            Add item
+          </RippleButton>
+          <RippleButton
+            type="button"
+            className={btnMobileFull("border border-gray-200 bg-white text-gray-800 shadow-sm")}
+            onClick={goToTopup}
+            disabled={disabled}
+          >
+            Top up credits
+          </RippleButton>
+          <RippleButton
+            type="button"
+            className={btnMobileFull("border border-gray-200 bg-white text-gray-800 shadow-sm")}
+            onClick={goToTransactions}
+            disabled={disabled}
+          >
+            Transactions
+          </RippleButton>
+        </section>
       </div>
 
       <div className="hidden md:flex flex-wrap items-center gap-2">
