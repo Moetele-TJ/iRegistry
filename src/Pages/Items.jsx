@@ -1,5 +1,5 @@
 // src/Pages/Items.jsx
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useMatch } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
@@ -44,6 +44,7 @@ import {
   clearAllItemsListScopeForUser,
   getItemsListScrollY,
   setItemsListScrollY,
+  restoreItemsListScrollY,
 } from "../lib/itemsListScopeStorage.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -210,6 +211,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const sessionKeyRef = useRef(null);
   const pendingScrollYRef = useRef(null);
   const didRestoreScrollRef = useRef(false);
+  const scrollPersistEnabledRef = useRef(false);
+  const scopeSnapshotRef = useRef({});
+  const cancelScrollRestoreRef = useRef(null);
   const [assignedOrgItems, setAssignedOrgItems] = useState([]);
 
   const isPrivileged = isPrivilegedRole(role);
@@ -217,6 +221,46 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const isOrdinaryUser = roleIs(role, "user");
   const promoActive = Boolean(user?.promo_active);
   const showUserPromoUx = isOrdinaryUser && view === "active" && promoActive;
+
+  scopeSnapshotRef.current = {
+    query,
+    statusFilter,
+    categoryFilter,
+    page,
+    ownerScope: isPrivileged ? selectedOwnerId : undefined,
+  };
+
+  const showListLoading = !scopeRestored || loading;
+
+  const flushListScopeNow = useCallback(
+    (scrollY = getItemsListScrollY()) => {
+      if (!user?.id) return;
+      const snap = scopeSnapshotRef.current;
+      const prev = readItemsListScope(user.id, view) || {};
+      let y = Math.max(0, Math.floor(Number(scrollY) || 0));
+      if (y <= 0 && typeof prev.scrollY === "number" && prev.scrollY > 0) {
+        y = prev.scrollY;
+      }
+      const scope = {
+        query: snap.query ?? "",
+        statusFilter: snap.statusFilter ?? "All",
+        categoryFilter: snap.categoryFilter ?? "All",
+        page: snap.page ?? 1,
+        scrollY: y,
+      };
+      if (isPrivileged) scope.ownerScope = snap.ownerScope ?? selectedOwnerId;
+      writeItemsListScope(user.id, view, scope);
+    },
+    [user?.id, view, isPrivileged, selectedOwnerId]
+  );
+
+  const navigateToItem = useCallback(
+    (slug) => {
+      flushListScopeNow();
+      navigate(`/items/${slug}`);
+    },
+    [flushListScopeNow, navigate]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -314,25 +358,26 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     pendingScrollYRef.current =
       Number.isFinite(sy) && sy > 0 ? sy : null;
     didRestoreScrollRef.current = false;
+    scrollPersistEnabledRef.current = false;
 
     setScopeRestored(true);
   }, [user?.id, isPrivileged, view]);
 
-  function persistItemsListScope(scrollY = getItemsListScrollY()) {
+  useEffect(() => {
     if (!user?.id || !scopeRestored) return;
     const scope = {
       query,
       statusFilter,
       categoryFilter,
       page,
-      scrollY,
     };
+    if (scrollPersistEnabledRef.current) {
+      scope.scrollY = getItemsListScrollY();
+    } else if (pendingScrollYRef.current != null) {
+      scope.scrollY = pendingScrollYRef.current;
+    }
     if (isPrivileged) scope.ownerScope = selectedOwnerId;
     writeItemsListScope(user.id, view, scope);
-  }
-
-  useEffect(() => {
-    persistItemsListScope();
   }, [
     user?.id,
     isPrivileged,
@@ -346,25 +391,35 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   ]);
 
   useEffect(() => {
-    if (!user?.id || !scopeRestored) return;
+    if (!user?.id || !scopeRestored || !scrollPersistEnabledRef.current) return;
     let timer;
     const onScroll = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => persistItemsListScope(), 120);
+      timer = setTimeout(() => flushListScopeNow(), 120);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       clearTimeout(timer);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [user?.id, scopeRestored, view]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, scopeRestored, flushListScopeNow]);
 
   useEffect(() => {
     return () => {
+      const y = getItemsListScrollY();
+      if (y > 0) {
+        flushListScopeNow(y);
+        return;
+      }
       if (!user?.id) return;
-      persistItemsListScope(getItemsListScrollY());
+      const prev = readItemsListScope(user.id, view);
+      if (prev?.scrollY > 0) {
+        flushListScopeNow(prev.scrollY);
+      } else {
+        flushListScopeNow(0);
+      }
     };
-  }, [user?.id, view]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [flushListScopeNow, user?.id, view]);
 
   useEffect(() => {
     if (!roleIs(role, "police")) return;
@@ -609,7 +664,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     setPage(1);
     pendingScrollYRef.current = null;
     didRestoreScrollRef.current = true;
+    scrollPersistEnabledRef.current = true;
     setItemsListScrollY(0);
+    flushListScopeNow(0);
     await refreshItems(fetchParamsForItemsView(nextOwnerId));
   }
 
@@ -729,15 +786,37 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     };
   }, [pageItems]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!scopeRestored || loading) return;
+
     const y = pendingScrollYRef.current;
-    if (y == null || didRestoreScrollRef.current) return;
+    if (y == null || y <= 0) {
+      if (!scrollPersistEnabledRef.current) scrollPersistEnabledRef.current = true;
+      return;
+    }
+    if (didRestoreScrollRef.current) return;
+
+    if (cancelScrollRestoreRef.current) {
+      cancelScrollRestoreRef.current();
+      cancelScrollRestoreRef.current = null;
+    }
+
     didRestoreScrollRef.current = true;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setItemsListScrollY(y));
+    cancelScrollRestoreRef.current = restoreItemsListScrollY(y, {
+      onDone: () => {
+        scrollPersistEnabledRef.current = true;
+        flushListScopeNow(y);
+        cancelScrollRestoreRef.current = null;
+      },
     });
-  }, [scopeRestored, loading, page, pageItems.length, filtered.length]);
+
+    return () => {
+      if (cancelScrollRestoreRef.current) {
+        cancelScrollRestoreRef.current();
+        cancelScrollRestoreRef.current = null;
+      }
+    };
+  }, [scopeRestored, loading, page, pageItems.length, filtered.length, flushListScopeNow]);
 
   const stats = useMemo(() => {
     const totalItems = items.length;
@@ -1300,9 +1379,24 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
           </div>
 
           <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 bg-gradient-to-b from-white to-gray-50/40">
+        {showListLoading ? (
+          <div
+            className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent shrink-0" />
+            <span>
+              {!scopeRestored
+                ? "Restoring your list view…"
+                : "Loading items…"}
+            </span>
+          </div>
+        ) : null}
+
         {showUserPromoUx && <PromoModeBanner />}
 
-        {showUserPromoUx && !loading && items.length === 0 && (
+        {showUserPromoUx && !showListLoading && items.length === 0 && (
           <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm p-6 sm:p-8 text-center">
             <div className="text-4xl mb-3">📦</div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
@@ -1437,7 +1531,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       onChange={(e) => {
                         void handlePrivilegedOwnerChange(e.target.value);
                       }}
-                      disabled={usersLoading}
+                      disabled={usersLoading || !scopeRestored}
                       className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                     >
                       <option value={PRIVILEGED_VIEW_ALL}>
@@ -1510,7 +1604,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
 
             <tbody>
               {/* ================= LOADING SKELETON ================= */}
-              {loading &&
+              {showListLoading &&
                 [...Array(perPage)].map((_, i) => (
                   <tr key={i} className="border-t animate-pulse">
                     <td className="py-3 px-4">
@@ -1546,7 +1640,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                 ))}
 
               {/* ================= DATA ROWS ================= */}
-              {!loading &&
+              {!showListLoading &&
                 pageItems.map((item) => {
                   
                   return (
@@ -1574,7 +1668,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                           {/* Name + Serial */}
                           <div>
                             <div className="font-semibold text-gray-900 hover:text-iregistrygreen transition cursor-pointer"
-                                onClick={() => navigate("/items/" + item.slug)}>
+                                onClick={() => navigateToItem(item.slug)}>
                               {item.name}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -1668,7 +1762,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                             <>
                               <RippleButton
                                 className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
-                                onClick={() => navigate("/items/" + item.slug)}
+                                onClick={() => navigateToItem(item.slug)}
                               >
                                 View
                               </RippleButton>
@@ -1692,7 +1786,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                             <>
                               <RippleButton
                                 className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-xs"
-                                onClick={() => navigate("/items/" + item.slug)}
+                                onClick={() => navigateToItem(item.slug)}
                               >
                                 View
                               </RippleButton>
@@ -1801,7 +1895,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                 })}
 
               {/* ================= EMPTY STATE ================= */}
-              {!loading && pageItems.length === 0 && (
+              {!showListLoading && pageItems.length === 0 && (
                 <tr>
                   <td
                     colSpan={tableColCount}
@@ -1886,7 +1980,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                     {/* Title + Meta */}
                     <div className="flex-1 min-w-0">
                       <div
-                        onClick={() => navigate("/items/" + item.slug)}
+                        onClick={() => navigateToItem(item.slug)}
                         className="font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-iregistrygreen transition"
                       >
                         {item.name}
@@ -1994,7 +2088,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       <>
                         <RippleButton
                           className="w-full py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                          onClick={() => navigate("/items/" + item.slug)}
+                          onClick={() => navigateToItem(item.slug)}
                         >
                           View
                         </RippleButton>
@@ -2018,7 +2112,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       <div className="flex flex-col gap-2">
                         <RippleButton
                           className="w-full py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                          onClick={() => navigate("/items/" + item.slug)}
+                          onClick={() => navigateToItem(item.slug)}
                         >
                           View
                         </RippleButton>
@@ -2041,7 +2135,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       <div className="flex gap-2">
                         <RippleButton
                           className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                          onClick={() => navigate("/items/" + item.slug)}
+                          onClick={() => navigateToItem(item.slug)}
                         >
                           View
                         </RippleButton>
@@ -2056,7 +2150,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       <div className="flex gap-2">
                         <RippleButton
                           className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                          onClick={() => navigate("/items/" + item.slug)}
+                          onClick={() => navigateToItem(item.slug)}
                         >
                           View
                         </RippleButton>
@@ -2078,7 +2172,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
             );
           })}
 
-          {!loading && pageItems.length === 0 && (
+          {!showListLoading && pageItems.length === 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
               <div className="text-4xl mb-3">📦</div>
 

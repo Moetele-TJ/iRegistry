@@ -9,7 +9,10 @@ function storageKey(sessionUserId, view) {
 
 export function getItemsListScrollY() {
   if (typeof window === "undefined") return 0;
-  return window.scrollY ?? document.documentElement?.scrollTop ?? 0;
+  const y = window.scrollY ?? 0;
+  const doc = document.documentElement?.scrollTop ?? 0;
+  const body = document.body?.scrollTop ?? 0;
+  return Math.max(y, doc, body);
 }
 
 export function setItemsListScrollY(y) {
@@ -20,6 +23,55 @@ export function setItemsListScrollY(y) {
   } catch {
     window.scrollTo(0, top);
   }
+  if (document.documentElement) document.documentElement.scrollTop = top;
+  if (document.body) document.body.scrollTop = top;
+}
+
+export function getMaxScrollY() {
+  if (typeof window === "undefined") return 0;
+  const doc = document.documentElement;
+  const body = document.body;
+  const height = Math.max(
+    doc?.scrollHeight ?? 0,
+    body?.scrollHeight ?? 0,
+    doc?.offsetHeight ?? 0
+  );
+  return Math.max(0, height - window.innerHeight);
+}
+
+/**
+ * Scroll when layout is tall enough; retries until content paints or attempts exhaust.
+ */
+export function restoreItemsListScrollY(targetY, { maxAttempts = 32, onDone } = {}) {
+  if (typeof window === "undefined") {
+    onDone?.();
+    return () => {};
+  }
+  const y = Math.max(0, Math.floor(Number(targetY) || 0));
+  if (y <= 0) {
+    onDone?.();
+    return () => {};
+  }
+
+  let attempts = 0;
+  let cancelled = false;
+
+  const tick = () => {
+    if (cancelled) return;
+    const maxScroll = getMaxScrollY();
+    if (maxScroll >= y - 12 || attempts >= maxAttempts) {
+      setItemsListScrollY(Math.min(y, maxScroll));
+      onDone?.();
+      return;
+    }
+    attempts += 1;
+    requestAnimationFrame(tick);
+  };
+
+  requestAnimationFrame(tick);
+  return () => {
+    cancelled = true;
+  };
 }
 
 /**
@@ -44,6 +96,13 @@ export function writeItemsListScope(sessionUserId, view, scope) {
   } catch {
     /* ignore quota / private mode */
   }
+}
+
+/** Merge partial fields into stored scope (keeps scrollY unless overridden). */
+export function patchItemsListScope(sessionUserId, view, partial) {
+  if (!sessionUserId || !partial) return;
+  const prev = readItemsListScope(sessionUserId, view) || {};
+  writeItemsListScope(sessionUserId, view, { ...prev, ...partial });
 }
 
 export function clearItemsListScope(sessionUserId, view) {
