@@ -597,6 +597,7 @@ serve(async (req) => {
     let needMarkStolen = false;
     let needUploadPhotos = false;
     let needEditItem = false;
+    let photosAddedCount = 0;
 
     // Billing decisions depend on what actually changed.
     // - Personal items: only bill when both actor and owner are non-privileged.
@@ -610,12 +611,12 @@ serve(async (req) => {
           .filter(Boolean),
       );
       const incoming = cleanUpdates.photos as any[];
-      const hasNew = incoming.some((p) => {
+      photosAddedCount = incoming.filter((p) => {
         const raw = typeof p === "string" ? p : p?.original || p?.thumb || "";
         const key = String(raw || "").trim();
         return key && !existingSet.has(key);
-      });
-      if (hasNew) {
+      }).length;
+      if (photosAddedCount > 0) {
         needUploadPhotos = true;
       }
     }
@@ -769,31 +770,41 @@ serve(async (req) => {
 
     /* ---------------- ACTIVITY LOG ---------------- */
 
+    const itemLabel = String(updatedItem.name || "item").trim() || "item";
+    const photoWord = photosAddedCount === 1 ? "photo" : "photos";
+
     let action = "ITEM_UPDATED";
-    let message = `Updated item ${updatedItem.name}`;
+    let message = `Updated item ${itemLabel}`;
 
     if (stolenFlagChanged) {
       if (becomingStolen) {
         action = "ITEM_REPORTED_STOLEN";
-        message = `${updatedItem.name} was reported stolen`;
+        message = `${itemLabel} was reported stolen`;
       }
 
       if (becomingActive) {
         action = "ITEM_MARKED_ACTIVE";
-        message = `${updatedItem.name} was marked active`;
+        message = `${itemLabel} was marked active`;
       }
-
+    } else if (photosAddedCount > 0 && !hasNonPhotoNonStatusChange) {
+      action = "ITEM_PHOTOS_ADDED";
+      message = `Added ${photosAddedCount} ${photoWord} to ${itemLabel}`;
+    } else if (photosAddedCount > 0) {
+      message = `Updated ${itemLabel} (added ${photosAddedCount} ${photoWord})`;
     }
 
     await logActivity(supabase, {
       actorId: actorUserId,
       actorRole,
+      resourceOwnerUserId: existing.ownerid,
       entityType: "item",
       entityId: id,
       entityName: updatedItem.name,
       action,
       message,
       metadata: {
+        slug: updatedItem.slug ?? null,
+        photos_added: photosAddedCount > 0 ? photosAddedCount : null,
         changes: diff,
       },
     });

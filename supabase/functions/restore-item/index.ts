@@ -166,6 +166,7 @@ serve(async (req) => {
     await logActivity(supabase, {
       actorId: actorUserId,
       actorRole,
+      resourceOwnerUserId: existing.ownerid,
       entityType: "item",
       entityId: id,
       entityName: existing.name ?? null,

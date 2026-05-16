@@ -10,6 +10,7 @@ import PageSectionCard from "./shared/PageSectionCard.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { isPrivilegedRole } from "../lib/billingUx.js";
 import { filterActivityForViewer } from "../lib/activityVisibility.js";
+import { displayActivityActorRole } from "../lib/activityActorRole.js";
 
 export default function ActivityPage() {
 
@@ -180,8 +181,20 @@ export default function ActivityPage() {
                                                 <span className="font-medium text-gray-500">
                                                   {item.actor.display_name}
                                                 </span>
-                                                {item?.actor?.role ? (
-                                                  <span className="text-gray-300"> · {String(item.actor.role)}</span>
+                                                {item?.actor?.role || item?.actor_role ? (
+                                                  <span className="text-gray-300">
+                                                    {" "}
+                                                    ·{" "}
+                                                    {item?.actor?.role ??
+                                                      displayActivityActorRole(item, {
+                                                        resourceOwnerUserId:
+                                                          item.entity_type === "item"
+                                                            ? item.metadata?.ownerId
+                                                            : item.entity_type === "user"
+                                                            ? item.entity_id
+                                                            : null,
+                                                      })}
+                                                  </span>
                                                 ) : null}
                                               </div>
                                             ) : null}

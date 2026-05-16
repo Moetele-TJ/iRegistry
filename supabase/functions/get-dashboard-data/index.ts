@@ -9,6 +9,7 @@ import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 import { getPoliceStation } from "../shared/getPoliceStation.ts";
 import { getPoliceCaseActivity } from "../shared/getPoliceCaseActivity.ts";
 import { isActivityVisibleToViewer } from "../shared/activityVisibility.ts";
+import { resolveActivityActorRole } from "../shared/resolveActivityActorRole.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -94,6 +95,27 @@ async function attachActorDetails(supabaseClient: any, rows: any[]) {
 
   if (actorIds.length === 0) return list;
 
+  const itemIds = Array.from(
+    new Set(
+      list
+        .filter((r) => r?.entity_type === "item" && r?.entity_id)
+        .map((r) => String((r as { entity_id: string }).entity_id)),
+    ),
+  );
+
+  const ownerByItemId = new Map<string, string>();
+  if (itemIds.length > 0) {
+    const { data: items } = await supabaseClient
+      .from("items")
+      .select("id, ownerid")
+      .in("id", itemIds);
+    for (const it of items || []) {
+      if (it?.id && it?.ownerid) {
+        ownerByItemId.set(String(it.id), String(it.ownerid));
+      }
+    }
+  }
+
   const { data: users } = await supabaseClient
     .from("users")
     .select("id, first_name, last_name, email, role")
@@ -107,17 +129,39 @@ async function attachActorDetails(supabaseClient: any, rows: any[]) {
   return list.map((r) => {
     const id = r?.actor_id ? String(r.actor_id) : "";
     const u = id ? byId.get(id) : null;
+    const meta =
+      r?.metadata && typeof r.metadata === "object"
+        ? (r.metadata as Record<string, unknown>)
+        : {};
+    const resourceOwner =
+      r?.entity_type === "item" && r?.entity_id
+        ? ownerByItemId.get(String(r.entity_id)) ??
+          (meta.ownerId as string | undefined) ??
+          (meta.owner_id as string | undefined)
+        : r?.entity_type === "user" && r?.entity_id
+        ? String(r.entity_id)
+        : null;
+    const rawRole = String(r?.actor_role || u?.role || "").trim() || null;
+    const displayRole = rawRole
+      ? resolveActivityActorRole(rawRole, id, resourceOwner)
+      : null;
+
     return {
       ...r,
       actor: u
         ? {
             id: String(u.id),
-            role: String(u.role || r?.actor_role || "").trim() || null,
+            role: displayRole,
             display_name: displayName(u),
             email: u.email || null,
           }
         : r?.actor_id
-        ? { id: String(r.actor_id), role: r?.actor_role || null, display_name: String(r.actor_id), email: null }
+        ? {
+            id: String(r.actor_id),
+            role: displayRole ?? r?.actor_role ?? null,
+            display_name: String(r.actor_id),
+            email: null,
+          }
         : null,
     };
   });

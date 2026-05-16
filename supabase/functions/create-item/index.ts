@@ -441,6 +441,7 @@ serve(async (req) => {
     await logActivity(supabase, {
     actorId: actorUserId,
     actorRole,
+    resourceOwnerUserId: resolvedOwnerId,
     entityType: "item",
     entityId: data.id,
     entityName: data.name,

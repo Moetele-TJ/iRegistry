@@ -1,7 +1,10 @@
 //  src/components/ItemActivityTimeline.jsx
-import { Clock, Search, AlertTriangle, MapPin } from "lucide-react";
+import { Clock, Search, AlertTriangle, MapPin, Camera } from "lucide-react";
+import { displayActivityActorRole } from "../lib/activityActorRole.js";
 
 function iconFor(action) {
+  const a = String(action || "").toUpperCase();
+  if (a.includes("PHOTO")) return <Camera size={14} />;
   if (action?.includes("verify")) return <Search size={14} />;
   if (action?.includes("stolen")) return <AlertTriangle size={14} />;
   if (action?.includes("location")) return <MapPin size={14} />;
@@ -28,8 +31,8 @@ function fmtWhen(iso) {
   }
 }
 
-function actorLine(event) {
-  const role = event.actor_role ? String(event.actor_role) : null;
+function actorLine(event, resourceOwnerUserId) {
+  const role = displayActivityActorRole(event, { resourceOwnerUserId });
   const id = event.actor_id ? String(event.actor_id) : null;
   if (!role && !id) return null;
   const tail = id && id.length > 8 ? `…${id.slice(-6)}` : id;
@@ -38,7 +41,11 @@ function actorLine(event) {
   return tail;
 }
 
-export default function ItemActivityTimeline({ events = [], loading = false }) {
+export default function ItemActivityTimeline({
+  events = [],
+  loading = false,
+  resourceOwnerUserId = null,
+}) {
 
   if (loading) {
     return (
@@ -65,7 +72,7 @@ export default function ItemActivityTimeline({ events = [], loading = false }) {
       <div className="space-y-6">
 
         {events.map((event) => {
-          const actor = actorLine(event);
+          const actor = actorLine(event, resourceOwnerUserId);
           return (
 
           <div key={event.id} className="relative">

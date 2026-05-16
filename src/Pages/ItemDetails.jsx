@@ -1925,7 +1925,11 @@ export default function ItemDetails() {
                       <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                         Activity
                       </div>
-                      <ItemActivityTimeline events={activity} loading={activityLoading} />
+                      <ItemActivityTimeline
+                        events={activity}
+                        loading={activityLoading}
+                        resourceOwnerUserId={item?.ownerId}
+                      />
                     </div>
                   </>
                 ) : null}

@@ -7,12 +7,14 @@ import {
   ShieldAlert,
   User,
   LogIn,
-  FileText
+  FileText,
+  Camera,
 } from "lucide-react";
 
 const iconMap = {
   // ITEMS
   item: Package,
+  photo: Camera,
 
   // TRANSFERS
   transfer: RefreshCcw,
