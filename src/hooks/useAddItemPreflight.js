@@ -27,10 +27,19 @@ export function useAddItemPreflight() {
     return items.filter((it) => it.createdBy === uid).length;
   }, [items, user?.id]);
 
-  const goToAddItem = useCallback(async () => {
+  const goToAddItem = useCallback(async (opts = {}) => {
     if (tasksLoading) return;
+    const { ownerId, ownerLabel } = opts;
+    const navState =
+      ownerId && String(ownerId).trim()
+        ? {
+            registerForOwnerId: String(ownerId).trim(),
+            registerForOwnerLabel: ownerLabel || null,
+          }
+        : undefined;
+
     if (user?.promo_active) {
-      navigate("/items/add");
+      navigate("/items/add", { state: navState });
       return;
     }
     const balance = Number(user?.credit_balance ?? 0);
@@ -60,7 +69,7 @@ export function useAddItemPreflight() {
       }).catch(() => false);
       if (!proceed) return;
     }
-    navigate("/items/add");
+    navigate("/items/add", { state: navState });
   }, [
     tasksLoading,
     user?.promo_active,

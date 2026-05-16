@@ -483,6 +483,31 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     return m;
   }, [usersList]);
 
+  const registrationOwnerId = useMemo(() => {
+    if (!isPrivileged || privilegedViewAll || !user?.id) return null;
+    const oid = String(selectedOwnerId || "").trim();
+    if (!oid || oid === String(user.id)) return null;
+    return oid;
+  }, [isPrivileged, privilegedViewAll, selectedOwnerId, user?.id]);
+
+  const registrationOwnerLabel = useMemo(() => {
+    if (!registrationOwnerId) return null;
+    return ownerLabelById.get(String(registrationOwnerId)) || null;
+  }, [registrationOwnerId, ownerLabelById]);
+
+  const showScopeAddItem =
+    view === "active" && (!isPrivileged || !privilegedViewAll);
+
+  const goToAddItemForScope = useCallback(() => {
+    if (registrationOwnerId) {
+      return goToAddItem({
+        ownerId: registrationOwnerId,
+        ownerLabel: registrationOwnerLabel,
+      });
+    }
+    return goToAddItem();
+  }, [goToAddItem, registrationOwnerId, registrationOwnerLabel]);
+
   const allUsersItemCount = useMemo(
     () =>
       (usersList || []).reduce(
@@ -1355,14 +1380,18 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-                {view === "active" ? (
+                {showScopeAddItem ? (
                   <RippleButton
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
-                    onClick={() => void goToAddItem()}
+                    onClick={() => void goToAddItemForScope()}
                     disabled={addPreflightLoading}
                     title={addPreflightLoading ? "Loading…" : undefined}
                   >
-                    {showUserPromoUx ? "+ Register an item" : "+ Add item"}
+                    {registrationOwnerId
+                      ? "+ Add item for user"
+                      : showUserPromoUx
+                        ? "+ Register an item"
+                        : "+ Add item"}
                   </RippleButton>
                 ) : null}
                 <RippleButton
@@ -1405,7 +1434,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
             </p>
             <RippleButton
               className="mt-5 px-6 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
-              onClick={() => void goToAddItem()}
+              onClick={() => void goToAddItemForScope()}
               disabled={addPreflightLoading}
               title={addPreflightLoading ? "Loading…" : undefined}
             >
@@ -2185,19 +2214,27 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
               ) : items.length === 0 ? (
                 <>
                   <div className="text-lg font-semibold text-gray-800">
-                    No items registered yet
+                    {registrationOwnerId
+                      ? "No items for this user yet"
+                      : "No items registered yet"}
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    Register your first item to start protecting it and tracking ownership.
+                    {registrationOwnerId
+                      ? `Add an item to ${registrationOwnerLabel || "this user"}'s registry.`
+                      : "Register your first item to start protecting it and tracking ownership."}
                   </p>
-                  <RippleButton
-                    className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
-                    onClick={() => void goToAddItem()}
-                    disabled={addPreflightLoading}
-                    title={addPreflightLoading ? "Loading…" : undefined}
-                  >
-                    + Add your first item
-                  </RippleButton>
+                  {showScopeAddItem ? (
+                    <RippleButton
+                      className="mt-4 px-5 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
+                      onClick={() => void goToAddItemForScope()}
+                      disabled={addPreflightLoading}
+                      title={addPreflightLoading ? "Loading…" : undefined}
+                    >
+                      {registrationOwnerId
+                        ? "+ Add item for user"
+                        : "+ Add your first item"}
+                    </RippleButton>
+                  ) : null}
                 </>
               ) : (
                 <>

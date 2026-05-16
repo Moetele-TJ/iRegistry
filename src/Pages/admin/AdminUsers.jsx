@@ -1,6 +1,6 @@
 // src/Pages/admin/AdminUsers.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
@@ -368,6 +368,7 @@ function UserRowActionControls({
 
 export default function AdminUsers({ variant = "admin" } = {}) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user: currentUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
@@ -419,6 +420,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [roleNext, setRoleNext] = useState("");
 
   const editFormSectionRef = useRef(null);
+  const editDeepLinkHandledRef = useRef(false);
   const [highlightUserId, setHighlightUserId] = useState(null);
 
   const isEditing = mode === "edit" && !!editing;
@@ -453,6 +455,36 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return () => clearTimeout(t);
   }, [highlightUserId]);
+
+  useEffect(() => {
+    const uid = searchParams.get("user");
+    const modeParam = searchParams.get("mode");
+    if (!uid || modeParam !== "edit" || editDeepLinkHandledRef.current) return;
+    if (usersDirectoryLoading) return;
+
+    const u = (users || []).find((row) => String(row.id) === String(uid));
+    if (!u) {
+      if ((users || []).length > 0) {
+        editDeepLinkHandledRef.current = true;
+        addToast({ type: "error", message: "User not found in the directory." });
+        setSearchParams({}, { replace: true });
+      }
+      return;
+    }
+
+    editDeepLinkHandledRef.current = true;
+    setSearchParams({}, { replace: true });
+    if (isInactiveLockout(u)) {
+      addToast({
+        type: "error",
+        message: "Suspended or disabled accounts cannot be edited. Reactivate the account first.",
+      });
+      return;
+    }
+    startEdit(u);
+    setHighlightUserId(String(uid));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when list loads for ?user=&mode=edit
+  }, [users, usersDirectoryLoading, searchParams]);
 
   function startEdit(u) {
     if (isInactiveLockout(u)) {

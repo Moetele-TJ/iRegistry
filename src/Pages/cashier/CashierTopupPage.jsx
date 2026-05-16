@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Receipt, Wallet, User, ChevronRight, Hourglass, Building2 } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -20,6 +21,7 @@ function displayName(u) {
 }
 
 export default function CashierTopupPage() {
+  const [searchParams] = useSearchParams();
   const { addToast } = useToast();
   const { confirm } = useModal();
   const [targetType, setTargetType] = useState("user"); // user | organization
@@ -51,6 +53,15 @@ export default function CashierTopupPage() {
     if (!usersFetchError) return;
     addToast({ type: "error", message: usersFetchError });
   }, [usersFetchError, addToast]);
+
+  useEffect(() => {
+    const uid = searchParams.get("user");
+    if (!uid) return;
+    setTargetType("user");
+    setSelectedUserId(uid);
+    const match = (users || []).find((u) => String(u.id) === String(uid));
+    if (match) setQ(displayName(match));
+  }, [searchParams, users]);
 
   useEffect(() => {
     let cancelled = false;

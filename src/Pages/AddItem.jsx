@@ -1,6 +1,6 @@
 // src/Pages/AddItem.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useItems } from "../contexts/ItemsContext.jsx";
@@ -16,26 +16,42 @@ import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import {
   willCreateItemChargeOwnerWallet,
   getAddItemChargeIfApplicable,
+  isPrivilegedRole,
 } from "../lib/billingUx.js";
 
 export default function AddItem() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addItem, loading, items = [], refreshItems } = useItems();
   const { user } = useAuth();
 
+  const registerForOwnerId = (() => {
+    const id = location.state?.registerForOwnerId;
+    if (!id || !isPrivilegedRole(user?.role)) return null;
+    const trimmed = String(id).trim();
+    return trimmed || null;
+  })();
+  const registerForOwnerLabel = registerForOwnerId
+    ? String(location.state?.registerForOwnerLabel || "").trim() || null
+    : null;
+  const targetOwnerId = registerForOwnerId || user?.id;
+
   // Active list for created-by / pricing when opening Add Item directly (no provider prefetch).
   useEffect(() => {
-    if (!user?.id) return;
-    void refreshItems({ ownerId: user.id, includeDeleted: false, includeLegacy: false });
-  }, [user?.id, refreshItems]);
+    if (!targetOwnerId) return;
+    const body = { includeDeleted: false, includeLegacy: false };
+    if (registerForOwnerId) body.ownerId = registerForOwnerId;
+    else body.ownerId = user.id;
+    void refreshItems(body);
+  }, [user?.id, targetOwnerId, registerForOwnerId, refreshItems]);
   const { getCost } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
 
   const createdByCount = useMemo(() => {
-    const uid = user?.id;
-    if (!uid) return 0;
-    return items.filter((it) => it.createdBy === uid).length;
-  }, [items, user?.id]);
+    const oid = targetOwnerId;
+    if (!oid) return 0;
+    return items.filter((it) => String(it.ownerId) === String(oid)).length;
+  }, [items, targetOwnerId]);
 
   const chargesOwnerForAdd = useMemo(
     () =>
@@ -391,6 +407,10 @@ export default function AddItem() {
         payload.estimatedValue = Number(payload.estimatedValue);
       }
 
+      if (registerForOwnerId) {
+        payload.ownerId = registerForOwnerId;
+      }
+
       const created = await addItem(payload);
 
       if (photoPreviews.length > 0) {
@@ -425,14 +445,26 @@ export default function AddItem() {
           className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
         >
           <div className="px-5 py-4 sm:px-6 sm:py-5 bg-emerald-50/90 border-b border-emerald-100/90">
-            <h1 className="text-2xl font-bold text-gray-900">Add new item</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {registerForOwnerId ? "Register item for customer" : "Add new item"}
+            </h1>
             <p className="text-sm text-gray-600 mt-1">
-              {promoActive
-                ? "Takes about 3 minutes. During our June promotion, registration is free — no credits charged."
-                : "Register a phone, laptop, bicycle, or any valuable item in your inventory."}
+              {registerForOwnerId
+                ? `This item will be added to ${registerForOwnerLabel || "the selected user"}'s registry. Staff registration does not use credits from your wallet.`
+                : promoActive
+                  ? "Takes about 3 minutes. During our June promotion, registration is free — no credits charged."
+                  : "Register a phone, laptop, bicycle, or any valuable item in your inventory."}
             </p>
           </div>
           <div className="p-6 sm:p-8 space-y-6">
+          {registerForOwnerId ? (
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-sky-900">
+              Registering for:{" "}
+              <span className="font-semibold">
+                {registerForOwnerLabel || registerForOwnerId}
+              </span>
+            </div>
+          ) : null}
 
           {/* Category */}
           <CategoryMakeModelSelect

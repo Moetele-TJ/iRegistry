@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import UserActivityTimeline from "../components/UserActivityTimeline.jsx";
 import { useUserActivity } from "../hooks/useUserActivity.js";
+import StaffProfileUserActions from "../components/staff/StaffProfileUserActions.jsx";
 
 function fmtDate(iso) {
   if (!iso) return "—";
@@ -1086,8 +1087,8 @@ export default function ProfilePage() {
     if (viewingOther) {
       return (
         <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
-          Staff read-only view. Use the Users page to change role, account status, identity verification, or national ID
-          records.
+          Staff read-only profile view. Identity verification and national ID changes use the same controls as on the Users
+          page (Edit).
         </p>
       );
     }
@@ -1115,6 +1116,13 @@ export default function ProfilePage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                {viewingOther && isPrivilegedRole(sessionUser?.role) ? (
+                  <StaffProfileUserActions
+                    targetUser={user}
+                    sessionUser={sessionUser}
+                    onUserUpdated={loadProfile}
+                  />
+                ) : null}
                 {!viewingOther && !editing && !isInactiveLockout(user) ? (
                   <RippleButton
                     type="button"
@@ -1170,8 +1178,8 @@ export default function ProfilePage() {
             {viewingOther ? (
               <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                 You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
-                belong to the account holder. Editing is disabled; use Users admin tools for role, status, and verification
-                changes.
+                belong to the account holder. Use the action buttons above for items, credits, transactions, and account
+                management.
               </div>
             ) : null}
 

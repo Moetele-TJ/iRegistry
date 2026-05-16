@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, RotateCcw, ReceiptText, Filter, Building2, User } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { displayUser } from "../../lib/userDisplay.js";
@@ -32,6 +33,7 @@ function paymentRowKey(p) {
 }
 
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
+  const [searchParams] = useSearchParams();
   const { addToast } = useToast();
 
   const REVERSAL_REASONS = useMemo(
@@ -74,6 +76,16 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
     if (!usersFetchError) return;
     addToast({ type: "error", message: usersFetchError });
   }, [usersFetchError, addToast]);
+
+  useEffect(() => {
+    const uid = searchParams.get("user");
+    if (!uid) return;
+    setScope("user");
+    setSelectedUserId(uid);
+    setSelectedOrgId("");
+    const match = (users || []).find((u) => String(u.id) === String(uid));
+    if (match) setUserQuery(displayName(match));
+  }, [searchParams, users]);
 
   useEffect(() => {
     let cancelled = false;
