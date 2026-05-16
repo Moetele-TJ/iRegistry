@@ -16,9 +16,12 @@ import {
   UserPlus,
   LogIn,
   Menu,
+  Users,
+  Building2,
+  MonitorSmartphone,
 } from "lucide-react";
 import ConfirmModal from "./ConfirmModal.jsx";
-import { roleIs } from "../lib/roleUtils.js";
+import { isAppAdminRole, isAppStaffRole, roleIs } from "../lib/roleUtils.js";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -101,6 +104,33 @@ export default function Header() {
     if (roleIs(role, "user")) return "/user/notifications";
     return "/notifications";
   }
+
+  /** Admin/cashier staff shell paths (sidebar parity for mobile menu). */
+  function staffShellPath() {
+    if (roleIs(role, "admin")) return "/admin";
+    if (roleIs(role, "cashier")) return "/cashier";
+    return null;
+  }
+
+  const mobileStaffLinks = (() => {
+    const base = staffShellPath();
+    if (!base || !isAppStaffRole(role)) return [];
+    const links = [
+      { to: `${base}/users`, label: "Users", icon: Users },
+      { to: `${base}/organizations`, label: "Organizations", icon: Building2 },
+    ];
+    if (isAppAdminRole(role)) {
+      links.push({ to: "/admin/sessions", label: "Sessions", icon: MonitorSmartphone });
+    }
+    return links;
+  })();
+
+  const mobileNavLinkClass = ({ isActive }) =>
+    `flex items-center gap-3 px-4 py-2 font-medium transition ${
+      isActive
+        ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+        : "text-gray-700 hover:bg-gray-50"
+    }`;
 
   function go(path) {
     setOpen(false);
@@ -346,18 +376,7 @@ export default function Header() {
           <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border text-sm">
             <div className="flex flex-col py-2">
 
-              <NavLink
-                to="/"
-                end
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2 font-medium transition ${
-                    isActive
-                      ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`
-                }
-              >
+              <NavLink to="/" end onClick={() => setOpen(false)} className={mobileNavLinkClass}>
                 <Home size={18} className="shrink-0 opacity-80" />
                 Home
               </NavLink>
@@ -431,17 +450,28 @@ export default function Header() {
                   <NavLink
                     to={profilePath()}
                     onClick={() => setOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
-                        isActive
-                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`
-                    }
+                    className={mobileNavLinkClass}
                   >
                     <UserCircle size={18} className="shrink-0 opacity-80" />
                     Profile
                   </NavLink>
+
+                  {mobileStaffLinks.length > 0 ? (
+                    <>
+                      <div className="my-1 border-t border-gray-100" role="separator" />
+                      {mobileStaffLinks.map(({ to, label, icon: Icon }) => (
+                        <NavLink
+                          key={to}
+                          to={to}
+                          onClick={() => setOpen(false)}
+                          className={mobileNavLinkClass}
+                        >
+                          <Icon size={18} className="shrink-0 opacity-80" />
+                          {label}
+                        </NavLink>
+                      ))}
+                    </>
+                  ) : null}
 
                   <button
                     type="button"
