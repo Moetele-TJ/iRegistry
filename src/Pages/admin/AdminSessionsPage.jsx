@@ -54,6 +54,101 @@ const EXTEND_PRESETS = [
   { label: "10 hours", minutes: 600 },
 ];
 
+function SessionMobileCard({
+  row,
+  now,
+  currentSid,
+  rowBusy,
+  onExtend,
+  onRevoke,
+  onRevokeUser,
+}) {
+  const expMs = new Date(row.expires_at).getTime() - now;
+  const isSelf = row.id === currentSid;
+  const expired = expMs <= 0;
+
+  return (
+    <div
+      className={`w-full rounded-2xl border bg-white p-4 shadow-sm ${
+        isSelf ? "border-emerald-200 bg-emerald-50/40" : "border-gray-100"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-gray-900 break-words">
+            {displayUserName(row)}
+          </div>
+          <div className="text-xs text-gray-500 break-all mt-0.5">{row.user_email || "—"}</div>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {isSelf ? (
+              <span className="text-xs font-medium text-emerald-800 bg-emerald-100 rounded-full px-2.5 py-0.5">
+                This browser
+              </span>
+            ) : null}
+            <span className="text-xs font-medium text-gray-600 bg-gray-100 rounded-full px-2.5 py-0.5 capitalize">
+              {row.role || "—"}
+            </span>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div
+            className={`text-sm font-mono font-semibold tabular-nums ${
+              expired ? "text-red-700" : "text-gray-900"
+            }`}
+          >
+            {formatRemainingMs(expMs)}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Time left</div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 text-xs">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+          <div className="text-gray-500">Session</div>
+          <div className="text-gray-800 mt-0.5 font-mono break-all" title={row.id}>
+            {row.id || "—"}
+          </div>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+          <div className="text-gray-500">IP address</div>
+          <div className="text-gray-800 mt-0.5 font-mono break-all">{row.ip_address || "—"}</div>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+          <div className="text-gray-500">Device</div>
+          <div className="text-gray-800 mt-0.5 break-words leading-snug">{row.user_agent || "—"}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2">
+        <RippleButton
+          type="button"
+          className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
+          onClick={onExtend}
+          disabled={rowBusy}
+        >
+          Extend session
+        </RippleButton>
+        <RippleButton
+          type="button"
+          className="w-full px-3 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
+          onClick={onRevoke}
+          disabled={rowBusy}
+        >
+          Revoke session
+        </RippleButton>
+        <RippleButton
+          type="button"
+          className="w-full px-3 py-2.5 rounded-xl bg-slate-700 text-white text-sm font-medium disabled:opacity-50"
+          onClick={onRevokeUser}
+          disabled={rowBusy}
+        >
+          Revoke all for this user
+        </RippleButton>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSessionsPage() {
   const { addToast } = useToast();
   const { logout } = useAuth();
@@ -287,7 +382,34 @@ export default function AdminSessionsPage() {
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50/40">
+      {loading && sessions.length === 0 ? (
+        <div className="text-sm text-gray-500 py-8 text-center md:hidden">Loading sessions…</div>
+      ) : null}
+      {!loading && filtered.length === 0 ? (
+        <div className="text-sm text-gray-500 py-8 text-center md:hidden">
+          No active sessions match your filters.
+        </div>
+      ) : null}
+
+      <div className="md:hidden space-y-3 -mx-1">
+        {filtered.map((row) => {
+          const rowBusy = busyId === row.id || busyId === `user:${row.user_id}`;
+          return (
+            <SessionMobileCard
+              key={row.id}
+              row={row}
+              now={now}
+              currentSid={currentSid}
+              rowBusy={rowBusy}
+              onExtend={() => setExtendModal({ open: true, row, minutes: 60 })}
+              onRevoke={() => setRevokeModal({ open: true, row })}
+              onRevokeUser={() => setRevokeUserModal({ open: true, row })}
+            />
+          );
+        })}
+      </div>
+
+      <div className="hidden md:block rounded-xl border border-gray-100 overflow-hidden bg-gray-50/40">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
