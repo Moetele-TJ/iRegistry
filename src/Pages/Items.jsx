@@ -39,6 +39,9 @@ import {
 } from "../lib/itemLifecycleUx.js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+/** Admin/cashier "View as" — load items for every owner (no ownerId filter). */
+const PRIVILEGED_VIEW_ALL = "__all__";
+
 function formatPoliceCaseStatus(status) {
   if (!status) return "—";
   const map = {
@@ -234,11 +237,14 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   }, [user?.id, isOrdinaryUser]);
 
   /** Keep get-items flags aligned with the current tab (active / deleted / legacy). */
-  function fetchParamsForItemsView(ownerId) {
-    const oid = ownerId || user?.id;
+  function fetchParamsForItemsView(ownerScope) {
+    const allOwners = ownerScope === PRIVILEGED_VIEW_ALL;
+    const scope = allOwners
+      ? { allOwners: true, pageSize: 50 }
+      : { ownerId: ownerScope || user?.id };
     if (view === "deleted") {
       return {
-        ownerId: oid,
+        ...scope,
         includeDeleted: true,
         deletedOnly: true,
         includeLegacy: true,
@@ -246,13 +252,13 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     }
     if (view === "legacy") {
       return {
-        ownerId: oid,
+        ...scope,
         includeLegacy: true,
         legacyOnly: true,
         includeDeleted: true,
       };
     }
-    return { ownerId: oid, includeDeleted: false, includeLegacy: false };
+    return { ...scope, includeDeleted: false, includeLegacy: false };
   }
 
   useEffect(() => {
@@ -275,8 +281,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     // When used as a dedicated page (deleted/legacy), refresh the backing list accordingly.
     // The main ItemsProvider initial load fetches active items; this overrides it when needed.
     if (!user?.id) return;
-    const oid = isPrivileged ? selectedOwnerId || user.id : user.id;
-    const base = fetchParamsForItemsView(oid);
+    const base = isPrivileged
+      ? fetchParamsForItemsView(selectedOwnerId || user.id)
+      : fetchParamsForItemsView(user.id);
     if (roleIs(role, "police") && view === "active" && policeShowStolenAtStation) {
       void refreshItems({ ...base, policeStationStolenView: true });
       return;
@@ -309,10 +316,42 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const [staffDeleteTarget, setStaffDeleteTarget] = useState(null);
   const [staffDeleteBusy, setStaffDeleteBusy] = useState(false);
 
+  const privilegedViewAll =
+    isPrivileged && selectedOwnerId === PRIVILEGED_VIEW_ALL;
+  const showItemOwner = privilegedViewAll;
+
+  const ownerLabelById = useMemo(() => {
+    const m = new Map();
+    for (const u of usersList || []) {
+      if (u?.id == null) continue;
+      const label = displayUser(u);
+      if (label) m.set(String(u.id), label);
+    }
+    return m;
+  }, [usersList]);
+
+  const allUsersItemCount = useMemo(
+    () =>
+      (usersList || []).reduce(
+        (sum, u) => sum + Math.max(0, Math.floor(Number(u?.active_items_count) || 0)),
+        0
+      ),
+    [usersList]
+  );
+
   function formatItemOwnerLabel(it) {
-    if (!it) return null;
+    if (!it) return "—";
     const name = `${String(it.ownerFirstName || "").trim()} ${String(it.ownerLastName || "").trim()}`.trim();
-    return name || it.ownerEmail || it.ownerId || null;
+    if (name) return name;
+    const email = String(it.ownerEmail || "").trim();
+    if (email) return email;
+    const idNum = String(it.ownerIdNumber || "").trim();
+    if (idNum) return idNum;
+    if (it.ownerId) {
+      const fromList = ownerLabelById.get(String(it.ownerId));
+      if (fromList) return fromList;
+    }
+    return "Unknown owner";
   }
 
   function openConfirm(opts = {}) {
@@ -727,10 +766,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         }
 
         // Refresh lists (personal items + assigned org items).
-        const oid = isPrivileged ? selectedOwnerId || user?.id : user?.id;
-        if (oid) {
-          await refreshItems(fetchParamsForItemsView(oid));
-        }
+        await refreshItems(
+          fetchParamsForItemsView(isPrivileged ? selectedOwnerId || user?.id : user?.id)
+        );
         // Reload assigned org items (best-effort, without failing the action).
         if (isOrdinaryUser) {
           try {
@@ -1000,7 +1038,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const endIndex = Math.min(page * perPage, total);
 
   const showStationQueue = roleIs(role, "police") && policeShowStolenAtStation;
-  const tableColCount = showStationQueue ? 9 : 8;
+  const tableColCount = (showStationQueue ? 9 : 8) + (showItemOwner ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1288,9 +1326,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       onChange={(e) => {
                         void handlePrivilegedOwnerChange(e.target.value);
                       }}
-                      disabled={usersLoading || usersList.length === 0}
+                      disabled={usersLoading}
                       className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                     >
+                      <option value={PRIVILEGED_VIEW_ALL}>
+                        All ({allUsersItemCount})
+                      </option>
                       {(usersList || []).map((u) => {
                         const name = displayUser(u) || String(u.id ?? "");
                         const n = Math.max(0, Math.floor(Number(u?.active_items_count) || 0));
@@ -1340,6 +1381,9 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
               <tr>
                 <th className="text-left py-3 px-4">Item</th>
+                {showItemOwner ? (
+                  <th className="text-left py-3 px-4">Owner</th>
+                ) : null}
                 <th className="text-left py-3 px-4">Category</th>
                 <th className="text-left py-3 px-4">Status</th>
                 {showStationQueue ? (
@@ -1428,6 +1472,19 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                           </div>
                         </div>
                       </td>
+                      {showItemOwner ? (
+                        <td className="py-4 px-5 text-gray-700 max-w-[12rem]">
+                          <div className="font-medium break-words">
+                            {formatItemOwnerLabel(item)}
+                          </div>
+                          {item.ownerEmail &&
+                          formatItemOwnerLabel(item) !== item.ownerEmail ? (
+                            <div className="text-xs text-gray-500 truncate">
+                              {item.ownerEmail}
+                            </div>
+                          ) : null}
+                        </td>
+                      ) : null}
                       <td className="py-4 px-5 text-gray-600">{item.category}</td>
                       <td className="py-4 px-5">
                         <div className="flex flex-col items-start gap-1">
@@ -1731,6 +1788,16 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       <div className="text-xs text-gray-400 mt-1 tracking-wide break-all">
                         Serial: {item.serial1 || "—"}
                       </div>
+                      {showItemOwner ? (
+                        <div className="text-xs text-gray-600 mt-1.5">
+                          <span className="text-gray-400 uppercase tracking-wide text-[10px]">
+                            Owner{" "}
+                          </span>
+                          <span className="font-medium break-words">
+                            {formatItemOwnerLabel(item)}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
 
                   </div>

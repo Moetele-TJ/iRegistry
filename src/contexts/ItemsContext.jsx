@@ -176,24 +176,30 @@ export function ItemsProvider({ children }) {
       dispatch({ type: "SET_ERROR", payload: null });
 
       try {
-        const { data, error } = await invokeWithAuth("get-items", {
-          body: {
-            ownerId: filters.ownerId ?? user.id,
-            policeStationStolenView: filters.policeStationStolenView,
-            includeDeleted: filters.includeDeleted,
-            deletedOnly: filters.deletedOnly,
-            includeLegacy: filters.includeLegacy,
-            legacyOnly: filters.legacyOnly,
-            category: filters.category,
-            make: filters.make,
-            model: filters.model,
-            reportedStolen: filters.reportedStolen,
-            hasPhotos: filters.hasPhotos,
-            createdFrom: filters.createdFrom,
-            createdTo: filters.createdTo,
-            search: filters.search,
-          },
-        });
+        const body = {
+          policeStationStolenView: filters.policeStationStolenView,
+          includeDeleted: filters.includeDeleted,
+          deletedOnly: filters.deletedOnly,
+          includeLegacy: filters.includeLegacy,
+          legacyOnly: filters.legacyOnly,
+          category: filters.category,
+          make: filters.make,
+          model: filters.model,
+          reportedStolen: filters.reportedStolen,
+          hasPhotos: filters.hasPhotos,
+          createdFrom: filters.createdFrom,
+          createdTo: filters.createdTo,
+          search: filters.search,
+        };
+        if (filters.pageSize != null) body.pageSize = filters.pageSize;
+        if (filters.page != null) body.page = filters.page;
+        if (filters.allOwners) {
+          // Privileged registry-wide list: omit ownerId so get-items returns all owners.
+        } else {
+          body.ownerId = filters.ownerId ?? user.id;
+        }
+
+        const { data, error } = await invokeWithAuth("get-items", { body });
 
         if (seq !== refreshSeqRef.current) return;
         if (error || !data?.success) {
