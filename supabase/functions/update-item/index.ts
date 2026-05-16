@@ -156,6 +156,7 @@ serve(async (req) => {
       purchaseDate: "purchasedate",
       estimatedValue: "estimatedvalue",
       warrantyExpiry: "warrantyexpiry",
+      reportedStolenAt: "reportedstolenat",
     };
 
     const reverseFieldMap = Object.fromEntries(
@@ -180,7 +181,9 @@ serve(async (req) => {
       "shop",
       "warrantyExpiry",
       "notes",
-      "status"
+      "status",
+      "reportedStolenAt",
+      "reportedstolenat",
     ];
 
     let cleanUpdates: Record<string, any> = {};

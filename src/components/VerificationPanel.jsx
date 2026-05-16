@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 // Components
@@ -19,7 +19,6 @@ import { ShieldAlert, Info, Camera } from "lucide-react";
 // Utils
 import { invokeWithAuth } from "../lib/invokeWithAuth";
 import { attachBillingToError, willTransferRequestChargeRequester } from "../lib/billingUx.js";
-import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import BillingCostBanner from "./BillingCostBanner.jsx";
 
@@ -46,7 +45,6 @@ export default function VerificationPanel() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
-  const { getCost } = useTaskPricing();
   const formatBilling = useBillingErrorMessage();
   const [searchParams] = useSearchParams();
 
@@ -232,25 +230,8 @@ export default function VerificationPanel() {
   const requestTransferUsesRequesterCredits =
     !!user && willTransferRequestChargeRequester(user?.role);
 
-  const transferConfirmMessage = useMemo(() => {
-    let m =
-      "Are you sure you want to request ownership transfer for this item? The owner will need to approve.";
-    if (!user) return m;
-    if (!requestTransferUsesRequesterCredits) {
-      m +=
-        " As an admin or cashier, this request does not deduct credits from your account.";
-      return m;
-    }
-    const cost = getCost("REQUEST_TRANSFER");
-    const bal = Number(user?.credit_balance ?? 0);
-    if (cost != null) {
-      m += ` This request costs ${cost} credits. Your balance: ${bal} credits.`;
-      if (bal < cost) {
-        m += ` You need ${cost - bal} more credits — open Credit pricing in your dashboard or visit a cashier.`;
-      }
-    }
-    return m;
-  }, [user, getCost, requestTransferUsesRequesterCredits]);
+  const transferConfirmMessage =
+    "Are you sure you want to request ownership transfer for this item? The owner will need to approve.";
 
   async function executeTransfer() {
     if (!finalResult?.itemId) {
@@ -348,15 +329,6 @@ export default function VerificationPanel() {
       <div className="text-xs text-gray-500 mt-2">
         You can usually find the serial number on the device label, packaging, or system settings.
       </div>
-      {user && !finalResult && (
-        <div className="mt-4">
-          <BillingCostBanner
-            taskCodes={["VERIFY_ITEM_SERIAL"]}
-            title="Verification & credits"
-            subtitle="Free daily limits apply while logged out; when logged in, extra checks may use credits."
-          />
-        </div>
-      )}
       {/* Loading State */}
       {verifyingAny && (
         <div className="mt-6 space-y-3 animate-pulse">
@@ -547,13 +519,6 @@ export default function VerificationPanel() {
               `}
             >
               <div className="p-6 bg-white rounded-3xl shadow-lg border border-gray-200 space-y-4">
-                {user && (
-                  <BillingCostBanner
-                    taskCodes={["NOTIFY_OWNER"]}
-                    title="Notify owner"
-                    subtitle="After free daily limits, sending a notification may use credits."
-                  />
-                )}
                 <textarea
                   placeholder="Write your message..."
                   value={message}
@@ -601,21 +566,6 @@ export default function VerificationPanel() {
           {/* Transfer */}
           {action === "transfer" && (
             <div className="mt-6 p-6 bg-white rounded-3xl shadow-lg border border-gray-200 space-y-4">
-              {user && (
-                <BillingCostBanner
-                  taskCodes={
-                    requestTransferUsesRequesterCredits
-                      ? ["REQUEST_TRANSFER"]
-                      : []
-                  }
-                  title="Transfer request"
-                  subtitle={
-                    requestTransferUsesRequesterCredits
-                      ? "Submitting a transfer request may deduct credits from your account (see pricing)."
-                      : "As an admin or cashier, this request does not use credits from your account."
-                  }
-                />
-              )}
               <p className="text-sm text-gray-600">
                 You are requesting the registered owner to transfer this item to you.
                 You must be logged in to proceed.
@@ -659,7 +609,14 @@ export default function VerificationPanel() {
         confirmLabel="Yes, Request Transfer"
         cancelLabel="Cancel"
         confirmDisabled={transferLoading}
-      />
+      >
+        {requestTransferUsesRequesterCredits ? (
+          <BillingCostBanner
+            taskCodes={["REQUEST_TRANSFER"]}
+            title="Transfer request"
+          />
+        ) : null}
+      </ConfirmModal>
       {/* Camera Overlay */}
       {cameraOpen && (
         <div className="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center">
