@@ -171,10 +171,17 @@ serve(async (req) => {
 
       if (error) throw error;
 
+      const { data: thumbData, error: thumbError } = await supabase.storage
+        .from("item-photos")
+        .createSignedUploadUrl(thumbPath);
+
+      if (thumbError) throw thumbError;
+
       uploads.push({
         path: originalPath,
         thumbPath,
         signedUrl: data.signedUrl,
+        thumbSignedUrl: thumbData.signedUrl,
       });
     }
 

@@ -1,7 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import sharp from "npm:sharp@0.33.5";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
@@ -11,6 +10,7 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+/** Legacy: copy original bytes to thumb path (client uploads both for new items). */
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -57,26 +57,13 @@ serve(async (req) => {
       );
     }
 
-    const buffer = await data.arrayBuffer();
-
-    let thumb: Uint8Array;
-    try {
-      thumb = await sharp(buffer)
-        .resize(400)
-        .jpeg({ quality: 70 })
-        .toBuffer();
-    } catch {
-      return respond(
-        { success: false, message: "Could not read or resize the image." },
-        corsHeaders,
-        400,
-      );
-    }
+    const bytes = new Uint8Array(await data.arrayBuffer());
+    const contentType = data.type || "image/jpeg";
 
     const { error: uploadError } = await supabase.storage
       .from("item-photos")
-      .upload(thumbPath, thumb, {
-        contentType: "image/jpeg",
+      .upload(thumbPath, bytes, {
+        contentType,
         upsert: true,
       });
 

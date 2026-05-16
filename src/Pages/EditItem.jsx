@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import { compressImage } from "../utils/imageCompression.js";
+import { putSignedUpload } from "../lib/putSignedUpload.js";
 import { normalizePhotos } from "../utils/itemPhotos.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
 import BillingHelpLinks from "../components/BillingHelpLinks.jsx";
@@ -637,7 +638,7 @@ export default function EditItem() {
               itemId: storedItem.id,
               files: photoPreviews.map((p) => ({
                 name: p.file.name,
-                type: p.file.type,
+                type: p.file.type || "image/jpeg",
                 size: p.file.size,
               })),
             },
@@ -651,65 +652,37 @@ export default function EditItem() {
         }
 
         let completed = 0;
-        const totalBytes = photoPreviews.reduce((sum, p) => sum + p.file.size, 0);
+        const uploadsPerPhoto = uploadInit.uploads.some((u) => u.thumbSignedUrl) ? 2 : 1;
+        const totalBytes = Math.max(
+          1,
+          photoPreviews.reduce((sum, p) => sum + p.file.size, 0) * uploadsPerPhoto
+        );
         let uploadedBytes = 0;
+        const trackProgress = (delta) => {
+          uploadedBytes += delta;
+          setUploadProgress(Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)));
+        };
 
         await Promise.all(
-          uploadInit.uploads.map((upload, i) => {
+          uploadInit.uploads.map(async (upload, i) => {
             const file = photoPreviews[i]?.file;
             if (!file) throw new Error("Photo upload mismatch.");
-
-            return new Promise((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              activeXhrs.current.push(xhr);
-
-              xhr.open("PUT", upload.signedUrl);
-              xhr.setRequestHeader("Content-Type", file.type);
-
-              xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                  const previous = xhr._lastLoaded || 0;
-                  const delta = event.loaded - previous;
-                  xhr._lastLoaded = event.loaded;
-                  uploadedBytes += delta;
-                  const percent = Math.round((uploadedBytes / totalBytes) * 100);
-                  setUploadProgress(Math.min(percent, 100));
-                }
-              };
-
-              xhr.onload = () => {
-                activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  completed++;
-                  setCurrentUpload(completed);
-                  resolve();
-                } else {
-                  reject(new Error("Failed to upload one of the photos."));
-                }
-              };
-
-              xhr.onerror = () => {
-                activeXhrs.current = activeXhrs.current.filter((x) => x !== xhr);
-                reject(new Error("Upload failed."));
-              };
-
-              xhr.send(file);
+            await putSignedUpload(upload.signedUrl, file, {
+              xhrPool: activeXhrs.current,
+              onProgress: trackProgress,
             });
+            if (upload.thumbSignedUrl) {
+              await putSignedUpload(upload.thumbSignedUrl, file, {
+                xhrPool: activeXhrs.current,
+                onProgress: trackProgress,
+              });
+            }
+            completed++;
+            setCurrentUpload(completed);
           })
         );
 
         setUploadProgress(100);
-
-        await Promise.all(
-          uploadInit.uploads.map((u) =>
-            invokeWithAuth("generate-thumbnail", {
-              body: {
-                originalPath: u.path,
-                thumbPath: u.thumbPath,
-              },
-            })
-          )
-        );
 
         const newEntries = uploadInit.uploads.map((u) => ({
           original: u.path,

@@ -1,16 +1,16 @@
 // src/lib/invokeFn.js
-import { supabase } from "./supabase";
+import { supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import { getAuthHeaders } from "./authHeaders";
 import { emitSessionTokenRefreshed } from "./sessionEvents";
 
 /**
- * Invoke a Supabase edge function, optionally with Authorization.
+ * Invoke a Supabase edge function via fetch (reliable on mobile browsers).
  * Also handles:
  * - 401: clear local session and redirect to login
  * - session_token rotation: store and broadcast refreshed token
  */
 export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
-  if (!supabase) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return {
       data: null,
       error: { message: "Supabase client is not configured (missing env vars)." },
@@ -18,33 +18,67 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
   }
 
   const headers = {
+    apikey: supabaseAnonKey,
+    "Content-Type": "application/json",
     ...(withAuth ? getAuthHeaders() : {}),
     ...(options.headers || {}),
   };
 
+  const q = name.indexOf("?");
+  const fnPath = q === -1 ? name : name.slice(0, q);
+  const query = q === -1 ? "" : name.slice(q);
+  const url = `${supabaseUrl}/functions/v1/${fnPath}${query}`;
+
   async function doInvoke(h) {
-    return await supabase.functions.invoke(name, {
-      ...options,
+    const init = {
+      method: options.method || "POST",
       headers: h,
-    });
+    };
+    if (options.body !== undefined) {
+      init.body =
+        typeof options.body === "string" ? options.body : JSON.stringify(options.body);
+    }
+    try {
+      const res = await fetch(url, init);
+      let data = null;
+      const text = await res.text();
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { message: text };
+        }
+      }
+      if (!res.ok) {
+        return {
+          data: data && typeof data === "object" ? data : null,
+          error: {
+            message: data?.message || res.statusText || "Request failed",
+            context: { status: res.status, json: async () => data },
+          },
+        };
+      }
+      return { data, error: null };
+    } catch (err) {
+      return {
+        data: null,
+        error: {
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to send a request to the Edge Function",
+        },
+      };
+    }
   }
 
   const response = await doInvoke(headers);
 
   const { data, error } = response || {};
 
-  // Only force-login for requests that are actually authenticated.
-  // Public functions (e.g. item verification) should surface their errors in-UI,
-  // not clear the local session or silently redirect.
   const hasAuthHeader = !!headers?.Authorization || !!headers?.authorization;
 
-  // Redirect only when this request carried a session token. `withAuth: true` with no
-  // token in storage still sends no Authorization header — a 401 must not send guests to login
-  // (e.g. home page loads `list-tasks` for pricing labels via useTaskPricing).
   if (error?.context?.status === 401 && hasAuthHeader) {
-    // Token rotation race safety:
-    // If another request/tab refreshed localStorage.session since this request started,
-    // retry once with the latest token instead of logging out.
     try {
       const sent = String(headers.Authorization || headers.authorization || "");
       const sentToken = sent.startsWith("Bearer ") ? sent.slice("Bearer ".length) : "";
@@ -63,10 +97,9 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
           }
           return retryRes;
         }
-        // fall through to logout below if retry still 401 or other failure
       }
     } catch {
-      /* ignore and continue to logout */
+      /* ignore */
     }
 
     localStorage.removeItem("session");
@@ -76,8 +109,6 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
     return { data: null, error };
   }
 
-  // Non-2xx edge functions set `error` (e.g. FunctionsHttpError) and often leave `data` null.
-  // The JSON body is still available on `error.context` and should surface as `data` for UI.
   if (error) {
     let body = null;
     try {
@@ -105,3 +136,5 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
   return response;
 }
 
+// Keep supabase export usable for storage/auth elsewhere
+export { supabase };
