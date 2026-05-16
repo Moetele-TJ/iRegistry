@@ -166,6 +166,35 @@ export default function AppSidebar({ sidebar }) {
     setRailExpanded(false);
   }, []);
 
+  const collapseTouchSidebar = useCallback(() => {
+    clearAsideLeaveTimer();
+    pendingCollapseRef.current = false;
+    if (flyoutOpenRef.current) {
+      setFlyoutCloseNonce((n) => n + 1);
+    }
+    setRailExpanded(false);
+  }, [clearAsideLeaveTimer]);
+
+  /** Touch / coarse pointer: collapse expanded rail when tapping outside sidebar + flyouts. */
+  useEffect(() => {
+    if (!touchMode || !railExpanded) return;
+
+    function isSidebarTarget(node) {
+      if (!(node instanceof Node)) return false;
+      if (asideRef.current?.contains(node)) return true;
+      if (node instanceof Element && node.closest("[data-app-sidebar-flyout]")) return true;
+      return false;
+    }
+
+    function onPointerDown(e) {
+      if (isSidebarTarget(e.target)) return;
+      collapseTouchSidebar();
+    }
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [touchMode, railExpanded, collapseTouchSidebar]);
+
   const childExpanded = contentExpanded && hoverExpand;
 
   if (!visible) return null;

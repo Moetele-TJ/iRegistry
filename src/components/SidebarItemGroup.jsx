@@ -147,6 +147,7 @@ export default function SidebarItemGroup({
   const flyout = showPanel ? (
     <div
       role="group"
+      data-app-sidebar-flyout
       aria-label={`${label} views`}
       className={[
         "flex flex-col overflow-hidden rounded-xl border border-white/15 bg-iregistrygreen shadow-lg min-w-[11.5rem]",
