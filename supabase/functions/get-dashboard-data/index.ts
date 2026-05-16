@@ -158,6 +158,7 @@ serve(async (req) => {
 
     const safeLimit = Math.min(Number(limit) || 5, 50);
     const safePage = Math.max(Number(page) || 1, 1);
+    const offset = (safePage - 1) * safeLimit;
 
     /* ================================
        1️⃣ PERSONAL SCOPE (ALWAYS)
@@ -387,13 +388,15 @@ serve(async (req) => {
 
   } catch (err) {
     console.error("get-dashboard-data crash:", err);
+    const message =
+      err instanceof Error && err.message ? err.message : "Unexpected server error";
     return respond(
-      { 
+      {
         success: false,
-        message: "Unexpected server error"
+        message,
       },
       corsHeaders,
-      500
+      500,
     );
   }
 });

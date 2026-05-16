@@ -1073,7 +1073,11 @@ export default function ItemDetails() {
         },
       });
       if (uploadError || !uploadInit?.success) {
-        throw new Error(uploadInit?.message || "Could not start photo upload.");
+        const raw = uploadInit?.message || uploadError?.message || "";
+        const message = /failed to send a request to the edge function/i.test(raw)
+          ? "Photo upload could not reach the server. Check your connection and try again."
+          : raw || "Could not start photo upload.";
+        throw new Error(message);
       }
       let completed = 0;
       const totalBytes = Math.max(1, previews.reduce((sum, p) => sum + p.file.size, 0));
@@ -1122,7 +1126,12 @@ export default function ItemDetails() {
           body: { originalPath: u.path, thumbPath: u.thumbPath },
         });
         if (thErr) {
-          throw new Error(thErr.message || "Thumbnail generation failed.");
+          const raw = thErr.message || "";
+          throw new Error(
+            /failed to send a request to the edge function/i.test(raw)
+              ? "Photo upload could not reach the server. Check your connection and try again."
+              : raw || "Thumbnail generation failed."
+          );
         }
         if (thData?.success === false) {
           throw new Error(thData.message || "Thumbnail generation failed.");
