@@ -79,6 +79,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   const isSelf = targetId && selfId && targetId === selfId;
   const displayName = displayUser(targetUser) || "this user";
   const statusLower = deriveUserStatus(targetUser) || "active";
+  const accountActive = statusLower === "active";
   const lockoutRestricted = statusLower === "suspended" || statusLower === "disabled";
 
   const roleLabel = useMemo(() => ROLE_LABEL, []);
@@ -123,6 +124,13 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
 
   function goToTopup() {
     if (!targetId) return;
+    if (!accountActive) {
+      addToast({
+        type: "error",
+        message: "Top-ups are only available for active accounts. Reactivate the account first.",
+      });
+      return;
+    }
     navigate(`${base}/topup?user=${encodeURIComponent(targetId)}`);
   }
 
@@ -286,6 +294,16 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   }
 
   function runRegistryAction(action) {
+    if ((action === "add_item" || action === "topup") && !accountActive) {
+      addToast({
+        type: "error",
+        message:
+          action === "topup"
+            ? "Top-ups are only available for active accounts. Reactivate the account first."
+            : "Items can only be registered for active accounts. Reactivate the account first.",
+      });
+      return;
+    }
     switch (action) {
       case "items":
         return goToItems();
@@ -310,18 +328,21 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
       <RippleButton type="button" className={btnNavClass()} onClick={goToItems} disabled={disabled}>
         View items
       </RippleButton>
-      <RippleButton
-        type="button"
-        className={btnPrimaryClass()}
-        onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
-        disabled={disabled || lockoutRestricted}
-        title={lockoutRestricted ? "Reactivate the account before registering items" : undefined}
-      >
-        Add item
-      </RippleButton>
-      <RippleButton type="button" className={btnNavClass()} onClick={goToTopup} disabled={disabled}>
-        Top up
-      </RippleButton>
+      {accountActive ? (
+        <>
+          <RippleButton
+            type="button"
+            className={btnPrimaryClass()}
+            onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
+            disabled={disabled}
+          >
+            Add item
+          </RippleButton>
+          <RippleButton type="button" className={btnNavClass()} onClick={goToTopup} disabled={disabled}>
+            Top up
+          </RippleButton>
+        </>
+      ) : null}
       <RippleButton type="button" className={btnNavClass()} onClick={goToTransactions} disabled={disabled}>
         Transactions
       </RippleButton>
@@ -351,17 +372,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
     ) : null
   ) : (
     <>
-      {canAdminister && statusLower !== "active" ? (
-        <RippleButton
-          type="button"
-          className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm whitespace-nowrap disabled:opacity-50"
-          onClick={() => void quickReactivate()}
-          disabled={disabled || isSelf}
-        >
-          Reactivate
-        </RippleButton>
-      ) : null}
-      {canAdminister && statusLower === "active" ? (
+      {canAdminister && accountActive ? (
         <>
           <RippleButton
             type="button"
@@ -381,9 +392,11 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
           </RippleButton>
         </>
       ) : null}
-      <RippleButton type="button" className={btnNavClass()} onClick={goToEdit} disabled={disabled}>
-        Edit
-      </RippleButton>
+      {accountActive ? (
+        <RippleButton type="button" className={btnNavClass()} onClick={goToEdit} disabled={disabled}>
+          Edit
+        </RippleButton>
+      ) : null}
       {canAdminister ? (
         <RippleButton
           type="button"
@@ -504,17 +517,17 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
                 </>
               ) : (
                 <>
-                  {canAdminister && statusLower === "active" ? (
+                  {canAdminister && accountActive ? (
                     <>
                       <option value="suspend">Suspend…</option>
                       <option value="disable">Disable…</option>
+                      <option value="change_role">Change role…</option>
                     </>
                   ) : null}
-                  {canAdminister && statusLower !== "active" ? (
+                  {canAdminister && !accountActive && statusLower !== "deleted" ? (
                     <option value="reactivate">Reactivate</option>
                   ) : null}
-                  <option value="edit">Edit user</option>
-                  {canAdminister ? <option value="change_role">Change role…</option> : null}
+                  {accountActive ? <option value="edit">Edit user</option> : null}
                   {canAdminister ? <option value="delete">Delete user…</option> : null}
                 </>
               )}
@@ -544,10 +557,8 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
           >
             <option value="">Choose action…</option>
             <option value="items">View items</option>
-            <option value="add_item" disabled={lockoutRestricted}>
-              Add item
-            </option>
-            <option value="topup">Top up credits</option>
+            {accountActive ? <option value="add_item">Add item</option> : null}
+            {accountActive ? <option value="topup">Top up credits</option> : null}
             <option value="transactions">Transactions</option>
           </select>
         </div>
@@ -555,7 +566,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
 
       <div className="hidden md:flex flex-wrap items-center gap-2">
         {navButtons}
-        {canAdminister && !lockoutRestricted ? (
+        {canAdminister && accountActive ? (
           <div className="flex items-center gap-2 border-l border-gray-200 pl-2 ml-0.5">
             <label className="sr-only" htmlFor="staff-profile-role">
               Change role
