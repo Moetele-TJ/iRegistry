@@ -20,7 +20,7 @@ export function useCashierSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/cashier", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/cashier", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/cashier/profile", icon: <UserCircle size={20} />, label: "Profile" },
       {
         to: "/cashier/items",

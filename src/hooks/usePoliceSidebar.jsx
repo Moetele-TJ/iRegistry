@@ -7,7 +7,7 @@ export function usePoliceSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/police", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/police", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/police/profile", icon: <UserCircle size={20} />, label: "Profile" },
       {
         to: "/police/items",

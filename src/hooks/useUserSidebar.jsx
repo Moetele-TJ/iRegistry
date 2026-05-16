@@ -20,7 +20,7 @@ export function useUserSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/user", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/user", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/user/profile", icon: <UserCircle size={20} />, label: "Profile" },
       {
         to: "/user/items",

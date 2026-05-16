@@ -23,7 +23,7 @@ export function useAdminSidebar({ visible = true } = {}) {
 
   const items = useMemo(
     () => [
-      { to: "/admin", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+      { to: "/admin", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
       { to: "/admin/profile", icon: <UserCircle size={20} />, label: "Profile" },
       { to: "/admin/users", icon: <Users size={20} />, label: "Users" },
       { to: "/admin/organizations", icon: <Building2 size={20} />, label: "Organizations" },

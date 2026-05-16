@@ -218,6 +218,7 @@ export default function AppSidebar({ sidebar }) {
             <SidebarItem
               key={it.to}
               to={it.to}
+              end={!!it.end}
               icon={it.icon}
               label={it.label}
               expanded={childExpanded}

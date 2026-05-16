@@ -21,6 +21,7 @@ import {
   MonitorSmartphone,
 } from "lucide-react";
 import ConfirmModal from "./ConfirmModal.jsx";
+import { isExactNavPath } from "../lib/navMatch.js";
 import { isAppAdminRole, isAppStaffRole, roleIs } from "../lib/roleUtils.js";
 
 export default function Header() {
@@ -243,6 +244,8 @@ export default function Header() {
           <>
             <NavLink
               to={dashboardPath()}
+              end
+              isActive={(_, location) => isExactNavPath(location.pathname, dashboardPath())}
               className={({ isActive }) =>
                 `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
               }
@@ -419,14 +422,10 @@ export default function Header() {
                 <>
                   <NavLink
                     to={dashboardPath()}
+                    end
+                    isActive={(_, location) => isExactNavPath(location.pathname, dashboardPath())}
                     onClick={() => setOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
-                        isActive
-                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`
-                    }
+                    className={mobileNavLinkClass}
                   >
                     <LayoutDashboard size={18} className="shrink-0 opacity-80" />
                     Dashboard

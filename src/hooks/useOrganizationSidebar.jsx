@@ -48,7 +48,7 @@ export function useOrganizationSidebar() {
   const items = useMemo(() => {
     if (!base) return [];
     const list = [
-      { to: home.to, icon: <LayoutDashboard size={20} />, label: home.label },
+      { to: home.to, end: true, icon: <LayoutDashboard size={20} />, label: home.label },
       {
         to: `${base}/items`,
         icon: <Building2 size={20} />,

@@ -1,11 +1,12 @@
 // src/components/SidebarItem.jsx
 import { NavLink } from "react-router-dom";
+import { isExactNavPath } from "../lib/navMatch.js";
 
-export default function SidebarItem({
-  to,
+export default function SidebarItem({  to,
   icon,
   label,
   expanded,
+  end = false,
   onNavigate,
   touchMode,
   onTouchExpand,
@@ -13,6 +14,12 @@ export default function SidebarItem({
   return (
     <NavLink
       to={to}
+      end={end}
+      isActive={
+        end
+          ? (_api, location) => isExactNavPath(location.pathname, to)
+          : undefined
+      }
       onClick={(e) => {
         if (touchMode && !expanded) {
           e.preventDefault();
