@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, RotateCcw, ReceiptText, Filter, Building2, User } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -32,9 +32,19 @@ function paymentRowKey(p) {
   return `${p?.wallet || "user"}:${p?.id}`;
 }
 
+function urlFiltersFromSearchParams(searchParams) {
+  const uid = String(searchParams.get("user") || "").trim();
+  const oid = String(searchParams.get("org") || "").trim();
+  const scope = oid ? "org" : uid ? "user" : "both";
+  return { uid, oid, scope };
+}
+
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
   const [searchParams] = useSearchParams();
   const { addToast } = useToast();
+  const queryUserId = String(searchParams.get("user") || "").trim();
+  const queryOrgId = String(searchParams.get("org") || "").trim();
+  const paymentsLoadSeq = useRef(0);
 
   const REVERSAL_REASONS = useMemo(
     () => [
@@ -60,9 +70,13 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
 
   const [userQuery, setUserQuery] = useState("");
   const [orgQuery, setOrgQuery] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedOrgId, setSelectedOrgId] = useState("");
-  const [scope, setScope] = useState("both");
+  const [selectedUserId, setSelectedUserId] = useState(
+    () => urlFiltersFromSearchParams(searchParams).uid,
+  );
+  const [selectedOrgId, setSelectedOrgId] = useState(
+    () => urlFiltersFromSearchParams(searchParams).oid,
+  );
+  const [scope, setScope] = useState(() => urlFiltersFromSearchParams(searchParams).scope);
 
   const [payments, setPayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
@@ -78,14 +92,25 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
   }, [usersFetchError, addToast]);
 
   useEffect(() => {
-    const uid = searchParams.get("user");
-    if (!uid) return;
-    setScope("user");
-    setSelectedUserId(uid);
-    setSelectedOrgId("");
-    const match = (users || []).find((u) => String(u.id) === String(uid));
-    if (match) setUserQuery(displayName(match));
-  }, [searchParams, users]);
+    const { uid, oid } = urlFiltersFromSearchParams(searchParams);
+    if (uid) {
+      setScope("user");
+      setSelectedUserId(uid);
+      setSelectedOrgId("");
+      setOrgQuery("");
+      const match = (users || []).find((u) => String(u.id) === String(uid));
+      if (match) setUserQuery(displayName(match));
+      return;
+    }
+    if (oid) {
+      setScope("org");
+      setSelectedOrgId(oid);
+      setSelectedUserId("");
+      setUserQuery("");
+      const match = (orgs || []).find((o) => String(o.id) === String(oid));
+      if (match) setOrgQuery(orgLabel(match));
+    }
+  }, [searchParams, users, orgs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,30 +179,39 @@ export default function AdminTransactionsPage({ canReverse = true, showSidebar =
   }
 
   async function loadPayments() {
+    const seq = ++paymentsLoadSeq.current;
     setLoadingPayments(true);
     try {
+      const uid = selectedUserId || queryUserId;
+      const oid = selectedOrgId || queryOrgId;
+      let activeScope = scope;
+      if (uid && activeScope !== "org") activeScope = "user";
+      else if (oid && activeScope !== "user") activeScope = "org";
+
       const body = {
         limit: 100,
         offset: 0,
-        scope,
+        scope: activeScope,
       };
-      if (selectedUserId) body.user_id = selectedUserId;
-      if (selectedOrgId) body.org_id = selectedOrgId;
+      if (uid) body.user_id = uid;
+      if (oid) body.org_id = oid;
       const { data, error } = await invokeWithAuth("list-payments", { body });
+      if (seq !== paymentsLoadSeq.current) return;
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed to load payments");
       setPayments(data.payments || []);
     } catch (e) {
+      if (seq !== paymentsLoadSeq.current) return;
       addToast({ type: "error", message: e.message || "Failed to load payments" });
       setPayments([]);
     } finally {
-      setLoadingPayments(false);
+      if (seq === paymentsLoadSeq.current) setLoadingPayments(false);
     }
   }
 
   useEffect(() => {
     void loadPayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUserId, selectedOrgId, scope]);
+  }, [selectedUserId, selectedOrgId, scope, queryUserId, queryOrgId]);
 
   function openReverseModal(payment) {
     if (!canReverse) return;
