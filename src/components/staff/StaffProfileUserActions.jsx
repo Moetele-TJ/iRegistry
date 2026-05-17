@@ -586,7 +586,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
         </div>
       </div>
 
-      <div className="hidden md:flex flex-wrap items-center gap-2">
+      <div className="hidden md:flex w-full min-w-0 flex-wrap items-center gap-2">
         {navButtons}
         {canAdminister && accountActive ? (
           <div className="flex items-center gap-2 border-l border-gray-200 pl-2 ml-0.5">

@@ -1116,14 +1116,7 @@ export default function ProfilePage() {
                     : "Your account details and registry identity"}
                 </p>
               </div>
-              <div className="flex flex-col gap-2 w-full md:w-auto md:flex-row md:flex-wrap md:items-center md:gap-2 self-start md:self-auto shrink-0">
-                {viewingOther && isPrivilegedRole(sessionUser?.role) ? (
-                  <StaffProfileUserActions
-                    targetUser={user}
-                    sessionUser={sessionUser}
-                    onUserUpdated={loadProfile}
-                  />
-                ) : null}
+              <div className="flex flex-wrap items-center gap-2 self-start md:self-auto shrink-0">
                 {!viewingOther && !editing && !isInactiveLockout(user) ? (
                   <RippleButton
                     type="button"
@@ -1163,6 +1156,15 @@ export default function ProfilePage() {
                 </RippleButton>
               </div>
               </div>
+              {viewingOther && isPrivilegedRole(sessionUser?.role) ? (
+                <div className="w-full min-w-0 border-t border-emerald-100/70 pt-4">
+                  <StaffProfileUserActions
+                    targetUser={user}
+                    sessionUser={sessionUser}
+                    onUserUpdated={loadProfile}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
 

@@ -2,10 +2,7 @@ import { useEffect, useMemo } from "react";
 import {
   Activity,
   Bell,
-  BookOpen,
   Building2,
-  FileText,
-  HelpCircle,
   LayoutDashboard,
   Package,
   ReceiptText,
@@ -38,9 +35,6 @@ export function useUserSidebar({ visible = true } = {}) {
       { to: "/user/organizations", icon: <Building2 size={20} />, label: "Organizations" },
       { to: "/user/topup", icon: <Wallet size={20} />, label: "Top up" },
       { to: "/user/pricing", icon: <Tag size={20} />, label: "Pricing" },
-      { to: "/guide", icon: <BookOpen size={20} />, label: "User guide" },
-      { to: "/faq", icon: <HelpCircle size={20} />, label: "FAQ" },
-      { to: "/terms", icon: <FileText size={20} />, label: "Terms" },
     ],
     []
   );
