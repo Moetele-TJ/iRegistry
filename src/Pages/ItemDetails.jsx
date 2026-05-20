@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { formatBwpCurrency } from "../lib/formatBWP.js";
 import ItemActivityTimeline from "../components/ItemActivityTimeline";
+import PhotoLightbox from "../components/PhotoLightbox.jsx";
 import { useItemActivity } from "../hooks/useItemActivity";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { normalizePhotos } from "../utils/itemPhotos.js";
@@ -193,6 +194,7 @@ export default function ItemDetails() {
   const [ownerActiveItems, setOwnerActiveItems] = useState([]);
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const [signedMainPhotoUrls, setSignedMainPhotoUrls] = useState([]);
   const [signedThumbPhotoUrls, setSignedThumbPhotoUrls] = useState([]);
@@ -1303,6 +1305,13 @@ export default function ItemDetails() {
 
   const photoRoom = MAX_PHOTOS - photosNormalized.length;
 
+  function openPhotoLightbox(i) {
+    if (!mainPhotoUrls.length) return;
+    const idx = Math.min(Math.max(0, i), mainPhotoUrls.length - 1);
+    setPhotoIndex(idx);
+    setLightboxOpen(true);
+  }
+
   if (itemPageLoading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -1552,7 +1561,7 @@ export default function ItemDetails() {
                               );
                               return;
                             }
-                            openPhotoPicker();
+                            if (!mainPhotoSrc) openPhotoPicker();
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
@@ -1564,22 +1573,36 @@ export default function ItemDetails() {
                                 );
                                 return;
                               }
-                              openPhotoPicker();
+                              if (!mainPhotoSrc) openPhotoPicker();
                             }
                           }}
-                          role="button"
-                          tabIndex={0}
-                          aria-label="Add photos — click or drop images here"
+                          role={mainPhotoSrc ? undefined : "button"}
+                          tabIndex={mainPhotoSrc ? undefined : 0}
+                          aria-label={
+                            mainPhotoSrc
+                              ? "Drop images to add photos"
+                              : "Add photos — click or drop images here"
+                          }
                         >
                           {mainPhotoSrc ? (
-                            <img
-                              src={mainPhotoSrc}
-                              alt={item.name || "Item photo"}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = "";
+                            <button
+                              type="button"
+                              className="w-full h-full block cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/50 focus-visible:ring-inset"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!photosBusy) openPhotoLightbox(photoIndex);
                               }}
-                            />
+                              aria-label="View full-size photo"
+                            >
+                              <img
+                                src={mainPhotoSrc}
+                                alt={item.name || "Item photo"}
+                                className="w-full h-full object-cover pointer-events-none"
+                                onError={(e) => {
+                                  e.currentTarget.src = "";
+                                }}
+                              />
+                            </button>
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 px-2 text-center">
                               <div className="text-3xl mb-1">＋</div>
@@ -1658,14 +1681,15 @@ export default function ItemDetails() {
                                 >
                                   <button
                                     type="button"
-                                    onClick={() => setPhotoIndex(i)}
-                                    className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 block ${
+                                    onClick={() => openPhotoLightbox(i)}
+                                    className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 block cursor-zoom-in ${
                                       photoIndex === i
                                         ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
                                         : "border-gray-200 opacity-90 hover:opacity-100"
                                     }`}
+                                    aria-label={`View photo ${i + 1}`}
                                   >
-                                    <img src={url} alt="" className="w-full h-full object-cover" />
+                                    <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" />
                                   </button>
                                   {i === 0 && (
                                     <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] bg-gray-800/85 text-white px-1 rounded whitespace-nowrap">
@@ -1698,33 +1722,41 @@ export default function ItemDetails() {
                     ) : (
                       <>
                         {mainPhotoSrc ? (
-                          <img
-                            src={mainPhotoSrc}
-                            alt={item.name || "Item photo"}
-                            className="w-full max-w-[22rem] aspect-square object-cover rounded-2xl border border-gray-200"
-                            onError={(e) => {
-                              e.currentTarget.src = "";
-                            }}
-                          />
+                          <button
+                            type="button"
+                            onClick={() => openPhotoLightbox(photoIndex)}
+                            className="block max-w-[22rem] w-full cursor-zoom-in rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/50"
+                            aria-label="View full-size photo"
+                          >
+                            <img
+                              src={mainPhotoSrc}
+                              alt={item.name || "Item photo"}
+                              className="w-full aspect-square object-cover rounded-2xl border border-gray-200 pointer-events-none"
+                              onError={(e) => {
+                                e.currentTarget.src = "";
+                              }}
+                            />
+                          </button>
                         ) : (
                           <div className="w-full max-w-[22rem] aspect-square bg-gray-50 rounded-2xl border flex items-center justify-center text-gray-400">
                             <div className="text-4xl">☁</div>
                           </div>
                         )}
-                        {thumbPhotoUrls.length > 1 && (
+                        {thumbPhotoUrls.length > 0 && (
                           <div className="flex flex-wrap gap-2 justify-center max-w-[22rem]">
                             {thumbPhotoUrls.map((url, i) => (
                               <button
                                 key={url + i}
                                 type="button"
-                                onClick={() => setPhotoIndex(i)}
-                                className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 ${
+                                onClick={() => openPhotoLightbox(i)}
+                                className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 cursor-zoom-in ${
                                   photoIndex === i
                                     ? "border-iregistrygreen ring-1 ring-iregistrygreen/30"
                                     : "border-gray-200 opacity-80 hover:opacity-100"
                                 }`}
+                                aria-label={`View photo ${i + 1}`}
                               >
-                                <img src={url} alt="" className="w-full h-full object-cover" />
+                                <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" />
                               </button>
                             ))}
                           </div>
@@ -2152,6 +2184,15 @@ export default function ItemDetails() {
           </div>
         </div>
       </ConfirmModal>
+
+      {lightboxOpen && mainPhotoUrls.length > 0 ? (
+        <PhotoLightbox
+          urls={mainPhotoUrls}
+          index={photoIndex}
+          onClose={() => setLightboxOpen(false)}
+          onIndexChange={setPhotoIndex}
+        />
+      ) : null}
 
       {/* Toast */}
       <Toast
