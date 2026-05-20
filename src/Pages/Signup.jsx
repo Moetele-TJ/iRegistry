@@ -33,6 +33,16 @@ export default function Signup() {
 
   const [errors, setErrors] = useState({});
 
+  function setField(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+    setErrors((e) => {
+      if (!e[field]) return e;
+      const next = { ...e };
+      delete next[field];
+      return next;
+    });
+  }
+
   const [modal, setModal] = useState({
     open: false,
     title: "",
@@ -54,6 +64,7 @@ export default function Signup() {
   // STEP 1 VALIDATION (STRICT)
   // ----------------------------
   async function checkStep1Details() {
+    // Order matches the step-1 form top-to-bottom so we never flag a field below the user's position.
     const requiredChecks = [
       { field: "first_name", label: "First name" },
       { field: "last_name", label: "Last name" },
@@ -61,10 +72,10 @@ export default function Signup() {
       { field: "date_of_birth", label: "Date of birth" },
       { field: "country", label: "Country" },
       { field: "phone", label: "Phone number" },
-      { field: "email", label: "Email address" },
       { field: "village", label: "Town / village" },
       { field: "ward", label: "Ward / street" },
       { field: "police_station", label: "Nearest police station" },
+      { field: "email", label: "Email address" },
     ];
 
     // reset previous errors
@@ -152,6 +163,7 @@ export default function Signup() {
       { field: "village", label: "Town / village" },
       { field: "ward", label: "Ward / street" },
       { field: "police_station", label: "Nearest police station" },
+      { field: "email", label: "Email address" },
     ];
     for (const check of locationChecks) {
       if (!String(form[check.field] || "").trim()) {
@@ -229,18 +241,14 @@ export default function Signup() {
                   label="First name"
                   value={form.first_name}
                   error={errors.first_name}
-                  onChange={(v) =>
-                    setForm((f) => ({ ...f, first_name: v }))
-                  }
+                  onChange={(v) => setField("first_name", v)}
                 />
 
                 <Input
                   label="Last name"
                   value={form.last_name}
                   error={errors.last_name}
-                  onChange={(v) =>
-                    setForm((f) => ({ ...f, last_name: v }))
-                  }
+                  onChange={(v) => setField("last_name", v)}
                 />
               </div>
 
@@ -249,9 +257,7 @@ export default function Signup() {
                   label="ID / Passport number"
                   value={form.id_number}
                   error={errors.id_number}
-                  onChange={(v) =>
-                    setForm((f) => ({ ...f, id_number: v }))
-                  }
+                  onChange={(v) => setField("id_number", v)}
                 />
 
                 <Input
@@ -259,9 +265,7 @@ export default function Signup() {
                   label="Date of birth"
                   value={form.date_of_birth}
                   error={errors.date_of_birth}
-                  onChange={(v) =>
-                    setForm((f) => ({ ...f, date_of_birth: v }))
-                  }
+                  onChange={(v) => setField("date_of_birth", v)}
                 />
               </div>
 
@@ -270,9 +274,15 @@ export default function Signup() {
                 phone={form.phone}
                 errorCountry={errors.country}
                 errorPhone={errors.phone}
-                onChange={({ country, phone }) =>
-                  setForm((f) => ({ ...f, country, phone }))
-                }
+                onChange={({ country, phone }) => {
+                  setForm((f) => ({ ...f, country, phone }));
+                  setErrors((e) => {
+                    const next = { ...e };
+                    if (country) delete next.country;
+                    if (phone) delete next.phone;
+                    return next;
+                  });
+                }}
               />
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -280,14 +290,14 @@ export default function Signup() {
                   label="Town / village"
                   value={form.village}
                   error={errors.village}
-                  onChange={(v) => setForm((f) => ({ ...f, village: v }))}
+                  onChange={(v) => setField("village", v)}
                 />
 
                 <Input
                   label="Ward / street"
                   value={form.ward}
                   error={errors.ward}
-                  onChange={(v) => setForm((f) => ({ ...f, ward: v }))}
+                  onChange={(v) => setField("ward", v)}
                 />
               </div>
 
@@ -299,7 +309,7 @@ export default function Signup() {
                 <PoliceStationSelect
                   label="Nearest police station"
                   value={form.police_station}
-                  onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
+                  onChange={(v) => setField("police_station", v)}
                   required
                   withAuth={false}
                   variant="searchable"
@@ -316,9 +326,7 @@ export default function Signup() {
                 type="email"
                 value={form.email}
                 error={errors.email}
-                onChange={(v) =>
-                  setForm((f) => ({ ...f, email: v }))
-                }
+                onChange={(v) => setField("email", v)}
               />
 
               <div className="text-center text-sm text-gray-600">
