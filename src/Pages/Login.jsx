@@ -57,6 +57,8 @@ export default function Login() {
   const [successAnim, setSuccessAnim] = useState(false);
   const [expiry, setExpiry] = useState(300); // 5 minutes (300s)
   const [IdentifyingUser, setIdentifyingUser] = useState(false);
+  /** Which OTP channel is being sent (channel step / resend). */
+  const [otpDispatching, setOtpDispatching] = useState(null); // null | "sms" | "email"
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [sessionLimit, setSessionLimit] = useState(null); // { sessions: [], max_parallel: number }
   const [revokeSessionId, setRevokeSessionId] = useState("");
@@ -225,47 +227,47 @@ export default function Login() {
   // OTP Dispatch function
   //-----------------------------
   async function dispatchOtp(channel) {
-  setError("");
-  setErrorCode("");
-  setIdentifyingUser(true);
+    if (otpDispatching) return;
 
-  try {
-    const { data, error: channelError } = await invokePublicFn("dispatch-otp", {
-      user_id: userId,
-      channel,
-      device_id: getDeviceId() || undefined,
-      device_name: getDeviceName() || undefined,
-    });
+    setError("");
+    setErrorCode("");
+    setOtpDispatching(channel);
 
-    if (channelError || !data) {
-      setError("Failed to dispatch OTP. Please check your network connection.");
-      return;
+    try {
+      const { data, error: channelError } = await invokePublicFn("dispatch-otp", {
+        user_id: userId,
+        channel,
+        device_id: getDeviceId() || undefined,
+        device_name: getDeviceName() || undefined,
+      });
+
+      if (channelError || !data) {
+        setError("Failed to dispatch OTP. Please check your network connection.");
+        return;
+      }
+
+      if (!data?.success) {
+        setErrorCode(data.diag);
+        setError(data.message);
+        return;
+      }
+
+      setLastChannel(channel);
+      setTrustThisDevice(false);
+      setStep("otp");
+      setCooldown(30);
+      setExpiry(300);
+      setOtp("");
+    } catch (err) {
+      console.error(err);
+      setError("Unexpected error occurred");
+    } finally {
+      setOtpDispatching(null);
     }
-
-    if (!data?.success){
-      setErrorCode(data.diag);
-      setError(data.message);
-      return;
-    }
-
-    setLastChannel(channel);
-
-    setTrustThisDevice(false);
-    setStep("otp");
-    setCooldown(30);
-    setExpiry(300);        // ⏱ reset timer
-    setOtp("");            // clear old OTP
-    // loading is cleared in finally
-
-  } catch (err) {
-    console.error(err);
-    setError("Unexpected error occurred");
-  } finally {
-    setIdentifyingUser(false);
   }
-}
 
   function dispatchSmsWithGuard() {
+    if (otpDispatching) return;
     if (deviceTrusted && channels.includes("sms")) {
       const ok = window.confirm(
         "SMS one-time codes may use paid delivery and your account credits. Email is free. Continue with SMS?"
@@ -273,6 +275,13 @@ export default function Login() {
       if (!ok) return;
     }
     void dispatchOtp("sms");
+  }
+
+  const channelBusy = otpDispatching !== null;
+
+  function channelButtonLabel(channel, idleLabel) {
+    if (otpDispatching === channel) return "Sending code…";
+    return idleLabel;
   }
 
   // ----------------------------
@@ -526,7 +535,7 @@ export default function Login() {
               ? phoneOnlyNoEmail
                 ? "This account does not have email; we will send a code by SMS only."
                 : deviceTrusted === false
-                ? "For security, this browser must verify by email first (free). SMS will be available here after that."
+                ? "For security, this browser must be verified by email first (free). SMS will be available later if you choose to trust this browser."
                 : "Choose how you want to receive your OTP"
               : ""}
           </p>
@@ -578,7 +587,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={IdentifyingUser}
-                className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold"
+                className="w-full py-3 rounded-xl bg-iregistrygreen text-white font-semibold cursor-pointer transition-all hover:brightness-95 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {IdentifyingUser ? "Sending..." : "Send OTP"}
               </button>
@@ -604,7 +613,7 @@ export default function Login() {
               {deviceTrusted && channels.includes("sms") && channels.includes("email") ? (
                 <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
                   <span className="font-semibold">Tip:</span> Email delivery is free. SMS may use paid delivery
-                  and credits — you&apos;ll be asked to confirm before sending SMS.
+                  and credits.
                 </div>
               ) : null}
 
@@ -612,21 +621,37 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => dispatchSmsWithGuard()}
-                  disabled={IdentifyingUser}
-                  className="w-full py-3 mb-3 rounded-lg bg-iregistrygreen text-white font-semibold"
+                  disabled={channelBusy}
+                  aria-busy={otpDispatching === "sms"}
+                  className={`w-full py-3 mb-3 rounded-xl font-semibold transition-all duration-150 flex items-center justify-center gap-2 min-h-[48px] ${
+                    otpDispatching === "sms"
+                      ? "bg-iregistrygreen/90 text-white cursor-wait"
+                      : "bg-iregistrygreen text-white cursor-pointer hover:brightness-95 active:scale-[0.98] shadow-sm hover:shadow-md"
+                  } disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 disabled:hover:brightness-100 disabled:shadow-sm`}
                 >
-                  SMS to {maskedPhone}
+                  {otpDispatching === "sms" ? (
+                    <span className="inline-block h-5 w-5 border-2 border-white/40 border-t-white rounded-full animate-spin" aria-hidden />
+                  ) : null}
+                  {channelButtonLabel("sms", `SMS to ${maskedPhone}`)}
                 </button>
               )}
 
               {channels.includes("email") && (
                 <button
                   type="button"
-                  onClick={() => dispatchOtp("email")}
-                  disabled={IdentifyingUser}
-                  className="w-full py-3 rounded-lg border border-iregistrygreen text-iregistrygreen font-semibold"
+                  onClick={() => void dispatchOtp("email")}
+                  disabled={channelBusy}
+                  aria-busy={otpDispatching === "email"}
+                  className={`w-full py-3 rounded-xl font-semibold transition-all duration-150 flex items-center justify-center gap-2 min-h-[48px] ${
+                    otpDispatching === "email"
+                      ? "border-2 border-iregistrygreen bg-emerald-50 text-iregistrygreen cursor-wait"
+                      : "border-2 border-iregistrygreen bg-white text-iregistrygreen cursor-pointer hover:bg-emerald-50 active:scale-[0.98] shadow-sm"
+                  } disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100`}
                 >
-                  Email to {maskedEmail}
+                  {otpDispatching === "email" ? (
+                    <span className="inline-block h-5 w-5 border-2 border-iregistrygreen/30 border-t-iregistrygreen rounded-full animate-spin" aria-hidden />
+                  ) : null}
+                  {channelButtonLabel("email", `Email to ${maskedEmail}`)}
                 </button>
               )}
             </>
@@ -748,6 +773,7 @@ export default function Login() {
                   onClick={() => {
                     setOtp("");
                     setError("");
+                    setOtpDispatching(null);
                     setStep("channel");
                   }}
                   className="text-sm text-gray-500 hover:text-iregistrygreen hover:underline transition-colors"
@@ -761,10 +787,19 @@ export default function Login() {
                   <>Resend OTP in {cooldown}s</>
                 ) : (
                   <button
-                    disabled = {!lastChannel || cooldown > 0 || verifyingOtp}
-                    onClick={() => dispatchOtp(lastChannel)}
+                    type="button"
+                    disabled={!lastChannel || cooldown > 0 || verifyingOtp || channelBusy}
+                    onClick={() => void dispatchOtp(lastChannel)}
+                    className="font-medium text-iregistrygreen hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline inline-flex items-center gap-1.5"
                   >
-                    Resend OTP
+                    {otpDispatching ? (
+                      <>
+                        <span className="inline-block h-3.5 w-3.5 border-2 border-iregistrygreen/30 border-t-iregistrygreen rounded-full animate-spin" aria-hidden />
+                        Sending…
+                      </>
+                    ) : (
+                      "Resend OTP"
+                    )}
                   </button>
                 )}
               </div>

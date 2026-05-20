@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
+import HomeContactCard from "../components/HomeContactCard.jsx";
 import { usePublicStats } from "../hooks/usePublicStats.js";
 import { Users, Package, ShieldCheck, AlertTriangle, ChevronRight } from "lucide-react";
 import CountUp from "react-countup";
@@ -614,6 +615,10 @@ export default function HomePage() {
             </div>
           </div>
 
+        </div>
+
+        <div className="mt-8">
+          <HomeContactCard />
         </div>
       </div>
     </div>
