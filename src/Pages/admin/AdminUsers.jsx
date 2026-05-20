@@ -28,6 +28,10 @@ function UserMetaItem({ label, value }) {
   );
 }
 
+function MetaSep() {
+  return <span className="text-emerald-600 font-semibold select-none px-0.5" aria-hidden>•</span>;
+}
+
 function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
@@ -1511,17 +1515,17 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
                         <UserMetaItem label="Role" value={roleLabel[u.role] || u.role} />
-                        {" • "}
+                        <MetaSep />
                         <UserMetaItem label="Status" value={st} />
-                        {" • "}
+                        <MetaSep />
                         <UserMetaItem label="Phone" value={u.phone} />
-                        {" • "}
+                        <MetaSep />
                         <UserMetaItem label="ID / Passport" value={u.id_number} />
-                        {" • "}
+                        <MetaSep />
                         <UserMetaItem label="Location" value={formatUserLocation(u)} />
-                        {" • "}
+                        <MetaSep />
                         <UserMetaItem label="Last login" value={fmtDateTime(u.last_login_at)} />
-                        {" • "}
+                        <MetaSep />
                         <UserMetaItem label="ID" value={u.id} />
                       </div>
                       {(u.suspended_reason || u.disabled_reason) && st !== "active" ? (
