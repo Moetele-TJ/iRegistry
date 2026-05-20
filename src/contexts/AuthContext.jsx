@@ -12,7 +12,7 @@ import { invokeFn } from "../lib/invokeFn";
 const AuthContext = createContext(null);
 
 /** Background validate-session while logged in (sliding DB session + JWT rotation). */
-const SESSION_SLIDE_INTERVAL_MS = 15 * 60 * 1000;
+const SESSION_SLIDE_INTERVAL_MS = 20 * 60 * 1000;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { id, role }
