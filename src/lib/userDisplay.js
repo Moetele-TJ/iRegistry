@@ -16,6 +16,18 @@ export function displayUser(u) {
   return "";
 }
 
+/** Village, ward, and police station for list/profile summaries. */
+export function formatUserLocation(u) {
+  const village = String(u?.village || "").trim();
+  const ward = String(u?.ward || "").trim();
+  const station = String(u?.police_station || "").trim();
+  const parts = [];
+  if (village) parts.push(village);
+  if (ward) parts.push(ward);
+  if (station) parts.push(station);
+  return parts.length ? parts.join(", ") : "";
+}
+
 export function sortUsersAlphabetically(users) {
   const list = Array.isArray(users) ? users : [];
   return [...list].sort((a, b) => {

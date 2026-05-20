@@ -11,7 +11,7 @@ import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
-import { displayUser } from "../../lib/userDisplay.js";
+import { displayUser, formatUserLocation } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
 
 function displayName(u) {
@@ -1517,15 +1517,11 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         {" • "}
                         <UserMetaItem label="ID / Passport" value={u.id_number} />
                         {" • "}
+                        <UserMetaItem label="Location" value={formatUserLocation(u)} />
+                        {" • "}
                         <UserMetaItem label="Last login" value={fmtDateTime(u.last_login_at)} />
                         {" • "}
                         <UserMetaItem label="ID" value={u.id} />
-                        {u.police_station ? (
-                          <>
-                            {" • "}
-                            <UserMetaItem label="Station" value={u.police_station} />
-                          </>
-                        ) : null}
                       </div>
                       {(u.suspended_reason || u.disabled_reason) && st !== "active" ? (
                         <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1 mt-2 max-w-xl">
