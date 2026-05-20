@@ -160,6 +160,44 @@ function Field({ label, children, mono }) {
   );
 }
 
+/** Label column slightly wider; values right-aligned for scanability on mobile. */
+function DetailRow({ label, value, children, mono = false, breakAll = false, title }) {
+  const text =
+    children ??
+    (value != null && String(value).trim() !== "" ? value : "—");
+  return (
+    <div className="grid grid-cols-[minmax(6.25rem,42%)_1fr] gap-x-3 items-start py-2 border-b border-gray-50 last:border-0">
+      <dt className="text-xs font-semibold text-gray-500 text-left leading-snug pt-0.5">{label}</dt>
+      <dd
+        title={title}
+        className={`text-xs text-gray-800 text-right leading-snug min-w-0 flex flex-col items-end justify-start ${
+          mono ? "font-mono tabular-nums" : ""
+        } ${breakAll ? "[&_*]:break-all break-all" : "break-words"}`}
+      >
+        {text}
+      </dd>
+    </div>
+  );
+}
+
+function formatProfileLocation(u) {
+  const village = String(u?.village || "").trim();
+  const ward = String(u?.ward || "").trim();
+  const station = String(u?.police_station || "").trim();
+  const parts = [];
+  if (village) parts.push(village);
+  if (ward) parts.push(ward);
+  if (station) parts.push(station);
+  return parts.length ? parts.join(", ") : "—";
+}
+
+function shortUserAgent(ua) {
+  const s = String(ua || "").trim();
+  if (!s) return "—";
+  if (s.length <= 72) return s;
+  return `${s.slice(0, 72)}…`;
+}
+
 const inputClass =
   "mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-iregistrygreen focus:outline-none focus:ring-2 focus:ring-iregistrygreen/20";
 
@@ -981,27 +1019,26 @@ export default function ProfilePage() {
               const id = s?.id ? String(s.id) : "";
               const ip = String(s?.ip_address || "").split(",")[0].trim();
               const ua = String(s?.user_agent || "");
+              const deviceTitle = thisDevice
+                ? "This device"
+                : s?.device_name
+                  ? String(s.device_name)
+                  : "Session";
+              const locationLabel = formatProfileLocation(user);
               return (
-                <div key={id || Math.random()} className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3">
+                <div key={id || Math.random()} className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm px-4 py-3.5">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                        <span className="truncate">{thisDevice ? "This device" : s?.device_name ? String(s.device_name) : "Session"}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-gray-900 flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 break-words">{deviceTitle}</span>
                         {thisDevice ? (
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100">
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 shrink-0">
                             current
                           </span>
                         ) : null}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Started: {fmtDate(s?.created_at)} • Expires: {fmtDate(s?.expires_at)}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1 break-words">
-                        {ip ? `IP: ${ip}` : "IP: —"}
-                        {ua ? ` • UA: ${ua.slice(0, 120)}` : ""}
-                      </div>
                     </div>
-                    <div className="shrink-0">
+                    <div className="shrink-0 pt-0.5">
                       <RippleButton
                         type="button"
                         className="px-3 py-2 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
@@ -1013,6 +1050,13 @@ export default function ProfilePage() {
                       </RippleButton>
                     </div>
                   </div>
+                  <dl className="mt-3 pt-3 border-t border-gray-100">
+                    <DetailRow label="Started" value={fmtDate(s?.created_at)} />
+                    <DetailRow label="Expires" value={fmtDate(s?.expires_at)} />
+                    <DetailRow label="IP address" value={ip || "—"} mono breakAll />
+                    <DetailRow label="Location" value={locationLabel} />
+                    <DetailRow label="Browser" value={shortUserAgent(ua)} title={ua || undefined} />
+                  </dl>
                 </div>
               );
             })}
@@ -1194,7 +1238,7 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            {/* Compact profile summary: name on top; details in a horizontal band below */}
+            {/* Compact profile summary: name, then email, then aligned detail rows */}
             <div className="mb-6 rounded-2xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5 shadow-sm">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div
@@ -1203,17 +1247,23 @@ export default function ProfilePage() {
                 >
                   {initials(user)}
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate min-w-0">{displayName}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight min-w-0 break-words">
+                  {displayName}
+                </h2>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-100/90 flex flex-wrap gap-x-6 gap-y-4 sm:gap-x-8 lg:gap-x-10">
-                <div className="min-w-[8rem] sm:min-w-[9rem]">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Role</p>
-                  <p className="text-sm text-gray-900 font-medium mt-1">{roleLabel(user.role)}</p>
-                </div>
-                <div className="min-w-[8rem] sm:min-w-[9rem]">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Status</p>
-                  <div className="mt-1">
+              {user.email ? (
+                <p className="mt-3 text-sm text-gray-800 flex items-start gap-2 min-w-0">
+                  <Mail size={16} className="shrink-0 text-gray-400 mt-0.5" aria-hidden />
+                  <span className="break-all min-w-0">{user.email}</span>
+                </p>
+              ) : null}
+
+              <dl className="mt-4 pt-4 border-t border-gray-100/90">
+                <DetailRow label="Role" value={roleLabel(user.role)} />
+                <DetailRow
+                  label="Status"
+                  value={
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         statusActive ? "bg-emerald-50 text-emerald-800 border border-emerald-100" : "bg-gray-100 text-gray-700"
@@ -1221,56 +1271,46 @@ export default function ProfilePage() {
                     >
                       {derivedStatus || "—"}
                     </span>
-                  </div>
-                </div>
-                {user.email ? (
-                  <div className="min-w-[12rem] flex-1 sm:flex-none sm:max-w-md">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Email</p>
-                    <p className="text-sm text-gray-800 mt-1 flex items-start gap-1.5 min-w-0">
-                      <Mail size={15} className="shrink-0 text-gray-400 mt-0.5" />
-                      <span className="break-all min-w-0">{user.email}</span>
-                    </p>
-                  </div>
-                ) : null}
+                  }
+                />
+                <DetailRow label="Location" value={formatProfileLocation(user)} />
                 {canSeeRegistryAccountId ? (
-                  <div className="min-w-[10rem] flex-1 sm:flex-none sm:max-w-xs lg:max-w-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registry account ID</p>
-                    <div className="mt-1 flex items-start gap-2 min-w-0">
-                      <p className="font-mono text-xs text-gray-800 break-all min-w-0 leading-snug">{user.id || "—"}</p>
-                      {user.id ? (
-                        <RippleButton
-                          type="button"
-                          className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
-                          onClick={() => void copyText("Registry account ID", user.id)}
-                          title="Copy registry account ID"
-                        >
-                          <Copy size={14} />
-                          <span className="hidden sm:inline">Copy</span>
-                        </RippleButton>
-                      ) : null}
-                    </div>
-                  </div>
+                  <DetailRow label="Registry ID" value={user.id ? String(user.id) : "—"} mono breakAll />
                 ) : null}
-                <div className="min-w-[10rem] flex-1 sm:flex-none sm:max-w-xs">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">National ID / Passport</p>
-                  <div className="mt-1 flex items-start gap-2 min-w-0">
-                    <p className="text-sm text-gray-900 font-medium tabular-nums min-w-0 break-words">
-                      {user.id_number ? String(user.id_number) : "—"}
-                    </p>
-                    {user.id_number ? (
-                      <RippleButton
-                        type="button"
-                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
-                        onClick={() => void copyText("National ID / Passport", user.id_number)}
-                        title="Copy ID number"
-                      >
-                        <Copy size={14} />
-                        <span className="hidden sm:inline">Copy</span>
-                      </RippleButton>
-                    ) : null}
-                  </div>
+                <DetailRow
+                  label="National ID"
+                  value={user.id_number ? String(user.id_number) : "—"}
+                  mono
+                  breakAll
+                />
+              </dl>
+
+              {canSeeRegistryAccountId && user.id ? (
+                <div className="mt-3 flex justify-end">
+                  <RippleButton
+                    type="button"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                    onClick={() => void copyText("Registry account ID", user.id)}
+                    title="Copy registry account ID"
+                  >
+                    <Copy size={14} />
+                    Copy registry ID
+                  </RippleButton>
                 </div>
-              </div>
+              ) : null}
+              {user.id_number ? (
+                <div className="mt-2 flex justify-end">
+                  <RippleButton
+                    type="button"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs text-gray-700"
+                    onClick={() => void copyText("National ID / Passport", user.id_number)}
+                    title="Copy ID number"
+                  >
+                    <Copy size={14} />
+                    Copy ID
+                  </RippleButton>
+                </div>
+              ) : null}
             </div>
 
             {/* Mobile and tablet (below lg): stacked cards — same sections as before */}
