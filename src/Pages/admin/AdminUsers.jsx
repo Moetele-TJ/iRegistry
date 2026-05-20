@@ -664,7 +664,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         addToast({ type: "error", message: msg });
         return;
       }
-      if (isAdding) {
+      if (isAdding || isEditing) {
         const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
         if (!idn) {
           const msg = "National ID / Passport is required.";
@@ -672,11 +672,20 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           addToast({ type: "error", message: msg });
           return;
         }
-      }
-      if (isEditing) {
-        const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
-        if (!idn) {
-          const msg = "National ID / Passport is required.";
+        if (!normStr(form.village)) {
+          const msg = "Town / village is required.";
+          setError(msg);
+          addToast({ type: "error", message: msg });
+          return;
+        }
+        if (!normStr(form.ward)) {
+          const msg = "Ward / street is required.";
+          setError(msg);
+          addToast({ type: "error", message: msg });
+          return;
+        }
+        if (!normStr(form.police_station)) {
+          const msg = "Nearest police station is required.";
           setError(msg);
           addToast({ type: "error", message: msg });
           return;
@@ -731,6 +740,9 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             id_number: form.id_number,
             email: form.email,
             phone: form.phone,
+            village: form.village,
+            ward: form.ward,
+            police_station: form.police_station,
             role: form.role,
             status: form.status,
             ...(dobInputStr(form.date_of_birth)
@@ -1137,7 +1149,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Name, email, phone, ID…"
+                  placeholder="Name, email, phone, ID number…"
                 />
               </div>
               {canAdminister ? (
@@ -1177,7 +1189,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   value={stationFilter}
                   onChange={(e) => setStationFilter(e.target.value)}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Gantsi Police…"
+                  placeholder="Gantsi Police Station…"
                 />
               </div>
               <div className="sm:w-48 min-w-[11rem]">
@@ -1256,11 +1268,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 <h2 className="text-lg font-semibold">
                   {isAdding ? "Add user" : "Edit user"}
                 </h2>
-                {isAdding ? (
-                  <p className="text-xs text-gray-500 mt-1 max-w-xl">
-                    Station, village, and ward can be added later via Edit or the user&apos;s profile.
-                  </p>
-                ) : null}
               </div>
               <button
                 type="button"
@@ -1279,7 +1286,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   value={form.first_name}
                   onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Jane"
+                  placeholder="Thato"
                   disabled={loading || usersDirectoryLoading}
                 />
               </div>
@@ -1290,7 +1297,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   value={form.last_name}
                   onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Doe"
+                  placeholder="Kgosi"
                   required
                   disabled={loading || usersDirectoryLoading}
                 />
@@ -1303,7 +1310,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     value={form.id_number}
                     onChange={(e) => setForm((s) => ({ ...s, id_number: e.target.value }))}
                     className="mt-1 w-full border rounded-lg px-3 py-2"
-                    placeholder="123456789"
+                    placeholder="12345678901"
                     required
                     disabled={loading || usersDirectoryLoading}
                   />
@@ -1334,7 +1341,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   value={form.email}
                   onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
                   className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="jane@example.com"
+                  placeholder="thato@iregsys.com"
                   disabled={loading || usersDirectoryLoading}
                 />
               </div>
@@ -1392,16 +1399,16 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 </>
               ) : null}
 
-              {isEditing ? (
+              {isAdding || isEditing ? (
                 <>
                   <div>
-                    <label className="text-xs text-gray-600">Police station</label>
+                    <label className="text-xs text-gray-600">Police station *</label>
                     <div className="mt-1">
                       <PoliceStationSelect
                         label={null}
                         value={form.police_station}
                         onChange={(v) => setForm((s) => ({ ...s, police_station: v }))}
-                        required={false}
+                        required
                         withAuth={true}
                         inputClassName="w-full border rounded-lg px-3 py-2"
                         placeholder={
@@ -1417,23 +1424,23 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   </div>
 
                   <div>
-                    <label className="text-xs text-gray-600">Village</label>
+                    <label className="text-xs text-gray-600">Town / village *</label>
                     <input
                       value={form.village}
                       onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
-                      placeholder="(optional)"
+                      required
                       disabled={loading || usersDirectoryLoading}
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-gray-600">Ward</label>
+                    <label className="text-xs text-gray-600">Ward / street *</label>
                     <input
                       value={form.ward}
                       onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
-                      placeholder="(optional)"
+                      required
                       disabled={loading || usersDirectoryLoading}
                     />
                   </div>

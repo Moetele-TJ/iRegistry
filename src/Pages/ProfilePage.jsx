@@ -428,6 +428,27 @@ export default function ProfilePage() {
       addToast({ type: "error", message: msg });
       return;
     }
+    const village = String(form.village ?? "").trim();
+    const ward = String(form.ward ?? "").trim();
+    const police_station = String(form.police_station ?? "").trim();
+    if (!village) {
+      const msg = "Town / village is required.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
+    if (!ward) {
+      const msg = "Ward / street is required.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
+    if (!police_station) {
+      const msg = "Nearest police station is required.";
+      setFormError(msg);
+      addToast({ type: "error", message: msg });
+      return;
+    }
     if (dobRaw && !/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
       const msg = "Please enter date of birth as YYYY-MM-DD.";
       setFormError(msg);
@@ -465,9 +486,9 @@ export default function ProfilePage() {
             last_name,
             email: email || null,
             phone,
-            village: String(form.village ?? "").trim() || null,
-            ward: String(form.ward ?? "").trim() || null,
-            police_station: String(form.police_station ?? "").trim() || null,
+            village,
+            ward,
+            police_station,
             id_number,
             date_of_birth: dobRaw ? dobRaw : null,
           },
@@ -777,29 +798,37 @@ export default function ProfilePage() {
           ) : (
             <>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Town / Village</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  Town / Village <span className="text-red-600">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={form.village}
                   onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
                   autoComplete="address-level2"
+                  required
                 />
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ward / Street</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  Ward / Street <span className="text-red-600">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={form.ward}
                   onChange={(e) => setForm((f) => ({ ...f, ward: e.target.value }))}
+                  required
                 />
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Police station</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  Police station <span className="text-red-600">*</span>
+                </label>
                 <PoliceStationSelect
                   label={null}
                   value={form.police_station}
                   onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
-                  required={false}
+                  required
                   withAuth={true}
                   inputClassName={inputClass}
                   placeholder={isPolice ? "Select a police station…" : "Police station"}

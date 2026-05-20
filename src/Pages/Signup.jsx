@@ -12,7 +12,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    // STEP 1 — identity + contact (police station optional but encouraged)
+    // STEP 1 — identity + contact + location (required)
     first_name: "",
     last_name: "",
     id_number: "",
@@ -22,7 +22,7 @@ export default function Signup() {
     email: "",
     police_station: "",
 
-    // STEP 2 (optional) — address / extra phones for profile + items
+    // STEP 2 (optional) — extra address / contact details
     state: "",
     village: "",
     postal_code: "",
@@ -62,6 +62,9 @@ export default function Signup() {
       { field: "country", label: "Country" },
       { field: "phone", label: "Phone number" },
       { field: "email", label: "Email address" },
+      { field: "village", label: "Town / village" },
+      { field: "ward", label: "Ward / street" },
+      { field: "police_station", label: "Nearest police station" },
     ];
 
     // reset previous errors
@@ -69,7 +72,8 @@ export default function Signup() {
 
     // find first missing field
     for (const check of requiredChecks) {
-      if (!form[check.field]) {
+      const val = form[check.field];
+      if (!val || !String(val).trim()) {
         setErrors({ [check.field]: true });
 
         setModal({
@@ -144,6 +148,24 @@ export default function Signup() {
 
     if (loading) return;
 
+    const locationChecks = [
+      { field: "village", label: "Town / village" },
+      { field: "ward", label: "Ward / street" },
+      { field: "police_station", label: "Nearest police station" },
+    ];
+    for (const check of locationChecks) {
+      if (!String(form[check.field] || "").trim()) {
+        setErrors({ [check.field]: true });
+        setModal({
+          open: true,
+          title: "Error",
+          message: `${check.label} is required.`,
+          type: "error",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -186,7 +208,7 @@ export default function Signup() {
   const stepBlurb =
     step === 1
       ? "Step 1 of 2 · Enter your details, then continue."
-      : "Step 2 of 2 · Optional address and contact details.";
+      : "Step 2 of 2 · Optional extra details (location was captured in step 1).";
 
   return (
     <>
@@ -253,16 +275,41 @@ export default function Signup() {
                 }
               />
 
-              <PoliceStationSelect
-                label="Nearest police station"
-                value={form.police_station}
-                onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
-                required={false}
-                withAuth={false}
-                variant="searchable"
-                placeholder="Select or Type your nearest Police Station"
-                helpText="Pick a station from the list, search to narrow it, or type a name if yours is not listed."
-              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Town / village"
+                  value={form.village}
+                  error={errors.village}
+                  onChange={(v) => setForm((f) => ({ ...f, village: v }))}
+                />
+
+                <Input
+                  label="Ward / street"
+                  value={form.ward}
+                  error={errors.ward}
+                  onChange={(v) => setForm((f) => ({ ...f, ward: v }))}
+                />
+              </div>
+
+              <div
+                className={
+                  errors.police_station ? "rounded-lg ring-1 ring-red-500 ring-offset-1" : ""
+                }
+              >
+                <PoliceStationSelect
+                  label="Nearest police station"
+                  value={form.police_station}
+                  onChange={(v) => setForm((f) => ({ ...f, police_station: v }))}
+                  required
+                  withAuth={false}
+                  variant="searchable"
+                  inputClassName={`w-full border rounded-lg px-4 py-2 ${
+                    errors.police_station ? "border-red-500" : ""
+                  }`}
+                  placeholder="Select or type your nearest police station"
+                  helpText="Pick a station from the list, search to narrow it, or type a name if yours is not listed."
+                />
+              </div>
 
               <Input
                 label="Email address"
@@ -311,22 +358,6 @@ export default function Signup() {
                   label="Postal code"
                   value={form.postal_code}
                   onChange={(v) => setForm((f) => ({ ...f, postal_code: v }))}
-                  required={false}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  label="Town / village"
-                  value={form.village}
-                  onChange={(v) => setForm((f) => ({ ...f, village: v }))}
-                  required={false}
-                />
-
-                <Input
-                  label="Ward / street"
-                  value={form.ward}
-                  onChange={(v) => setForm((f) => ({ ...f, ward: v }))}
                   required={false}
                 />
               </div>

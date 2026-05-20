@@ -305,13 +305,23 @@ export default function AddItem() {
     setPhotoPreviews(updated);
   }
 
-  const requiredFields = ["category", "make", "model", "serial1", "station"];
+  const requiredFields = ["category", "make", "model", "serial1", "village", "ward", "station"];
 
-  function isFieldInvalid(field) {
-    return requiredFields.includes(field) && !form[field]?.trim();
+  function effectiveLoc(field) {
+    if (heldAtResidence) {
+      if (field === "village") return String(user?.village || "").trim();
+      if (field === "ward") return String(user?.ward || "").trim();
+      if (field === "station") return String(user?.police_station || "").trim();
+    }
+    return String(form[field] || "").trim();
   }
 
-  const isFormInvalid = loading || !!serialError || requiredFields.some(f => !form[f]?.trim());
+  function isFieldInvalid(field) {
+    return requiredFields.includes(field) && !effectiveLoc(field);
+  }
+
+  const isFormInvalid =
+    loading || !!serialError || requiredFields.some((f) => !effectiveLoc(f));
 
   function goToCreatedItem(slug) {
     if (slug) navigate(`/items/${slug}`);
@@ -376,14 +386,42 @@ export default function AddItem() {
       return;
     }
     
-    if (!form.station.trim()) {
+    const locVillage = heldAtResidence
+      ? String(user?.village || "").trim()
+      : form.village.trim();
+    const locWard = heldAtResidence ? String(user?.ward || "").trim() : form.ward.trim();
+    const locStation = heldAtResidence
+      ? String(user?.police_station || "").trim()
+      : form.station.trim();
+
+    if (!locVillage) {
       await alert({
         title: "Missing Information",
-        message: "Please fill in the Nearest police station field before you continue.",
+        message: heldAtResidence
+          ? "Your profile is missing town / village. Update your profile or uncheck “held at my residence”."
+          : "Please fill in Town / village before you continue.",
         variant: "warning",
       });
-
-      document.querySelector('input[name="station"]')?.focus();
+      return;
+    }
+    if (!locWard) {
+      await alert({
+        title: "Missing Information",
+        message: heldAtResidence
+          ? "Your profile is missing ward / street. Update your profile or uncheck “held at my residence”."
+          : "Please fill in Ward / street before you continue.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (!locStation) {
+      await alert({
+        title: "Missing Information",
+        message: heldAtResidence
+          ? "Your profile is missing nearest police station. Update your profile or uncheck “held at my residence”."
+          : "Please fill in the nearest police station before you continue.",
+        variant: "warning",
+      });
       return;
     }
     
@@ -524,7 +562,11 @@ export default function AddItem() {
               user={user}
               disabled={heldAtResidence}
               inputClassName="input"
-              requiredStation={true}
+              requiredTown
+              requiredWard
+              requiredStation
+              townInputClassName={`input ${isFieldInvalid("village") ? "border-red-500 ring-red-500" : ""}`}
+              wardInputClassName={`input ${isFieldInvalid("ward") ? "border-red-500 ring-red-500" : ""}`}
               stationInputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
               onTownChange={(v) => setForm((f) => ({ ...f, village: v, ward: "", station: "" }))}
               onWardChange={(v) => updateField("ward", v)}

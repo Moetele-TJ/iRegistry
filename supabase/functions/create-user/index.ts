@@ -70,11 +70,24 @@ serve(async (req) => {
     const village =
       typeof body.village === "string" ? body.village.trim()
       : typeof body.city === "string" ? body.city.trim()
-      : null;
+      : "";
     const ward =
       typeof body.ward === "string" ? body.ward.trim()
       : typeof body.address_line === "string" ? body.address_line.trim()
-      : null;
+      : "";
+    const police_station =
+      typeof body.police_station === "string" ? body.police_station.trim() : "";
+
+    if (!village || !ward || !police_station) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message:
+            "Town / village, ward / street, and nearest police station are required.",
+        }),
+        { status: 400, headers: corsHeaders },
+      );
+    }
 
     const { data: created, error } = await supabase
       .from("users")
@@ -97,7 +110,7 @@ serve(async (req) => {
         ward,
         alt_phone: body.alt_phone?.trim() || null,
         landline: body.landline?.trim() || null,
-        police_station: body.police_station?.trim() || null,
+        police_station,
 
         // SYSTEM
         role: "user",

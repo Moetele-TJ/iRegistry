@@ -390,7 +390,7 @@ serve(async (req) => {
 
     // We keep `location` required for now because the DB column is NOT NULL.
     // New UI will treat `station` as the required field; we mirror it into `location`.
-    const requiredFields = ["category", "make", "model", "serial1", "location"];
+    const requiredFields = ["category", "make", "model", "serial1", "location", "village", "ward"];
 
     for (const field of requiredFields) {
       const dbField = fieldMap[field] ?? field;
@@ -398,15 +398,23 @@ serve(async (req) => {
       const newValue =
         dbField in cleanUpdates ? cleanUpdates[dbField] : existing[dbField];
 
-      if (newValue === null || newValue === undefined || newValue ==="") {
+      if (newValue === null || newValue === undefined || newValue === "") {
+        const label =
+          field === "village"
+            ? "Town / village"
+            : field === "ward"
+              ? "Ward / street"
+              : field === "location"
+                ? "Nearest police station"
+                : field;
         return respond(
           {
             success: false,
             diag: "ITEM-UPDATE-REQUIRED",
-            message: `${field} cannot be empty`,
+            message: `${label} is required.`,
           },
           corsHeaders,
-          400
+          400,
         );
       }
     }

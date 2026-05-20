@@ -41,6 +41,8 @@ export async function run(req: Request): Promise<Response> {
     const date_of_birth = typeof body?.date_of_birth === "string" ? body.date_of_birth.trim() : "";
     const village = typeof body?.village === "string" ? body.village.trim() : "";
     const ward = typeof body?.ward === "string" ? body.ward.trim() : "";
+    const police_station =
+      typeof body?.police_station === "string" ? body.police_station.trim() : "";
 
     if (!orgId) return respond({ success: false, message: "org_id is required" }, corsHeaders, 400);
     if (!orgRoleIs(orgRole, "ORG_ADMIN", "ORG_MANAGER", "ORG_MEMBER")) {
@@ -51,6 +53,17 @@ export async function run(req: Request): Promise<Response> {
     if (!last_name || !id_number || !phone) {
       return respond(
         { success: false, message: "Last name, ID number, and phone are required." },
+        corsHeaders,
+        400,
+      );
+    }
+    if (!village || !ward || !police_station) {
+      return respond(
+        {
+          success: false,
+          message:
+            "Town / village, ward / street, and nearest police station are required.",
+        },
         corsHeaders,
         400,
       );
@@ -121,8 +134,9 @@ export async function run(req: Request): Promise<Response> {
         email: email || null,
         phone,
         date_of_birth: date_of_birth || null,
-        village: village || null,
-        ward: ward || null,
+        village: village.slice(0, 200),
+        ward: ward.slice(0, 200),
+        police_station: police_station.slice(0, 200),
         role: "user",
         identity_verified: false,
         email_verified: false,

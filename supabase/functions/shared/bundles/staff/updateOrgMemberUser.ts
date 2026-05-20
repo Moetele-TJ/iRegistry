@@ -50,7 +50,7 @@ export async function run(req: Request): Promise<Response> {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, first_name, last_name, id_number, phone, email, date_of_birth, village, ward, deleted_at")
+      .select("id, first_name, last_name, id_number, phone, email, date_of_birth, village, ward, police_station, deleted_at")
       .eq("id", userId)
       .maybeSingle();
     if (fetchErr || !existing || existing.deleted_at) {
@@ -72,7 +72,8 @@ export async function run(req: Request): Promise<Response> {
       if (next === undefined) return;
       if (next === null) {
         // do not allow clearing required core fields
-        if (key === "last_name" || key === "id_number" || key === "phone") {
+        const requiredKeys = ["last_name", "id_number", "phone", "village", "ward", "police_station"];
+        if (requiredKeys.includes(key)) {
           throw new Error(`${key} is required`);
         }
         if (cur !== null) {
@@ -82,7 +83,8 @@ export async function run(req: Request): Promise<Response> {
         return;
       }
       if (typeof nextNorm === "string" && !nextNorm) {
-        if (key === "last_name" || key === "id_number" || key === "phone") {
+        const requiredKeys = ["last_name", "id_number", "phone", "village", "ward", "police_station"];
+        if (requiredKeys.includes(key)) {
           throw new Error(`${key} is required`);
         }
         if (cur !== null) {
@@ -104,6 +106,7 @@ export async function run(req: Request): Promise<Response> {
     if ("email" in updates) setField("email", (updates as any).email);
     if ("village" in updates) setField("village", (updates as any).village);
     if ("ward" in updates) setField("ward", (updates as any).ward);
+    if ("police_station" in updates) setField("police_station", (updates as any).police_station);
 
     if ("id_number" in updates) {
       const raw = (updates as any).id_number;
@@ -156,6 +159,36 @@ export async function run(req: Request): Promise<Response> {
       }
     }
 
+    const profileTouchKeys = [
+      "first_name",
+      "last_name",
+      "phone",
+      "email",
+      "village",
+      "ward",
+      "police_station",
+      "id_number",
+      "date_of_birth",
+    ];
+    const touchesProfile = profileTouchKeys.some((k) => k in clean);
+    if (touchesProfile) {
+      const eff = (key: string) => {
+        const raw = key in clean ? clean[key] : (existing as Record<string, unknown>)[key];
+        return typeof raw === "string" ? raw.trim() : "";
+      };
+      if (!eff("village") || !eff("ward") || !eff("police_station")) {
+        return respond(
+          {
+            success: false,
+            message:
+              "Town / village, ward / street, and nearest police station are required.",
+          },
+          corsHeaders,
+          400,
+        );
+      }
+    }
+
     if (Object.keys(clean).length === 0) {
       return respond({ success: true, user: existing, changed: {} }, corsHeaders, 200);
     }
@@ -164,7 +197,7 @@ export async function run(req: Request): Promise<Response> {
       .from("users")
       .update(clean)
       .eq("id", userId)
-      .select("id, first_name, last_name, id_number, phone, email, date_of_birth, village, ward")
+      .select("id, first_name, last_name, id_number, phone, email, date_of_birth, village, ward, police_station")
       .single();
     if (upErr || !updated) {
       return respond({ success: false, message: upErr?.message || "Failed to update user" }, corsHeaders, 500);

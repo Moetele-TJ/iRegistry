@@ -6,6 +6,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
+import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
 
 function reqMsg(label) {
   return `${label} is required.`;
@@ -32,6 +33,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
     date_of_birth: "",
     village: "",
     ward: "",
+    police_station: "",
   });
 
   const errors = useMemo(() => {
@@ -39,6 +41,9 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
     if (!String(form.last_name || "").trim()) e.last_name = reqMsg("Last name");
     if (!String(form.id_number || "").replace(/\s+/g, "").trim()) e.id_number = reqMsg("ID number");
     if (!String(form.phone || "").trim()) e.phone = reqMsg("Phone");
+    if (!String(form.village || "").trim()) e.village = reqMsg("Town / village");
+    if (!String(form.ward || "").trim()) e.ward = reqMsg("Ward / street");
+    if (!String(form.police_station || "").trim()) e.police_station = reqMsg("Nearest police station");
     if (form.date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(String(form.date_of_birth).trim())) {
       e.date_of_birth = "Use YYYY-MM-DD.";
     }
@@ -100,6 +105,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
         date_of_birth: form.date_of_birth,
         village: form.village,
         ward: form.ward,
+        police_station: form.police_station,
       };
       const { data, error } = await invokeWithAuth("staff-create-org-member", { body: payload });
       if (error || !data?.success) throw new Error(data?.message || error?.message || "Failed");
@@ -205,6 +211,7 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
                     date_of_birth: "",
                     village: "",
                     ward: "",
+                    police_station: "",
                   });
                 }}
               >
@@ -325,23 +332,49 @@ export default function StaffAddOrgMemberPage({ staffBasePath = "/admin" }) {
           </label>
 
           <label className="space-y-1">
-            <div className="text-sm font-semibold text-gray-800">Village</div>
+            <div className="text-sm font-semibold text-gray-800">
+              Town / village <span className="text-red-600">*</span>
+            </div>
             <input
               value={form.village}
               onChange={(e) => setForm((p) => ({ ...p, village: e.target.value }))}
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Optional"
+              required
             />
+            {submitted && errors.village ? <div className="text-xs text-red-600">{errors.village}</div> : null}
           </label>
 
           <label className="space-y-1">
-            <div className="text-sm font-semibold text-gray-800">Ward</div>
+            <div className="text-sm font-semibold text-gray-800">
+              Ward / street <span className="text-red-600">*</span>
+            </div>
             <input
               value={form.ward}
               onChange={(e) => setForm((p) => ({ ...p, ward: e.target.value }))}
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Optional"
+              required
             />
+            {submitted && errors.ward ? <div className="text-xs text-red-600">{errors.ward}</div> : null}
+          </label>
+
+          <label className="space-y-1 sm:col-span-2">
+            <div className="text-sm font-semibold text-gray-800">
+              Nearest police station <span className="text-red-600">*</span>
+            </div>
+            <PoliceStationSelect
+              label={null}
+              value={form.police_station}
+              onChange={(v) => setForm((p) => ({ ...p, police_station: v }))}
+              required
+              withAuth={true}
+              inputClassName="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+              placeholder="Select police station…"
+              allowOther={true}
+              variant="searchable"
+            />
+            {submitted && errors.police_station ? (
+              <div className="text-xs text-red-600">{errors.police_station}</div>
+            ) : null}
           </label>
         </div>
 

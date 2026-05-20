@@ -55,6 +55,9 @@ export async function run(req: Request): Promise<Response> {
       suspended_reason,
       disabled_reason,
       date_of_birth: dateOfBirthRaw,
+      village: villageRaw,
+      ward: wardRaw,
+      police_station: policeStationRaw,
     } = body ?? {};
 
     const fn = typeof first_name === "string" ? first_name.trim() : "";
@@ -70,10 +73,26 @@ export async function run(req: Request): Promise<Response> {
       typeof suspended_reason === "string" ? suspended_reason.trim() : "";
     const disReason =
       typeof disabled_reason === "string" ? disabled_reason.trim() : "";
+    const village = typeof villageRaw === "string" ? villageRaw.trim() : "";
+    const ward = typeof wardRaw === "string" ? wardRaw.trim() : "";
+    const police_station =
+      typeof policeStationRaw === "string" ? policeStationRaw.trim() : "";
 
     if (!ln || !idn || !ph) {
       return respond(
         { success: false, message: "Last name, ID number, and phone are required." },
+        corsHeaders,
+        400,
+      );
+    }
+
+    if (!village || !ward || !police_station) {
+      return respond(
+        {
+          success: false,
+          message:
+            "Town / village, ward / street, and nearest police station are required.",
+        },
         corsHeaders,
         400,
       );
@@ -182,6 +201,9 @@ export async function run(req: Request): Promise<Response> {
       id_number: idn,
       email: em || null,
       phone: ph,
+      village: village.slice(0, 200),
+      ward: ward.slice(0, 200),
+      police_station: police_station.slice(0, 200),
       role: rl,
       identity_verified: false,
       email_verified: false,
@@ -200,7 +222,7 @@ export async function run(req: Request): Promise<Response> {
     const { data: created, error: insErr } = await supabase
       .from("users")
       .insert(baseRow)
-      .select("id, first_name, last_name, email, role, police_station")
+      .select("id, first_name, last_name, email, role, police_station, village, ward")
       .single();
 
     if (insErr || !created) {

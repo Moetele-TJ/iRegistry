@@ -48,6 +48,7 @@ export async function run(req: Request): Promise<Response> {
             date_of_birth,
             village,
             ward,
+            police_station,
             role,
             deleted_at,
             disabled_at,

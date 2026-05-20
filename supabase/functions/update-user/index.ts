@@ -199,9 +199,9 @@ serve(async (req) => {
     setIfString("last_name", 100, { required: true });
     setIfString("email", 254);
     setIfString("phone", 50, { required: true });
-    setIfString("police_station", 200);
-    setIfString("village", 200);
-    setIfString("ward", 200);
+    setIfString("police_station", 200, { required: true });
+    setIfString("village", 200, { required: true });
+    setIfString("ward", 200, { required: true });
 
     if ("id_number" in updates) {
       const raw = (updates as { id_number?: unknown }).id_number;
@@ -401,6 +401,36 @@ serve(async (req) => {
           },
           corsHeaders,
           403,
+        );
+      }
+    }
+
+    const profileTouchKeys = [
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "police_station",
+      "village",
+      "ward",
+      "id_number",
+      "date_of_birth",
+    ];
+    const touchesProfile = profileTouchKeys.some((k) => k in clean);
+    if (touchesProfile) {
+      const eff = (key: string) => {
+        const raw = key in clean ? (clean as Record<string, unknown>)[key] : (existing as Record<string, unknown>)[key];
+        return typeof raw === "string" ? raw.trim() : "";
+      };
+      if (!eff("village") || !eff("ward") || !eff("police_station")) {
+        return respond(
+          {
+            success: false,
+            message:
+              "Town / village, ward / street, and nearest police station are required.",
+          },
+          corsHeaders,
+          400,
         );
       }
     }

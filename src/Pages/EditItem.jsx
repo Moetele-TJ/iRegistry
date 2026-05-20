@@ -173,7 +173,16 @@ export default function EditItem() {
   const latestSerial1Ref = useRef("");
   latestSerial1Ref.current = form.serial1;
 
-  const requiredFields = ["category", "make", "model", "serial1", "station"];
+  const requiredFields = ["category", "make", "model", "serial1", "village", "ward", "station"];
+
+  function effectiveLoc(field) {
+    if (heldAtResidence) {
+      if (field === "village") return String(user?.village || "").trim();
+      if (field === "ward") return String(user?.ward || "").trim();
+      if (field === "station") return String(user?.police_station || "").trim();
+    }
+    return String(form[field] || "").trim();
+  }
 
   const ownerRoleForBilling = storedItem?.ownerRole ?? null;
   const ownerBal = useMemo(
@@ -444,11 +453,11 @@ export default function EditItem() {
   }
 
   function isFieldInvalid(field) {
-    return requiredFields.includes(field) && !form[field]?.trim();
+    return requiredFields.includes(field) && !effectiveLoc(field);
   }
 
   const isFormInvalid =
-    !!serialError || requiredFields.some((f) => !form[f]?.trim());
+    !!serialError || requiredFields.some((f) => !effectiveLoc(f));
 
   async function processFiles(files) {
     const max = 5;
@@ -583,14 +592,40 @@ export default function EditItem() {
       return;
     }
 
-    for (const f of requiredFields) {
+    if (!effectiveLoc("village")) {
+      await alert({
+        title: "Missing Information",
+        message: heldAtResidence
+          ? "Your profile is missing town / village. Update your profile or uncheck “held at my residence”."
+          : "Please fill in Town / village before you continue.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (!effectiveLoc("ward")) {
+      await alert({
+        title: "Missing Information",
+        message: heldAtResidence
+          ? "Your profile is missing ward / street. Update your profile or uncheck “held at my residence”."
+          : "Please fill in Ward / street before you continue.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (!effectiveLoc("station")) {
+      await alert({
+        title: "Missing Information",
+        message: heldAtResidence
+          ? "Your profile is missing nearest police station. Update your profile or uncheck “held at my residence”."
+          : "Please fill in the nearest police station before you continue.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    for (const f of ["category", "make", "model", "serial1"]) {
       if (!form[f]?.trim()) {
-        const label =
-          f === "serial1"
-            ? "the primary serial number"
-            : f === "station"
-              ? "the nearest police station"
-              : f;
+        const label = f === "serial1" ? "the primary serial number" : f;
         await alert({
           title: "Missing Information",
           message: `Please fill in ${label}.`,
@@ -704,16 +739,20 @@ export default function EditItem() {
         );
       }
 
+      const locVillage = effectiveLoc("village");
+      const locWard = effectiveLoc("ward");
+      const locStation = effectiveLoc("station");
+
       const updates = {
         category: form.category.trim(),
         make: form.make.trim(),
         model: form.model.trim(),
         serial1: form.serial1.trim(),
         serial2: form.serial2.trim(),
-        village: form.village.trim() || undefined,
-        ward: form.ward.trim() || undefined,
-        station: form.station.trim(),
-        location: form.station.trim(),
+        village: locVillage,
+        ward: locWard,
+        station: locStation,
+        location: locStation,
         purchaseDate: form.purchaseDate || undefined,
         estimatedValue: form.estimatedValue
           ? Number(form.estimatedValue)
@@ -993,7 +1032,11 @@ export default function EditItem() {
               user={user}
               disabled={heldAtResidence}
               inputClassName="input"
+              requiredTown
+              requiredWard
               requiredStation={true}
+              townInputClassName={`input ${isFieldInvalid("village") ? "border-red-500 ring-red-500" : ""}`}
+              wardInputClassName={`input ${isFieldInvalid("ward") ? "border-red-500 ring-red-500" : ""}`}
               stationInputClassName={`input ${isFieldInvalid("station") ? "border-red-500 ring-red-500" : ""}`}
               onTownChange={(v) => setForm((f) => ({ ...f, village: v, ward: "", station: "" }))}
               onWardChange={(v) => updateField("ward", v)}

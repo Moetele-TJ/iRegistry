@@ -220,12 +220,13 @@ serve(async (req) => {
     const resolvedVillage = typeof village === "string" ? village.trim() : "";
     const resolvedWard = typeof ward === "string" ? ward.trim() : "";
 
-    if (!resolvedStation) {
+    if (!resolvedVillage || !resolvedWard || !resolvedStation) {
       return respond(
         {
           success: false,
           diag: "ITEM-CREATE-005",
-          message: "Nearest police station is required.",
+          message:
+            "Town / village, ward / street, and nearest police station are required.",
         },
         corsHeaders,
         400
