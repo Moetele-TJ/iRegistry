@@ -1499,14 +1499,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                     }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-gray-900 min-w-0">
+                      <div className="min-w-0">
                         <Link
                           to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
-                          className="text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
+                          className="font-medium text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
                         >
                           {displayName(u)}
                         </Link>
-                        <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
+                        <p className="text-xs text-gray-500 mt-0.5 break-all">{u.email || "—"}</p>
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
                         <UserMetaItem label="Role" value={roleLabel[u.role] || u.role} />
