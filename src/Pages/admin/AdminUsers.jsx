@@ -10,6 +10,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import UserListRowSummary from "../../components/UserListRowSummary.jsx";
 import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
@@ -1488,26 +1489,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         : ""
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-gray-900 min-w-0">
-                        <Link
-                          to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
-                          className="text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
-                        >
-                          {displayName(u)}
-                        </Link>
-                        <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Role: {roleLabel[u.role] || u.role || "—"} • Status: {st || "—"} • Phone: {u.phone || "—"} • ID / Passport: {u.id_number || "—"} • Last login: {fmtDateTime(u.last_login_at)} • ID: {u.id}
-                        {u.police_station ? ` • Station: ${u.police_station}` : ""}
-                      </div>
-                      {(u.suspended_reason || u.disabled_reason) && st !== "active" ? (
-                        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1 mt-2 max-w-xl">
-                          Reason: {u.suspended_reason || u.disabled_reason}
-                        </div>
-                      ) : null}
-                    </div>
+                    <UserListRowSummary
+                      user={u}
+                      profileHref={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
+                      statusLower={st}
+                      roleLabel={roleLabel}
+                      fmtDateTime={fmtDateTime}
+                      showUserId
+                    />
 
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3 shrink-0">
                       <UserRowActionControls
