@@ -10,13 +10,22 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
-import UserListRowSummary from "../../components/UserListRowSummary.jsx";
 import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
 
 function displayName(u) {
   return displayUser(u) || "—";
+}
+
+function UserMetaItem({ label, value }) {
+  const v = value != null && String(value).trim() !== "" ? value : "—";
+  return (
+    <span className="inline">
+      <span className="font-semibold text-gray-600">{label}:</span>{" "}
+      <span className="font-normal text-gray-800">{v}</span>
+    </span>
+  );
 }
 
 function fmtDateTime(iso) {
@@ -1489,14 +1498,42 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         : ""
                     }`}
                   >
-                    <UserListRowSummary
-                      user={u}
-                      profileHref={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
-                      statusLower={st}
-                      roleLabel={roleLabel}
-                      fmtDateTime={fmtDateTime}
-                      showUserId
-                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-gray-900 min-w-0">
+                        <Link
+                          to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
+                          className="text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
+                        >
+                          {displayName(u)}
+                        </Link>
+                        <span className="text-xs text-gray-500 ml-2">{u.email || "—"}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        <UserMetaItem label="Role" value={roleLabel[u.role] || u.role} />
+                        {" • "}
+                        <UserMetaItem label="Status" value={st} />
+                        {" • "}
+                        <UserMetaItem label="Phone" value={u.phone} />
+                        {" • "}
+                        <UserMetaItem label="ID / Passport" value={u.id_number} />
+                        {" • "}
+                        <UserMetaItem label="Last login" value={fmtDateTime(u.last_login_at)} />
+                        {" • "}
+                        <UserMetaItem label="ID" value={u.id} />
+                        {u.police_station ? (
+                          <>
+                            {" • "}
+                            <UserMetaItem label="Station" value={u.police_station} />
+                          </>
+                        ) : null}
+                      </div>
+                      {(u.suspended_reason || u.disabled_reason) && st !== "active" ? (
+                        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1 mt-2 max-w-xl">
+                          <span className="font-semibold">Reason:</span>{" "}
+                          <span className="font-normal">{u.suspended_reason || u.disabled_reason}</span>
+                        </div>
+                      ) : null}
+                    </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3 shrink-0">
                       <UserRowActionControls
