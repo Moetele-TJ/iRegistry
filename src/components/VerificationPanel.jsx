@@ -11,6 +11,7 @@ import { useItemVerification } from "../hooks/useItemVerification";
 import { useNotifyOwner } from "../hooks/useNotifyOwner";
 import { usePhotoVerification } from "../hooks/usePhotoVerification";
 import { useAuth } from "../contexts/AuthContext";
+import { useTransfers } from "../contexts/TransferContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 
 // Icons
@@ -43,6 +44,7 @@ export default function VerificationPanel() {
 
   // Context/Navigation
   const { user } = useAuth();
+  const { refresh: refreshTransfers } = useTransfers() || {};
   const { addToast } = useToast();
   const navigate = useNavigate();
   const formatBilling = useBillingErrorMessage();
@@ -253,7 +255,12 @@ export default function VerificationPanel() {
         throw e;
       }
       setTransferSuccess(true);
-      addToast({ type: "success", message: "Transfer request submitted." });
+      addToast({
+        type: "success",
+        message:
+          "Transfer request submitted. The owner can approve or reject; you can cancel it from your dashboard.",
+      });
+      if (typeof refreshTransfers === "function") void refreshTransfers();
       setAction(null);
     } catch (err) {
       setTransferError(formatBilling(err));

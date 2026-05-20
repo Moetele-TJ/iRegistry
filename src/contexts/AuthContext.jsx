@@ -12,17 +12,17 @@ import { invokeFn } from "../lib/invokeFn";
 const AuthContext = createContext(null);
 
 /** Background validate-session while logged in (sliding DB session + JWT rotation). */
-const SESSION_SLIDE_INTERVAL_MS = 20 * 60 * 1000;
+const SESSION_SLIDE_INTERVAL_MS = 15 * 60 * 1000;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { id, role }
   const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(async ({ silent = false } = {}) => {
+  const logout = useCallback(async () => {
     const token = localStorage.getItem("session");
 
     try {
-      if (!silent && token) {
+      if (token) {
         await invokeFn(
           "logout",
           {
@@ -49,8 +49,16 @@ export function AuthProvider({ children }) {
           { withAuth: false }
         );
 
-        if (error || !data?.success) {
-          await logout({ silent: true });
+        const status = error?.context?.status;
+        const sessionDead =
+          status === 401 ||
+          status === 403 ||
+          (data && data.success === false && data.diag === "VAL-SESS-002");
+
+        if (sessionDead) {
+          await logout();
+        } else if (error || !data?.success) {
+          console.warn("Session validation skipped (transient error):", error?.message || data?.message);
         } else {
           setUser(data.user);
 
@@ -59,8 +67,7 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (err) {
-        console.error("Session validation failed:", err);
-        await logout({ silent: true });
+        console.error("Session validation failed (network):", err);
       } finally {
         setLoading(false);
       }
@@ -117,12 +124,22 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    const id = window.setInterval(() => {
+    function slideSession() {
       const t = localStorage.getItem("session");
       if (t) void validateSessionRef.current(t);
-    }, SESSION_SLIDE_INTERVAL_MS);
+    }
 
-    return () => window.clearInterval(id);
+    const id = window.setInterval(slideSession, SESSION_SLIDE_INTERVAL_MS);
+
+    function onVisible() {
+      if (document.visibilityState === "visible") slideSession();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [user?.id]);
 
   const loginWithToken = useCallback(

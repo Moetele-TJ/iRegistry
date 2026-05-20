@@ -5,7 +5,8 @@ import { useAuth } from "../contexts/AuthContext";
 
 export function usePendingTransfers() {
   const { user } = useAuth();
-  const [data, setData] = useState([]);
+  const [incoming, setIncoming] = useState([]);
+  const [outgoing, setOutgoing] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTransfers = useCallback(async () => {
@@ -15,7 +16,14 @@ export function usePendingTransfers() {
     const { data, error } = await invokeWithAuth("get-pending-transfer-requests");
 
     if (!error && data?.success) {
-      setData(data.data || []);
+      const inList = Array.isArray(data.incoming)
+        ? data.incoming
+        : Array.isArray(data.data)
+          ? data.data
+          : [];
+      const outList = Array.isArray(data.outgoing) ? data.outgoing : [];
+      setIncoming(inList);
+      setOutgoing(outList);
     }
     setLoading(false);
   }, [user]);
@@ -24,10 +32,19 @@ export function usePendingTransfers() {
     if (user) {
       fetchTransfers();
     } else {
-      setData([]);
+      setIncoming([]);
+      setOutgoing([]);
       setLoading(false);
     }
   }, [user, fetchTransfers]);
 
-  return { data, loading, count: data.length, refresh: fetchTransfers };
+  return {
+    incoming,
+    outgoing,
+    /** Incoming only — for header badge (owner actions needed). */
+    data: incoming,
+    count: incoming.length,
+    loading,
+    refresh: fetchTransfers,
+  };
 }

@@ -10,11 +10,14 @@ export default function PageSectionCard({
   children,
   footer = null,
   maxWidthClass = "max-w-7xl",
+  headerPaddingClass = "px-4 sm:px-6 lg:px-8 py-5 sm:py-6",
 }) {
   return (
     <div className={`${maxWidthClass} mx-auto w-full`}>
       <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+        <div
+          className={`border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 ${headerPaddingClass}`}
+        >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight flex items-center gap-2 flex-wrap">

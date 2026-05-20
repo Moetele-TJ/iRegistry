@@ -8,6 +8,7 @@ import { hashOtp, hashToken } from "../shared/crypto.ts";
 import { logAudit } from "../shared/logAudit.ts";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
+import { SESSION_TTL_MS, SESSION_TTL_SEC } from "../shared/sessionConfig.ts";
 
 // --------------------------------------
 // SUPABASE CLIENT
@@ -338,7 +339,7 @@ serve(async (req) => {
       role: user.role,          // from DB
       sid: sessionId,          // session UUID from sessions table
       iat: now,
-      exp: now + 3600,          // 1 hour
+      exp: now + SESSION_TTL_SEC,
       ver: 1
     };
 
@@ -371,7 +372,7 @@ serve(async (req) => {
       token: tokenHash,
       ip_address: req.headers.get("x-forwarded-for"),
       user_agent: req.headers.get("user-agent"),
-      expires_at: new Date(Date.now() + 60 * 60 * 1000),
+      expires_at: new Date(Date.now() + SESSION_TTL_MS),
       device_id: deviceId || null,
       device_name: deviceName || null,
     });

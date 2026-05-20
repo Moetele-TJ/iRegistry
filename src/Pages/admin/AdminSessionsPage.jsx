@@ -258,7 +258,7 @@ export default function AdminSessionsPage() {
       }
       addToast({ type: "success", message: data.message || "Session revoked" });
       if (row.id === currentSid) {
-        await logout({ silent: true });
+        await logout();
         navigate("/login", { replace: true });
         return;
       }
@@ -295,7 +295,7 @@ export default function AdminSessionsPage() {
             s.user_id === row.user_id && s.id === currentSid,
         );
       if (includedSelf) {
-        await logout({ silent: true });
+        await logout();
         navigate("/login", { replace: true });
         return;
       }

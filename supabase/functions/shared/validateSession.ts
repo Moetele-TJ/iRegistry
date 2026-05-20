@@ -1,9 +1,9 @@
 // supabase/functions/shared/validateSession.ts
 import { hashToken } from "./crypto.ts";
 import { create } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
+import { SESSION_TTL_MS, SESSION_TTL_SEC } from "./sessionConfig.ts";
 
-/** Session length from last successful activity (sliding window). */
-export const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+export { SESSION_TTL_MS, SESSION_TTL_SEC };
 
 export type ValidateSessionOptions = {
   /**
@@ -77,7 +77,7 @@ export async function validateSession(
     );
 
     const nowSec = Math.floor(Date.now() / 1000);
-    const ttlSec = Math.floor(SESSION_TTL_MS / 1000);
+    const ttlSec = SESSION_TTL_SEC;
 
     const payload = {
       iss: "iregsys",

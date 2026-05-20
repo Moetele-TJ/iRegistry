@@ -79,9 +79,9 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
   const hasAuthHeader = !!headers?.Authorization || !!headers?.authorization;
 
   if (error?.context?.status === 401 && hasAuthHeader) {
+    const sent = String(headers.Authorization || headers.authorization || "");
+    const sentToken = sent.startsWith("Bearer ") ? sent.slice("Bearer ".length) : "";
     try {
-      const sent = String(headers.Authorization || headers.authorization || "");
-      const sentToken = sent.startsWith("Bearer ") ? sent.slice("Bearer ".length) : "";
       const latestToken = localStorage.getItem("session") || "";
       if (latestToken && sentToken && latestToken !== sentToken) {
         const retryHeaders = {
@@ -102,6 +102,19 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
       /* ignore */
     }
 
+    const revokeToken =
+      localStorage.getItem("session") ||
+      (sentToken && sentToken.length > 0 ? sentToken : "");
+    if (revokeToken) {
+      void invokeFn(
+        "logout",
+        {
+          body: { session_token: revokeToken },
+          headers: { Authorization: `Bearer ${revokeToken}` },
+        },
+        { withAuth: false }
+      );
+    }
     localStorage.removeItem("session");
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";

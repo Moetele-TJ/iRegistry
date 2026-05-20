@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { hashToken } from "../shared/crypto.ts";
+import { sessionIdFromToken } from "../shared/jwtSession.ts";
 import { logAudit } from "../shared/logAudit.ts";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
@@ -41,16 +42,37 @@ serve(async (req) => {
 
     const tokenHash = await hashToken(token);
 
-    /* 🔍 FIND SESSION */
+    /* 🔍 FIND SESSION (hash, then JWT sid — hash misses after token rotation) */
 
-    const { data: session, error } = await supabase
-      .from("sessions")
-      .select("id, user_id, revoked")
-      .eq("token", tokenHash)
-      .maybeSingle();
+    type SessionRow = { id: string; user_id: string; revoked: boolean };
+
+    async function loadSession(): Promise<{ session: SessionRow | null; error: unknown }> {
+      const { data: byHash, error: hashErr } = await supabase
+        .from("sessions")
+        .select("id, user_id, revoked")
+        .eq("token", tokenHash)
+        .maybeSingle();
+
+      if (hashErr) return { session: null, error: hashErr };
+      if (byHash) return { session: byHash as SessionRow, error: null };
+
+      const sid = await sessionIdFromToken(token);
+      if (!sid) return { session: null, error: null };
+
+      const { data: byId, error: idErr } = await supabase
+        .from("sessions")
+        .select("id, user_id, revoked")
+        .eq("id", sid)
+        .maybeSingle();
+
+      if (idErr) return { session: null, error: idErr };
+      return { session: (byId as SessionRow | null) ?? null, error: null };
+    }
+
+    const { session, error } = await loadSession();
 
     if (error) {
-      console.error("Logout DB lookup error:", error.message);
+      console.error("Logout DB lookup error:", error);
       return respond(
         {
           success: false,

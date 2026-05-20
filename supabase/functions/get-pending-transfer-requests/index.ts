@@ -33,47 +33,81 @@ serve(async (req) => {
       );
     }
 
-    const { data, error } = await supabase
-      .from("item_transfer_requests")
-      .select(`
-        id,
-        item_id,
-        message,
-        created_at,
-        expires_at,
-        items (
-          id,
-          name
-        ),
-        users!item_transfer_requests_requester_id_fkey (
-          id,
-          first_name,
-          last_name
-        )
-      `)
-      .eq("current_owner_id", session.user_id)
-      .eq("status", "PENDING")
-      .gt("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false });
+    const nowIso = new Date().toISOString();
+    const pendingFilter = (q: ReturnType<typeof supabase.from>) =>
+      q
+        .eq("status", "PENDING")
+        .gt("expires_at", nowIso)
+        .order("created_at", { ascending: false });
 
-    if (error) {
+    const incomingPromise = pendingFilter(
+      supabase
+        .from("item_transfer_requests")
+        .select(`
+          id,
+          item_id,
+          message,
+          created_at,
+          expires_at,
+          items (
+            id,
+            name
+          ),
+          users!item_transfer_requests_requester_id_fkey (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq("current_owner_id", session.user_id),
+    );
+
+    const outgoingPromise = pendingFilter(
+      supabase
+        .from("item_transfer_requests")
+        .select(`
+          id,
+          item_id,
+          message,
+          created_at,
+          expires_at,
+          items (
+            id,
+            name
+          ),
+          users!item_transfer_requests_current_owner_id_fkey (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq("requester_id", session.user_id),
+    );
+
+    const [{ data: incoming, error: inErr }, { data: outgoing, error: outErr }] =
+      await Promise.all([incomingPromise, outgoingPromise]);
+
+    if (inErr || outErr) {
       return respond(
         {
           success: false,
-          message: error.message
-        }, 
+          message: inErr?.message || outErr?.message || "Failed to load transfer requests",
+        },
         corsHeaders,
-        400
+        400,
       );
     }
 
     return respond(
       {
         success: true,
-        data
+        incoming: incoming ?? [],
+        outgoing: outgoing ?? [],
+        /** @deprecated use `incoming` */
+        data: incoming ?? [],
       },
       corsHeaders,
-      200
+      200,
     );
 
   } catch (err) {
