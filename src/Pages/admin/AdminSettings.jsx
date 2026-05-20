@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
@@ -7,6 +7,7 @@ import {
   Copy,
   FileText,
   LayoutDashboard,
+  Mail,
   MonitorSmartphone,
   Package,
   ReceiptText,
@@ -23,6 +24,7 @@ import { useModal } from "../../contexts/ModalContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
+import { contactRowToForm, emptyContactForm } from "../../lib/publicContact.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -153,6 +155,10 @@ export default function AdminSettings() {
   const [editPromoNote, setEditPromoNote] = useState("");
   const [userPromoTab, setUserPromoTab] = useState("active"); // active | ended
 
+  const [contactLoading, setContactLoading] = useState(true);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactForm, setContactForm] = useState(() => emptyContactForm());
+
   const host = useMemo(() => projectLabel(SUPABASE_URL), []);
 
   const filteredUserPromos = useMemo(() => {
@@ -231,6 +237,53 @@ export default function AdminSettings() {
   useEffect(() => {
     void loadPromo();
   }, [loadPromo]);
+
+  const loadPublicContact = useCallback(async () => {
+    setContactLoading(true);
+    try {
+      const { data, error } = await invokeWithAuth("admin-api", {
+        body: { operation: "admin-get-public-contact" },
+      });
+      if (error || !data?.success) {
+        setContactForm(emptyContactForm());
+        return;
+      }
+      setContactForm(contactRowToForm(data.contact));
+    } catch {
+      setContactForm(emptyContactForm());
+    } finally {
+      setContactLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPublicContact();
+  }, [loadPublicContact]);
+
+  async function savePublicContact() {
+    setContactSaving(true);
+    try {
+      const { data, error } = await invokeWithAuth("admin-api", {
+        body: {
+          operation: "admin-upsert-public-contact",
+          ...contactForm,
+        },
+      });
+      if (error || !data?.success) {
+        addToast({
+          type: "error",
+          message: data?.message || error?.message || "Failed to save contact details",
+        });
+        return;
+      }
+      setContactForm(contactRowToForm(data.contact));
+      addToast({ type: "success", message: "Public contact page updated." });
+    } catch {
+      addToast({ type: "error", message: "Failed to save contact details" });
+    } finally {
+      setContactSaving(false);
+    }
+  }
 
   async function saveSystemPromo() {
     setPromoSaving(true);
@@ -653,6 +706,128 @@ export default function AdminSettings() {
                 Copy host
               </button>
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                  <Mail size={16} className="text-iregistrygreen" aria-hidden />
+                  Public contact page
+                </h2>
+                <p className="text-sm text-gray-600 mt-1 max-w-2xl">
+                  Shown on the public{" "}
+                  <Link to="/contact" className="font-medium text-iregistrygreen hover:underline" target="_blank" rel="noopener noreferrer">
+                    Contact
+                  </Link>{" "}
+                  page (no login). Values saved here override build-time{" "}
+                  <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">VITE_PUBLIC_SUPPORT_*</code> env vars when both are set.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <RippleButton
+                  type="button"
+                  className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm"
+                  onClick={() => void loadPublicContact()}
+                  disabled={contactLoading || contactSaving}
+                >
+                  Refresh
+                </RippleButton>
+                <RippleButton
+                  type="button"
+                  className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
+                  onClick={() => void savePublicContact()}
+                  disabled={contactLoading || contactSaving}
+                >
+                  {contactSaving ? "Saving…" : "Save contact"}
+                </RippleButton>
+              </div>
+            </div>
+
+            {contactLoading ? (
+              <p className="text-sm text-gray-500">Loading contact settings…</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
+                <label className="block text-sm">
+                  <span className="text-gray-600">Operator / brand name</span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    value={contactForm.operator_name}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, operator_name: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">Tagline (page intro)</span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    value={contactForm.support_tagline}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, support_tagline: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">Support email</span>
+                  <input
+                    type="email"
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    value={contactForm.support_email}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, support_email: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">Support phone (display)</span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    value={contactForm.support_phone}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, support_phone: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">WhatsApp number (digits only)</span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    placeholder="26772293952"
+                    value={contactForm.support_whatsapp}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, support_whatsapp: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">Support hours</span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    value={contactForm.support_hours}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, support_hours: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="block text-sm md:col-span-2">
+                  <span className="text-gray-600">Address</span>
+                  <textarea
+                    rows={3}
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    value={contactForm.support_address}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, support_address: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6 space-y-4">

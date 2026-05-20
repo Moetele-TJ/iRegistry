@@ -36,6 +36,7 @@ import UserManualPage from "./Pages/user/UserManualPage.jsx";
 import UserOrganizationsPage from "./Pages/user/UserOrganizationsPage.jsx";
 import FaqPage from "./Pages/FaqPage.jsx";
 import TermsPage from "./Pages/TermsPage.jsx";
+import ContactPage from "./Pages/ContactPage.jsx";
 import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminTransfersPage from "./Pages/admin/AdminTransfersPage.jsx";
@@ -117,6 +118,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   <Route path="/guide" element={<UserManualPage />} />
                   <Route path="/faq" element={<FaqPage />} />
                   <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/contact" element={<ContactPage />} />
                   <Route
                     path="/userdashboard/manual"
                     element={<Navigate to="/guide" replace />}

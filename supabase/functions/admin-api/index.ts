@@ -17,6 +17,10 @@ import {
   runEndUserPromo,
   runDeleteScheduledPromo,
 } from "../shared/bundles/admin/promoMode.ts";
+import {
+  runGetPublicContactConfig,
+  runUpsertPublicContact,
+} from "../shared/bundles/admin/publicContact.ts";
 
 const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-create-user": runCreateUser,
@@ -30,6 +34,8 @@ const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-upsert-user-promo": runUpsertUserPromo,
   "admin-end-user-promo": runEndUserPromo,
   "admin-delete-scheduled-promo": runDeleteScheduledPromo,
+  "admin-get-public-contact": runGetPublicContactConfig,
+  "admin-upsert-public-contact": runUpsertPublicContact,
 };
 
 serve(async (req) => {

@@ -781,6 +781,12 @@ entrypoint = "./functions/get-public-stats/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/get-public-stats/*.html" ]
 
+[functions.get-public-contact]
+enabled = true
+verify_jwt = false
+import_map = "./functions/get-public-contact/deno.json"
+entrypoint = "./functions/get-public-contact/index.ts"
+
 [functions.verify-item]
 enabled = true
 verify_jwt = false
