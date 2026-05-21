@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
+import { countries } from "../Data/countries";
 
 export default function Signup() {
 
@@ -81,10 +82,14 @@ export default function Signup() {
     // reset previous errors
     setErrors({});
 
-    // find first missing field
+    // find first missing field (phone: country select only pre-fills dial code — not a real number)
     for (const check of requiredChecks) {
-      const val = form[check.field];
-      if (!val || !String(val).trim()) {
+      const missing =
+        check.field === "phone"
+          ? !isSignupPhoneEntered(form.country, form.phone)
+          : !String(form[check.field] ?? "").trim();
+
+      if (missing) {
         setErrors({ [check.field]: true });
 
         setModal({
@@ -220,7 +225,7 @@ export default function Signup() {
   const stepBlurb =
     step === 1
       ? "Step 1 of 2 · Enter your details, then continue."
-      : "Step 2 of 2 · Optional extra details (location was captured in step 1).";
+      : "Step 2 of 2 · Optional extra details.";
 
   return (
     <>
@@ -484,6 +489,23 @@ export default function Signup() {
       )}
     </>
   );
+}
+
+/** True when the user entered national digits, not just the country dial code. */
+function isSignupPhoneEntered(countryCode, phone) {
+  const cc = String(countryCode ?? "").trim();
+  const ph = String(phone ?? "").trim();
+  if (!cc || !ph) return false;
+
+  const meta = countries.find((c) => c.code === cc);
+  if (!meta) return false;
+
+  const digitsOnly = ph.replace(/\D/g, "");
+  const nationalNumber = digitsOnly.replace(
+    String(meta.dialCode).replace("+", ""),
+    "",
+  );
+  return nationalNumber.length > 0;
 }
 
 // ----------------------------

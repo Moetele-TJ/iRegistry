@@ -5,6 +5,10 @@ import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, recordAttempt } from "../shared/rateLimit.ts";
 import { logUserActivity } from "../shared/logUserActivity.ts";
+import {
+  findSignupIdentifierConflict,
+  mapSignupInsertError,
+} from "../shared/signupUniqueness.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,6 +93,29 @@ serve(async (req) => {
       );
     }
 
+    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    if (!phone) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Phone number is required.",
+        }),
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    const identifierConflict = await findSignupIdentifierConflict(supabase, {
+      id_number,
+      email,
+      phone,
+    });
+    if (identifierConflict) {
+      return new Response(
+        JSON.stringify({ success: false, message: identifierConflict }),
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
     const { data: created, error } = await supabase
       .from("users")
       .insert({
@@ -98,7 +125,7 @@ serve(async (req) => {
         id_number,
         date_of_birth: body.date_of_birth || null,
         country: body.country?.trim() || null,
-        phone: body.phone?.trim() || null,
+        phone,
         email: email || null,
 
         // STEP 2
@@ -125,7 +152,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          message: error.message,
+          message: mapSignupInsertError(error.message),
         }),
         { status: 400, headers: corsHeaders }
       );

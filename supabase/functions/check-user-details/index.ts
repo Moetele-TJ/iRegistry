@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ✅ SHARED COUNTRIES METADATA
 import countries from "../../../shared/countries.json" assert { type: "json" };
+import { findSignupIdentifierConflict } from "../shared/signupUniqueness.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,17 +60,6 @@ serve(async (req) => {
       return respondError("An ID number is required, please type in and ID");
     }
 
-    const { data: idExists } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id_number", id_number)
-      .is("deleted_at",null)
-      .maybeSingle();
-
-    if (idExists) {
-      return respondError("The ID number you entered is in use by an active account.");
-    }
-
     // =====================================================
     // 3️⃣ PHONE + COUNTRY CHECK
     // =====================================================
@@ -109,21 +99,6 @@ serve(async (req) => {
       );
     }
 
-    const { data: phoneExists } = await supabase
-      .from("users")
-      .select("id")
-      .eq("phone", phone)
-      .is("deleted_at",null)
-      .maybeSingle();
-
-    if (phoneExists) {
-      return respondError("The Phone number you entered is in use by an active account.");
-    }
-
-    
-    // =====================================================
-    // 2️⃣ EMAIL CHECK
-    // =====================================================
     if (!email) {
       return respondError("Email address is required, please type in a valid email address");
     }
@@ -133,15 +108,13 @@ serve(async (req) => {
       return respondError("The email address you entered is Invalid");
     }
 
-    const { data: emailExists } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .is("deleted_at",null)
-      .maybeSingle();
-
-    if (emailExists) {
-      return respondError("The Email address you entered is in use by an active account.");
+    const identifierConflict = await findSignupIdentifierConflict(supabase, {
+      id_number,
+      email,
+      phone: phone.trim(),
+    });
+    if (identifierConflict) {
+      return respondError(identifierConflict);
     }
 
 
