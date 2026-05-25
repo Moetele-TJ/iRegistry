@@ -1012,6 +1012,12 @@ verify_jwt = false
 import_map = "./functions/admin-sms-otp-usage/deno.json"
 entrypoint = "./functions/admin-sms-otp-usage/index.ts"
 
+[functions.admin-recent-logins]
+enabled = true
+verify_jwt = false
+import_map = "./functions/admin-recent-logins/deno.json"
+entrypoint = "./functions/admin-recent-logins/index.ts"
+
 [functions.mark-item-legacy]
 enabled = true
 verify_jwt = false

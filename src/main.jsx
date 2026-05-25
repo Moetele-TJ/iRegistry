@@ -43,6 +43,7 @@ import AdminTransfersPage from "./Pages/admin/AdminTransfersPage.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
 import AdminAuditLogs from "./Pages/admin/AdminAuditLogs.jsx";
 import AdminSmsOtpUsagePage from "./Pages/admin/AdminSmsOtpUsagePage.jsx";
+import AdminRecentLoginsPage from "./Pages/admin/AdminRecentLoginsPage.jsx";
 import AdminSettings from "./Pages/admin/AdminSettings.jsx";
 import AdminItemsPage from "./Pages/admin/AdminItemsPage.jsx";
 import AdminDeletedItemsPage from "./Pages/admin/AdminDeletedItemsPage.jsx";
@@ -169,6 +170,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
                     <Route path="sms-otp-usage" element={<AdminSmsOtpUsagePage />} />
+                    <Route path="recent-logins" element={<AdminRecentLoginsPage />} />
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="topup" element={<AdminTopupPage />} />
                     <Route path="transactions" element={<AdminTransactionsPage />} />
