@@ -1,6 +1,7 @@
 // src/Pages/ProfilePage.jsx
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import RippleButton from "../components/RippleButton.jsx";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
@@ -747,16 +748,15 @@ export default function ProfilePage() {
                   </span>
                 </div>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Date of birth</label>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={form.date_of_birth}
-                  onChange={(e) => setForm((f) => ({ ...f, date_of_birth: e.target.value }))}
-                  autoComplete="bday"
-                />
-              </div>
+              <YearMonthDaySelect
+                label="Date of birth"
+                value={form.date_of_birth}
+                onChange={(v) => setForm((f) => ({ ...f, date_of_birth: v }))}
+                maxYear={new Date().getFullYear()}
+                minYear={1920}
+                selectClassName={inputClass}
+                labelClassName="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block mb-1"
+              />
               <div className="grid grid-cols-2 gap-4 pt-1">
                 <Field label="Minor account">
                   <span

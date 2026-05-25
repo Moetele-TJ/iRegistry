@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
+import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { countries } from "../Data/countries";
 
 export default function Signup() {
@@ -265,12 +266,14 @@ export default function Signup() {
                   onChange={(v) => setField("id_number", v)}
                 />
 
-                <Input
-                  type="date"
+                <YearMonthDaySelect
                   label="Date of birth"
                   value={form.date_of_birth}
                   error={errors.date_of_birth}
                   onChange={(v) => setField("date_of_birth", v)}
+                  maxYear={new Date().getFullYear()}
+                  minYear={1920}
+                  selectClassName="w-full border rounded-lg px-4 py-2"
                 />
               </div>
 

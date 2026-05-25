@@ -11,6 +11,7 @@ import { compressImage } from "../utils/imageCompression.js";
 import BillingCostBanner from "../components/BillingCostBanner.jsx";
 import CategoryMakeModelSelect from "../components/CategoryMakeModelSelect.jsx";
 import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
+import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { useTaskPricing } from "../hooks/useTaskPricing.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import {
@@ -592,23 +593,27 @@ export default function AddItem() {
           {/* Purchase & Warranty Dates */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Purchase date">
-              <input
-                name="purchaseDate"
-                type="date"
+              <YearMonthDaySelect
                 value={form.purchaseDate}
-                onChange={(e) => updateField("purchaseDate", e.target.value)}
-                className="input"
+                onChange={(v) => updateField("purchaseDate", v)}
+                maxYear={new Date().getFullYear()}
+                minYear={new Date().getFullYear() - 80}
+                selectClassName="input"
+                labelClassName="sr-only"
+                showHint={false}
               />
             </Field>
 
             <Field label="Warranty expiry">
-              <input
-                name="warrantyExpiry"
-                type="date"
+              <YearMonthDaySelect
                 value={form.warrantyExpiry}
-                onChange={(e) => updateField("warrantyExpiry", e.target.value)}
-                className="input"
-                min={form.purchaseDate || undefined}
+                onChange={(v) => updateField("warrantyExpiry", v)}
+                minYmd={form.purchaseDate || undefined}
+                maxYear={new Date().getFullYear() + 15}
+                minYear={new Date().getFullYear() - 80}
+                selectClassName="input"
+                labelClassName="sr-only"
+                showHint={false}
               />
             </Field>
           </div>
