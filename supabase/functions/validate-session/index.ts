@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
+import { jwtNeedsRotation } from "../shared/sessionConfig.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
 
 const supabase = createClient(
@@ -34,9 +35,11 @@ serve(async (req) => {
       );
     }
 
-    // Slide DB expiry and rotate JWT so the client's `exp` stays fresh.
-    // Multi-tab safety is handled client-side (storage sync + retry-on-401 with latest token).
-    const session = await validateSession(supabase, auth, { rotateJwt: true });
+    // Slide DB expiry always; rotate JWT only when near expiry so parallel API calls are not invalidated.
+    const bearerToken = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+    const session = await validateSession(supabase, auth, {
+      rotateJwt: jwtNeedsRotation(bearerToken),
+    });
 
     if (!session) {
       return respond(

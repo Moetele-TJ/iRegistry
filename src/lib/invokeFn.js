@@ -1,7 +1,7 @@
 // src/lib/invokeFn.js
 import { supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import { getAuthHeaders } from "./authHeaders";
-import { emitSessionTokenRefreshed } from "./sessionEvents";
+import { emitSessionInvalidated, emitSessionTokenRefreshed } from "./sessionEvents";
 
 /**
  * Invoke a Supabase edge function via fetch (reliable on mobile browsers).
@@ -17,10 +17,21 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
     };
   }
 
+  const authHeaders = withAuth ? getAuthHeaders() : {};
+  if (withAuth && !authHeaders.Authorization) {
+    return {
+      data: null,
+      error: {
+        message: "Your session has expired. Please sign in again.",
+        context: { status: 401 },
+      },
+    };
+  }
+
   const headers = {
     apikey: supabaseAnonKey,
     "Content-Type": "application/json",
-    ...(withAuth ? getAuthHeaders() : {}),
+    ...authHeaders,
     ...(options.headers || {}),
   };
 
@@ -81,22 +92,34 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
   if (error?.context?.status === 401 && hasAuthHeader) {
     const sent = String(headers.Authorization || headers.authorization || "");
     const sentToken = sent.startsWith("Bearer ") ? sent.slice("Bearer ".length) : "";
-    try {
+
+    async function retryWithLatestToken() {
       const latestToken = localStorage.getItem("session") || "";
-      if (latestToken && sentToken && latestToken !== sentToken) {
-        const retryHeaders = {
-          ...headers,
-          Authorization: `Bearer ${latestToken}`,
-        };
-        const retryRes = await doInvoke(retryHeaders);
-        const { data: retryData, error: retryError } = retryRes || {};
-        if (!retryError) {
-          if (retryData?.session_token) {
-            localStorage.setItem("session", retryData.session_token);
-            emitSessionTokenRefreshed(retryData.session_token);
-          }
-          return retryRes;
+      if (!latestToken) return null;
+      const retryHeaders = {
+        ...headers,
+        Authorization: `Bearer ${latestToken}`,
+      };
+      const retryRes = await doInvoke(retryHeaders);
+      const { data: retryData, error: retryError } = retryRes || {};
+      if (!retryError) {
+        if (retryData?.session_token) {
+          localStorage.setItem("session", retryData.session_token);
+          emitSessionTokenRefreshed(retryData.session_token);
         }
+        return retryRes;
+      }
+      return null;
+    }
+
+    try {
+      if (sentToken) {
+        let retryRes = await retryWithLatestToken();
+        if (!retryRes) {
+          await new Promise((r) => setTimeout(r, 80));
+          retryRes = await retryWithLatestToken();
+        }
+        if (retryRes) return retryRes;
       }
     } catch {
       /* ignore */
@@ -116,6 +139,7 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
       );
     }
     localStorage.removeItem("session");
+    emitSessionInvalidated();
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
     }

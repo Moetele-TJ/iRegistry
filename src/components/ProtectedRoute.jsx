@@ -12,7 +12,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Spinner label="Checking your session..."/>;
   }
 
-  if (!user || !user.role) {
+  const hasToken =
+    typeof window !== "undefined" && !!localStorage.getItem("session");
+
+  if (!user || !user.role || !hasToken) {
     const redirect = `${location.pathname}${location.search}${location.hash}`;
     return (
       <Navigate

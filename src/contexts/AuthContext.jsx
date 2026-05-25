@@ -8,11 +8,16 @@ import React, {
   useState,
 } from "react";
 import { invokeFn } from "../lib/invokeFn";
+import {
+  SESSION_INVALIDATED,
+  SESSION_TOKEN_REFRESHED,
+} from "../lib/sessionEvents";
 
 const AuthContext = createContext(null);
 
-/** Background validate-session while logged in (sliding DB session + JWT rotation). */
+/** Background validate-session while logged in (sliding DB session; JWT rotated only near expiry). */
 const SESSION_SLIDE_INTERVAL_MS = 20 * 60 * 1000;
+const SESSION_SLIDE_DEBOUNCE_MS = 800;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { id, role }
@@ -77,6 +82,8 @@ export function AuthProvider({ children }) {
 
   const validateSessionRef = useRef(validateSession);
   validateSessionRef.current = validateSession;
+  const slideTimerRef = useRef(null);
+  const slideInFlightRef = useRef(false);
 
   /* ----------------------------------
    * Validate session on app start
@@ -118,26 +125,59 @@ export function AuthProvider({ children }) {
   }, []);
 
   /* ----------------------------------
-   * Sliding session: re-validate periodically while logged in
-   * (extends server expires_at; validate-session returns a fresh JWT)
+   * Same-tab token rotation + forced logout from API layer
+   * ---------------------------------- */
+  useEffect(() => {
+    function onTokenRefreshed(e) {
+      const token = e?.detail?.token || localStorage.getItem("session");
+      if (token) void validateSessionRef.current(token);
+    }
+    function onInvalidated() {
+      setUser(null);
+      setLoading(false);
+    }
+    window.addEventListener(SESSION_TOKEN_REFRESHED, onTokenRefreshed);
+    window.addEventListener(SESSION_INVALIDATED, onInvalidated);
+    return () => {
+      window.removeEventListener(SESSION_TOKEN_REFRESHED, onTokenRefreshed);
+      window.removeEventListener(SESSION_INVALIDATED, onInvalidated);
+    };
+  }, []);
+
+  /* ----------------------------------
+   * Sliding session: debounced re-validate while logged in
    * ---------------------------------- */
   useEffect(() => {
     if (!user?.id) return;
 
     function slideSession() {
+      if (slideInFlightRef.current) return;
       const t = localStorage.getItem("session");
-      if (t) void validateSessionRef.current(t);
+      if (!t) {
+        setUser(null);
+        return;
+      }
+      slideInFlightRef.current = true;
+      void validateSessionRef.current(t).finally(() => {
+        slideInFlightRef.current = false;
+      });
     }
 
-    const id = window.setInterval(slideSession, SESSION_SLIDE_INTERVAL_MS);
+    function scheduleSlide() {
+      window.clearTimeout(slideTimerRef.current);
+      slideTimerRef.current = window.setTimeout(slideSession, SESSION_SLIDE_DEBOUNCE_MS);
+    }
+
+    const id = window.setInterval(scheduleSlide, SESSION_SLIDE_INTERVAL_MS);
 
     function onVisible() {
-      if (document.visibilityState === "visible") slideSession();
+      if (document.visibilityState === "visible") scheduleSlide();
     }
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       window.clearInterval(id);
+      window.clearTimeout(slideTimerRef.current);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [user?.id]);

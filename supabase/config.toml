@@ -381,9 +381,9 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-# Edge Functions: verify_jwt = false is equivalent to deploying with --no-verify-jwt.
-# Used for login/signup/OTP, public stats, serial & item verification, owner contact, public photo search,
-# and background workers (e.g. process-embedding-queue) invoked without a user session.
+# Edge Functions: verify_jwt = false disables the Supabase gateway JWT check.
+# iRegistry uses custom session JWTs in Authorization (validated in-function via validateSession),
+# not Supabase Auth user JWTs — keep verify_jwt = false for all functions unless you migrate to Auth JWTs.
 
 [functions.verify-otp]
 enabled = true
@@ -417,151 +417,151 @@ entrypoint = "./functions/identify-user/index.ts"
 
 [functions.user-trusted-devices]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/user-trusted-devices/deno.json"
 entrypoint = "./functions/user-trusted-devices/index.ts"
 
 [functions.user-pending-topup]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/user-pending-topup/deno.json"
 entrypoint = "./functions/user-pending-topup/index.ts"
 
 [functions.list-my-orgs]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-my-orgs/deno.json"
 entrypoint = "./functions/list-my-orgs/index.ts"
 
 [functions.respond-org-invite]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/respond-org-invite/deno.json"
 entrypoint = "./functions/respond-org-invite/index.ts"
 
 [functions.list-org-items]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-org-items/deno.json"
 entrypoint = "./functions/list-org-items/index.ts"
 
 [functions.bulk-assign-org-items]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/bulk-assign-org-items/deno.json"
 entrypoint = "./functions/bulk-assign-org-items/index.ts"
 
 [functions.invite-org-member]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/invite-org-member/deno.json"
 entrypoint = "./functions/invite-org-member/index.ts"
 
 [functions.create-org-item-return-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/create-org-item-return-request/deno.json"
 entrypoint = "./functions/create-org-item-return-request/index.ts"
 
 [functions.review-org-item-return-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/review-org-item-return-request/deno.json"
 entrypoint = "./functions/review-org-item-return-request/index.ts"
 
 [functions.org-mark-item-legacy]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-mark-item-legacy/deno.json"
 entrypoint = "./functions/org-mark-item-legacy/index.ts"
 
 [functions.org-restore-legacy-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-restore-legacy-item/deno.json"
 entrypoint = "./functions/org-restore-legacy-item/index.ts"
 
 [functions.app-admin-transfer-item-scope]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/app-admin-transfer-item-scope/deno.json"
 entrypoint = "./functions/app-admin-transfer-item-scope/index.ts"
 
 [functions.list-org-members]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-org-members/deno.json"
 entrypoint = "./functions/list-org-members/index.ts"
 
 [functions.list-my-assigned-org-items]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-my-assigned-org-items/deno.json"
 entrypoint = "./functions/list-my-assigned-org-items/index.ts"
 
 [functions.list-org-item-return-requests]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-org-item-return-requests/deno.json"
 entrypoint = "./functions/list-org-item-return-requests/index.ts"
 
 [functions.org-toggle-item-stolen]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-toggle-item-stolen/deno.json"
 entrypoint = "./functions/org-toggle-item-stolen/index.ts"
 
 [functions.list-orgs]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-orgs/deno.json"
 entrypoint = "./functions/list-orgs/index.ts"
 
 [functions.create-organization]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/create-organization/deno.json"
 entrypoint = "./functions/create-organization/index.ts"
 
 [functions.update-organization]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/update-organization/deno.json"
 entrypoint = "./functions/update-organization/index.ts"
 
 [functions.delete-organization]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/delete-organization/deno.json"
 entrypoint = "./functions/delete-organization/index.ts"
 
 [functions.staff-api]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/staff-api/deno.json"
 entrypoint = "./functions/staff-api/index.ts"
 
 [functions.cashier-org-topup]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/cashier-org-topup/deno.json"
 entrypoint = "./functions/cashier-org-topup/index.ts"
 
 [functions.get-org-wallet]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-org-wallet/deno.json"
 entrypoint = "./functions/get-org-wallet/index.ts"
 
 [functions.list-org-ledger]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-org-ledger/deno.json"
 entrypoint = "./functions/list-org-ledger/index.ts"
 
 [functions.list-org-payments]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-org-payments/deno.json"
 entrypoint = "./functions/list-org-payments/index.ts"
 
@@ -573,85 +573,85 @@ entrypoint = "./functions/list-police-stations/index.ts"
 
 [functions.list-item-taxonomy]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-item-taxonomy/deno.json"
 entrypoint = "./functions/list-item-taxonomy/index.ts"
 
 [functions.org-update-member-role]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-update-member-role/deno.json"
 entrypoint = "./functions/org-update-member-role/index.ts"
 
 [functions.org-remove-member]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-remove-member/deno.json"
 entrypoint = "./functions/org-remove-member/index.ts"
 
 [functions.org-delete-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-delete-item/deno.json"
 entrypoint = "./functions/org-delete-item/index.ts"
 
 [functions.org-restore-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-restore-item/deno.json"
 entrypoint = "./functions/org-restore-item/index.ts"
 
 [functions.org-create-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/org-create-item/deno.json"
 entrypoint = "./functions/org-create-item/index.ts"
 
 [functions.create-org-item-transfer-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/create-org-item-transfer-request/deno.json"
 entrypoint = "./functions/create-org-item-transfer-request/index.ts"
 
 [functions.list-org-item-transfer-requests]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-org-item-transfer-requests/deno.json"
 entrypoint = "./functions/list-org-item-transfer-requests/index.ts"
 
 [functions.cancel-org-item-transfer-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/cancel-org-item-transfer-request/deno.json"
 entrypoint = "./functions/cancel-org-item-transfer-request/index.ts"
 
 [functions.get-ownership-evidence-url]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-ownership-evidence-url/deno.json"
 entrypoint = "./functions/get-ownership-evidence-url/index.ts"
 
 [functions.logout]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/logout/deno.json"
 entrypoint = "./functions/logout/index.ts"
 
 [functions.validate-session]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/validate-session/deno.json"
 entrypoint = "./functions/validate-session/index.ts"
 
 [functions.get-user-profile]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-user-profile/deno.json"
 entrypoint = "./functions/get-user-profile/index.ts"
 
 [functions.stats]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/stats/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -662,7 +662,7 @@ entrypoint = "./functions/stats/index.ts"
 
 [functions.create-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/create-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -673,7 +673,7 @@ entrypoint = "./functions/create-item/index.ts"
 
 [functions.update-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/update-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -684,7 +684,7 @@ entrypoint = "./functions/update-item/index.ts"
 
 [functions.delete-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/delete-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -695,7 +695,7 @@ entrypoint = "./functions/delete-item/index.ts"
 
 [functions.restore-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/restore-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -706,7 +706,7 @@ entrypoint = "./functions/restore-item/index.ts"
 
 [functions.hard-delete-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/hard-delete-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -717,7 +717,7 @@ entrypoint = "./functions/hard-delete-item/index.ts"
 
 [functions.transfer-item-ownership]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/transfer-item-ownership/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -728,7 +728,7 @@ entrypoint = "./functions/transfer-item-ownership/index.ts"
 
 [functions.upload-ownership-evidence]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/upload-ownership-evidence/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -739,7 +739,7 @@ entrypoint = "./functions/upload-ownership-evidence/index.ts"
 
 [functions.get-items]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-items/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -800,7 +800,7 @@ entrypoint = "./functions/verify-item/index.ts"
 
 [functions.police-impound-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/police-impound-item/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -808,7 +808,7 @@ entrypoint = "./functions/police-impound-item/index.ts"
 
 [functions.police-lookup-serial]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/police-lookup-serial/deno.json"
 entrypoint = "./functions/police-lookup-serial/index.ts"
 
@@ -825,7 +825,7 @@ entrypoint = "./functions/notify-owner/index.ts"
 
 [functions.get-dashboard-data]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-dashboard-data/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -836,7 +836,7 @@ entrypoint = "./functions/get-dashboard-data/index.ts"
 
 [functions.create-transfer-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/create-transfer-request/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -847,7 +847,7 @@ entrypoint = "./functions/create-transfer-request/index.ts"
 
 [functions.review-transfer-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/review-transfer-request/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -858,7 +858,7 @@ entrypoint = "./functions/review-transfer-request/index.ts"
 
 [functions.cancel-transfer-request]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/cancel-transfer-request/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -869,7 +869,7 @@ entrypoint = "./functions/cancel-transfer-request/index.ts"
 
 [functions.get-pending-transfer-requests]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-pending-transfer-requests/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -880,7 +880,7 @@ entrypoint = "./functions/get-pending-transfer-requests/index.ts"
 
 [functions.get-item-activity]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-item-activity/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -891,13 +891,13 @@ entrypoint = "./functions/get-item-activity/index.ts"
 
 [functions.get-user-activity]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-user-activity/deno.json"
 entrypoint = "./functions/get-user-activity/index.ts"
 
 [functions.mark-notifications-read]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/mark-notifications-read/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -908,7 +908,7 @@ entrypoint = "./functions/mark-notifications-read/index.ts"
 
 [functions.get-notifications]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-notifications/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -954,72 +954,72 @@ entrypoint = "./functions/public-photo-search/index.ts"
 
 [functions.admin-api]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/admin-api/deno.json"
 entrypoint = "./functions/admin-api/index.ts"
 
 [functions.delete-user]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/delete-user/deno.json"
 entrypoint = "./functions/delete-user/index.ts"
 
 [functions.get-item-photo-urls]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-item-photo-urls/deno.json"
 entrypoint = "./functions/get-item-photo-urls/index.ts"
 
 [functions.get-item-police-case]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/get-item-police-case/deno.json"
 entrypoint = "./functions/get-item-police-case/index.ts"
 
 [functions.list-users]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-users/deno.json"
 entrypoint = "./functions/list-users/index.ts"
 
 [functions.update-police-case]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/update-police-case/deno.json"
 entrypoint = "./functions/update-police-case/index.ts"
 
 [functions.update-user]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/update-user/deno.json"
 entrypoint = "./functions/update-user/index.ts"
 
 [functions.list-audit-logs]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-audit-logs/deno.json"
 entrypoint = "./functions/list-audit-logs/index.ts"
 
 [functions.list-audit-facets]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/list-audit-facets/deno.json"
 entrypoint = "./functions/list-audit-facets/index.ts"
 
 [functions.admin-sms-otp-usage]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/admin-sms-otp-usage/deno.json"
 entrypoint = "./functions/admin-sms-otp-usage/index.ts"
 
 [functions.mark-item-legacy]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/mark-item-legacy/deno.json"
 entrypoint = "./functions/mark-item-legacy/index.ts"
 
 [functions.restore-legacy-item]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/restore-legacy-item/deno.json"
 entrypoint = "./functions/restore-legacy-item/index.ts"
