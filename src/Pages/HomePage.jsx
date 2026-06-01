@@ -5,7 +5,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
 import HomeContactCard from "../components/HomeContactCard.jsx";
 import { usePublicStats } from "../hooks/usePublicStats.js";
-import { Users, Package, ShieldCheck, AlertTriangle, ChevronRight } from "lucide-react";
+import { Users, Package, AlertTriangle, ChevronRight } from "lucide-react";
 import CountUp from "react-countup";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import {
@@ -44,6 +44,14 @@ function normalizeDailyTrend(rows, takeLast) {
   }));
 }
 
+function toCumulativeTrend(rows) {
+  let running = 0;
+  return rows.map((row) => {
+    running += row.count;
+    return { ...row, count: running };
+  });
+}
+
 /** Y ticks that always include 0 and the true max so the axis does not look capped at a low tick. */
 function yAxisTicksForMax(maxValue) {
   const m = Math.max(0, Math.floor(Number(maxValue)) || 0);
@@ -75,7 +83,9 @@ export default function HomePage() {
   const [trendMetric, setTrendMetric] = useState("items"); // "items" | "users"
 
   const activityChart = useMemo(() => {
-    const data = trendMetric === "users" ? userTimelineData14 : itemTimelineData;
+    const daily =
+      trendMetric === "users" ? userTimelineData14 : itemTimelineData;
+    const data = toCumulativeTrend(daily);
     const peak = data.reduce((m, d) => Math.max(m, d.count), 0);
     const yMax = Math.max(peak, 1);
     return {
@@ -97,9 +107,13 @@ export default function HomePage() {
     () => normalizeDailyTrend(stats?.dailyStolenTrend, 7),
     [stats?.dailyStolenTrend],
   );
-  const activeTrend = useMemo(
-    () => normalizeDailyTrend(stats?.dailyActiveTrend, 7),
-    [stats?.dailyActiveTrend],
+  const topCategories = useMemo(
+    () =>
+      Object.entries(stats?.categoryBreakdown || {})
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+    [stats?.categoryBreakdown],
   );
 
   const stolenCategoryData = Object.entries(
@@ -117,7 +131,6 @@ export default function HomePage() {
   const topStolenVillages = Array.isArray(stats?.topStolenVillages) ? stats.topStolenVillages : [];
   const topUserVillages = Array.isArray(stats?.topUserVillages) ? stats.topUserVillages : [];
 
-  const active = totals.activeItems ?? 0;
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
   const totalUsers = totals.totalUsers ?? 0;
@@ -281,7 +294,7 @@ export default function HomePage() {
         {/* STAT CARDS */}
         <div
           ref={statCardsRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 items-start"
         >
 
           <StatCard
@@ -337,36 +350,16 @@ export default function HomePage() {
             </div>
 
             <div className="mt-2 space-y-1">
-              {Object.entries(stats?.categoryBreakdown || {})
-                .slice(0, 4)
-                .map(([cat, count]) => (
-                  <div key={cat} className="flex justify-between">
-                    <span>{cat}</span>
-                    <span className="font-medium">{count}</span>
+              {topCategories.length === 0 ? (
+                <div className="text-sm text-gray-500">No category data yet.</div>
+              ) : (
+                topCategories.map(({ category, count }) => (
+                  <div key={category} className="flex justify-between gap-3">
+                    <span className="truncate">{category}</span>
+                    <span className="font-medium tabular-nums">{count}</span>
                   </div>
-                ))}
-            </div>
-
-            <div className="mt-3 text-xs text-gray-500">
-              Active ratio: {total ? Math.round((active / total) * 100) : 0}%
-            </div>
-          </StatCard>
-
-          <StatCard
-            id = "active"
-            title="Active Items"
-            value={active}
-            initialLoading={initialLoading}
-            icon={<ShieldCheck size={22} />}
-            miniTrend = {activeTrend}
-            expanded={expandedCard === "active"}
-            onToggle={() =>
-              setExpandedCard(expandedCard === "active" ? null : "active")
-            }
-          >
-            <div>Currently protected assets.</div>
-            <div className="mt-2">
-              Secure items not reported stolen.
+                ))
+              )}
             </div>
           </StatCard>
 
@@ -473,8 +466,8 @@ export default function HomePage() {
                   <div className="text-sm font-semibold text-gray-800">14-day activity</div>
                   <p className="text-xs text-gray-500 mt-1 max-w-md leading-snug">
                     {trendMetric === "users"
-                      ? "New user accounts created each day."
-                      : "New assets registered each day."}
+                      ? "Cumulative new user accounts over the last 14 days."
+                      : "Cumulative assets registered over the last 14 days."}
                   </p>
                 </div>
                 <div
@@ -558,14 +551,20 @@ export default function HomePage() {
                       }
                       formatter={(value) => [
                         String(value),
-                        trendMetric === "users" ? "New users" : "Items registered",
+                        trendMetric === "users"
+                          ? "Cumulative new users"
+                          : "Cumulative items registered",
                       ]}
                     />
 
                     <Area
                       type="monotone"
                       dataKey="count"
-                      name={trendMetric === "users" ? "New users" : "Items registered"}
+                      name={
+                        trendMetric === "users"
+                          ? "Cumulative new users"
+                          : "Cumulative items registered"
+                      }
                       stroke={IREG_GREEN}
                       fill="url(#g)"
                     />
