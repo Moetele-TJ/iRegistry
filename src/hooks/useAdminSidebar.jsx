@@ -60,6 +60,10 @@ export function useAdminSidebar({ visible: visibleProp = true } = {}) {
   );
 
   useEffect(() => {
+    if (staffScope?.isActive) {
+      return;
+    }
+
     if (!visible) {
       clearSidebar();
       return;
@@ -74,5 +78,5 @@ export function useAdminSidebar({ visible: visibleProp = true } = {}) {
     return () => {
       clearSidebar();
     };
-  }, [clearSidebar, items, setSidebar, visible]);
+  }, [clearSidebar, items, setSidebar, visible, staffScope?.isActive]);
 }

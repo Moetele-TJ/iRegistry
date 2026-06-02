@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -91,7 +91,11 @@ export function useStaffProfileUserActions({
     }
   }
 
-  function goToItems() {
+  const goToProfile = useCallback(() => {
+    navigate(profilePath);
+  }, [navigate, profilePath]);
+
+  const goToItems = useCallback(() => {
     if (!targetId || !selfId) return;
     writeItemsListScope(selfId, "active", {
       ownerScope: targetId,
@@ -102,9 +106,9 @@ export function useStaffProfileUserActions({
       scrollY: 0,
     });
     navigate(`${base}/items`);
-  }
+  }, [targetId, selfId, base, navigate]);
 
-  function goToTopup() {
+  const goToTopup = useCallback(() => {
     if (!targetId) return;
     if (!accountActive) {
       addToast({
@@ -114,14 +118,14 @@ export function useStaffProfileUserActions({
       return;
     }
     navigate(`${base}/topup?user=${encodeURIComponent(targetId)}`);
-  }
+  }, [targetId, accountActive, base, navigate, addToast]);
 
-  function goToTransactions() {
+  const goToTransactions = useCallback(() => {
     if (!targetId) return;
     navigate(`${base}/transactions?user=${encodeURIComponent(targetId)}`);
-  }
+  }, [targetId, base, navigate]);
 
-  function goToEdit() {
+  const goToEdit = useCallback(() => {
     if (!targetId) return;
     if (isInactiveLockout(targetUser)) {
       addToast({
@@ -131,9 +135,9 @@ export function useStaffProfileUserActions({
       return;
     }
     navigate(`${usersPath}?user=${encodeURIComponent(targetId)}&mode=edit`);
-  }
+  }, [targetId, targetUser, usersPath, navigate, addToast]);
 
-  function goToAddItemForTarget() {
+  const goToAddItemForTarget = useCallback(() => {
     if (!accountActive) {
       addToast({
         type: "error",
@@ -142,9 +146,9 @@ export function useStaffProfileUserActions({
       return;
     }
     void goToAddItem({ ownerId: targetId, ownerLabel: displayName });
-  }
+  }, [accountActive, addToast, displayName, goToAddItem, targetId]);
 
-  function openRoleModal() {
+  const openRoleModal = useCallback(() => {
     if (isInactiveLockout(targetUser)) {
       addToast({
         type: "error",
@@ -158,7 +162,7 @@ export function useStaffProfileUserActions({
     }
     setRoleNext(String(targetUser.role || "user"));
     setRoleModalOpen(true);
-  }
+  }, [addToast, isSelf, targetUser]);
 
   async function submitRoleChange() {
     const next = String(roleNext || "").toLowerCase();
@@ -194,7 +198,7 @@ export function useStaffProfileUserActions({
     await quickUpdateUser({ role: r }, `Role updated to ${label}.`);
   }
 
-  function openSuspendModal(kind) {
+  const openSuspendModal = useCallback((kind) => {
     if (isSelf) {
       addToast({ type: "error", message: "You cannot suspend or disable your own account." });
       return;
@@ -203,7 +207,7 @@ export function useStaffProfileUserActions({
     setSuspendPreset("");
     setSuspendReason(targetUser.suspended_reason || targetUser.disabled_reason || "");
     setSuspendModalOpen(true);
-  }
+  }, [addToast, isSelf, targetUser]);
 
   async function submitSuspend() {
     const reason = String(suspendReason || "").trim();
@@ -222,7 +226,7 @@ export function useStaffProfileUserActions({
     }
   }
 
-  async function quickReactivate() {
+  const quickReactivate = useCallback(async () => {
     if (isSelf) return;
     if (accountActive) {
       addToast({ type: "info", message: "User is already active." });
@@ -242,9 +246,9 @@ export function useStaffProfileUserActions({
       { status: "active" },
       isDeleted ? "User restored." : "User reactivated.",
     );
-  }
+  }, [accountActive, addToast, confirm, displayName, isDeleted, isSelf, quickUpdateUser]);
 
-  async function handleDelete() {
+  const handleDelete = useCallback(async () => {
     if (isSelf) {
       addToast({ type: "error", message: "You cannot delete your own account here." });
       return;
@@ -272,11 +276,20 @@ export function useStaffProfileUserActions({
     } finally {
       setBusy(false);
     }
-  }
+  }, [
+    addToast,
+    confirm,
+    isSelf,
+    navigate,
+    onAfterDelete,
+    targetId,
+    usersPath,
+  ]);
 
   return {
     base,
     profilePath,
+    goToProfile,
     targetUser,
     targetId,
     displayName,

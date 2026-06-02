@@ -46,9 +46,10 @@ export default function StaffUserScopeSidebarBridge() {
         label: NAV_ACTIONS.backToUsers,
       },
       {
-        to: actions.profilePath,
+        onClick: actions.goToProfile,
         icon: <UserCircle size={20} />,
         label: NAV.profile,
+        disabled: actions.disabled,
       },
       {
         onClick: actions.goToItems,
@@ -153,7 +154,7 @@ export default function StaffUserScopeSidebarBridge() {
   }, [
     isActive,
     actions.targetId,
-    actions.profilePath,
+    actions.goToProfile,
     actions.accountActive,
     actions.isDeleted,
     actions.lockoutRestricted,
@@ -186,7 +187,7 @@ export default function StaffUserScopeSidebarBridge() {
     return () => {
       clearSidebar();
     };
-  }, [isActive, targetUser, items, setSidebar, clearSidebar]);
+  }, [isActive, targetUser?.id, items, setSidebar, clearSidebar]);
 
   if (!isActive) return null;
 
