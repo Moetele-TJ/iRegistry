@@ -18,6 +18,12 @@ function displayName(u) {
   return displayUser(u) || "—";
 }
 
+function displayNameWithItemCount(u) {
+  const name = displayName(u);
+  const n = Math.max(0, Math.floor(Number(u?.active_items_count) || 0));
+  return `${name} (${n})`;
+}
+
 function UserMetaItem({ label, value }) {
   const v = value != null && String(value).trim() !== "" ? value : "—";
   return (
@@ -1516,7 +1522,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                           to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
                           className="font-medium text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
                         >
-                          {displayName(u)}
+                          {displayNameWithItemCount(u)}
                         </Link>
                         <p className="text-xs text-gray-500 mt-0.5 break-all">{u.email || "—"}</p>
                       </div>
