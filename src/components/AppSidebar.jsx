@@ -18,8 +18,11 @@ export default function AppSidebar({ sidebar }) {
   const [flyoutCloseNonce, setFlyoutCloseNonce] = useState(0);
   const location = useLocation();
 
+  const sections = useMemo(() => sidebar?.sections || [], [sidebar?.sections]);
   const items = useMemo(() => sidebar?.items || [], [sidebar?.items]);
-  const visible = !!sidebar?.visible && items.length > 0;
+  const hasContent =
+    items.length > 0 || sections.some((s) => (s?.items?.length || 0) > 0);
+  const visible = !!sidebar?.visible && hasContent;
   const hoverExpand = sidebar?.hoverExpand !== false;
   const [canHover, setCanHover] = useState(true);
   const touchMode = !canHover;
@@ -195,6 +198,55 @@ export default function AppSidebar({ sidebar }) {
   const isWide = railExpanded && hoverExpand;
   const childExpanded = contentExpanded && hoverExpand;
 
+  const renderItem = (it, index) => {
+    const itemKey = it.to || it.label || index;
+    const itemVariant = it.variant === "action" ? "action" : "nav";
+
+    if (Array.isArray(it.subItems) && it.subItems.length > 0) {
+      return (
+        <SidebarItemGroup
+          key={itemKey}
+          to={it.to}
+          icon={it.icon}
+          label={it.label}
+          subItems={it.subItems}
+          expanded={childExpanded}
+          expandAnimationComplete={expandAnimationComplete}
+          flyoutCloseNonce={flyoutCloseNonce}
+          onFlyoutExitComplete={handleFlyoutExitComplete}
+          onFlyoutOpenChange={setFlyoutOpenFromChild}
+          onFlyoutPointerEnter={handleFlyoutPointerEnter}
+          onNavigate={() => setRailExpanded(false)}
+          touchMode={touchMode}
+          onTouchExpand={() => {
+            setRailExpanded(true);
+            setContentExpanded(true);
+          }}
+        />
+      );
+    }
+
+    return (
+      <SidebarItem
+        key={itemKey}
+        to={it.to}
+        onClick={it.onClick}
+        end={!!it.end}
+        icon={it.icon}
+        label={it.label}
+        expanded={childExpanded}
+        disabled={!!it.disabled}
+        variant={itemVariant}
+        onNavigate={() => setRailExpanded(false)}
+        touchMode={touchMode}
+        onTouchExpand={() => {
+          setRailExpanded(true);
+          setContentExpanded(true);
+        }}
+      />
+    );
+  };
+
   if (!visible) return null;
 
   return (
@@ -220,46 +272,29 @@ export default function AppSidebar({ sidebar }) {
         className="app-sidebar-nav max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))] overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
         aria-label="Main navigation"
       >
-        {items.map((it, index) =>
-          Array.isArray(it.subItems) && it.subItems.length > 0 ? (
-            <SidebarItemGroup
-              key={it.to}
-              to={it.to}
-              icon={it.icon}
-              label={it.label}
-              subItems={it.subItems}
-              expanded={childExpanded}
-              expandAnimationComplete={expandAnimationComplete}
-              flyoutCloseNonce={flyoutCloseNonce}
-              onFlyoutExitComplete={handleFlyoutExitComplete}
-              onFlyoutOpenChange={setFlyoutOpenFromChild}
-              onFlyoutPointerEnter={handleFlyoutPointerEnter}
-              onNavigate={() => setRailExpanded(false)}
-              touchMode={touchMode}
-              onTouchExpand={() => {
-                setRailExpanded(true);
-                setContentExpanded(true);
-              }}
-            />
-          ) : (
-            <SidebarItem
-              key={it.to || it.label || index}
-              to={it.to}
-              onClick={it.onClick}
-              end={!!it.end}
-              icon={it.icon}
-              label={it.label}
-              expanded={childExpanded}
-              disabled={!!it.disabled}
-              onNavigate={() => setRailExpanded(false)}
-              touchMode={touchMode}
-              onTouchExpand={() => {
-                setRailExpanded(true);
-                setContentExpanded(true);
-              }}
-            />
-          ),
-        )}
+        {sections.length > 0
+          ? sections.map((section, sectionIndex) => {
+              const sectionItems = section?.items || [];
+              if (sectionItems.length === 0) return null;
+              return (
+                <div key={section.id || section.label || sectionIndex} className="space-y-2">
+                  {sectionIndex > 0 ? (
+                    <div
+                      className="mx-3 border-t border-white/20 pt-2"
+                      role="separator"
+                      aria-hidden
+                    />
+                  ) : null}
+                  {childExpanded && section.label ? (
+                    <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-white/55 truncate">
+                      {section.label}
+                    </p>
+                  ) : null}
+                  {sectionItems.map((it, index) => renderItem(it, index))}
+                </div>
+              );
+            })
+          : items.map((it, index) => renderItem(it, index))}
       </nav>
     </aside>
   );

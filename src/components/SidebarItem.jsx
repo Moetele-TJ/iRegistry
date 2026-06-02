@@ -14,13 +14,20 @@ function sidebarItemClass(expanded, isActive) {
   return `${base} ${layout} ${bg}`;
 }
 
-function SidebarItemContent({ icon, label, expanded, isActive }) {
+function SidebarItemContent({ icon, label, expanded, isActive, variant = "nav" }) {
+  const iconShell =
+    variant === "action"
+      ? "bg-white/10 ring-1 ring-white/20"
+      : !expanded && isActive
+        ? "bg-white/20"
+        : "";
+
   return (
     <>
       <span
         className={[
           "shrink-0 flex w-10 h-10 items-center justify-center rounded-xl",
-          !expanded && isActive ? "bg-white/20" : "",
+          iconShell,
         ].join(" ")}
       >
         <span className="flex h-5 w-5 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
@@ -42,6 +49,7 @@ export default function SidebarItem({
   expanded,
   end = false,
   disabled = false,
+  variant = "nav",
   onNavigate,
   touchMode,
   onTouchExpand,
@@ -62,7 +70,13 @@ export default function SidebarItem({
         }}
         className={sidebarItemClass(expanded, false)}
       >
-        <SidebarItemContent icon={icon} label={label} expanded={expanded} isActive={false} />
+        <SidebarItemContent
+          icon={icon}
+          label={label}
+          expanded={expanded}
+          isActive={false}
+          variant={variant}
+        />
       </button>
     );
   }
@@ -87,7 +101,13 @@ export default function SidebarItem({
       className={({ isActive }) => sidebarItemClass(expanded, isActive)}
     >
       {({ isActive }) => (
-        <SidebarItemContent icon={icon} label={label} expanded={expanded} isActive={isActive} />
+        <SidebarItemContent
+          icon={icon}
+          label={label}
+          expanded={expanded}
+          isActive={isActive}
+          variant={variant}
+        />
       )}
     </NavLink>
   );

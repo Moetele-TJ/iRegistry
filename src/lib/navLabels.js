@@ -188,6 +188,8 @@ export const NAV_ACTIONS = Object.freeze({
 
   backToUsers: "Back to Users",
 
+  accountActions: "Account",
+
 });
 
 
