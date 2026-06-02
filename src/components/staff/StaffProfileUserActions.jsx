@@ -40,13 +40,34 @@ function btnPrimaryClass(extra = "") {
   return `px-3 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 whitespace-nowrap disabled:opacity-50 ${extra}`.trim();
 }
 
+function sidebarBtnClass(extra = "") {
+  return `w-full justify-start text-left px-3 py-2.5 rounded-xl border border-white/20 bg-white/10 text-sm font-medium text-white hover:bg-white/20 disabled:opacity-50 ${extra}`.trim();
+}
+
+function sidebarPrimaryClass(extra = "") {
+  return `w-full justify-start text-left px-3 py-2.5 rounded-xl bg-white text-iregistrygreen text-sm font-medium hover:bg-white/90 disabled:opacity-50 ${extra}`.trim();
+}
+
+function sidebarDangerClass(extra = "") {
+  return `w-full justify-start text-left px-3 py-2.5 rounded-xl border border-red-200/30 bg-red-500/20 text-sm font-medium text-red-50 hover:bg-red-500/30 disabled:opacity-50 ${extra}`.trim();
+}
+
+const sidebarSelectClass =
+  "mt-1 w-full rounded-lg border border-white/25 bg-white/10 text-white text-sm px-2 py-2 disabled:opacity-50 box-border";
+
 const mobileSelectClass =
   "mt-1 w-full min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-white disabled:opacity-50 box-border";
 
 /**
  * Staff actions when viewing another user's profile (`/profile?user=…`).
  */
-export default function StaffProfileUserActions({ targetUser, sessionUser, onUserUpdated }) {
+export default function StaffProfileUserActions({
+  targetUser,
+  sessionUser,
+  onUserUpdated,
+  layout = "inline",
+  profileDisplayName,
+}) {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { confirm } = useModal();
@@ -324,105 +345,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   const showAccountDropdown =
     isDeleted || !lockoutRestricted || canAdminister;
 
-  const navButtons = (
-    <>
-      <RippleButton type="button" className={btnNavClass()} onClick={goToItems} disabled={disabled}>
-        {NAV_ACTIONS.viewItems}
-      </RippleButton>
-      {accountActive ? (
-        <>
-          <RippleButton
-            type="button"
-            className={btnPrimaryClass()}
-            onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
-            disabled={disabled}
-          >
-            {NAV_ACTIONS.addItem}
-          </RippleButton>
-          <RippleButton type="button" className={btnNavClass()} onClick={goToTopup} disabled={disabled}>
-            {NAV_ACTIONS.topUp}
-          </RippleButton>
-        </>
-      ) : null}
-      <RippleButton type="button" className={btnNavClass()} onClick={goToTransactions} disabled={disabled}>
-        Transactions
-      </RippleButton>
-    </>
-  );
-
-  const accountButtons = isDeleted ? (
-    canAdminister ? (
-      <RippleButton
-        type="button"
-        className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium whitespace-nowrap disabled:opacity-50"
-        onClick={() => void quickReactivate()}
-        disabled={disabled || isSelf}
-      >
-        Restore
-      </RippleButton>
-    ) : null
-  ) : lockoutRestricted ? (
-    canAdminister ? (
-      <>
-        <RippleButton
-          type="button"
-          className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium whitespace-nowrap disabled:opacity-50"
-          onClick={() => void quickReactivate()}
-          disabled={disabled || isSelf}
-        >
-          Reactivate
-        </RippleButton>
-        <RippleButton
-          type="button"
-          className="px-3 py-2 rounded-xl bg-red-50 text-red-600 border border-red-100 text-sm whitespace-nowrap disabled:opacity-50"
-          onClick={() => void handleDelete()}
-          disabled={disabled || isSelf}
-        >
-          Delete
-        </RippleButton>
-      </>
-    ) : null
-  ) : (
-    <>
-      {canAdminister && accountActive ? (
-        <>
-          <RippleButton
-            type="button"
-            className="px-3 py-2 rounded-xl bg-amber-500 text-white text-sm whitespace-nowrap disabled:opacity-50"
-            onClick={() => openSuspendModal("suspended")}
-            disabled={disabled || isSelf}
-          >
-            Suspend
-          </RippleButton>
-          <RippleButton
-            type="button"
-            className="px-3 py-2 rounded-xl bg-gray-800 text-white text-sm whitespace-nowrap disabled:opacity-50"
-            onClick={() => openSuspendModal("disabled")}
-            disabled={disabled || isSelf}
-          >
-            Disable
-          </RippleButton>
-        </>
-      ) : null}
-      {accountActive ? (
-        <RippleButton type="button" className={btnNavClass()} onClick={goToEdit} disabled={disabled}>
-          Edit
-        </RippleButton>
-      ) : null}
-      {canAdminister ? (
-        <RippleButton
-          type="button"
-          className="px-3 py-2 rounded-xl bg-red-50 text-red-600 border border-red-100 text-sm whitespace-nowrap disabled:opacity-50"
-          onClick={() => void handleDelete()}
-          disabled={disabled || isSelf}
-        >
-          Delete
-        </RippleButton>
-      ) : null}
-    </>
-  );
-
-  return (
+  const modals = (
     <>
       <ConfirmModal
         isOpen={roleModalOpen}
@@ -501,6 +424,258 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
           </div>
         </div>
       </ConfirmModal>
+    </>
+  );
+
+  const navButtons = (
+    <>
+      <RippleButton type="button" className={btnNavClass()} onClick={goToItems} disabled={disabled}>
+        {NAV_ACTIONS.viewItems}
+      </RippleButton>
+      {accountActive ? (
+        <>
+          <RippleButton
+            type="button"
+            className={btnPrimaryClass()}
+            onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
+            disabled={disabled}
+          >
+            {NAV_ACTIONS.addItem}
+          </RippleButton>
+          <RippleButton type="button" className={btnNavClass()} onClick={goToTopup} disabled={disabled}>
+            {NAV_ACTIONS.topUp}
+          </RippleButton>
+        </>
+      ) : null}
+      <RippleButton type="button" className={btnNavClass()} onClick={goToTransactions} disabled={disabled}>
+        Transactions
+      </RippleButton>
+    </>
+  );
+
+  const sidebarRegistrySection = (
+    <div className="space-y-1.5">
+      <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-white/60">Registry</p>
+      <RippleButton type="button" className={sidebarBtnClass()} onClick={goToItems} disabled={disabled}>
+        {NAV_ACTIONS.viewItems}
+      </RippleButton>
+      {accountActive ? (
+        <>
+          <RippleButton
+            type="button"
+            className={sidebarPrimaryClass()}
+            onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
+            disabled={disabled}
+          >
+            {NAV_ACTIONS.addItem}
+          </RippleButton>
+          <RippleButton type="button" className={sidebarBtnClass()} onClick={goToTopup} disabled={disabled}>
+            {NAV_ACTIONS.topUp}
+          </RippleButton>
+        </>
+      ) : null}
+      <RippleButton type="button" className={sidebarBtnClass()} onClick={goToTransactions} disabled={disabled}>
+        Transactions
+      </RippleButton>
+    </div>
+  );
+
+  const accountButtons = isDeleted ? (
+    canAdminister ? (
+      <RippleButton
+        type="button"
+        className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium whitespace-nowrap disabled:opacity-50"
+        onClick={() => void quickReactivate()}
+        disabled={disabled || isSelf}
+      >
+        Restore
+      </RippleButton>
+    ) : null
+  ) : lockoutRestricted ? (
+    canAdminister ? (
+      <>
+        <RippleButton
+          type="button"
+          className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium whitespace-nowrap disabled:opacity-50"
+          onClick={() => void quickReactivate()}
+          disabled={disabled || isSelf}
+        >
+          Reactivate
+        </RippleButton>
+        <RippleButton
+          type="button"
+          className="px-3 py-2 rounded-xl bg-red-50 text-red-600 border border-red-100 text-sm whitespace-nowrap disabled:opacity-50"
+          onClick={() => void handleDelete()}
+          disabled={disabled || isSelf}
+        >
+          Delete
+        </RippleButton>
+      </>
+    ) : null
+  ) : (
+    <>
+      {canAdminister && accountActive ? (
+        <>
+          <RippleButton
+            type="button"
+            className="px-3 py-2 rounded-xl bg-amber-500 text-white text-sm whitespace-nowrap disabled:opacity-50"
+            onClick={() => openSuspendModal("suspended")}
+            disabled={disabled || isSelf}
+          >
+            Suspend
+          </RippleButton>
+          <RippleButton
+            type="button"
+            className="px-3 py-2 rounded-xl bg-gray-800 text-white text-sm whitespace-nowrap disabled:opacity-50"
+            onClick={() => openSuspendModal("disabled")}
+            disabled={disabled || isSelf}
+          >
+            Disable
+          </RippleButton>
+        </>
+      ) : null}
+      {accountActive ? (
+        <RippleButton type="button" className={btnNavClass()} onClick={goToEdit} disabled={disabled}>
+          Edit
+        </RippleButton>
+      ) : null}
+      {canAdminister ? (
+        <RippleButton
+          type="button"
+          className="px-3 py-2 rounded-xl bg-red-50 text-red-600 border border-red-100 text-sm whitespace-nowrap disabled:opacity-50"
+          onClick={() => void handleDelete()}
+          disabled={disabled || isSelf}
+        >
+          Delete
+        </RippleButton>
+      ) : null}
+    </>
+  );
+
+  const sidebarAccountSection = isDeleted ? (
+    canAdminister ? (
+      <RippleButton
+        type="button"
+        className={sidebarPrimaryClass("bg-emerald-500/90 text-white border-emerald-300/40")}
+        onClick={() => void quickReactivate()}
+        disabled={disabled || isSelf}
+      >
+        Restore
+      </RippleButton>
+    ) : null
+  ) : lockoutRestricted ? (
+    canAdminister ? (
+      <>
+        <RippleButton
+          type="button"
+          className={sidebarPrimaryClass("bg-emerald-500/90 text-white border-emerald-300/40")}
+          onClick={() => void quickReactivate()}
+          disabled={disabled || isSelf}
+        >
+          Reactivate
+        </RippleButton>
+        <RippleButton
+          type="button"
+          className={sidebarDangerClass()}
+          onClick={() => void handleDelete()}
+          disabled={disabled || isSelf}
+        >
+          Delete
+        </RippleButton>
+      </>
+    ) : null
+  ) : (
+  <>
+      {canAdminister && accountActive ? (
+        <>
+          <RippleButton
+            type="button"
+            className={sidebarBtnClass("bg-amber-500/30 border-amber-200/30")}
+            onClick={() => openSuspendModal("suspended")}
+            disabled={disabled || isSelf}
+          >
+            Suspend
+          </RippleButton>
+          <RippleButton
+            type="button"
+            className={sidebarBtnClass("bg-gray-900/40 border-white/10")}
+            onClick={() => openSuspendModal("disabled")}
+            disabled={disabled || isSelf}
+          >
+            Disable
+          </RippleButton>
+        </>
+      ) : null}
+      {accountActive ? (
+        <RippleButton type="button" className={sidebarBtnClass()} onClick={goToEdit} disabled={disabled}>
+          Edit
+        </RippleButton>
+      ) : null}
+      {canAdminister ? (
+        <RippleButton
+          type="button"
+          className={sidebarDangerClass()}
+          onClick={() => void handleDelete()}
+          disabled={disabled || isSelf}
+        >
+          Delete
+        </RippleButton>
+      ) : null}
+    </>
+  );
+
+  if (layout === "sidebar") {
+    return (
+      <>
+        {modals}
+        <div className="space-y-4 min-w-0">
+          {profileDisplayName ? (
+            <p className="px-1 text-sm font-medium text-white truncate" title={profileDisplayName}>
+              {profileDisplayName}
+            </p>
+          ) : null}
+          {sidebarRegistrySection}
+          {showAccountDropdown ? (
+            <div className="space-y-1.5 pt-1 border-t border-white/15">
+              <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-white/60">Account</p>
+              {canAdminister && accountActive ? (
+                <div>
+                  <label className="sr-only" htmlFor="staff-sidebar-profile-role">
+                    Change role
+                  </label>
+                  <select
+                    id="staff-sidebar-profile-role"
+                    value={targetUser?.role || "user"}
+                    onChange={(e) => void quickChangeRole(e.target.value)}
+                    className={sidebarSelectClass}
+                    disabled={disabled || isSelf}
+                    title={isSelf ? "Cannot change your own role" : "Change role"}
+                  >
+                    {APP_ROLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value} className="text-gray-900">
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {sidebarAccountSection}
+            </div>
+          ) : (
+            <p className="px-1 text-xs text-white/70 leading-snug">
+              {isDeleted
+                ? "Deleted accounts can only be restored by an administrator."
+                : "Suspended or disabled accounts can only be reactivated or removed by an administrator."}
+            </p>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {modals}
 
       <div className="md:hidden w-full min-w-0 flex flex-col gap-2 sm:flex-row sm:gap-3">
         {showAccountDropdown ? (

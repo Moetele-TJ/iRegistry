@@ -54,7 +54,10 @@ export default function AppLayout() {
 
 function LayoutBody() {
   const { sidebar } = useSidebar();
-  const showSidebar = !!sidebar?.visible && (sidebar?.items?.length || 0) > 0;
+  const showSidebar =
+    !!sidebar?.visible &&
+    ((sidebar?.items?.length || 0) > 0 || !!sidebar?.panel);
+  const wideSidebar = !!(sidebar?.forceExpanded || sidebar?.panel);
 
   return (
     <>
@@ -62,7 +65,9 @@ function LayoutBody() {
       <main
         className={`flex flex-1 flex-col min-h-0 bg-gray-100 pl-0 ${
           showSidebar
-            ? "pl-[calc(var(--app-sidebar-collapsed-w)+4px)] sm:pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
+            ? wideSidebar
+              ? "pl-[calc(var(--app-sidebar-expanded-w)+4px)] sm:pl-[calc(var(--app-sidebar-expanded-w)+var(--app-sidebar-gutter))]"
+              : "pl-[calc(var(--app-sidebar-collapsed-w)+4px)] sm:pl-[calc(var(--app-sidebar-collapsed-w)+var(--app-sidebar-gutter))]"
             : ""
         }`}
       >

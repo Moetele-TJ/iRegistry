@@ -1,4 +1,7 @@
 import { useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext.jsx";
+import { isStaffViewingOtherUserProfile } from "../lib/staffProfileRoute.js";
 import {
   Activity,
   Bell,
@@ -16,8 +19,16 @@ import {
 import { useSidebar } from "../contexts/SidebarContext";
 import { NAV } from "../lib/navLabels.js";
 
-export function useCashierSidebar({ visible = true } = {}) {
+export function useCashierSidebar({ visible: visibleProp = true } = {}) {
+  const location = useLocation();
+  const { user } = useAuth();
   const { setSidebar, clearSidebar } = useSidebar();
+  const staffProfileContext = isStaffViewingOtherUserProfile(
+    location.pathname,
+    location.search,
+    user?.id,
+  );
+  const visible = visibleProp && !staffProfileContext;
 
   const items = useMemo(
     () => [

@@ -6,6 +6,9 @@ const defaultState = {
   visible: false,
   items: [],
   hoverExpand: true,
+  forceExpanded: false,
+  backLink: null,
+  panel: null,
 };
 
 export function SidebarProvider({ children }) {

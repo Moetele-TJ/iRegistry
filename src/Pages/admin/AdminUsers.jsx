@@ -23,6 +23,10 @@ import {
   addItemAriaLabel,
   addItemButtonLabel,
 } from "../../lib/navLabels.js";
+import {
+  readStaffUsersListScope,
+  writeStaffUsersListScope,
+} from "../../lib/staffUsersListStorage.js";
 
 function displayName(u) {
   return displayUser(u) || "—";
@@ -474,6 +478,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   const editFormSectionRef = useRef(null);
   const editDeepLinkHandledRef = useRef(false);
+  const listScopeReadyRef = useRef(false);
   const [highlightUserId, setHighlightUserId] = useState(null);
 
   const isEditing = mode === "edit" && !!editing;
@@ -485,6 +490,49 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     setError(usersDirectoryError);
     addToast({ type: "error", message: usersDirectoryError });
   }, [usersDirectoryError, addToast]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const scope = readStaffUsersListScope(currentUserId);
+    if (scope) {
+      if (scope.q != null) setQ(String(scope.q));
+      if (scope.roleFilter != null) setRoleFilter(String(scope.roleFilter));
+      if (scope.statusFilter != null) setStatusFilter(String(scope.statusFilter));
+      if (scope.stationFilter != null) setStationFilter(String(scope.stationFilter));
+      if (scope.sortBy != null) setSortBy(String(scope.sortBy));
+      if (scope.sortDir != null) setSortDir(String(scope.sortDir));
+      if (typeof scope.scrollY === "number" && scope.scrollY > 0) {
+        requestAnimationFrame(() => window.scrollTo({ top: scope.scrollY, behavior: "auto" }));
+      }
+    }
+    listScopeReadyRef.current = true;
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (!currentUserId || !listScopeReadyRef.current) return;
+    writeStaffUsersListScope(currentUserId, {
+      q,
+      roleFilter,
+      statusFilter,
+      stationFilter,
+      sortBy,
+      sortDir,
+      scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+    });
+  }, [currentUserId, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir]);
+
+  const persistUsersListScope = () => {
+    if (!currentUserId) return;
+    writeStaffUsersListScope(currentUserId, {
+      q,
+      roleFilter,
+      statusFilter,
+      stationFilter,
+      sortBy,
+      sortDir,
+      scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+    });
+  };
 
   useLayoutEffect(() => {
     if (mode === "idle") return;
@@ -1549,6 +1597,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Link
                             to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
+                            onClick={persistUsersListScope}
                             className="font-medium text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm min-w-0 truncate"
                           >
                             {displayNameWithItemCount(u)}

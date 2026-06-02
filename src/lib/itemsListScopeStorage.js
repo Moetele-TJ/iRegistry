@@ -120,3 +120,21 @@ export function clearAllItemsListScopeForUser(sessionUserId) {
     clearItemsListScope(sessionUserId, v);
   }
 }
+
+/**
+ * Privileged staff: reset "View as" to the logged-in user's registry (all tabs).
+ * Keeps filters/scroll where sensible; clears cross-user view-as from item-details return.
+ */
+export function resetPrivilegedItemsViewToSelf(sessionUserId) {
+  if (!sessionUserId) return;
+  const self = String(sessionUserId);
+  for (const v of ["active", "deleted", "legacy"]) {
+    const prev = readItemsListScope(self, v) || {};
+    writeItemsListScope(self, v, {
+      ...prev,
+      ownerScope: self,
+      page: 1,
+      scrollY: 0,
+    });
+  }
+}
