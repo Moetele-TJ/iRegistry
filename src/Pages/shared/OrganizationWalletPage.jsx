@@ -10,6 +10,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 import { parseCreditBalance } from "../../lib/parseCreditBalance.js";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 const PAGE_SIZE = 25;
 
@@ -192,7 +193,7 @@ export default function OrganizationWalletPage() {
     <>
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Organization wallet"
+      title={PAGE_TITLES.organizationWallet}
       subtitle={
         orgName
           ? `Credits for ${orgName}. Billing for organization-owned items uses this balance.`

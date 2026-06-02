@@ -14,33 +14,38 @@ import {
   Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
+import { NAV } from "../lib/navLabels.js";
 
 export function useCashierSidebar({ visible = true } = {}) {
   const { setSidebar, clearSidebar } = useSidebar();
 
   const items = useMemo(
     () => [
-      { to: "/cashier", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-      { to: "/cashier/profile", icon: <UserCircle size={20} />, label: "Profile" },
+      { to: "/cashier", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
+      { to: "/cashier/profile", icon: <UserCircle size={20} />, label: NAV.profile },
       {
         to: "/cashier/items",
         icon: <Package size={20} />,
-        label: "Items",
+        label: NAV.items,
         subItems: [
-          { to: "/cashier/items", label: "Active Items", end: true },
-          { to: "/cashier/items/deleted", label: "Deleted Items", end: true },
-          { to: "/cashier/items/legacy", label: "Legacy items", end: true },
+          { to: "/cashier/items", label: NAV.activeItems, end: true },
+          { to: "/cashier/items/deleted", label: NAV.deletedItems, end: true },
+          { to: "/cashier/items/legacy", label: NAV.legacyItems, end: true },
         ],
       },
-      { to: "/cashier/users", icon: <Users size={20} />, label: "Users" },
-      { to: "/cashier/organizations", icon: <Building2 size={20} />, label: "Organizations" },
-      { to: "/cashier/topup", icon: <Wallet size={20} />, label: "Top up" },
-      { to: "/cashier/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
-      { to: "/cashier/org-transfer-requests", icon: <FileText size={20} />, label: "Org transfer requests" },
-      { to: "/cashier/pricing", icon: <Tag size={20} />, label: "Pricing" },
-      { to: "/cashier/revenue", icon: <Coins size={20} />, label: "Revenue" },
-      { to: "/cashier/notifications", icon: <Bell size={20} />, label: "Notifications" },
-      { to: "/cashier/activity", icon: <Activity size={20} />, label: "Activity" },
+      { to: "/cashier/users", icon: <Users size={20} />, label: NAV.users },
+      { to: "/cashier/organizations", icon: <Building2 size={20} />, label: NAV.organizations },
+      { to: "/cashier/topup", icon: <Wallet size={20} />, label: NAV.topUp },
+      { to: "/cashier/transactions", icon: <ReceiptText size={20} />, label: NAV.transactions },
+      {
+        to: "/cashier/org-transfer-requests",
+        icon: <FileText size={20} />,
+        label: NAV.orgTransferRequests,
+      },
+      { to: "/cashier/pricing", icon: <Tag size={20} />, label: NAV.pricing },
+      { to: "/cashier/revenue", icon: <Coins size={20} />, label: NAV.revenue },
+      { to: "/cashier/notifications", icon: <Bell size={20} />, label: NAV.notifications },
+      { to: "/cashier/activity", icon: <Activity size={20} />, label: NAV.activity },
     ],
     []
   );
@@ -62,4 +67,3 @@ export function useCashierSidebar({ visible = true } = {}) {
     };
   }, [clearSidebar, items, setSidebar, visible]);
 }
-

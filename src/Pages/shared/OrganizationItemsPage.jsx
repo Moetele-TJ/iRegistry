@@ -12,6 +12,7 @@ import { supabase } from "../../lib/supabase.js";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { isAppAdminRole, isAppStaffRole } from "../../lib/roleUtils.js";
+import { NAV_ACTIONS } from "../../lib/navLabels.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -570,7 +571,7 @@ export default function OrganizationItemsPage() {
               }}
             >
               <Plus size={16} />
-              Add item
+              {NAV_ACTIONS.addItem}
             </a>
           ) : null}
           <Link
@@ -876,7 +877,7 @@ export default function OrganizationItemsPage() {
                   onClick={() => void createItem()}
                 >
                   <Plus size={18} />
-                  Add item
+                  {NAV_ACTIONS.addItem}
                 </RippleButton>
               </div>
             </div>

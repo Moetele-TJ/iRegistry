@@ -18,39 +18,40 @@ import {
   Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
+import { NAV } from "../lib/navLabels.js";
 
 export function useAdminSidebar({ visible = true } = {}) {
   const { setSidebar, clearSidebar } = useSidebar();
 
   const items = useMemo(
     () => [
-      { to: "/admin", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-      { to: "/admin/profile", icon: <UserCircle size={20} />, label: "Profile" },
-      { to: "/admin/users", icon: <Users size={20} />, label: "Users" },
-      { to: "/admin/organizations", icon: <Building2 size={20} />, label: "Organizations" },
-      { to: "/admin/audit-logs", icon: <FileText size={20} />, label: "Audit Logs" },
-      { to: "/admin/sms-otp-usage", icon: <MessageSquare size={20} />, label: "SMS OTP usage" },
-      { to: "/admin/recent-logins", icon: <LogIn size={20} />, label: "Recent logins" },
-      { to: "/admin/settings", icon: <Settings size={20} />, label: "Settings" },
-      { to: "/admin/topup", icon: <Wallet size={20} />, label: "Top up" },
-      { to: "/admin/pricing", icon: <Tag size={20} />, label: "Pricing" },
-      { to: "/admin/packages", icon: <Tag size={20} />, label: "Packages" },
-      { to: "/admin/revenue", icon: <Coins size={20} />, label: "Revenue" },
-      { to: "/admin/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
-      { to: "/admin/transfers", icon: <FileText size={20} />, label: "Transfers" },
+      { to: "/admin", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
+      { to: "/admin/profile", icon: <UserCircle size={20} />, label: NAV.profile },
+      { to: "/admin/users", icon: <Users size={20} />, label: NAV.users },
+      { to: "/admin/organizations", icon: <Building2 size={20} />, label: NAV.organizations },
+      { to: "/admin/audit-logs", icon: <FileText size={20} />, label: NAV.auditLogs },
+      { to: "/admin/sms-otp-usage", icon: <MessageSquare size={20} />, label: NAV.smsOtpUsage },
+      { to: "/admin/recent-logins", icon: <LogIn size={20} />, label: NAV.recentLogins },
+      { to: "/admin/settings", icon: <Settings size={20} />, label: NAV.settings },
+      { to: "/admin/topup", icon: <Wallet size={20} />, label: NAV.topUp },
+      { to: "/admin/pricing", icon: <Tag size={20} />, label: NAV.pricing },
+      { to: "/admin/packages", icon: <Tag size={20} />, label: NAV.packages },
+      { to: "/admin/revenue", icon: <Coins size={20} />, label: NAV.revenue },
+      { to: "/admin/transactions", icon: <ReceiptText size={20} />, label: NAV.transactions },
+      { to: "/admin/transfers", icon: <FileText size={20} />, label: NAV.transfers },
       {
         to: "/admin/items",
         icon: <Package size={20} />,
-        label: "Items",
+        label: NAV.items,
         subItems: [
-          { to: "/admin/items", label: "Active Items", end: true },
-          { to: "/admin/items/deleted", label: "Deleted Items", end: true },
-          { to: "/admin/items/legacy", label: "Legacy items", end: true },
+          { to: "/admin/items", label: NAV.activeItems, end: true },
+          { to: "/admin/items/deleted", label: NAV.deletedItems, end: true },
+          { to: "/admin/items/legacy", label: NAV.legacyItems, end: true },
         ],
       },
-      { to: "/admin/notifications", icon: <Bell size={20} />, label: "Notifications" },
-      { to: "/admin/activity", icon: <Activity size={20} />, label: "Activity" },
-      { to: "/admin/sessions", icon: <MonitorSmartphone size={20} />, label: "Sessions" },
+      { to: "/admin/notifications", icon: <Bell size={20} />, label: NAV.notifications },
+      { to: "/admin/activity", icon: <Activity size={20} />, label: NAV.activity },
+      { to: "/admin/sessions", icon: <MonitorSmartphone size={20} />, label: NAV.sessions },
     ],
     []
   );
@@ -72,4 +73,3 @@ export function useAdminSidebar({ visible = true } = {}) {
     };
   }, [clearSidebar, items, setSidebar, visible]);
 }
-

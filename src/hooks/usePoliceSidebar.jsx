@@ -1,30 +1,31 @@
 import { useEffect, useMemo } from "react";
 import { Activity, Bell, LayoutDashboard, Package, Shield, Tag, UserCircle, Wallet } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
+import { NAV, NAV_POLICE_ITEMS } from "../lib/navLabels.js";
 
 export function usePoliceSidebar({ visible = true } = {}) {
   const { setSidebar, clearSidebar } = useSidebar();
 
   const items = useMemo(
     () => [
-      { to: "/police", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-      { to: "/police/profile", icon: <UserCircle size={20} />, label: "Profile" },
+      { to: "/police", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
+      { to: "/police/profile", icon: <UserCircle size={20} />, label: NAV.profile },
       {
         to: "/police/items",
         icon: <Package size={20} />,
-        label: "Items",
+        label: NAV.items,
         subItems: [
-          { to: "/police/items", label: "Station stolen queue", end: true },
-          { to: "/police/items?mine=1", label: "My active items", end: true },
-          { to: "/police/items/deleted", label: "My deleted items", end: true },
-          { to: "/police/items/legacy", label: "My legacy items", end: true },
+          { to: "/police/items", label: NAV_POLICE_ITEMS.stationStolenQueue, end: true },
+          { to: "/police/items?mine=1", label: NAV_POLICE_ITEMS.myActiveItems, end: true },
+          { to: "/police/items/deleted", label: NAV_POLICE_ITEMS.myDeletedItems, end: true },
+          { to: "/police/items/legacy", label: NAV_POLICE_ITEMS.myLegacyItems, end: true },
         ],
       },
-      { to: "/police/impound", icon: <Shield size={20} />, label: "Impound / Found item" },
-      { to: "/police/notifications", icon: <Bell size={20} />, label: "Notifications" },
-      { to: "/police/activity", icon: <Activity size={20} />, label: "Activity" },
-      { to: "/police/topup", icon: <Wallet size={20} />, label: "Top up" },
-      { to: "/police/pricing", icon: <Tag size={20} />, label: "Pricing" },
+      { to: "/police/impound", icon: <Shield size={20} />, label: NAV.impoundFoundItem },
+      { to: "/police/notifications", icon: <Bell size={20} />, label: NAV.notifications },
+      { to: "/police/activity", icon: <Activity size={20} />, label: NAV.activity },
+      { to: "/police/topup", icon: <Wallet size={20} />, label: NAV.topUp },
+      { to: "/police/pricing", icon: <Tag size={20} />, label: NAV.pricing },
     ],
     []
   );
@@ -46,4 +47,3 @@ export function usePoliceSidebar({ visible = true } = {}) {
     };
   }, [clearSidebar, items, setSidebar, visible]);
 }
-

@@ -26,6 +26,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import { contactRowToForm, emptyContactForm } from "../../lib/publicContact.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { DISPLAY, NAV } from "../../lib/navLabels.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -631,18 +632,18 @@ export default function AdminSettings() {
 
   const shortcuts = useMemo(
     () => [
-      { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
-      { label: "Profile", to: "/admin/profile", icon: UserCircle },
-      { label: "Users", to: "/admin/users", icon: Users },
-      { label: "Audit logs", to: "/admin/audit-logs", icon: FileText },
-      { label: "Items", to: "/admin/items", icon: Package },
-      { label: "Transactions", to: "/admin/transactions", icon: ReceiptText },
-      { label: "Revenue", to: "/admin/revenue", icon: Coins },
-      { label: "Top up", to: "/admin/topup", icon: Wallet },
-      { label: "Pricing", to: "/admin/pricing", icon: Tag },
-      { label: "Notifications", to: "/admin/notifications", icon: Bell },
-      { label: "Activity", to: "/admin/activity", icon: Activity },
-      { label: "Sessions", to: "/admin/sessions", icon: MonitorSmartphone },
+      { label: NAV.dashboard, to: "/admin", icon: LayoutDashboard },
+      { label: NAV.profile, to: "/admin/profile", icon: UserCircle },
+      { label: NAV.users, to: "/admin/users", icon: Users },
+      { label: NAV.auditLogs, to: "/admin/audit-logs", icon: FileText },
+      { label: NAV.items, to: "/admin/items", icon: Package },
+      { label: NAV.transactions, to: "/admin/transactions", icon: ReceiptText },
+      { label: NAV.revenue, to: "/admin/revenue", icon: Coins },
+      { label: NAV.topUp, to: "/admin/topup", icon: Wallet },
+      { label: NAV.pricing, to: "/admin/pricing", icon: Tag },
+      { label: NAV.notifications, to: "/admin/notifications", icon: Bell },
+      { label: NAV.activity, to: "/admin/activity", icon: Activity },
+      { label: NAV.sessions, to: "/admin/sessions", icon: MonitorSmartphone },
     ],
     [],
   );
@@ -843,10 +844,10 @@ export default function AdminSettings() {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { key: "users_total", label: "Total users" },
-                { key: "users_active", label: "Active users" },
-                { key: "items_total", label: "Registered items" },
-                { key: "items_stolen", label: "Stolen items", danger: true },
+                { key: "users_total", label: DISPLAY.stats.totalUsers },
+                { key: "users_active", label: DISPLAY.stats.activeUsers },
+                { key: "items_total", label: DISPLAY.stats.registeredItems },
+                { key: "items_stolen", label: DISPLAY.stats.stolenItems, danger: true },
               ].map((row) => (
                 <div
                   key={row.key}

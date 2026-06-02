@@ -23,6 +23,7 @@ import {
 import ConfirmModal from "./ConfirmModal.jsx";
 import { isExactNavPath } from "../lib/navMatch.js";
 import { isAppAdminRole, isAppStaffRole, roleIs } from "../lib/roleUtils.js";
+import { NAV, NAV_HEADER } from "../lib/navLabels.js";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -117,11 +118,11 @@ export default function Header() {
     const base = staffShellPath();
     if (!base || !isAppStaffRole(role)) return [];
     const links = [
-      { to: `${base}/users`, label: "Users", icon: Users },
-      { to: `${base}/organizations`, label: "Organizations", icon: Building2 },
+      { to: `${base}/users`, label: NAV.users, icon: Users },
+      { to: `${base}/organizations`, label: NAV.organizations, icon: Building2 },
     ];
     if (isAppAdminRole(role)) {
-      links.push({ to: "/admin/sessions", label: "Sessions", icon: MonitorSmartphone });
+      links.push({ to: "/admin/sessions", label: NAV.sessions, icon: MonitorSmartphone });
     }
     return links;
   })();
@@ -237,7 +238,7 @@ export default function Header() {
           }
         >
           <Home size={18} className="shrink-0 opacity-80" />
-          Home
+          {NAV_HEADER.home}
         </NavLink>
 
         {user && (
@@ -251,7 +252,7 @@ export default function Header() {
               }
             >
               <LayoutDashboard size={18} className="shrink-0 opacity-80" />
-              Dashboard
+              {NAV.dashboard}
             </NavLink>
 
             <NavLink
@@ -261,7 +262,7 @@ export default function Header() {
               }
             >
               <Package size={18} className="shrink-0 opacity-80" />
-              Items
+              {NAV.items}
             </NavLink>
 
             <NavLink
@@ -271,19 +272,19 @@ export default function Header() {
               }
             >
               <UserCircle size={18} className="shrink-0 opacity-80" />
-              Profile
+              {NAV.profile}
             </NavLink>
 
             {roleIs(role, "admin") ? (
               <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-500 border-l border-gray-200 pl-4 ml-1">
-                <span className="uppercase tracking-wide text-gray-400">Workspaces</span>
+                <span className="uppercase tracking-wide text-gray-400">{NAV_HEADER.workspaces}</span>
                 <NavLink
                   to="/user"
                   className={({ isActive }) =>
                     isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
                   }
                 >
-                  User
+                  {NAV_HEADER.user}
                 </NavLink>
                 <NavLink
                   to="/cashier"
@@ -291,7 +292,7 @@ export default function Header() {
                     isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
                   }
                 >
-                  Cashier
+                  {NAV_HEADER.cashier}
                 </NavLink>
                 <NavLink
                   to="/police"
@@ -299,21 +300,21 @@ export default function Header() {
                     isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
                   }
                 >
-                  Police
+                  {NAV_HEADER.police}
                 </NavLink>
               </span>
             ) : null}
 
             {roleIs(role, "cashier") ? (
               <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-500 border-l border-gray-200 pl-4 ml-1">
-                <span className="uppercase tracking-wide text-gray-400">Workspaces</span>
+                <span className="uppercase tracking-wide text-gray-400">{NAV_HEADER.workspaces}</span>
                 <NavLink
                   to="/user"
                   className={({ isActive }) =>
                     isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
                   }
                 >
-                  User
+                  {NAV_HEADER.user}
                 </NavLink>
                 <NavLink
                   to="/police"
@@ -321,7 +322,7 @@ export default function Header() {
                     isActive ? "text-iregistrygreen font-semibold" : "hover:text-gray-800"
                   }
                 >
-                  Police
+                  {NAV_HEADER.police}
                 </NavLink>
               </span>
             ) : null}
@@ -332,7 +333,7 @@ export default function Header() {
               className="inline-flex items-center gap-1.5 border px-3 py-1 rounded hover:bg-gray-50 transition-colors"
             >
               <LogOut size={18} className="shrink-0 opacity-80" />
-              Logout
+              {NAV_HEADER.logout}
             </button>
           </>
         )}
@@ -346,7 +347,7 @@ export default function Header() {
               }
             >
               <UserPlus size={18} className="shrink-0 opacity-80" />
-              Signup
+              {NAV_HEADER.signUp}
             </NavLink>
 
             <NavLink
@@ -356,7 +357,7 @@ export default function Header() {
               }
             >
               <LogIn size={18} className="shrink-0 opacity-95" />
-              Login
+              {NAV_HEADER.login}
             </NavLink>
           </>
         )}
@@ -381,7 +382,7 @@ export default function Header() {
 
               <NavLink to="/" end onClick={() => setOpen(false)} className={mobileNavLinkClass}>
                 <Home size={18} className="shrink-0 opacity-80" />
-                Home
+                {NAV_HEADER.home}
               </NavLink>
 
               {!user && (
@@ -398,7 +399,7 @@ export default function Header() {
                     }
                   >
                     <UserPlus size={18} className="shrink-0 opacity-80" />
-                    Signup
+                    {NAV_HEADER.signUp}
                   </NavLink>
 
                   <NavLink
@@ -413,7 +414,7 @@ export default function Header() {
                     }
                   >
                     <LogIn size={18} className="shrink-0 opacity-80" />
-                    Login
+                    {NAV_HEADER.login}
                   </NavLink>
                 </>
               )}
@@ -428,7 +429,7 @@ export default function Header() {
                     className={mobileNavLinkClass}
                   >
                     <LayoutDashboard size={18} className="shrink-0 opacity-80" />
-                    Dashboard
+                    {NAV.dashboard}
                   </NavLink>
 
                   <NavLink
@@ -443,7 +444,7 @@ export default function Header() {
                     }
                   >
                     <Package size={18} className="shrink-0 opacity-80" />
-                    Items
+                    {NAV.items}
                   </NavLink>
 
                   <NavLink
@@ -452,7 +453,7 @@ export default function Header() {
                     className={mobileNavLinkClass}
                   >
                     <UserCircle size={18} className="shrink-0 opacity-80" />
-                    Profile
+                    {NAV.profile}
                   </NavLink>
 
                   {mobileStaffLinks.length > 0 ? (
@@ -481,7 +482,7 @@ export default function Header() {
                     className="flex w-full items-center gap-3 px-4 py-2 font-medium text-red-600 text-left hover:bg-red-50/80 transition-colors"
                   >
                     <LogOut size={18} className="shrink-0 opacity-90" />
-                    Logout
+                    {NAV_HEADER.logout}
                   </button>
                 </>
               )}
@@ -496,7 +497,7 @@ export default function Header() {
         onConfirm={handleLogout}
         title="Confirm logout"
         message="Are you sure you want to log out now?"
-        confirmLabel="Logout"
+        confirmLabel={NAV_HEADER.logout}
         cancelLabel="Cancel"
         danger
       />

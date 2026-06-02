@@ -6,6 +6,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
 import PromoModeBanner from "../../components/PromoModeBanner.jsx";
+import { DISPLAY, NAV, NAV_ACTIONS } from "../../lib/navLabels.js";
 
 export default function AdminHome() {
   const navigate = useNavigate();
@@ -109,10 +110,10 @@ export default function AdminHome() {
     const itemsStolen = stats?.items_stolen ?? null;
 
     return [
-      { label: "Total users", value: usersTotal, icon: Users },
-      { label: "Active users", value: usersActive, icon: Users },
-      { label: "Registered items", value: itemsTotal, icon: Package },
-      { label: "Stolen items", value: itemsStolen, icon: Package, danger: true },
+      { label: DISPLAY.stats.totalUsers, value: usersTotal, icon: Users },
+      { label: DISPLAY.stats.activeUsers, value: usersActive, icon: Users },
+      { label: DISPLAY.stats.registeredItems, value: itemsTotal, icon: Package },
+      { label: DISPLAY.stats.stolenItems, value: itemsStolen, icon: Package, danger: true },
     ];
   }, [dashboard, stats]);
 
@@ -237,15 +238,15 @@ function StatCard({ label, value, danger, icon: Icon }) {
 
 function QuickActions({ onGo }) {
   const actions = [
-    { label: "Manage users", to: "/admin/users", icon: Users },
-    { label: "Items", to: "/admin/items", icon: Package },
-    { label: "Transactions", to: "/admin/transactions", icon: ReceiptText },
-    { label: "Revenue", to: "/admin/revenue", icon: Coins },
-    { label: "Sessions", to: "/admin/sessions", icon: MonitorSmartphone },
-    { label: "Pricing", to: "/admin/pricing", icon: Tag },
-    { label: "Notifications", to: "/admin/notifications", icon: Bell },
-    { label: "Activity", to: "/admin/activity", icon: Activity },
-    { label: "SMS OTP usage", to: "/admin/sms-otp-usage", icon: MessageSquare },
+    { label: NAV_ACTIONS.manageUsers, to: "/admin/users", icon: Users },
+    { label: NAV.items, to: "/admin/items", icon: Package },
+    { label: NAV.transactions, to: "/admin/transactions", icon: ReceiptText },
+    { label: NAV.revenue, to: "/admin/revenue", icon: Coins },
+    { label: NAV.sessions, to: "/admin/sessions", icon: MonitorSmartphone },
+    { label: NAV.pricing, to: "/admin/pricing", icon: Tag },
+    { label: NAV.notifications, to: "/admin/notifications", icon: Bell },
+    { label: NAV.activity, to: "/admin/activity", icon: Activity },
+    { label: NAV.smsOtpUsage, to: "/admin/sms-otp-usage", icon: MessageSquare },
   ];
 
   return (
@@ -393,7 +394,7 @@ function SuspendedUsersCard({ loading, users, onGoUsers }) {
               onClick={onGoUsers}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm hover:bg-gray-50"
             >
-              Manage users
+              {NAV_ACTIONS.manageUsers}
             </button>
           </div>
         </div>

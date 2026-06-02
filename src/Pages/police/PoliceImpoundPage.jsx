@@ -6,6 +6,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import CategoryMakeModelSelect from "../../components/CategoryMakeModelSelect.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 export default function PoliceImpoundPage() {
   const { addToast } = useToast();
@@ -103,7 +104,7 @@ export default function PoliceImpoundPage() {
   return (
     <PageSectionCard
       maxWidthClass="max-w-4xl"
-      title="Impound / register found item"
+      title={PAGE_TITLES.impoundRegisterFoundItem}
       subtitle="Check a serial number first. If it matches a registered item, you can notify the owner and open a station case. If not, fill in details to record a found-item report."
       icon={<Shield className="w-7 h-7 text-iregistrygreen shrink-0" />}
       actions={

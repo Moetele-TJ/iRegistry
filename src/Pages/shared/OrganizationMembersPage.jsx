@@ -6,6 +6,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -131,7 +132,7 @@ export default function OrganizationMembersPage() {
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Organization members"
+      title={PAGE_TITLES.organizationMembers}
       subtitle="Invite users and manage membership roles."
       icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={

@@ -9,6 +9,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { formatMoneyAmount } from "../../lib/formatBWP.js";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 import { parseCreditBalance } from "../../lib/parseCreditBalance.js";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 const FETCH_LIMIT = 200;
 
@@ -258,7 +259,7 @@ export default function OrganizationTransactionsPage() {
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Organization transactions"
+      title={PAGE_TITLES.organizationTransactions}
       subtitle={orgName ? `Transactions for ${orgName}.` : "Transactions for this organization."}
       icon={<Wallet className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={

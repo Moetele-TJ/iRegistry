@@ -5,6 +5,7 @@ import PageSectionCard from "../shared/PageSectionCard.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import { useOrganizations } from "../../hooks/useOrganizations.js";
 import { orgPathSegment } from "../../lib/orgPath.js";
+import { NAV_ACTIONS } from "../../lib/navLabels.js";
 
 function orgLabel(org) {
   return String(org?.name || "").trim() || org?.registration_no || org?.id || "—";
@@ -122,7 +123,7 @@ export default function UserOrganizationsPage() {
                         to={`/organizations/${orgPathSegment(m.org)}/items`}
                         className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
                       >
-                        View items
+                        {NAV_ACTIONS.viewItems}
                       </Link>
                     </div>
                   </div>

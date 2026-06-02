@@ -10,13 +10,7 @@ import { displayUser } from "../../lib/userDisplay.js";
 import { isAppAdminRole } from "../../lib/roleUtils.js";
 import { writeItemsListScope } from "../../lib/itemsListScopeStorage.js";
 import { useAddItemPreflight } from "../../hooks/useAddItemPreflight.js";
-
-const ROLE_OPTIONS = [
-  { value: "user", label: "User" },
-  { value: "police", label: "Police" },
-  { value: "cashier", label: "Cashier" },
-  { value: "admin", label: "Admin" },
-];
+import { APP_ROLE_OPTIONS, NAV_ACTIONS } from "../../lib/navLabels.js";
 
 const SUSPEND_REASONS = [
   "Policy violation",
@@ -333,7 +327,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
   const navButtons = (
     <>
       <RippleButton type="button" className={btnNavClass()} onClick={goToItems} disabled={disabled}>
-        View items
+        {NAV_ACTIONS.viewItems}
       </RippleButton>
       {accountActive ? (
         <>
@@ -343,10 +337,10 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
             onClick={() => void goToAddItem({ ownerId: targetId, ownerLabel: displayName })}
             disabled={disabled}
           >
-            Add item
+            {NAV_ACTIONS.addItem}
           </RippleButton>
           <RippleButton type="button" className={btnNavClass()} onClick={goToTopup} disabled={disabled}>
-            Top up
+            {NAV_ACTIONS.topUp}
           </RippleButton>
         </>
       ) : null}
@@ -453,7 +447,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
             className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
             disabled={busy}
           >
-            {ROLE_OPTIONS.map((opt) => (
+            {APP_ROLE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -578,9 +572,9 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
             disabled={disabled}
           >
             <option value="">Choose action…</option>
-            <option value="items">View items</option>
-            {accountActive ? <option value="add_item">Add item</option> : null}
-            {accountActive ? <option value="topup">Top up credits</option> : null}
+            <option value="items">{NAV_ACTIONS.viewItems}</option>
+            {accountActive ? <option value="add_item">{NAV_ACTIONS.addItem}</option> : null}
+            {accountActive ? <option value="topup">{NAV_ACTIONS.topUpCredits}</option> : null}
             <option value="transactions">Transactions</option>
           </select>
         </div>
@@ -601,7 +595,7 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
               disabled={disabled || isSelf}
               title={isSelf ? "Cannot change your own role" : "Change role"}
             >
-              {ROLE_OPTIONS.map((opt) => (
+              {APP_ROLE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>

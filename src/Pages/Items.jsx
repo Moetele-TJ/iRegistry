@@ -24,6 +24,14 @@ import {
 } from "../lib/billingUx.js";
 import { roleIs } from "../lib/roleUtils.js";
 import {
+  ITEM_STATUS_FILTER_OPTIONS,
+  NAV,
+  NAV_ACTIONS,
+  NAV_MOBILE,
+  NAV_POLICE_ITEMS,
+  addItemButtonLabel,
+} from "../lib/navLabels.js";
+import {
   getItemDerivedState,
   isItemFrozen,
   isItemReportedStolen,
@@ -1360,12 +1368,12 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
                   {showStationQueue
-                    ? "Station stolen queue"
+                    ? NAV_POLICE_ITEMS.stationStolenQueue
                     : view === "deleted"
-                      ? "Deleted items"
+                      ? NAV.deletedItems
                       : view === "legacy"
-                        ? "Legacy items"
-                        : "My Items"}
+                        ? NAV.legacyItems
+                        : NAV_MOBILE.myItems}
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
                   {showStationQueue
@@ -1388,10 +1396,10 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                     title={addPreflightLoading ? "Loading…" : undefined}
                   >
                     {registrationOwnerId
-                      ? "+ Add item for user"
+                      ? addItemButtonLabel(true)
                       : showUserPromoUx
-                        ? "+ Register an item"
-                        : "+ Add item"}
+                        ? `+ ${NAV_ACTIONS.registerItem}`
+                        : addItemButtonLabel(false)}
                   </RippleButton>
                 ) : null}
                 <RippleButton
@@ -1509,9 +1517,11 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                     }}
                     className="border rounded-xl px-3 py-2"
                   >
-                    <option value="All">All statuses</option>
-                    <option value="Active">Active</option>
-                    <option value="Stolen">Stolen</option>
+                    {ITEM_STATUS_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 ) : null}
 
@@ -2231,8 +2241,8 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
                       title={addPreflightLoading ? "Loading…" : undefined}
                     >
                       {registrationOwnerId
-                        ? "+ Add item for user"
-                        : "+ Add your first item"}
+                        ? addItemButtonLabel(true)
+                        : `+ ${NAV_ACTIONS.addYourFirstItem}`}
                     </RippleButton>
                   ) : null}
                 </>

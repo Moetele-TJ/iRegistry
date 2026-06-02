@@ -1,16 +1,17 @@
 // src/components/BottomNav.jsx
 import { Link, useLocation } from "react-router-dom";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
+import { NAV, NAV_HEADER, NAV_MOBILE } from "../lib/navLabels.js";
 
 export default function BottomNav() {
   const location = useLocation();
   const { goToAddItem, tasksLoading } = useAddItemPreflight();
 
   const links = [
-    { to: "/", icon: "🏠", label: "Home" },
-    { to: "/items", icon: "📦", label: "My Items" },
-    { to: "/items/add", icon: "➕", label: "Add Item", isAdd: true },
-    { to: "/profile", icon: "👤", label: "Profile" },
+    { to: "/", icon: "🏠", label: NAV_HEADER.home },
+    { to: "/items", icon: "📦", label: NAV_MOBILE.myItems },
+    { to: "/items/add", icon: "➕", label: NAV_MOBILE.addItem, isAdd: true },
+    { to: "/profile", icon: "👤", label: NAV.profile },
   ];
 
   return (

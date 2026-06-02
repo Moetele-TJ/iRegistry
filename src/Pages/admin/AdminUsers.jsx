@@ -14,6 +14,15 @@ import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
 import { displayUser, formatUserLocation } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
 import { useAddItemPreflight } from "../../hooks/useAddItemPreflight.js";
+import {
+  APP_ROLE_OPTIONS,
+  DISPLAY,
+  NAV_ACTIONS,
+  USER_ACCOUNT_STATUS_FILTER_OPTIONS,
+  USER_ACCOUNT_STATUS_FORM_OPTIONS,
+  addItemAriaLabel,
+  addItemButtonLabel,
+} from "../../lib/navLabels.js";
 
 function displayName(u) {
   return displayUser(u) || "—";
@@ -47,13 +56,6 @@ function fmtDateTime(iso) {
     return String(iso);
   }
 }
-
-const ROLE_OPTIONS = [
-  { value: "user", label: "User" },
-  { value: "police", label: "Police" },
-  { value: "cashier", label: "Cashier" },
-  { value: "admin", label: "Admin" },
-];
 
 const SUSPEND_REASONS = [
   "Policy violation",
@@ -301,7 +303,7 @@ function UserRowActionControls({
                       <option value="delete">Delete…</option>
                     </>
                   ) : null}
-                  {showAddItem ? <option value="add_item">Add item</option> : null}
+                  {showAddItem ? <option value="add_item">{NAV_ACTIONS.addItem}</option> : null}
                   <option value="edit">Edit</option>
                 </>
               )}
@@ -328,7 +330,7 @@ function UserRowActionControls({
             disabled={loading || rowBusy || self}
             title={self ? "Cannot change your own role" : "Change role"}
           >
-            {ROLE_OPTIONS.map((opt) => (
+            {APP_ROLE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -384,7 +386,7 @@ function UserRowActionControls({
             onClick={onAddItem}
             disabled={loading || rowBusy}
           >
-            Add item
+            {NAV_ACTIONS.addItem}
           </RippleButton>
         ) : null}
         {!lockoutRestricted && !isDeleted ? (
@@ -619,15 +621,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     });
   }
 
-  const roleLabel = useMemo(
-    () => ({
-      admin: "Admin",
-      cashier: "Cashier",
-      police: "Police",
-      user: "User",
-    }),
-    []
-  );
+  const roleLabel = useMemo(() => ({ ...DISPLAY.appRole }), []);
 
   const filteredUsers = useMemo(() => {
     const query = String(q || "").trim().toLowerCase();
@@ -1094,7 +1088,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white"
             disabled={!!quickRowId}
           >
-            {ROLE_OPTIONS.map((opt) => (
+            {APP_ROLE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -1212,10 +1206,11 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       onChange={(e) => setStatusFilter(e.target.value)}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
                     >
-                      <option value="all">All</option>
-                      <option value="active">Active</option>
-                      <option value="suspended">Suspended</option>
-                      <option value="disabled">Disabled</option>
+                      {USER_ACCOUNT_STATUS_FILTER_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </>
@@ -1287,7 +1282,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 onClick={startAdd}
                 disabled={loading || usersDirectoryLoading}
               >
-                Add user
+                {NAV_ACTIONS.addUser}
               </RippleButton>
             ) : null}
           </div>
@@ -1303,7 +1298,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             <div className="flex items-center justify-between mb-3 gap-3">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {isAdding ? "Add user" : "Edit user"}
+                  {isAdding ? NAV_ACTIONS.addUser : NAV_ACTIONS.editUser}
                 </h2>
               </div>
               <button
@@ -1425,9 +1420,11 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       className="mt-1 w-full border rounded-lg px-3 py-2"
                       disabled={loading || usersDirectoryLoading || (isEditing && isSelf(editing))}
                     >
-                      <option value="active">Active</option>
-                      <option value="suspended">Suspended</option>
-                      <option value="disabled">Disabled</option>
+                      {USER_ACCOUNT_STATUS_FORM_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                     {isEditing && isSelf(editing) ? (
                       <p className="text-xs text-gray-400 mt-1">Use another admin account to change your status.</p>
@@ -1564,8 +1561,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                                 loading || usersDirectoryLoading || addItemPreflightLoading
                               }
                               className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-md border border-gray-200 bg-white text-iregistrygreen hover:bg-emerald-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35"
-                              title={`Add item for ${displayName(u)}`}
-                              aria-label={`Add item for ${displayName(u)}`}
+                              title={addItemAriaLabel(displayName(u))}
+                              aria-label={addItemAriaLabel(displayName(u))}
                             >
                               <Plus className="w-4 h-4" strokeWidth={2.5} aria-hidden />
                             </button>

@@ -7,6 +7,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
 import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -143,7 +144,7 @@ export default function StaffOrganizationMembersPage({ staffBasePath = "/admin" 
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Organization members"
+      title={PAGE_TITLES.organizationMembers}
       subtitle="Staff view (admin/cashier)."
       icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={

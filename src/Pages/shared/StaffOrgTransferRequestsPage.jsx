@@ -5,6 +5,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
+import { PAGE_TITLES, TRANSFER_REQUEST_STATUS_FILTER_OPTIONS } from "../../lib/navLabels.js";
 
 function displayName(u) {
   const first = String(u?.first_name || "").trim();
@@ -13,12 +14,7 @@ function displayName(u) {
   return full || u?.email || u?.id_number || u?.id || "—";
 }
 
-const STATUS_OPTIONS = [
-  { value: "OPEN", label: "Open" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "REJECTED", label: "Rejected" },
-  { value: "CANCELLED", label: "Cancelled" },
-];
+const STATUS_OPTIONS = TRANSFER_REQUEST_STATUS_FILTER_OPTIONS;
 
 export default function StaffOrgTransferRequestsPage() {
   const { addToast } = useToast();
@@ -208,7 +204,7 @@ export default function StaffOrgTransferRequestsPage() {
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Organization transfer requests"
+      title={PAGE_TITLES.organizationTransferRequests}
       subtitle="Staff-assisted transfers requested by organization administrators."
       actions={
         <RippleButton

@@ -7,6 +7,7 @@ import { displayUser } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 const PAGE_SIZE = 40;
 
@@ -146,7 +147,7 @@ export default function AdminAuditLogs() {
     <div className="min-h-[60vh]">
       <PageSectionCard
         maxWidthClass="max-w-7xl"
-        title="Audit logs"
+        title={PAGE_TITLES.auditLogs}
         subtitle="Security-sensitive events (auth, sessions, OTP, and admin actions). IP and device details are recorded for investigation."
         icon={<FileText className="w-6 h-6 text-iregistrygreen shrink-0" />}
       >

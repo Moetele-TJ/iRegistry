@@ -7,6 +7,7 @@ import { displayUser } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 const RANGE_OPTIONS = [
   { value: 7, label: "Last 7 days" },
@@ -138,7 +139,7 @@ export default function AdminSmsOtpUsagePage() {
     <div className="max-w-5xl mx-auto w-full">
       <PageSectionCard
         maxWidthClass="max-w-5xl"
-        title="SMS login OTP usage"
+        title={PAGE_TITLES.smsLoginOtpUsage}
         subtitle={pageSubtitle}
         icon={<MessageSquare className="w-6 h-6 text-iregistrygreen shrink-0" />}
         actions={

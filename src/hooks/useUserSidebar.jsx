@@ -11,30 +11,31 @@ import {
   Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
+import { NAV } from "../lib/navLabels.js";
 
 export function useUserSidebar({ visible = true } = {}) {
   const { setSidebar, clearSidebar } = useSidebar();
 
   const items = useMemo(
     () => [
-      { to: "/user", end: true, icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-      { to: "/user/profile", icon: <UserCircle size={20} />, label: "Profile" },
+      { to: "/user", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
+      { to: "/user/profile", icon: <UserCircle size={20} />, label: NAV.profile },
       {
         to: "/user/items",
         icon: <Package size={20} />,
-        label: "Items",
+        label: NAV.items,
         subItems: [
-          { to: "/user/items", label: "Active Items", end: true },
-          { to: "/user/items/deleted", label: "Deleted Items", end: true },
-          { to: "/user/items/legacy", label: "Legacy items", end: true },
+          { to: "/user/items", label: NAV.activeItems, end: true },
+          { to: "/user/items/deleted", label: NAV.deletedItems, end: true },
+          { to: "/user/items/legacy", label: NAV.legacyItems, end: true },
         ],
       },
-      { to: "/user/notifications", icon: <Bell size={20} />, label: "Notifications" },
-      { to: "/user/activity", icon: <Activity size={20} />, label: "Activity" },
-      { to: "/user/transactions", icon: <ReceiptText size={20} />, label: "Transactions" },
-      { to: "/user/organizations", icon: <Building2 size={20} />, label: "Organizations" },
-      { to: "/user/topup", icon: <Wallet size={20} />, label: "Top up" },
-      { to: "/user/pricing", icon: <Tag size={20} />, label: "Pricing" },
+      { to: "/user/notifications", icon: <Bell size={20} />, label: NAV.notifications },
+      { to: "/user/activity", icon: <Activity size={20} />, label: NAV.activity },
+      { to: "/user/transactions", icon: <ReceiptText size={20} />, label: NAV.transactions },
+      { to: "/user/organizations", icon: <Building2 size={20} />, label: NAV.organizations },
+      { to: "/user/topup", icon: <Wallet size={20} />, label: NAV.topUp },
+      { to: "/user/pricing", icon: <Tag size={20} />, label: NAV.pricing },
     ],
     []
   );
@@ -56,4 +57,3 @@ export function useUserSidebar({ visible = true } = {}) {
     };
   }, [clearSidebar, items, setSidebar, visible]);
 }
-

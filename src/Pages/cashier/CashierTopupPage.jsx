@@ -8,6 +8,7 @@ import { useListUsers } from "../../hooks/useListUsers.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 function pkgLabel(p) {
   const cur = p?.currency || "BWP";
@@ -328,7 +329,7 @@ export default function CashierTopupPage() {
   return (
     <PageSectionCard
       maxWidthClass="max-w-6xl"
-      title="Cashier top-up"
+      title={PAGE_TITLES.cashierTopUp}
       subtitle="Record a cash/office payment and credit a user or organization wallet."
       icon={<Wallet className="w-6 h-6 text-iregistrygreen shrink-0" />}
     >

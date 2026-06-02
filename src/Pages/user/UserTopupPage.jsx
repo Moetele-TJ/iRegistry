@@ -8,6 +8,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { roleIs } from "../../lib/roleUtils.js";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 function fmtDate(iso) {
   if (!iso) return "—";
@@ -149,7 +150,7 @@ export function UserTopupContent() {
   return (
     <PageSectionCard
       maxWidthClass="max-w-7xl"
-      title="Top up credits"
+      title={PAGE_TITLES.userTopUpCredits}
       subtitle={
         <>
           Create a <strong>pending</strong> top-up. You can have only one at a time. Complete it in person with

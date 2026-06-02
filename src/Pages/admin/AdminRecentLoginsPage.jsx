@@ -9,6 +9,7 @@ import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
+import { PAGE_TITLES } from "../../lib/navLabels.js";
 
 function groupMatchesSearch(group, query) {
   const q = String(query || "").trim().toLowerCase();
@@ -103,7 +104,7 @@ export default function AdminRecentLoginsPage() {
     <div className="max-w-5xl mx-auto w-full">
       <PageSectionCard
         maxWidthClass="max-w-5xl"
-        title="Recent logins"
+        title={PAGE_TITLES.recentLogins}
         subtitle="Click a user’s name to expand their sign-ins in the selected range."
         icon={<LogIn className="w-6 h-6 text-iregistrygreen shrink-0" />}
         actions={

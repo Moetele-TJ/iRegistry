@@ -18,6 +18,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import OrganizationWalletProfileCard from "../../components/OrganizationWalletProfileCard.jsx";
 import EditOrganizationDetailsModal from "../../components/EditOrganizationDetailsModal.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
+import { NAV_ACTIONS } from "../../lib/navLabels.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useOrgRouteResolution } from "../../hooks/useOrgRouteResolution.js";
@@ -261,7 +262,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Link to={`/organizations/${orgKey}/items`} className={actionClass}>
                     <Building2 size={18} className="text-gray-500 shrink-0" />
-                    <span>View items</span>
+                    <span>{NAV_ACTIONS.viewItems}</span>
                     <ChevronRight size={18} className="text-gray-400 ml-auto shrink-0" />
                   </Link>
                   <Link to={`/organizations/${orgKey}/wallet`} className={`${actionClass} border-emerald-200 bg-emerald-50/50`}>
@@ -294,7 +295,7 @@ export default function StaffOrganizationDetailPage({ staffBasePath }) {
                     disabled={loadingPackages}
                   >
                     <Plus size={18} className="text-gray-500 shrink-0" />
-                    <span>Top up wallet</span>
+                    <span>{NAV_ACTIONS.topUpWallet}</span>
                   </RippleButton>
                   <RippleButton
                     type="button"
