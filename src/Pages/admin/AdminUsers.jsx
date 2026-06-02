@@ -409,6 +409,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const { confirm } = useModal();
 
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
+  const canCreateUser = canAdminister || String(variant || "").toLowerCase() === "cashier";
   const profileListBase = canAdminister ? "/admin/profile" : "/cashier/profile";
 
   const {
@@ -549,7 +550,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }
 
   function startAdd() {
-    if (!canAdminister) return;
+    if (!canCreateUser) return;
     setHighlightUserId(null);
     setMode("add");
     setEditing(null);
@@ -729,7 +730,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       let rowIdToHighlight = null;
 
       if (isAdding) {
-        if (!canAdminister) return;
+        if (!canCreateUser) return;
         const ok = await confirm({
           title: "Confirm",
           message: "Create this user? This will add a new user record.",
@@ -749,8 +750,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             village: form.village,
             ward: form.ward,
             police_station: form.police_station,
-            role: form.role,
-            status: form.status,
+            role: canAdminister ? form.role : "user",
+            status: canAdminister ? form.status : "active",
             ...(dobInputStr(form.date_of_birth)
               ? { date_of_birth: dobInputStr(form.date_of_birth) }
               : {}),
@@ -1126,7 +1127,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           subtitle={
             canAdminister
               ? "Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
-              : "Search users and update basic profile details. Roles, status, and deletion are admin-only."
+              : "Search users, add new accounts, and update basic profile details. Roles, status, and deletion are admin-only."
           }
           icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
           actions={
@@ -1249,7 +1250,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 Clear
               </RippleButton>
             </div>
-            {canAdminister ? (
+            {canCreateUser ? (
               <RippleButton
                 type="button"
                 className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60 shrink-0"

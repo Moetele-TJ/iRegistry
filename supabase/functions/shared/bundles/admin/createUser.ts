@@ -10,7 +10,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../../cors.ts";
 import { respond } from "../../respond.ts";
 import { validateSession } from "../../validateSession.ts";
-import { roleIs } from "../../roles.ts";
+import { isPrivilegedRole, roleIs } from "../../roles.ts";
 import { logUserActivity } from "../../logUserActivity.ts";
 import { humanizeRole } from "../../userActivityMessages.ts";
 
@@ -38,10 +38,12 @@ export async function run(req: Request): Promise<Response> {
       return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
     }
 
-    // Create users is admin-only.
-    if (!roleIs(session.role, "admin")) {
+    if (!isPrivilegedRole(session.role)) {
       return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
     }
+
+    const isAdmin = roleIs(session.role, "admin");
+    const isCashier = roleIs(session.role, "cashier");
 
     const body = await req.json().catch(() => null);
     const {
@@ -67,8 +69,14 @@ export async function run(req: Request): Promise<Response> {
       : "";
     const em = typeof email === "string" ? email.trim().toLowerCase() : "";
     const ph = typeof phone === "string" ? phone.trim() : "";
-    const rl = typeof role === "string" ? role.trim().toLowerCase() : "user";
-    const stt = typeof status === "string" ? status.trim().toLowerCase() : "active";
+    let rl = typeof role === "string" ? role.trim().toLowerCase() : "user";
+    let stt = typeof status === "string" ? status.trim().toLowerCase() : "active";
+
+    // Cashiers may only register standard active user accounts.
+    if (isCashier && !isAdmin) {
+      rl = "user";
+      stt = "active";
+    }
     const suspReason =
       typeof suspended_reason === "string" ? suspended_reason.trim() : "";
     const disReason =
