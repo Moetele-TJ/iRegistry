@@ -1,5 +1,5 @@
 // src/Pages/AddItem.jsx
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
@@ -36,6 +36,45 @@ export default function AddItem() {
     ? String(location.state?.registerForOwnerLabel || "").trim() || null
     : null;
   const targetOwnerId = registerForOwnerId || user?.id;
+
+  const [ownerProfile, setOwnerProfile] = useState(null);
+  const formTopRef = useRef(null);
+
+  /** Profile used for “held at residence” location defaults (owner when staff registers for someone). */
+  const locationUser = registerForOwnerId ? ownerProfile : user;
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    formTopRef.current?.scrollIntoView?.({ block: "start" });
+  }, [registerForOwnerId]);
+
+  useEffect(() => {
+    if (!registerForOwnerId) {
+      setOwnerProfile(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data, error } = await invokeWithAuth("get-user-profile", {
+          body: { user_id: registerForOwnerId },
+        });
+        if (cancelled) return;
+        if (error || !data?.success) {
+          setOwnerProfile(null);
+          return;
+        }
+        setOwnerProfile(data.user ?? null);
+      } catch {
+        if (!cancelled) setOwnerProfile(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [registerForOwnerId]);
 
   // Active list for created-by / pricing when opening Add Item directly (no provider prefetch).
   useEffect(() => {
@@ -132,17 +171,23 @@ export default function AddItem() {
   const { alert, confirm } = useModal();
 
   useEffect(() => {
-    if (!heldAtResidence) return;
+    if (!heldAtResidence || !locationUser) return;
     setForm((f) => ({
       ...f,
-      village: typeof user?.village === "string" && user.village.trim() ? user.village.trim() : f.village,
-      ward: typeof user?.ward === "string" && user.ward.trim() ? user.ward.trim() : f.ward,
+      village:
+        typeof locationUser?.village === "string" && locationUser.village.trim()
+          ? locationUser.village.trim()
+          : f.village,
+      ward:
+        typeof locationUser?.ward === "string" && locationUser.ward.trim()
+          ? locationUser.ward.trim()
+          : f.ward,
       station:
-        typeof user?.police_station === "string" && user.police_station.trim()
-          ? user.police_station.trim()
+        typeof locationUser?.police_station === "string" && locationUser.police_station.trim()
+          ? locationUser.police_station.trim()
           : f.station,
     }));
-  }, [heldAtResidence, user?.village, user?.ward, user?.police_station]);
+  }, [heldAtResidence, locationUser?.village, locationUser?.ward, locationUser?.police_station]);
 
   useEffect(() => {
     if (!form.serial1.trim()) {
@@ -310,9 +355,9 @@ export default function AddItem() {
 
   function effectiveLoc(field) {
     if (heldAtResidence) {
-      if (field === "village") return String(user?.village || "").trim();
-      if (field === "ward") return String(user?.ward || "").trim();
-      if (field === "station") return String(user?.police_station || "").trim();
+      if (field === "village") return String(locationUser?.village || "").trim();
+      if (field === "ward") return String(locationUser?.ward || "").trim();
+      if (field === "station") return String(locationUser?.police_station || "").trim();
     }
     return String(form[field] || "").trim();
   }
@@ -388,18 +433,25 @@ export default function AddItem() {
     }
     
     const locVillage = heldAtResidence
-      ? String(user?.village || "").trim()
+      ? String(locationUser?.village || "").trim()
       : form.village.trim();
-    const locWard = heldAtResidence ? String(user?.ward || "").trim() : form.ward.trim();
+    const locWard = heldAtResidence ? String(locationUser?.ward || "").trim() : form.ward.trim();
     const locStation = heldAtResidence
-      ? String(user?.police_station || "").trim()
+      ? String(locationUser?.police_station || "").trim()
       : form.station.trim();
+
+    const residenceProfileHint = registerForOwnerId
+      ? "The customer's profile is missing"
+      : "Your profile is missing";
+    const residenceUncheckHint = registerForOwnerId
+      ? 'uncheck "held at the customer\'s residence" to enter location manually, or update their user profile first.'
+      : 'uncheck "held at my residence" to enter location manually, or update your profile first.';
 
     if (!locVillage) {
       await alert({
         title: "Missing Information",
         message: heldAtResidence
-          ? "Your profile is missing town / village. Update your profile or uncheck “held at my residence”."
+          ? `${residenceProfileHint} town / village — ${residenceUncheckHint}`
           : "Please fill in Town / village before you continue.",
         variant: "warning",
       });
@@ -409,7 +461,7 @@ export default function AddItem() {
       await alert({
         title: "Missing Information",
         message: heldAtResidence
-          ? "Your profile is missing ward / street. Update your profile or uncheck “held at my residence”."
+          ? `${residenceProfileHint} ward / street — ${residenceUncheckHint}`
           : "Please fill in Ward / street before you continue.",
         variant: "warning",
       });
@@ -419,7 +471,7 @@ export default function AddItem() {
       await alert({
         title: "Missing Information",
         message: heldAtResidence
-          ? "Your profile is missing nearest police station. Update your profile or uncheck “held at my residence”."
+          ? `${residenceProfileHint} nearest police station — ${residenceUncheckHint}`
           : "Please fill in the nearest police station before you continue.",
         variant: "warning",
       });
@@ -441,6 +493,12 @@ export default function AddItem() {
           typeof v === "string" ? v.trim() || undefined : v,
         ])
       );
+
+      if (heldAtResidence) {
+        payload.village = locVillage;
+        payload.ward = locWard;
+        payload.station = locStation;
+      }
 
       if (payload.estimatedValue) {
         payload.estimatedValue = Number(payload.estimatedValue);
@@ -476,7 +534,7 @@ export default function AddItem() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div ref={formTopRef} className="min-h-screen bg-gray-100 scroll-mt-0">
       
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
         <form
@@ -553,14 +611,16 @@ export default function AddItem() {
                 checked={heldAtResidence}
                 onChange={(e) => setHeldAtResidence(e.target.checked)}
               />
-              Item is held at my place of residence
+              {registerForOwnerId
+                ? "Item is held at the customer's place of residence"
+                : "Item is held at my place of residence"}
             </label>
             <TownWardStationSelect
               town={form.village}
               ward={form.ward}
               station={form.station}
               items={items}
-              user={user}
+              user={locationUser}
               disabled={heldAtResidence}
               inputClassName="input"
               requiredTown
@@ -575,7 +635,11 @@ export default function AddItem() {
             />
             {heldAtResidence && (
               <p className="text-xs text-gray-500 mt-2">
-                Town/Village and Ward/Street are taken from your profile. Uncheck to enter a different place.
+                {registerForOwnerId
+                  ? ownerProfile
+                    ? "Town/Village and Ward/Street are taken from the customer's profile. Uncheck to enter a different place."
+                    : "Loading the customer's profile location…"
+                  : "Town/Village and Ward/Street are taken from your profile. Uncheck to enter a different place."}
               </p>
             )}
           </Field>

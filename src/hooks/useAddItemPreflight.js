@@ -38,8 +38,15 @@ export function useAddItemPreflight() {
           }
         : undefined;
 
+    const scrollTop = () => {
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    };
+
     if (user?.promo_active) {
       navigate("/items/add", { state: navState });
+      scrollTop();
       return;
     }
     const balance = Number(user?.credit_balance ?? 0);
@@ -70,6 +77,7 @@ export function useAddItemPreflight() {
       if (!proceed) return;
     }
     navigate("/items/add", { state: navState });
+    scrollTop();
   }, [
     tasksLoading,
     user?.promo_active,
