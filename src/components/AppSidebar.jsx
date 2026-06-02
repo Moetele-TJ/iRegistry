@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import SidebarItem from "./SidebarItem";
 import SidebarItemGroup from "./SidebarItemGroup";
+import { useLocation } from "react-router-dom";
 
 /** Width transition when opening (matches submenu unlock) */
 const SIDEBAR_EXPAND_MS = 320;
@@ -20,11 +19,8 @@ export default function AppSidebar({ sidebar }) {
   const location = useLocation();
 
   const items = useMemo(() => sidebar?.items || [], [sidebar?.items]);
-  const panelMode = Boolean(sidebar?.panel);
-  const forceExpanded = !!sidebar?.forceExpanded;
-  const visible = !!sidebar?.visible && (panelMode || items.length > 0);
-  const hoverExpand = !panelMode && sidebar?.hoverExpand !== false;
-  const backLink = sidebar?.backLink || null;
+  const visible = !!sidebar?.visible && items.length > 0;
+  const hoverExpand = sidebar?.hoverExpand !== false;
   const [canHover, setCanHover] = useState(true);
   const touchMode = !canHover;
 
@@ -58,7 +54,6 @@ export default function AppSidebar({ sidebar }) {
     return () => mq.removeEventListener?.("change", update);
   }, []);
 
-  // Opening: after width finishes expanding, submenu may animate in.
   useEffect(() => {
     if (!railExpanded) {
       setExpandAnimationComplete(false);
@@ -97,7 +92,6 @@ export default function AppSidebar({ sidebar }) {
     };
   }, [railExpanded]);
 
-  // Collapsing: keep labels until width ease-out finishes, then hide text (no instant pop).
   useEffect(() => {
     clearCollapseContentTimer();
 
@@ -126,25 +120,19 @@ export default function AppSidebar({ sidebar }) {
   }, [railExpanded, clearCollapseContentTimer]);
 
   useEffect(() => {
-    if (panelMode || forceExpanded) {
-      setRailExpanded(true);
-      setContentExpanded(true);
-      setExpandAnimationComplete(true);
-      return;
-    }
     setRailExpanded(false);
     setContentExpanded(false);
     setExpandAnimationComplete(false);
     pendingCollapseRef.current = false;
     clearAsideLeaveTimer();
-  }, [location.pathname, panelMode, forceExpanded, clearAsideLeaveTimer]);
+  }, [location.pathname, clearAsideLeaveTimer]);
 
   const setFlyoutOpenFromChild = useCallback((open) => {
     flyoutOpenRef.current = open;
   }, []);
 
   const handleAsideMouseEnter = () => {
-    if (panelMode || forceExpanded || !canHover || !hoverExpand) return;
+    if (!canHover || !hoverExpand) return;
     clearAsideLeaveTimer();
     pendingCollapseRef.current = false;
     setRailExpanded(true);
@@ -152,7 +140,7 @@ export default function AppSidebar({ sidebar }) {
   };
 
   const handleAsideMouseLeave = () => {
-    if (panelMode || forceExpanded || !canHover || !hoverExpand) return;
+    if (!canHover || !hoverExpand) return;
     clearAsideLeaveTimer();
     asideLeaveTimer.current = window.setTimeout(() => {
       asideLeaveTimer.current = null;
@@ -185,9 +173,7 @@ export default function AppSidebar({ sidebar }) {
     setRailExpanded(false);
   }, [clearAsideLeaveTimer]);
 
-  /** Touch / coarse pointer: collapse expanded rail when tapping outside sidebar + flyouts. */
   useEffect(() => {
-    if (panelMode || forceExpanded) return;
     if (!touchMode || !railExpanded) return;
 
     function isSidebarTarget(node) {
@@ -204,10 +190,10 @@ export default function AppSidebar({ sidebar }) {
 
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [panelMode, forceExpanded, touchMode, railExpanded, collapseTouchSidebar]);
+  }, [touchMode, railExpanded, collapseTouchSidebar]);
 
-  const isWide = panelMode || forceExpanded || (railExpanded && (hoverExpand || panelMode));
-  const childExpanded = panelMode || forceExpanded || (contentExpanded && hoverExpand);
+  const isWide = railExpanded && hoverExpand;
+  const childExpanded = contentExpanded && hoverExpand;
 
   if (!visible) return null;
 
@@ -232,25 +218,9 @@ export default function AppSidebar({ sidebar }) {
     >
       <nav
         className="app-sidebar-nav max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))] overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
-        aria-label={panelMode ? "User profile actions" : "Main navigation"}
+        aria-label="Main navigation"
       >
-        {backLink ? (
-          <div className="px-2 pb-2 mb-1 border-b border-white/15">
-            <NavLink
-              to={backLink.to}
-              className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-colors min-h-[2.5rem]"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-                <ArrowLeft className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1 truncate">{backLink.label}</span>
-            </NavLink>
-          </div>
-        ) : null}
-        {panelMode ? (
-          <div className="px-2 pb-4 space-y-1">{sidebar.panel}</div>
-        ) : (
-          items.map((it) =>
+        {items.map((it, index) =>
           Array.isArray(it.subItems) && it.subItems.length > 0 ? (
             <SidebarItemGroup
               key={it.to}
@@ -273,12 +243,14 @@ export default function AppSidebar({ sidebar }) {
             />
           ) : (
             <SidebarItem
-              key={it.to}
+              key={it.to || it.label || index}
               to={it.to}
+              onClick={it.onClick}
               end={!!it.end}
               icon={it.icon}
               label={it.label}
               expanded={childExpanded}
+              disabled={!!it.disabled}
               onNavigate={() => setRailExpanded(false)}
               touchMode={touchMode}
               onTouchExpand={() => {
@@ -287,7 +259,6 @@ export default function AppSidebar({ sidebar }) {
               }}
             />
           ),
-        )
         )}
       </nav>
     </aside>

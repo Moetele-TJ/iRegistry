@@ -33,7 +33,7 @@ import {
 import UserActivityTimeline from "../components/UserActivityTimeline.jsx";
 import { useUserActivity } from "../hooks/useUserActivity.js";
 import StaffProfileUserActions from "../components/staff/StaffProfileUserActions.jsx";
-import { useStaffProfileSidebar } from "../hooks/useStaffProfileSidebar.jsx";
+import { useStaffUserScopeOptional } from "../contexts/StaffUserScopeContext.jsx";
 import { resetPrivilegedItemsViewToSelf } from "../lib/itemsListScopeStorage.js";
 
 function fmtDate(iso) {
@@ -271,13 +271,14 @@ export default function ProfilePage() {
 
   const staffProfileSidebar =
     viewingOther && isPrivilegedRole(sessionUser?.role);
+  const staffScope = useStaffUserScopeOptional();
 
-  useStaffProfileSidebar({
-    enabled: staffProfileSidebar,
-    targetUser: profileUser,
-    sessionUser,
-    onUserUpdated: loadProfile,
-  });
+  const enterStaffScope = staffScope?.enterScope;
+
+  useEffect(() => {
+    if (!staffProfileSidebar || !profileUser?.id || !enterStaffScope) return;
+    enterStaffScope(profileUser);
+  }, [staffProfileSidebar, profileUser, enterStaffScope]);
 
   /** Opening another user's profile clears privileged items "view as" back to self. */
   useEffect(() => {
@@ -1248,12 +1249,14 @@ export default function ProfilePage() {
               </div>
               </div>
               {staffProfileSidebar && profileUser ? (
-                <div className="w-full min-w-0 border-t border-emerald-100/70 pt-4 md:hidden">
+                <div className="w-full min-w-0 border-t border-emerald-100/70 pt-4 lg:hidden">
                   <StaffProfileUserActions
-                    layout="inline"
                     targetUser={profileUser}
                     sessionUser={sessionUser}
-                    onUserUpdated={loadProfile}
+                    onUserUpdated={() => {
+                      void loadProfile();
+                      void staffScope?.refreshTargetUser?.();
+                    }}
                   />
                 </div>
               ) : null}
@@ -1275,8 +1278,10 @@ export default function ProfilePage() {
               <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                 You are viewing <strong>{displayName}</strong>’s profile. Sessions and trusted browsers are not shown here—those
                 belong to the account holder.{" "}
-                <span className="hidden md:inline">Use the sidebar to manage this user’s account, items, and credits.</span>
-                <span className="md:hidden">Use the actions above to manage this user’s account, items, and credits.</span>
+                <span className="hidden lg:inline">
+                  Use the sidebar to manage this user’s account, items, and credits. It stays available on other pages until you choose Back to Users.
+                </span>
+                <span className="lg:hidden">Use the actions above to manage this user’s account, items, and credits.</span>
               </div>
             ) : null}
 

@@ -27,6 +27,7 @@ import {
   readStaffUsersListScope,
   writeStaffUsersListScope,
 } from "../../lib/staffUsersListStorage.js";
+import { useStaffUserScope } from "../../contexts/StaffUserScopeContext.jsx";
 
 function displayName(u) {
   return displayUser(u) || "—";
@@ -428,6 +429,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const { addToast } = useToast();
   const { confirm } = useModal();
   const { goToAddItem, tasksLoading: addItemPreflightLoading } = useAddItemPreflight();
+
+  const { enterScope } = useStaffUserScope();
 
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
   const canCreateUser = canAdminister || String(variant || "").toLowerCase() === "cashier";
@@ -1597,7 +1600,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Link
                             to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
-                            onClick={persistUsersListScope}
+                            onClick={() => {
+                              persistUsersListScope();
+                              enterScope(u);
+                            }}
                             className="font-medium text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm min-w-0 truncate"
                           >
                             {displayNameWithItemCount(u)}

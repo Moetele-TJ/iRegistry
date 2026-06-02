@@ -9,6 +9,8 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
 import { PAGE_TITLES } from "../../lib/navLabels.js";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import { getStaffScopedUserId } from "../../lib/staffUserScopeStorage.js";
 
 function pkgLabel(p) {
   const cur = p?.currency || "BWP";
@@ -23,6 +25,7 @@ function displayName(u) {
 
 export default function CashierTopupPage() {
   const [searchParams] = useSearchParams();
+  const { user: sessionUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
   const [targetType, setTargetType] = useState("user"); // user | organization
@@ -56,13 +59,15 @@ export default function CashierTopupPage() {
   }, [usersFetchError, addToast]);
 
   useEffect(() => {
-    const uid = searchParams.get("user");
+    const uid =
+      searchParams.get("user") ||
+      getStaffScopedUserId(sessionUser?.id);
     if (!uid) return;
     setTargetType("user");
     setSelectedUserId(uid);
     const match = (users || []).find((u) => String(u.id) === String(uid));
     if (match) setQ(displayName(match));
-  }, [searchParams, users]);
+  }, [searchParams, users, sessionUser?.id]);
 
   useEffect(() => {
     let cancelled = false;

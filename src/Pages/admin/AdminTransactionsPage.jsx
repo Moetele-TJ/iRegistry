@@ -4,6 +4,8 @@ import { Search, RotateCcw, ReceiptText, Filter, Building2, User } from "lucide-
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import { getStaffScopedUserId } from "../../lib/staffUserScopeStorage.js";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -41,8 +43,11 @@ function urlFiltersFromSearchParams(searchParams) {
 
 export default function AdminTransactionsPage({ canReverse = true, showSidebar = true } = {}) {
   const [searchParams] = useSearchParams();
+  const { user: sessionUser } = useAuth();
   const { addToast } = useToast();
-  const queryUserId = String(searchParams.get("user") || "").trim();
+  const queryUserId = String(
+    searchParams.get("user") || getStaffScopedUserId(sessionUser?.id) || "",
+  ).trim();
   const queryOrgId = String(searchParams.get("org") || "").trim();
   const paymentsLoadSeq = useRef(0);
 

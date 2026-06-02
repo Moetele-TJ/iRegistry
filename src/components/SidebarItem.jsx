@@ -2,15 +2,71 @@
 import { NavLink } from "react-router-dom";
 import { isExactNavPath } from "../lib/navMatch.js";
 
-export default function SidebarItem({  to,
+function sidebarItemClass(expanded, isActive) {
+  const base =
+    "group flex w-full items-center rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5 disabled:opacity-50 disabled:pointer-events-none";
+  const layout = expanded ? "justify-start gap-3" : "justify-center";
+  const bg = expanded
+    ? isActive
+      ? "bg-white/20 font-semibold"
+      : "hover:bg-white/10"
+    : "hover:bg-white/10";
+  return `${base} ${layout} ${bg}`;
+}
+
+function SidebarItemContent({ icon, label, expanded, isActive }) {
+  return (
+    <>
+      <span
+        className={[
+          "shrink-0 flex w-10 h-10 items-center justify-center rounded-xl",
+          !expanded && isActive ? "bg-white/20" : "",
+        ].join(" ")}
+      >
+        <span className="flex h-5 w-5 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
+          {icon}
+        </span>
+      </span>
+      {expanded ? (
+        <span className="min-w-0 flex-1 truncate text-left whitespace-nowrap">{label}</span>
+      ) : null}
+    </>
+  );
+}
+
+export default function SidebarItem({
+  to,
+  onClick,
   icon,
   label,
   expanded,
   end = false,
+  disabled = false,
   onNavigate,
   touchMode,
   onTouchExpand,
 }) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          if (touchMode && !expanded) {
+            e.preventDefault();
+            onTouchExpand?.();
+            return;
+          }
+          onClick(e);
+          onNavigate?.();
+        }}
+        className={sidebarItemClass(expanded, false)}
+      >
+        <SidebarItemContent icon={icon} label={label} expanded={expanded} isActive={false} />
+      </button>
+    );
+  }
+
   return (
     <NavLink
       to={to}
@@ -28,38 +84,10 @@ export default function SidebarItem({  to,
         }
         onNavigate?.();
       }}
-      className={({ isActive }) => {
-        // Single horizontal inset (nav has px-0): px-2 + w-10 + px-2 = 56px = collapsed rail — icons stay centered, not squeezed.
-        const base =
-          "group flex w-full items-center rounded-xl transition-colors duration-200 min-h-[2.5rem] px-2 py-1.5";
-        const layout = expanded ? "justify-start gap-3" : "justify-center";
-        const bg = expanded
-          ? isActive
-            ? "bg-white/20 font-semibold"
-            : "hover:bg-white/10"
-          : "hover:bg-white/10";
-        return `${base} ${layout} ${bg}`;
-      }}
+      className={({ isActive }) => sidebarItemClass(expanded, isActive)}
     >
       {({ isActive }) => (
-        <>
-          {/* Fixed icon column: same left edge + same box in collapsed vs expanded */}
-          <span
-            className={[
-              "shrink-0 flex w-10 h-10 items-center justify-center rounded-xl",
-              !expanded && isActive ? "bg-white/20" : "",
-            ].join(" ")}
-          >
-            <span className="flex h-5 w-5 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
-              {icon}
-            </span>
-          </span>
-
-          {/* Label (auto-hide/show) */}
-          {expanded ? (
-            <span className="min-w-0 flex-1 truncate text-left whitespace-nowrap">{label}</span>
-          ) : null}
-        </>
+        <SidebarItemContent icon={icon} label={label} expanded={expanded} isActive={isActive} />
       )}
     </NavLink>
   );

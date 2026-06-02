@@ -45,6 +45,7 @@ import {
   SOFT_DELETE_CONFIRM_MESSAGE,
   PERMANENT_DELETE_CONFIRM_MESSAGE,
 } from "../lib/itemLifecycleUx.js";
+import { readStaffUserScope } from "../lib/staffUserScopeStorage.js";
 import {
   PRIVILEGED_VIEW_ALL,
   readItemsListScope,
@@ -351,8 +352,10 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
       return;
     }
     const saved = readItemsListScope(user.id, view);
+    const staffScope = readStaffUserScope(user.id);
     if (isPrivileged) {
-      if (saved?.ownerScope) setSelectedOwnerId(saved.ownerScope);
+      if (staffScope?.targetUserId) setSelectedOwnerId(String(staffScope.targetUserId));
+      else if (saved?.ownerScope) setSelectedOwnerId(saved.ownerScope);
       else setSelectedOwnerId(user.id);
     } else {
       setSelectedOwnerId(user.id);

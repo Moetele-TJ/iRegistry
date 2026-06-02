@@ -1,7 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext.jsx";
-import { isStaffViewingOtherUserProfile } from "../lib/staffProfileRoute.js";
+import { useStaffUserScopeOptional } from "../contexts/StaffUserScopeContext.jsx";
 import {
   Activity,
   Bell,
@@ -24,15 +22,9 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { NAV } from "../lib/navLabels.js";
 
 export function useAdminSidebar({ visible: visibleProp = true } = {}) {
-  const location = useLocation();
-  const { user } = useAuth();
+  const staffScope = useStaffUserScopeOptional();
   const { setSidebar, clearSidebar } = useSidebar();
-  const staffProfileContext = isStaffViewingOtherUserProfile(
-    location.pathname,
-    location.search,
-    user?.id,
-  );
-  const visible = visibleProp && !staffProfileContext;
+  const visible = visibleProp && !staffScope?.isActive;
 
   const items = useMemo(
     () => [
