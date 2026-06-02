@@ -1,7 +1,7 @@
 // src/Pages/admin/AdminUsers.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
@@ -13,6 +13,7 @@ import PageSectionCard from "../shared/PageSectionCard.jsx";
 import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
 import { displayUser, formatUserLocation } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
+import { useAddItemPreflight } from "../../hooks/useAddItemPreflight.js";
 
 function displayName(u) {
   return displayUser(u) || "—";
@@ -203,8 +204,10 @@ function UserRowActionControls({
   rowBusy,
   loading,
   canAdminister,
+  showAddItem,
   onRoleChange,
   onMobileAction,
+  onAddItem,
   onSuspend,
   onDisable,
   onReactivate,
@@ -233,7 +236,7 @@ function UserRowActionControls({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [statusLower, self, rowBusy, loading, canAdminister]);
+  }, [statusLower, self, rowBusy, loading, canAdminister, showAddItem]);
 
   const measured = actionsWidthPx != null;
 
@@ -298,6 +301,7 @@ function UserRowActionControls({
                       <option value="delete">Delete…</option>
                     </>
                   ) : null}
+                  {showAddItem ? <option value="add_item">Add item</option> : null}
                   <option value="edit">Edit</option>
                 </>
               )}
@@ -373,6 +377,16 @@ function UserRowActionControls({
             </RippleButton>
           </>
         ) : null}
+        {showAddItem ? (
+          <RippleButton
+            type="button"
+            className="px-3 py-1.5 rounded-lg bg-iregistrygreen text-white text-sm whitespace-nowrap disabled:opacity-50"
+            onClick={onAddItem}
+            disabled={loading || rowBusy}
+          >
+            Add item
+          </RippleButton>
+        ) : null}
         {!lockoutRestricted && !isDeleted ? (
           <RippleButton
             className="px-3 py-1.5 rounded-lg bg-gray-100 text-sm whitespace-nowrap"
@@ -407,6 +421,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const { user: currentUser } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
+  const { goToAddItem, tasksLoading: addItemPreflightLoading } = useAddItemPreflight();
 
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
   const canCreateUser = canAdminister || String(variant || "").toLowerCase() === "cashier";
@@ -567,6 +582,21 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       police_station: "",
       village: "",
       ward: "",
+    });
+  }
+
+  function handleAddItemForUser(u) {
+    const st = deriveUserStatus(u);
+    if (st !== "active") {
+      addToast({
+        type: "error",
+        message: "Items can only be registered for active accounts. Reactivate the account first.",
+      });
+      return;
+    }
+    void goToAddItem({
+      ownerId: String(u.id),
+      ownerLabel: displayName(u),
     });
   }
 
@@ -1519,12 +1549,28 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="min-w-0">
-                        <Link
-                          to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
-                          className="font-medium text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm"
-                        >
-                          {displayNameWithItemCount(u)}
-                        </Link>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Link
+                            to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
+                            className="font-medium text-iregistrygreen font-semibold hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 rounded-sm min-w-0 truncate"
+                          >
+                            {displayNameWithItemCount(u)}
+                          </Link>
+                          {st === "active" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleAddItemForUser(u)}
+                              disabled={
+                                loading || usersDirectoryLoading || addItemPreflightLoading
+                              }
+                              className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-md border border-gray-200 bg-white text-iregistrygreen hover:bg-emerald-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35"
+                              title={`Add item for ${displayName(u)}`}
+                              aria-label={`Add item for ${displayName(u)}`}
+                            >
+                              <Plus className="w-4 h-4" strokeWidth={2.5} aria-hidden />
+                            </button>
+                          ) : null}
+                        </div>
                         <p className="text-xs text-gray-500 mt-0.5 break-all">{u.email || "—"}</p>
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
@@ -1558,17 +1604,20 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                         statusLower={st}
                         self={self}
                         rowBusy={rowBusy}
-                        loading={loading || usersDirectoryLoading}
+                        loading={loading || usersDirectoryLoading || addItemPreflightLoading}
                         canAdminister={canAdminister}
+                        showAddItem={st === "active"}
                         onRoleChange={(next) => void quickChangeRole(u, next)}
                         onMobileAction={(action) => {
                           if (action === "change_role") return openRoleModal(u);
                           if (action === "suspend") return openSuspendModal(u, "suspended");
                           if (action === "disable") return openSuspendModal(u, "disabled");
                           if (action === "reactivate") return void quickReactivate(u);
+                          if (action === "add_item") return handleAddItemForUser(u);
                           if (action === "edit") return startEdit(u);
                           if (action === "delete") return void handleDelete(u.id);
                         }}
+                        onAddItem={() => handleAddItemForUser(u)}
                         onSuspend={() => openSuspendModal(u, "suspended")}
                         onDisable={() => openSuspendModal(u, "disabled")}
                         onReactivate={() => void quickReactivate(u)}
