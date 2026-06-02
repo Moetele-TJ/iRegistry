@@ -54,11 +54,13 @@ export default function AppLayout() {
 
 function LayoutBody() {
   const { sidebar } = useSidebar();
-  const showSidebar = !!sidebar?.visible && (sidebar?.items?.length || 0) > 0;
+  const showSidebar =
+    !!sidebar?.visible &&
+    ((sidebar?.items?.length || 0) > 0 || !!sidebar?.staffScopeRail);
 
   return (
     <>
-      <AppSidebar sidebar={sidebar} />
+      {!sidebar?.staffScopeRail ? <AppSidebar sidebar={sidebar} /> : null}
       <main
         className={`flex flex-1 flex-col min-h-0 bg-gray-100 pl-0 ${
           showSidebar

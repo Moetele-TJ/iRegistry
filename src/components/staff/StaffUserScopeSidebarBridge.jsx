@@ -13,6 +13,7 @@ import {
   UserCircle,
   Wallet,
 } from "lucide-react";
+import AppSidebar from "../AppSidebar.jsx";
 import { useSidebar } from "../../contexts/SidebarContext.jsx";
 import { useStaffUserScope } from "../../contexts/StaffUserScopeContext.jsx";
 import { useStaffProfileUserActions } from "../../hooks/useStaffProfileUserActions.js";
@@ -49,13 +50,11 @@ export default function StaffUserScopeSidebarBridge() {
         onClick: actions.goToProfile,
         icon: <UserCircle size={20} />,
         label: NAV.profile,
-        disabled: actions.disabled,
       },
       {
         onClick: actions.goToItems,
         icon: <Package size={20} />,
         label: NAV_ACTIONS.viewItems,
-        disabled: actions.disabled,
       },
     ];
 
@@ -71,7 +70,6 @@ export default function StaffUserScopeSidebarBridge() {
           onClick: actions.goToTopup,
           icon: <Wallet size={20} />,
           label: NAV_ACTIONS.topUp,
-          disabled: actions.disabled,
         },
       );
     }
@@ -80,7 +78,6 @@ export default function StaffUserScopeSidebarBridge() {
       onClick: actions.goToTransactions,
       icon: <ReceiptText size={20} />,
       label: NAV.transactions,
-      disabled: actions.disabled,
     });
 
     if (actions.isDeleted) {
@@ -137,7 +134,6 @@ export default function StaffUserScopeSidebarBridge() {
           onClick: actions.goToEdit,
           icon: <Pencil size={20} />,
           label: "Edit",
-          disabled: actions.disabled,
         });
       }
       if (actions.canAdminister) {
@@ -154,7 +150,6 @@ export default function StaffUserScopeSidebarBridge() {
   }, [
     isActive,
     actions.targetId,
-    actions.goToProfile,
     actions.accountActive,
     actions.isDeleted,
     actions.lockoutRestricted,
@@ -162,6 +157,7 @@ export default function StaffUserScopeSidebarBridge() {
     actions.disabled,
     actions.isSelf,
     exitScope,
+    actions.goToProfile,
     actions.goToItems,
     actions.goToAddItemForTarget,
     actions.goToTopup,
@@ -173,23 +169,32 @@ export default function StaffUserScopeSidebarBridge() {
     actions.goToEdit,
   ]);
 
+  /** Reserve main-content gutter; scoped items render in a local AppSidebar (live handlers). */
   useEffect(() => {
     if (!isActive || !targetUser) {
+      clearSidebar();
       return;
     }
 
     setSidebar({
       visible: true,
-      items,
+      staffScopeRail: true,
       hoverExpand: true,
     });
 
     return () => {
       clearSidebar();
     };
-  }, [isActive, targetUser?.id, items, setSidebar, clearSidebar]);
+  }, [isActive, targetUser?.id, setSidebar, clearSidebar]);
 
   if (!isActive) return null;
 
-  return <StaffProfileActionsModals actions={actions} />;
+  return (
+    <>
+      {targetUser && items.length > 0 ? (
+        <AppSidebar sidebar={{ visible: true, items, hoverExpand: true }} />
+      ) : null}
+      <StaffProfileActionsModals actions={actions} />
+    </>
+  );
 }

@@ -9,6 +9,8 @@ const defaultState = {
   forceExpanded: false,
   backLink: null,
   panel: null,
+  /** Layout padding only — scoped rail renders its own items (handlers stay live). */
+  staffScopeRail: false,
 };
 
 export function SidebarProvider({ children }) {
