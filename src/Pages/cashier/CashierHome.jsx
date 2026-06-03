@@ -6,17 +6,16 @@ import {
   Package,
   ClipboardList,
   ChevronRight,
-  TrendingUp,
   ShieldAlert,
-  PieChart,
+  Wallet,
 } from "lucide-react";
 import { useDashboard } from "../../hooks/useDashboard.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useNotificationCenter } from "../../contexts/NotificationContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
-import { formatBwpCurrency } from "../../lib/formatBWP.js";
 import PromoModeBanner from "../../components/PromoModeBanner.jsx";
+import { NAV } from "../../lib/navLabels.js";
 
 export default function CashierHome() {
   const { user } = useAuth();
@@ -45,8 +44,8 @@ export default function CashierHome() {
             Cashier overview
           </h1>
           <p className="text-gray-500 mt-2 max-w-2xl text-sm">
-            Financial snapshot of the registry—estimated asset values from registrations, account volumes, and
-            compliance signals. Operations mirror the admin view, tuned for front-desk and treasury workflows.
+            Account volumes, pending credit top-ups, and compliance signals for front-desk and treasury
+            workflows.
           </p>
         </div>
 
@@ -71,8 +70,8 @@ export default function CashierHome() {
         <>
           <div className="bg-gradient-to-r from-emerald-50/90 to-white border border-emerald-100/80 rounded-2xl p-5 sm:p-6 shadow-sm">
             <p className="text-sm text-gray-800">
-              Welcome{displayName ? `, ${displayName}` : ""}. Use <strong>Items</strong> to assist with registrations
-              and valuations; totals below aggregate <strong>estimated values</strong> stored on item records.
+              Welcome{displayName ? `, ${displayName}` : ""}. Review{" "}
+              <strong>{NAV.topUpRequests.toLowerCase()}</strong> below and complete them from the top-up desk.
             </p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/90 text-emerald-900 px-3 py-1.5 border border-emerald-100 shadow-sm">
@@ -86,47 +85,28 @@ export default function CashierHome() {
             </div>
           </div>
 
-          {/* Primary financial + volume metrics (admin-style grid) */}
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
-              Registry value &amp; volume
+              Registry &amp; top-ups
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                icon={<Banknote size={18} />}
-                label="Total estimated value"
-                value={formatBwpCurrency(cashierOverview?.totalEstimatedValue)}
-                hint="Sum of estimated values on all active items"
-                accent="bg-emerald-600"
-              />
-              <StatCard
-                icon={<TrendingUp size={18} />}
-                label="Average estimate"
-                value={
-                  cashierOverview?.itemsWithEstimate > 0
-                    ? formatBwpCurrency(cashierOverview?.averageEstimatedValue)
-                    : "—"
-                }
-                hint="Among items with a valuation"
-                accent="bg-teal-600"
-              />
-              <StatCard
-                icon={<PieChart size={18} />}
-                label="Items with valuation"
-                value={
-                  cashierOverview?.itemsWithEstimate != null
-                    ? cashierOverview.itemsWithEstimate
-                    : "—"
-                }
-                hint="Records with a non-empty estimate"
-                accent="bg-iregistrygreen"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
               <StatCard
                 icon={<Package size={18} />}
                 label="Registered items"
                 value={adminOverview?.totalItems ?? "—"}
                 hint="All non-deleted registrations"
                 accent="bg-slate-600"
+              />
+              <StatCard
+                icon={<Wallet size={18} />}
+                label={NAV.topUpRequests}
+                value={
+                  cashierOverview?.pendingTopupRequests != null
+                    ? cashierOverview.pendingTopupRequests
+                    : "—"
+                }
+                hint="User-initiated top-ups awaiting cashier confirmation"
+                accent="bg-amber-600"
               />
             </div>
           </section>
@@ -170,11 +150,11 @@ export default function CashierHome() {
 
           <div className="flex flex-wrap gap-3">
             <Link
-              to="/cashier/items"
+              to="/cashier/topup"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium hover:opacity-90 shadow-sm"
             >
-              <Package size={18} />
-              Items &amp; valuations
+              <Wallet size={18} />
+              {NAV.topUpRequests}
               <ChevronRight size={16} />
             </Link>
             <Link

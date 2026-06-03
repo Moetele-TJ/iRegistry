@@ -60,6 +60,8 @@ export const NAV = Object.freeze({
 
   topUp: "Top Up",
 
+  topUpRequests: "Top Up Requests",
+
   wallet: "Wallet",
 
   members: "Members",

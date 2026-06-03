@@ -378,6 +378,16 @@ serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("severity", "high");
 
+      const { data: pendingPaymentRows } = await supabase
+        .from("payments")
+        .select("id, metadata")
+        .eq("status", "PENDING");
+
+      const pendingTopupRequests = (pendingPaymentRows || []).filter((row) => {
+        const meta = (row as { metadata?: { kind?: string } }).metadata;
+        return meta?.kind === "user_pending_topup";
+      }).length;
+
       roleData.cashierOverview = {
         activeUsers: activeUsers ?? 0,
         totalEstimatedValue,
@@ -385,6 +395,7 @@ serve(async (req) => {
         averageEstimatedValue:
           itemsWithEstimate > 0 ? totalEstimatedValue / itemsWithEstimate : 0,
         highSeverityAudits: highSeverityAudits ?? 0,
+        pendingTopupRequests,
       };
     }
 
