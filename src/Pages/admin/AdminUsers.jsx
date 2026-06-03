@@ -5,6 +5,7 @@ import { Plus, Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
 import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
+import YearMonthDaySelect from "../../components/YearMonthDaySelect.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
@@ -1452,18 +1453,21 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
               {isAdding || isEditing ? (
                 <div>
-                  <label className="text-xs text-gray-600">Date of birth</label>
-                  <input
-                    type="date"
+                  <YearMonthDaySelect
+                    label="Date of birth"
                     value={form.date_of_birth}
-                    onChange={(e) => setForm((s) => ({ ...s, date_of_birth: e.target.value }))}
-                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                    onChange={(v) => setForm((s) => ({ ...s, date_of_birth: v }))}
+                    maxYear={new Date().getFullYear()}
+                    minYear={1920}
                     disabled={loading || usersDirectoryLoading}
+                    selectClassName="w-full border rounded-lg px-3 py-2"
+                    labelClassName="text-xs text-gray-600 block mb-1"
+                    showHint={false}
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {isAdding
                       ? "Optional."
-                      : "Optional. Clear the field to remove stored date of birth."}
+                      : "Optional. Clear year, month, and day to remove stored date of birth."}
                   </p>
                 </div>
               ) : null}
