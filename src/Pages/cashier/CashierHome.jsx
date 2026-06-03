@@ -286,7 +286,10 @@ function RecentTopUpRequestsCard({ requests, pendingCount }) {
                   <p className="text-sm font-medium text-gray-900 break-words leading-snug group-hover:text-iregistrygreen">
                     {req.displayName || "Unknown user"}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums break-words">
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    <TimeAgo date={req.createdAt} />
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 tabular-nums break-words">
                     {formatBwpCurrency(req.amount, { empty: "—" })}
                     {req.creditsGranted != null && req.creditsGranted !== "" ? (
                       <>
@@ -296,16 +299,11 @@ function RecentTopUpRequestsCard({ requests, pendingCount }) {
                     ) : null}
                   </p>
                 </div>
-                <div className="shrink-0 text-right flex items-start gap-2 pt-0.5">
-                  <span className="text-xs text-gray-400 whitespace-nowrap">
-                    <TimeAgo date={req.createdAt} />
-                  </span>
-                  <ChevronRight
-                    size={16}
-                    className="text-gray-300 group-hover:text-iregistrygreen shrink-0 mt-0.5"
-                    aria-hidden
-                  />
-                </div>
+                <ChevronRight
+                  size={16}
+                  className="text-gray-300 group-hover:text-iregistrygreen shrink-0 mt-0.5"
+                  aria-hidden
+                />
               </Link>
             </li>
           ))}
