@@ -280,13 +280,13 @@ function RecentTopUpRequestsCard({ requests, pendingCount }) {
                     ? `/cashier/topup?user=${encodeURIComponent(req.userId)}`
                     : "/cashier/topup"
                 }
-                className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5 hover:bg-amber-50/80 hover:border-amber-100 transition-colors group"
+                className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5 hover:bg-amber-50/80 hover:border-amber-100 transition-colors group"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 truncate group-hover:text-iregistrygreen">
+                  <p className="text-sm font-medium text-gray-900 break-words leading-snug group-hover:text-iregistrygreen">
                     {req.displayName || "Unknown user"}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums break-words">
                     {formatBwpCurrency(req.amount, { empty: "—" })}
                     {req.creditsGranted != null && req.creditsGranted !== "" ? (
                       <>
@@ -296,13 +296,13 @@ function RecentTopUpRequestsCard({ requests, pendingCount }) {
                     ) : null}
                   </p>
                 </div>
-                <div className="shrink-0 text-right flex items-center gap-2">
+                <div className="shrink-0 text-right flex items-start gap-2 pt-0.5">
                   <span className="text-xs text-gray-400 whitespace-nowrap">
                     <TimeAgo date={req.createdAt} />
                   </span>
                   <ChevronRight
                     size={16}
-                    className="text-gray-300 group-hover:text-iregistrygreen shrink-0"
+                    className="text-gray-300 group-hover:text-iregistrygreen shrink-0 mt-0.5"
                     aria-hidden
                   />
                 </div>
