@@ -44,6 +44,19 @@ function displayNameWithItemCount(u) {
   return `${name} (${n})`;
 }
 
+function staffUsersFiltersKey(snapshot) {
+  return JSON.stringify({
+    q: snapshot.q,
+    roleFilter: snapshot.roleFilter,
+    statusFilter: snapshot.statusFilter,
+    stationFilter: snapshot.stationFilter,
+    itemsFilter: snapshot.itemsFilter,
+    usersListView: snapshot.usersListView,
+    sortBy: snapshot.sortBy,
+    sortDir: snapshot.sortDir,
+  });
+}
+
 function UserMetaItem({ label, value }) {
   const v = value != null && String(value).trim() !== "" ? value : "—";
   return (
@@ -80,6 +93,7 @@ const MSG_NOTHING_TO_SUBMIT =
   "Nothing to submit — you have not changed any information.";
 
 const ROW_HIGHLIGHT_MS = 4500;
+const USERS_PER_PAGE = 10;
 
 function normalizeUsersStatusFilter(filter, listView) {
   const f = String(filter || "all").trim().toLowerCase();
@@ -490,6 +504,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [statusFilter, setStatusFilter] = useState("active");
   const [stationFilter, setStationFilter] = useState("");
   const [itemsFilter, setItemsFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -505,6 +520,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const editFormSectionRef = useRef(null);
   const editDeepLinkHandledRef = useRef(false);
   const listScopeReadyRef = useRef(false);
+  const filtersReadyForPageResetRef = useRef(false);
+  const prevUsersFiltersKeyRef = useRef(null);
   const [highlightUserId, setHighlightUserId] = useState(null);
 
   const isEditing = mode === "edit" && !!editing;
@@ -524,40 +541,113 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     setItemsFilter(urlWithoutItems ? "without" : "all");
 
     if (urlWithoutItems) {
-      setQ("");
-      setRoleFilter("all");
-      setStatusFilter("active");
-      setStationFilter("");
+      const snapshot = {
+        q: "",
+        roleFilter: "all",
+        statusFilter: "active",
+        stationFilter: "",
+        itemsFilter: "without",
+        usersListView,
+        sortBy: "last_name",
+        sortDir: "asc",
+      };
+      prevUsersFiltersKeyRef.current = staffUsersFiltersKey(snapshot);
+      setQ(snapshot.q);
+      setRoleFilter(snapshot.roleFilter);
+      setStatusFilter(snapshot.statusFilter);
+      setStationFilter(snapshot.stationFilter);
+      setPage(1);
       listScopeReadyRef.current = true;
+      filtersReadyForPageResetRef.current = true;
       return;
     }
 
     const scope = readStaffUsersListScope(currentUserId);
     const viewMatchesStored = scope?.listView === usersListView;
 
+    let snapshot;
     if (scope && viewMatchesStored) {
-      if (scope.q != null) setQ(String(scope.q));
-      if (scope.roleFilter != null) setRoleFilter(String(scope.roleFilter));
-      if (scope.statusFilter != null) {
-        setStatusFilter(normalizeUsersStatusFilter(scope.statusFilter, usersListView));
-      } else {
-        setStatusFilter(isActiveUsersView ? "active" : "all");
-      }
-      if (scope.stationFilter != null) setStationFilter(String(scope.stationFilter));
-      if (scope.sortBy != null) setSortBy(String(scope.sortBy));
-      if (scope.sortDir != null) setSortDir(String(scope.sortDir));
+      const nextStatus =
+        scope.statusFilter != null
+          ? normalizeUsersStatusFilter(scope.statusFilter, usersListView)
+          : isActiveUsersView
+            ? "active"
+            : "all";
+      snapshot = {
+        q: scope.q != null ? String(scope.q) : "",
+        roleFilter: scope.roleFilter != null ? String(scope.roleFilter) : "all",
+        statusFilter: nextStatus,
+        stationFilter: scope.stationFilter != null ? String(scope.stationFilter) : "",
+        itemsFilter: "all",
+        usersListView,
+        sortBy: scope.sortBy != null ? String(scope.sortBy) : "last_name",
+        sortDir: scope.sortDir != null ? String(scope.sortDir) : "asc",
+      };
+      prevUsersFiltersKeyRef.current = staffUsersFiltersKey(snapshot);
+      setQ(snapshot.q);
+      setRoleFilter(snapshot.roleFilter);
+      setStatusFilter(snapshot.statusFilter);
+      setStationFilter(snapshot.stationFilter);
+      if (scope.sortBy != null) setSortBy(snapshot.sortBy);
+      if (scope.sortDir != null) setSortDir(snapshot.sortDir);
+      const storedPage = Number(scope.page);
+      if (Number.isFinite(storedPage) && storedPage >= 1) setPage(Math.floor(storedPage));
+      else setPage(1);
       if (typeof scope.scrollY === "number" && scope.scrollY > 0) {
         requestAnimationFrame(() => window.scrollTo({ top: scope.scrollY, behavior: "auto" }));
       }
     } else {
-      setQ("");
-      setRoleFilter("all");
-      setStatusFilter(isActiveUsersView ? "active" : "all");
-      setStationFilter("");
+      snapshot = {
+        q: "",
+        roleFilter: "all",
+        statusFilter: isActiveUsersView ? "active" : "all",
+        stationFilter: "",
+        itemsFilter: "all",
+        usersListView,
+        sortBy: "last_name",
+        sortDir: "asc",
+      };
+      prevUsersFiltersKeyRef.current = staffUsersFiltersKey(snapshot);
+      setQ(snapshot.q);
+      setRoleFilter(snapshot.roleFilter);
+      setStatusFilter(snapshot.statusFilter);
+      setStationFilter(snapshot.stationFilter);
+      setPage(1);
     }
 
     listScopeReadyRef.current = true;
+    filtersReadyForPageResetRef.current = true;
   }, [currentUserId, usersListView, isActiveUsersView, searchParams]);
+
+  useEffect(() => {
+    if (!filtersReadyForPageResetRef.current) return;
+    const key = staffUsersFiltersKey({
+      q,
+      roleFilter,
+      statusFilter,
+      stationFilter,
+      itemsFilter,
+      usersListView,
+      sortBy,
+      sortDir,
+    });
+    if (prevUsersFiltersKeyRef.current === null) {
+      prevUsersFiltersKeyRef.current = key;
+      return;
+    }
+    if (prevUsersFiltersKeyRef.current === key) return;
+    prevUsersFiltersKeyRef.current = key;
+    setPage(1);
+  }, [
+    q,
+    roleFilter,
+    statusFilter,
+    stationFilter,
+    itemsFilter,
+    usersListView,
+    sortBy,
+    sortDir,
+  ]);
 
   useEffect(() => {
     if (!currentUserId || !listScopeReadyRef.current) return;
@@ -568,11 +658,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       statusFilter,
       stationFilter,
       itemsFilter,
+      page,
       sortBy,
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
     });
-  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, itemsFilter, sortBy, sortDir]);
+  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, itemsFilter, page, sortBy, sortDir]);
 
   const persistUsersListScope = () => {
     if (!currentUserId) return;
@@ -583,6 +674,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       statusFilter,
       stationFilter,
       itemsFilter,
+      page,
       sortBy,
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
@@ -780,6 +872,21 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     sorted.sort((a, b) => compareAdminUsersRow(a, b, sortBy, sortDir));
     return sorted;
   }, [users, q, roleFilter, statusFilter, stationFilter, itemsFilter, sortBy, sortDir, isActiveUsersView]);
+
+  const usersTotal = filteredUsers.length;
+  const usersTotalPages = Math.max(1, Math.ceil(usersTotal / USERS_PER_PAGE));
+
+  useEffect(() => {
+    setPage((p) => (p > usersTotalPages ? usersTotalPages : p < 1 ? 1 : p));
+  }, [usersTotalPages]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(start, start + USERS_PER_PAGE);
+  }, [filteredUsers, page]);
+
+  const usersRangeStart = usersTotal === 0 ? 0 : (page - 1) * USERS_PER_PAGE + 1;
+  const usersRangeEnd = usersTotal === 0 ? 0 : Math.min(page * USERS_PER_PAGE, usersTotal);
 
   async function refresh() {
     const r = await refreshUsers();
@@ -1682,8 +1789,9 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           ) : filteredUsers.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">No users yet.</div>
           ) : (
+            <>
             <div className="space-y-2">
-              {filteredUsers.map((u) => {
+              {paginatedUsers.map((u) => {
                 const st = deriveUserStatus(u);
                 const rowBusy = quickRowId === String(u.id);
                 const self = isSelf(u.id);
@@ -1784,6 +1892,35 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 );
               })}
             </div>
+
+            <div className="flex flex-col gap-3 pt-4 mt-4 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-gray-600 text-center sm:text-left">
+                Showing <strong>{usersRangeStart}</strong> to <strong>{usersRangeEnd}</strong> of{" "}
+                <strong>{usersTotal}</strong>
+              </div>
+              <div className="flex items-center justify-center gap-2 sm:justify-end">
+                <RippleButton
+                  type="button"
+                  className="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-sm disabled:opacity-40"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </RippleButton>
+                <div className="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-sm tabular-nums">
+                  {page} / {usersTotalPages}
+                </div>
+                <RippleButton
+                  type="button"
+                  className="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-sm disabled:opacity-40"
+                  disabled={page >= usersTotalPages}
+                  onClick={() => setPage((p) => Math.min(usersTotalPages, p + 1))}
+                >
+                  Next
+                </RippleButton>
+              </div>
+            </div>
+            </>
           )}
         </div>
         </div>

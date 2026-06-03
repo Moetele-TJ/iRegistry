@@ -12,6 +12,7 @@ const PREFIX = "iregistry:staff-users-list:";
  *   sortBy?: string,
  *   sortDir?: string,
  *   itemsFilter?: string,
+ *   page?: number,
  *   scrollY?: number,
  * } | null}
  */
