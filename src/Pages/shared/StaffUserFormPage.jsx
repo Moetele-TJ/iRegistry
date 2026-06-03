@@ -444,6 +444,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
               showStation={false}
               requiredTown
               requiredWard
+              withAuth={false}
               disabled={loading || profileLoading}
               user={targetUser}
               townLabel="Town / village"

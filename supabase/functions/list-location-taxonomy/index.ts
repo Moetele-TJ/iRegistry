@@ -3,7 +3,6 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-import { validateSession } from "../shared/validateSession.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -33,10 +32,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-    const session = await validateSession(supabase, auth);
-    if (!session) return respond({ success: false, message: "Unauthorized" }, corsHeaders, 401);
-
+    // Location labels are not sensitive; allow public access (Signup + staff forms).
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const village = typeof body?.village === "string" ? norm(body.village) : "";
     const limit = Math.min(Math.max(Number(body?.limit) || 5000, 1), 10000);

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
+import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { countries } from "../Data/countries";
 
@@ -293,19 +294,43 @@ export default function Signup() {
                 }}
               />
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  label="Town / village"
-                  value={form.village}
-                  error={errors.village}
-                  onChange={(v) => setField("village", v)}
-                />
-
-                <Input
-                  label="Ward / street"
-                  value={form.ward}
-                  error={errors.ward}
-                  onChange={(v) => setField("ward", v)}
+              <div
+                className={
+                  errors.village || errors.ward
+                    ? "rounded-lg ring-1 ring-red-500 ring-offset-1"
+                    : ""
+                }
+              >
+                <TownWardStationSelect
+                  town={form.village}
+                  ward={form.ward}
+                  station=""
+                  showStation={false}
+                  requiredTown
+                  requiredWard
+                  withAuth={false}
+                  disabled={loading}
+                  townLabel="Town / village"
+                  wardLabel="Ward / street"
+                  inputClassName={`w-full border rounded-lg px-4 py-2 ${
+                    errors.village || errors.ward ? "border-red-500" : ""
+                  }`}
+                  onTownChange={(v) => {
+                    setForm((f) => {
+                      const prev = String(f.village ?? "").trim();
+                      const next = String(v ?? "").trim();
+                      if (prev === next) return f;
+                      return { ...f, village: v, ward: "" };
+                    });
+                    setErrors((e) => {
+                      const next = { ...e };
+                      delete next.village;
+                      delete next.ward;
+                      return next;
+                    });
+                  }}
+                  onWardChange={(v) => setField("ward", v)}
+                  onStationChange={() => {}}
                 />
               </div>
 

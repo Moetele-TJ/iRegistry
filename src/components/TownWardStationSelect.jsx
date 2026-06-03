@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { invokeWithAuth } from "../lib/invokeWithAuth.js";
+import { invokeFn } from "../lib/invokeFn.js";
 
 function norm(v) {
   return String(v ?? "").trim().replace(/\s+/g, " ");
@@ -171,6 +171,7 @@ export default function TownWardStationSelect({
   requiredWard = false,
   requiredStation = false,
   disabled = false,
+  withAuth = true,
   items = [],
   user = null,
   inputClassName = "input",
@@ -204,15 +205,11 @@ export default function TownWardStationSelect({
   }, [normalizedTown]);
 
   async function fetchLocationTaxonomy({ village }) {
-    const timeoutMs = 20000;
-    const fetchPromise = invokeWithAuth("list-location-taxonomy", {
-      body: { village: village || "", limit: 5000 },
-    });
-    const timeoutPromise = new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error("Location options request timed out")), timeoutMs);
-    });
-
-    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+    const { data, error } = await invokeFn(
+      "list-location-taxonomy",
+      { body: { village: village || "", limit: 5000 } },
+      { withAuth },
+    );
     if (error) throw error;
     if (!data?.success) {
       throw new Error(data?.message || "Failed to load location options");
@@ -248,7 +245,7 @@ export default function TownWardStationSelect({
 
     return undefined;
     // Do not depend on `town` — it changes on every keystroke and would refetch constantly.
-  }, [items, user?.village]);
+  }, [items, user?.village, withAuth]);
 
   // 2) Wards + stations (filtered by debounced town — not every keystroke)
   useEffect(() => {
@@ -296,7 +293,7 @@ export default function TownWardStationSelect({
 
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ward/station only seed fallbacks; omit to avoid refetch loops
-  }, [debouncedTown, items, user?.village, user?.ward, user?.police_station]);
+  }, [debouncedTown, items, user?.village, user?.ward, user?.police_station, withAuth]);
 
   const townOptions = useMemo(
     () => uniqSorted([...(villages || []), town]),
@@ -333,7 +330,7 @@ export default function TownWardStationSelect({
           onChange={onTownChange}
           options={townOptions}
           required={requiredTown}
-          disabled={disabled || loadingVillages}
+          disabled={disabled}
           placeholder="e.g. Gaborone"
           hint={townHint}
           inputClassName={townInputClassName || inputClassName}
@@ -347,7 +344,7 @@ export default function TownWardStationSelect({
           onChange={onWardChange}
           options={wardOptions}
           required={requiredWard}
-          disabled={disabled || !norm(town) || loadingWards}
+          disabled={disabled || !norm(town)}
           placeholder={norm(town) ? "e.g. Ward 3" : "Pick a town/village first"}
           hint={wardHint}
           inputClassName={wardInputClassName || inputClassName}
@@ -362,7 +359,7 @@ export default function TownWardStationSelect({
             onChange={onStationChange}
             options={stationOptions}
             required={requiredStation}
-            disabled={disabled || !norm(town) || loadingStations}
+            disabled={disabled || !norm(town)}
             placeholder={norm(town) ? "Type or pick a station…" : "Pick a town/village first"}
             hint={loadingStations ? "Loading stations…" : norm(town) ? "Type or pick a station" : undefined}
             inputClassName={stationInputClassName || inputClassName}
