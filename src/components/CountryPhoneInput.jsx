@@ -164,9 +164,13 @@ export default function CountryPhoneInput({
   }, []);
 
   return (
-    <div ref={wrapperRef} onKeyDown={handleKeyDown}>
+    <div
+      ref={wrapperRef}
+      onKeyDown={handleKeyDown}
+      className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start"
+    >
       {/* COUNTRY */}
-      <div className="mb-4 relative">
+      <div className="relative min-w-0">
         <label className="block text-sm mb-1">
           Country <span className="text-red-600">*</span>
         </label>
@@ -250,7 +254,7 @@ export default function CountryPhoneInput({
       </div>
 
       {/* PHONE */}
-      <div className="mb-4">
+      <div className="min-w-0">
         <label className="block text-sm mb-1">
           Phone number <span className="text-red-600">*</span>
         </label>

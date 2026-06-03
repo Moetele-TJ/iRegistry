@@ -334,33 +334,35 @@ export default function Signup() {
                 />
               </div>
 
-              <div
-                className={
-                  errors.police_station ? "rounded-lg ring-1 ring-red-500 ring-offset-1" : ""
-                }
-              >
-                <PoliceStationSelect
-                  label="Nearest police station"
-                  value={form.police_station}
-                  onChange={(v) => setField("police_station", v)}
-                  required
-                  withAuth={false}
-                  variant="searchable"
-                  inputClassName={`w-full border rounded-lg px-4 py-2 ${
-                    errors.police_station ? "border-red-500" : ""
-                  }`}
-                  placeholder="Select or type your nearest police station"
-                  helpText="Pick a station from the list, search to narrow it, or type a name if yours is not listed."
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+                <div
+                  className={
+                    errors.police_station ? "rounded-lg ring-1 ring-red-500 ring-offset-1 min-w-0" : "min-w-0"
+                  }
+                >
+                  <PoliceStationSelect
+                    label="Nearest police station"
+                    value={form.police_station}
+                    onChange={(v) => setField("police_station", v)}
+                    required
+                    withAuth={false}
+                    variant="searchable"
+                    inputClassName={`w-full border rounded-lg px-4 py-2 ${
+                      errors.police_station ? "border-red-500" : ""
+                    }`}
+                    placeholder="Select or type your nearest police station"
+                    helpText="Pick a station from the list, search to narrow it, or type a name if yours is not listed."
+                  />
+                </div>
+
+                <Input
+                  label="Email address"
+                  type="email"
+                  value={form.email}
+                  error={errors.email}
+                  onChange={(v) => setField("email", v)}
                 />
               </div>
-
-              <Input
-                label="Email address"
-                type="email"
-                value={form.email}
-                error={errors.email}
-                onChange={(v) => setField("email", v)}
-              />
 
               <div className="text-center text-sm text-gray-600">
                 Already have an account?{" "}

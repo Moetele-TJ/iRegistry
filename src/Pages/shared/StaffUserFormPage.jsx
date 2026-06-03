@@ -463,7 +463,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-end">
             <PoliceStationSelect
               label="Nearest police station"
               value={form.police_station}
@@ -480,21 +480,21 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
               variant={canAdminister ? "searchable" : "select"}
               disabled={loading || profileLoading}
             />
-          </div>
 
-          <div className="sm:col-span-2 lg:col-span-3">
-            <label className="text-xs text-gray-600">
-              Email address {isAdd ? <span className="text-red-600">*</span> : null}
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
-              placeholder="thato@iregsys.com"
-              required={isAdd}
-              disabled={loading || profileLoading}
-            />
+            <div className="min-w-0">
+              <label className="text-xs text-gray-600">
+                Email address {isAdd ? <span className="text-red-600">*</span> : null}
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+                placeholder="thato@iregsys.com"
+                required={isAdd}
+                disabled={loading || profileLoading}
+              />
+            </div>
           </div>
 
           {canAdminister ? (
