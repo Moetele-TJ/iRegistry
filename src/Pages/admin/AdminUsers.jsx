@@ -518,30 +518,30 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }, [usersDirectoryError, addToast]);
 
   useEffect(() => {
-    if (searchParams.get("items") === "without") {
-      setItemsFilter("without");
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
     if (!currentUserId) return;
+
+    const urlWithoutItems = searchParams.get("items") === "without";
+    setItemsFilter(urlWithoutItems ? "without" : "all");
+
+    if (urlWithoutItems) {
+      setQ("");
+      setRoleFilter("all");
+      setStatusFilter("active");
+      setStationFilter("");
+      listScopeReadyRef.current = true;
+      return;
+    }
+
     const scope = readStaffUsersListScope(currentUserId);
     const viewMatchesStored = scope?.listView === usersListView;
-    const urlWithoutItems = searchParams.get("items") === "without";
-    if (scope) {
+
+    if (scope && viewMatchesStored) {
       if (scope.q != null) setQ(String(scope.q));
       if (scope.roleFilter != null) setRoleFilter(String(scope.roleFilter));
-      if (viewMatchesStored && scope.statusFilter != null) {
+      if (scope.statusFilter != null) {
         setStatusFilter(normalizeUsersStatusFilter(scope.statusFilter, usersListView));
       } else {
         setStatusFilter(isActiveUsersView ? "active" : "all");
-      }
-      if (urlWithoutItems) {
-        setItemsFilter("without");
-      } else if (viewMatchesStored && scope.itemsFilter != null) {
-        setItemsFilter(String(scope.itemsFilter));
-      } else {
-        setItemsFilter("all");
       }
       if (scope.stationFilter != null) setStationFilter(String(scope.stationFilter));
       if (scope.sortBy != null) setSortBy(String(scope.sortBy));
@@ -550,9 +550,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         requestAnimationFrame(() => window.scrollTo({ top: scope.scrollY, behavior: "auto" }));
       }
     } else {
+      setQ("");
+      setRoleFilter("all");
       setStatusFilter(isActiveUsersView ? "active" : "all");
-      setItemsFilter(urlWithoutItems ? "without" : "all");
+      setStationFilter("");
     }
+
     listScopeReadyRef.current = true;
   }, [currentUserId, usersListView, isActiveUsersView, searchParams]);
 

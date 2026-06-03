@@ -40,7 +40,7 @@ export default function AdminHome() {
     setError("");
 
     try {
-      const dashReq = invokeWithAuth("get-dashboard-data", { body: { limit: 6, page: 1 } });
+      const dashReq = invokeWithAuth("get-dashboard-data", { body: { limit: 3, page: 1 } });
       const statsReq = invokeWithAuth("stats?mode=admin");
       const paymentsReq = invokeWithAuth("list-payments", {
         body: { limit: 200, offset: 0, scope: "user" },
@@ -312,7 +312,7 @@ function RecentActivityCard({ events, loading, onGoActivity }) {
         <div className="text-sm text-gray-400">No recent activity.</div>
       ) : (
         <div className="space-y-2">
-          {events.slice(0, 6).map((e) => {
+          {events.slice(0, 3).map((e) => {
             const Icon = getIcon(e);
             return (
               <div key={e.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
