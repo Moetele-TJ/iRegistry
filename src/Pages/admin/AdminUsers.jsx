@@ -1,5 +1,5 @@
 // src/Pages/admin/AdminUsers.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
@@ -19,7 +19,6 @@ import {
   NAV_ACTIONS,
   USER_ACCOUNT_NON_ACTIVE_FILTER_OPTIONS,
   addItemAriaLabel,
-  addItemButtonLabel,
 } from "../../lib/navLabels.js";
 import {
   readStaffUsersListScope,
