@@ -138,7 +138,7 @@ function SearchableListPicker({
           aria-expanded={open}
           aria-controls={listboxId}
           aria-autocomplete="list"
-          className={`w-full rounded-lg border border-gray-200 bg-white px-4 py-3 pr-10 text-base transition hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-iregistrygreen focus:ring-offset-0 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70 ${triggerClassName}`.trim()}
+          className={`form-control pr-10 transition hover:border-gray-300 ${triggerClassName}`.trim()}
           onFocus={() => {
             if (busy) return;
             setOpen(true);
@@ -288,7 +288,7 @@ export default function SearchableOptionsSelect({
   const triggerClassName = inputClassName.replace(/\bw-full\b/g, "").trim();
 
   return (
-    <div className="form-field space-y-2">
+    <div className="space-y-2">
       {label ? (
         <label className="mb-1 block text-sm font-medium text-gray-700">
           {label} {required ? <span className="text-red-600">*</span> : null}

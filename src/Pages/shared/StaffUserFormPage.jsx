@@ -32,7 +32,7 @@ import {
 } from "../../lib/staffUserForm.js";
 import { validateStaffUserForm } from "../../lib/staffUserFormValidation.js";
 import { staffUsersListPath } from "../../lib/staffUsersListView.js";
-import { formControlClass, formFieldClass } from "../../lib/formFieldStyles.js";
+import { formControlClass, formTextareaClass } from "../../lib/formFieldStyles.js";
 
 const locationInputClass = formControlClass;
 
@@ -364,8 +364,8 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           </div>
         ) : null}
 
-        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-          <div className={formFieldClass}>
+        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div>
             <label className="text-xs text-gray-600">
               First name <span className="text-red-600">*</span>
             </label>
@@ -379,7 +379,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className={formFieldClass}>
+          <div>
             <label className="text-xs text-gray-600">
               Last name <span className="text-red-600">*</span>
             </label>
@@ -393,7 +393,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className={formFieldClass}>
+          <div>
             <label className="text-xs text-gray-600">
               ID / Passport <span className="text-red-600">*</span>
             </label>
@@ -407,7 +407,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className={formFieldClass}>
+          <div className="sm:col-span-2 lg:col-span-1">
             <YearMonthDaySelect
               label="Date of birth"
               required={isAdd}
@@ -427,7 +427,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             ) : null}
           </div>
 
-          <div className={`${formFieldClass} sm:col-span-2`}>
+          <div className="sm:col-span-2 lg:col-span-3">
             <CountryPhoneInput
               country={form.country}
               phone={form.phone}
@@ -437,7 +437,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className={`${formFieldClass} sm:col-span-2`}>
+          <div className="sm:col-span-2 lg:col-span-3">
             <TownWardStationSelect
               town={form.village}
               ward={form.ward}
@@ -464,7 +464,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className={formFieldClass}>
+          <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-end">
             <PoliceStationSelect
               label="Nearest police station"
               value={form.police_station}
@@ -481,26 +481,26 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
               variant={canAdminister ? "searchable" : "select"}
               disabled={loading || profileLoading}
             />
-          </div>
 
-          <div className={formFieldClass}>
-            <label className="text-xs text-gray-600">
-              Email address {isAdd ? <span className="text-red-600">*</span> : null}
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-              className={`mt-1 ${formControlClass}`}
-              placeholder="thato@iregsys.com"
-              required={isAdd}
-              disabled={loading || profileLoading}
-            />
+            <div>
+              <label className="text-xs text-gray-600">
+                Email address {isAdd ? <span className="text-red-600">*</span> : null}
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                className={`mt-1 ${formControlClass}`}
+                placeholder="thato@iregsys.com"
+                required={isAdd}
+                disabled={loading || profileLoading}
+              />
+            </div>
           </div>
 
           {canAdminister ? (
             <>
-              <div className={formFieldClass}>
+              <div>
                 <label className="text-xs text-gray-600">Role</label>
                 <select
                   value={form.role}
@@ -518,7 +518,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
                 ) : null}
               </div>
 
-              <div className={formFieldClass}>
+              <div>
                 <label className="text-xs text-gray-600">Status</label>
                 <select
                   value={form.status}
@@ -540,12 +540,12 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           ) : null}
 
           {canAdminister && form.status !== "active" ? (
-            <div className={`${formFieldClass} sm:col-span-2`}>
+            <div className="sm:col-span-3">
               <label className="text-xs text-gray-600">Reason for {form.status}</label>
               <textarea
                 value={form.status_reason}
                 onChange={(e) => setForm((s) => ({ ...s, status_reason: e.target.value }))}
-                className={`mt-1 ${formControlClass}`}
+                className={`mt-1 ${formTextareaClass}`}
                 placeholder="Required"
                 required
                 disabled={loading || profileLoading}
@@ -553,7 +553,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             </div>
           ) : null}
 
-          <div className={`${formFieldClass} sm:col-span-2 flex gap-2 justify-end pt-2`}>
+          <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
             <RippleButton
               type="button"
               className="px-4 py-2 rounded border bg-white disabled:opacity-60"

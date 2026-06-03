@@ -7,7 +7,7 @@ import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { countries } from "../Data/countries";
-import { formControlClass, formFieldClass } from "../lib/formFieldStyles.js";
+import { formControlClass } from "../lib/formFieldStyles.js";
 
 export default function Signup() {
 
@@ -243,7 +243,8 @@ export default function Signup() {
             <div className="p-6 sm:p-8">
               {/* ================= STEP 1 ================= */}
               {step === 1 && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-start">
+                <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="First name"
                   value={form.first_name}
@@ -257,7 +258,9 @@ export default function Signup() {
                   error={errors.last_name}
                   onChange={(v) => setField("last_name", v)}
                 />
+              </div>
 
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="ID / Passport number"
                   value={form.id_number}
@@ -265,7 +268,6 @@ export default function Signup() {
                   onChange={(v) => setField("id_number", v)}
                 />
 
-                <div className={formFieldClass}>
                 <YearMonthDaySelect
                   label="Date of birth"
                   value={form.date_of_birth}
@@ -275,9 +277,8 @@ export default function Signup() {
                   minYear={1920}
                   selectClassName={formControlClass}
                 />
-                </div>
+              </div>
 
-              <div className={`${formFieldClass} sm:col-span-2`}>
               <CountryPhoneInput
                 country={form.country}
                 phone={form.phone}
@@ -293,14 +294,13 @@ export default function Signup() {
                   });
                 }}
               />
-              </div>
 
               <div
-                className={`${formFieldClass} sm:col-span-2 ${
+                className={
                   errors.village || errors.ward
                     ? "rounded-lg ring-1 ring-red-500 ring-offset-1"
                     : ""
-                }`}
+                }
               >
                 <TownWardStationSelect
                   town={form.village}
@@ -335,13 +335,14 @@ export default function Signup() {
                 />
               </div>
 
-              <div
-                className={
-                  errors.police_station
-                    ? `${formFieldClass} rounded-lg ring-1 ring-red-500 ring-offset-1`
-                    : formFieldClass
-                }
-              >
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-end">
+                <div
+                  className={
+                    errors.police_station
+                      ? "rounded-lg ring-1 ring-red-500 ring-offset-1 min-w-0"
+                      : "min-w-0"
+                  }
+                >
                   <PoliceStationSelect
                     label="Nearest police station"
                     value={form.police_station}
@@ -355,7 +356,7 @@ export default function Signup() {
                     placeholder="Select or type your nearest police station"
                     helpText="Pick a station from the list, search to narrow it, or type a name if yours is not listed."
                   />
-              </div>
+                </div>
 
                 <Input
                   label="Email address"
@@ -364,8 +365,9 @@ export default function Signup() {
                   error={errors.email}
                   onChange={(v) => setField("email", v)}
                 />
+              </div>
 
-              <div className={`${formFieldClass} sm:col-span-2 text-center text-sm text-gray-600`}>
+              <div className="text-center text-sm text-gray-600">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -380,7 +382,7 @@ export default function Signup() {
                 type="button"
                 onClick={checkStep1Details}
                 disabled={loading}
-                className={`${formFieldClass} sm:col-span-2 w-full rounded-lg bg-iregistrygreen py-3 font-semibold text-white disabled:opacity-60`}
+                className="w-full rounded-lg bg-iregistrygreen py-3 font-semibold text-white disabled:opacity-60"
               >
                 {loading ? "Checking..." : "Continue"}
               </button>
@@ -551,7 +553,7 @@ function Input({
   error,
 }) {
   return (
-    <div className={formFieldClass}>
+    <div className="min-w-0">
       <label className="block text-sm mb-1">
         {label} {required && <span className="text-red-600">*</span>}
       </label>

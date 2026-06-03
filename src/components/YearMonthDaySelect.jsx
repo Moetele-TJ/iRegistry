@@ -97,7 +97,7 @@ export default function YearMonthDaySelect({
   const disabledCls = disabled ? "opacity-60 cursor-not-allowed bg-gray-50" : "";
 
   return (
-    <div className="form-field min-w-0">
+    <div className="min-w-0">
       {label ? (
         <label className={labelClassName}>
           {label} {required ? <span className="text-red-600">*</span> : null}
