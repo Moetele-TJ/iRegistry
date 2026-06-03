@@ -8,7 +8,4 @@ export function isStaffViewingOtherUserProfile(pathname, search, sessionUserId) 
   return p.endsWith("/admin/profile") || p.endsWith("/cashier/profile");
 }
 
-export function staffUsersListPath(role) {
-  const r = String(role || "").toLowerCase();
-  return r === "admin" ? "/admin/users" : "/cashier/users";
-}
+export { staffUsersListPath } from "./staffUsersListView.js";

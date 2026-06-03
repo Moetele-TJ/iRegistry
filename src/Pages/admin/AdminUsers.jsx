@@ -1,6 +1,6 @@
 // src/Pages/admin/AdminUsers.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
@@ -10,7 +10,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import PageSectionCard from "../shared/PageSectionCard.jsx";
-import { deriveUserStatus, isInactiveLockout } from "../../lib/userState.js";
+import { deriveUserStatus, isActiveUserAccount, isInactiveLockout } from "../../lib/userState.js";
 import { displayUser, formatUserLocation } from "../../lib/userDisplay.js";
 import { useListUsers } from "../../hooks/useListUsers.js";
 import { useAddItemPreflight } from "../../hooks/useAddItemPreflight.js";
@@ -18,7 +18,7 @@ import {
   APP_ROLE_OPTIONS,
   DISPLAY,
   NAV_ACTIONS,
-  USER_ACCOUNT_STATUS_FILTER_OPTIONS,
+  USER_ACCOUNT_NON_ACTIVE_FILTER_OPTIONS,
   USER_ACCOUNT_STATUS_FORM_OPTIONS,
   addItemAriaLabel,
   addItemButtonLabel,
@@ -27,6 +27,10 @@ import {
   readStaffUsersListScope,
   writeStaffUsersListScope,
 } from "../../lib/staffUsersListStorage.js";
+import {
+  STAFF_USERS_LIST_VIEWS,
+  staffUsersListViewFromPath,
+} from "../../lib/staffUsersListView.js";
 import { useStaffUserScope } from "../../contexts/StaffUserScopeContext.jsx";
 
 function displayName(u) {
@@ -75,6 +79,14 @@ const MSG_NOTHING_TO_SUBMIT =
   "Nothing to submit — you have not changed any information.";
 
 const ROW_HIGHLIGHT_MS = 4500;
+
+function normalizeUsersStatusFilter(filter, listView) {
+  const f = String(filter || "all").trim().toLowerCase();
+  if (listView === STAFF_USERS_LIST_VIEWS.active) return "active";
+  if (f === "active") return "all";
+  if (f === "suspended" || f === "disabled" || f === "deleted") return f;
+  return "all";
+}
 
 function normStr(v) {
   return String(v ?? "").trim();
@@ -424,6 +436,7 @@ function UserRowActionControls({
 
 export default function AdminUsers({ variant = "admin" } = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user: currentUser } = useAuth();
   const { addToast } = useToast();
@@ -435,6 +448,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
   const canCreateUser = canAdminister || String(variant || "").toLowerCase() === "cashier";
   const profileListBase = canAdminister ? "/admin/profile" : "/cashier/profile";
+  const usersListView = useMemo(
+    () => staffUsersListViewFromPath(location.pathname),
+    [location.pathname],
+  );
+  const isActiveUsersView = usersListView === STAFF_USERS_LIST_VIEWS.active;
+  const statusFilterOptions = isActiveUsersView
+    ? [{ value: "active", label: DISPLAY.userAccountStatus.active }]
+    : USER_ACCOUNT_NON_ACTIVE_FILTER_OPTIONS;
 
   const {
     users,
@@ -465,7 +486,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [stationFilter, setStationFilter] = useState("");
   const [sortBy, setSortBy] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
@@ -497,23 +518,31 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   useEffect(() => {
     if (!currentUserId) return;
     const scope = readStaffUsersListScope(currentUserId);
+    const viewMatchesStored = scope?.listView === usersListView;
     if (scope) {
       if (scope.q != null) setQ(String(scope.q));
       if (scope.roleFilter != null) setRoleFilter(String(scope.roleFilter));
-      if (scope.statusFilter != null) setStatusFilter(String(scope.statusFilter));
+      if (viewMatchesStored && scope.statusFilter != null) {
+        setStatusFilter(normalizeUsersStatusFilter(scope.statusFilter, usersListView));
+      } else {
+        setStatusFilter(isActiveUsersView ? "active" : "all");
+      }
       if (scope.stationFilter != null) setStationFilter(String(scope.stationFilter));
       if (scope.sortBy != null) setSortBy(String(scope.sortBy));
       if (scope.sortDir != null) setSortDir(String(scope.sortDir));
       if (typeof scope.scrollY === "number" && scope.scrollY > 0) {
         requestAnimationFrame(() => window.scrollTo({ top: scope.scrollY, behavior: "auto" }));
       }
+    } else {
+      setStatusFilter(isActiveUsersView ? "active" : "all");
     }
     listScopeReadyRef.current = true;
-  }, [currentUserId]);
+  }, [currentUserId, usersListView, isActiveUsersView]);
 
   useEffect(() => {
     if (!currentUserId || !listScopeReadyRef.current) return;
     writeStaffUsersListScope(currentUserId, {
+      listView: usersListView,
       q,
       roleFilter,
       statusFilter,
@@ -522,11 +551,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
     });
-  }, [currentUserId, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir]);
+  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir]);
 
   const persistUsersListScope = () => {
     if (!currentUserId) return;
     writeStaffUsersListScope(currentUserId, {
+      listView: usersListView,
       q,
       roleFilter,
       statusFilter,
@@ -682,8 +712,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
     const list = (users || []).filter((u) => {
       if (!u) return false;
+      const status = deriveUserStatus(u);
+      if (isActiveUsersView) {
+        if (!isActiveUserAccount(u)) return false;
+      } else if (isActiveUserAccount(u)) {
+        return false;
+      }
       if (roleQ !== "all" && String(u.role || "").toLowerCase() !== roleQ) return false;
-      if (statusQ !== "all" && deriveUserStatus(u) !== statusQ) return false;
+      if (statusQ !== "all" && status !== statusQ) return false;
 
       if (stationQ) {
         const st = String(u.police_station || "").toLowerCase();
@@ -708,7 +744,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     const sorted = [...list];
     sorted.sort((a, b) => compareAdminUsersRow(a, b, sortBy, sortDir));
     return sorted;
-  }, [users, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir]);
+  }, [users, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir, isActiveUsersView]);
 
   async function refresh() {
     const r = await refreshUsers();
@@ -1198,11 +1234,23 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         <PageSectionCard
           maxWidthClass="max-w-full"
           headerPaddingClass="px-3 sm:px-4 py-4 sm:py-5"
-          title={canAdminister ? "Manage Users" : "Users"}
+          title={
+            canAdminister
+              ? isActiveUsersView
+                ? "Manage Users — Active"
+                : "Manage Users — Non-Active"
+              : isActiveUsersView
+                ? "Users — Active"
+                : "Users — Non-Active"
+          }
           subtitle={
             canAdminister
-              ? "Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
-              : "Search users, add new accounts, and update basic profile details. Roles, status, and deletion are admin-only."
+              ? isActiveUsersView
+                ? "Active accounts only. Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
+                : "Suspended, disabled, and deleted accounts. Restore or remove users from this list."
+              : isActiveUsersView
+                ? "Search active users, add new accounts, and update basic profile details. Roles, status, and deletion are admin-only."
+                : "Search non-active users. Roles, status, and deletion are admin-only."
           }
           icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
           actions={
@@ -1250,6 +1298,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       <option value="admin">Admin</option>
                     </select>
                   </div>
+                  {isActiveUsersView ? null : (
                   <div className="sm:w-44 min-w-[170px]">
                     <label className="text-xs text-gray-600">Status</label>
                     <select
@@ -1257,13 +1306,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       onChange={(e) => setStatusFilter(e.target.value)}
                       className="mt-1 w-full border rounded-lg px-3 py-2"
                     >
-                      {USER_ACCOUNT_STATUS_FILTER_OPTIONS.map((opt) => (
+                      {statusFilterOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
                         </option>
                       ))}
                     </select>
                   </div>
+                  )}
                 </>
               ) : null}
               <div className="sm:w-56 min-w-[220px]">

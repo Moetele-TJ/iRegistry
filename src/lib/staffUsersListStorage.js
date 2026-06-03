@@ -4,6 +4,7 @@ const PREFIX = "iregistry:staff-users-list:";
 
 /**
  * @returns {{
+ *   listView?: "active"|"non-active",
  *   q?: string,
  *   roleFilter?: string,
  *   statusFilter?: string,

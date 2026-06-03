@@ -48,6 +48,10 @@ export const NAV = Object.freeze({
 
   users: "Users",
 
+  activeUsers: "Active Users",
+
+  nonActiveUsers: "Non-Active Users",
+
   pricing: "Pricing",
 
   packages: "Packages",
@@ -327,6 +331,22 @@ export const USER_ACCOUNT_STATUS_FILTER_OPTIONS = Object.freeze([
   { value: "suspended", label: DISPLAY.userAccountStatus.suspended },
 
   { value: "disabled", label: DISPLAY.userAccountStatus.disabled },
+
+]);
+
+
+
+/** Non-active users list — values match deriveUserStatus(). */
+
+export const USER_ACCOUNT_NON_ACTIVE_FILTER_OPTIONS = Object.freeze([
+
+  { value: "all", label: DISPLAY.all },
+
+  { value: "suspended", label: DISPLAY.userAccountStatus.suspended },
+
+  { value: "disabled", label: DISPLAY.userAccountStatus.disabled },
+
+  { value: "deleted", label: DISPLAY.userAccountStatus.deleted },
 
 ]);
 

@@ -168,6 +168,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route index element={<AdminHome />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="users" element={<AdminUsers />} />
+                    <Route path="users/non-active" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
                     <Route path="sms-otp-usage" element={<AdminSmsOtpUsagePage />} />
                     <Route path="recent-logins" element={<AdminRecentLoginsPage />} />
@@ -245,6 +246,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items/deleted" element={<CashierDeletedItemsPage />} />
                     <Route path="items/legacy" element={<CashierLegacyItemsPage />} />
                     <Route path="users" element={<CashierUsersPage />} />
+                    <Route path="users/non-active" element={<CashierUsersPage />} />
                     <Route path="topup" element={<CashierTopupPage />} />
                     <Route path="transactions" element={<CashierTransactionsPage />} />
                     <Route path="pricing" element={<CashierPricingPage />} />

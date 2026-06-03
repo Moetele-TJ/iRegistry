@@ -5,6 +5,10 @@ export function deriveUserStatus(u) {
   return "active";
 }
 
+export function isActiveUserAccount(u) {
+  return deriveUserStatus(u) === "active";
+}
+
 /** Suspended or disabled — account must be reactivated before profile/role edits. */
 export function isInactiveLockout(u) {
   const s = deriveUserStatus(u);

@@ -30,7 +30,15 @@ export function useAdminSidebar({ visible: visibleProp = true } = {}) {
     () => [
       { to: "/admin", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
       { to: "/admin/profile", icon: <UserCircle size={20} />, label: NAV.profile },
-      { to: "/admin/users", icon: <Users size={20} />, label: NAV.users },
+      {
+        to: "/admin/users",
+        icon: <Users size={20} />,
+        label: NAV.users,
+        subItems: [
+          { to: "/admin/users", label: NAV.activeUsers, end: true },
+          { to: "/admin/users/non-active", label: NAV.nonActiveUsers, end: true },
+        ],
+      },
       { to: "/admin/organizations", icon: <Building2 size={20} />, label: NAV.organizations },
       { to: "/admin/audit-logs", icon: <FileText size={20} />, label: NAV.auditLogs },
       { to: "/admin/sms-otp-usage", icon: <MessageSquare size={20} />, label: NAV.smsOtpUsage },

@@ -36,7 +36,15 @@ export function useCashierSidebar({ visible: visibleProp = true } = {}) {
           { to: "/cashier/items/legacy", label: NAV.legacyItems, end: true },
         ],
       },
-      { to: "/cashier/users", icon: <Users size={20} />, label: NAV.users },
+      {
+        to: "/cashier/users",
+        icon: <Users size={20} />,
+        label: NAV.users,
+        subItems: [
+          { to: "/cashier/users", label: NAV.activeUsers, end: true },
+          { to: "/cashier/users/non-active", label: NAV.nonActiveUsers, end: true },
+        ],
+      },
       { to: "/cashier/organizations", icon: <Building2 size={20} />, label: NAV.organizations },
       { to: "/cashier/topup", icon: <Wallet size={20} />, label: NAV.topUp },
       { to: "/cashier/transactions", icon: <ReceiptText size={20} />, label: NAV.transactions },
