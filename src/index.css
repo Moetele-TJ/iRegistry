@@ -4,13 +4,31 @@
 @tailwind components;
 
 @layer components {
-  .input {
-    @apply w-full border border-gray-300 rounded-lg px-4 py-2 text-sm
-           text-gray-900
+  .form-field {
+    @apply min-w-0 w-full;
+  }
+
+  .form-label {
+    @apply block text-sm text-gray-700;
+  }
+
+  .input,
+  .form-control,
+  input.form-control,
+  select.form-control,
+  textarea.form-control {
+    @apply block w-full min-w-0 max-w-full box-border border border-gray-300 rounded-lg px-3 py-2 text-sm
+           text-gray-900 bg-white
            focus:outline-none
            focus:ring-2
            focus:ring-iregistrygreen
-           focus:border-iregistrygreen;
+           focus:border-iregistrygreen
+           disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-gray-50;
+  }
+
+  select.form-control,
+  select.input {
+    @apply appearance-auto;
   }
 }
 

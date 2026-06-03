@@ -178,7 +178,7 @@ export default function CountryPhoneInput({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`w-full flex items-center justify-between border rounded-lg px-4 py-3 text-base ${
+          className={`form-control flex items-center justify-between px-4 py-3 text-base ${
             errorCountry ? "border-red-500" : ""
           }`}
         >
@@ -260,7 +260,7 @@ export default function CountryPhoneInput({
         </label>
 
         <div
-          className={`flex items-center border rounded-lg px-4 py-3 gap-3 ${
+          className={`form-control flex items-center px-4 py-3 gap-3 ${
             errorPhone ? "border-red-500" : ""
           } ${!selectedCountry ? "bg-gray-100" : ""}`}
         >

@@ -11,7 +11,7 @@ export default function PoliceStationSelect({
   placeholder = "Select a police station…",
   allowOther = true,
   variant = "select",
-  inputClassName = "w-full border rounded-lg px-4 py-2",
+  inputClassName = "form-control",
   withAuth = true,
   helpText,
 }) {

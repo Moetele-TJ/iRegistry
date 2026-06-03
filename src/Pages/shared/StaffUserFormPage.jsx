@@ -32,8 +32,9 @@ import {
 } from "../../lib/staffUserForm.js";
 import { validateStaffUserForm } from "../../lib/staffUserFormValidation.js";
 import { staffUsersListPath } from "../../lib/staffUsersListView.js";
+import { formControlClass, formFieldClass } from "../../lib/formFieldStyles.js";
 
-const locationInputClass = "w-full border rounded-lg px-3 py-2";
+const locationInputClass = formControlClass;
 
 export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) {
   const isAdd = mode === "add";
@@ -363,50 +364,50 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           </div>
         ) : null}
 
-        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-          <div>
+        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+          <div className={formFieldClass}>
             <label className="text-xs text-gray-600">
               First name <span className="text-red-600">*</span>
             </label>
             <input
               value={form.first_name}
               onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
+              className={`mt-1 ${formControlClass}`}
               placeholder="Thato"
               required
               disabled={loading || profileLoading}
             />
           </div>
 
-          <div>
+          <div className={formFieldClass}>
             <label className="text-xs text-gray-600">
               Last name <span className="text-red-600">*</span>
             </label>
             <input
               value={form.last_name}
               onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
+              className={`mt-1 ${formControlClass}`}
               placeholder="Kgosi"
               required
               disabled={loading || profileLoading}
             />
           </div>
 
-          <div>
+          <div className={formFieldClass}>
             <label className="text-xs text-gray-600">
               ID / Passport <span className="text-red-600">*</span>
             </label>
             <input
               value={form.id_number}
               onChange={(e) => setForm((s) => ({ ...s, id_number: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
+              className={`mt-1 ${formControlClass}`}
               placeholder="12345678901"
               required
               disabled={loading || profileLoading}
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div className={formFieldClass}>
             <YearMonthDaySelect
               label="Date of birth"
               required={isAdd}
@@ -426,7 +427,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             ) : null}
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className={`${formFieldClass} sm:col-span-2`}>
             <CountryPhoneInput
               country={form.country}
               phone={form.phone}
@@ -436,7 +437,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className={`${formFieldClass} sm:col-span-2`}>
             <TownWardStationSelect
               town={form.village}
               ward={form.ward}
@@ -463,7 +464,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-end">
+          <div className={formFieldClass}>
             <PoliceStationSelect
               label="Nearest police station"
               value={form.police_station}
@@ -480,31 +481,31 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
               variant={canAdminister ? "searchable" : "select"}
               disabled={loading || profileLoading}
             />
+          </div>
 
-            <div className="min-w-0">
-              <label className="text-xs text-gray-600">
-                Email address {isAdd ? <span className="text-red-600">*</span> : null}
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
-                placeholder="thato@iregsys.com"
-                required={isAdd}
-                disabled={loading || profileLoading}
-              />
-            </div>
+          <div className={formFieldClass}>
+            <label className="text-xs text-gray-600">
+              Email address {isAdd ? <span className="text-red-600">*</span> : null}
+            </label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+              className={`mt-1 ${formControlClass}`}
+              placeholder="thato@iregsys.com"
+              required={isAdd}
+              disabled={loading || profileLoading}
+            />
           </div>
 
           {canAdminister ? (
             <>
-              <div>
+              <div className={formFieldClass}>
                 <label className="text-xs text-gray-600">Role</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  className={`mt-1 ${formControlClass}`}
                   disabled={loading || profileLoading || (!isAdd && isSelf(editingId))}
                 >
                   <option value="user">User</option>
@@ -517,12 +518,12 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
                 ) : null}
               </div>
 
-              <div>
+              <div className={formFieldClass}>
                 <label className="text-xs text-gray-600">Status</label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm((s) => ({ ...s, status: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                  className={`mt-1 ${formControlClass}`}
                   disabled={loading || profileLoading || (!isAdd && isSelf(editingId))}
                 >
                   {USER_ACCOUNT_STATUS_FORM_OPTIONS.map((opt) => (
@@ -539,12 +540,12 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           ) : null}
 
           {canAdminister && form.status !== "active" ? (
-            <div className="sm:col-span-3">
+            <div className={`${formFieldClass} sm:col-span-2`}>
               <label className="text-xs text-gray-600">Reason for {form.status}</label>
               <textarea
                 value={form.status_reason}
                 onChange={(e) => setForm((s) => ({ ...s, status_reason: e.target.value }))}
-                className="mt-1 w-full border rounded-lg px-3 py-2"
+                className={`mt-1 ${formControlClass}`}
                 placeholder="Required"
                 required
                 disabled={loading || profileLoading}
@@ -552,7 +553,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             </div>
           ) : null}
 
-          <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
+          <div className={`${formFieldClass} sm:col-span-2 flex gap-2 justify-end pt-2`}>
             <RippleButton
               type="button"
               className="px-4 py-2 rounded border bg-white disabled:opacity-60"

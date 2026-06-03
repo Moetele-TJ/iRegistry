@@ -239,7 +239,7 @@ export default function SearchableOptionsSelect({
   placeholder = "Select or type…",
   allowOther = true,
   variant = "searchable",
-  inputClassName = "w-full border rounded-lg px-4 py-2",
+  inputClassName = "form-control",
   helpText,
   loadOptions,
   reloadKey = 0,
@@ -288,7 +288,7 @@ export default function SearchableOptionsSelect({
   const triggerClassName = inputClassName.replace(/\bw-full\b/g, "").trim();
 
   return (
-    <div className="space-y-2">
+    <div className="form-field space-y-2">
       {label ? (
         <label className="mb-1 block text-sm font-medium text-gray-700">
           {label} {required ? <span className="text-red-600">*</span> : null}

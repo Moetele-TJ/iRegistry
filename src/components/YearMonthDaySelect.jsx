@@ -22,7 +22,7 @@ export default function YearMonthDaySelect({
   maxYear,
   minYmd,
   maxYmd,
-  selectClassName = "w-full border rounded-lg px-3 py-2 text-sm bg-white",
+  selectClassName = "form-control",
   labelClassName = "block text-sm mb-1",
   showHint = true,
 }) {
@@ -97,14 +97,14 @@ export default function YearMonthDaySelect({
   const disabledCls = disabled ? "opacity-60 cursor-not-allowed bg-gray-50" : "";
 
   return (
-    <div className="min-w-0">
+    <div className="form-field min-w-0">
       {label ? (
         <label className={labelClassName}>
           {label} {required ? <span className="text-red-600">*</span> : null}
         </label>
       ) : null}
       <div className="grid grid-cols-3 gap-2">
-        <div>
+        <div className="min-w-0">
           <span className="sr-only">Year</span>
           <select
             value={year}
@@ -121,7 +121,7 @@ export default function YearMonthDaySelect({
             ))}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <span className="sr-only">Month</span>
           <select
             value={month}
@@ -138,7 +138,7 @@ export default function YearMonthDaySelect({
             ))}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <span className="sr-only">Day</span>
           <select
             value={day}
