@@ -304,6 +304,8 @@ export const DISPLAY = Object.freeze({
 
     activeUsers: "Active Users",
 
+    usersWithoutItems: "Users without Items",
+
     registeredItems: "Registered Items",
 
     stolenItems: "Stolen Items",

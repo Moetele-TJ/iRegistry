@@ -11,6 +11,7 @@ const PREFIX = "iregistry:staff-users-list:";
  *   stationFilter?: string,
  *   sortBy?: string,
  *   sortDir?: string,
+ *   itemsFilter?: string,
  *   scrollY?: number,
  * } | null}
  */

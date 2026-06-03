@@ -5,7 +5,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
-
 /* ---------------- SUPABASE CLIENT ---------------- */
 
 function getSupabase() {
@@ -69,7 +68,8 @@ serve(async (req) => {
         activeUsers,
         items,
         stolenItems,
-        highAlerts,
+        activeUserRows,
+        itemCountRows,
       ] = await Promise.all([
         supabase.from("users").select("*", { count: "exact", head: true }),
         supabase
@@ -85,11 +85,30 @@ serve(async (req) => {
           .not("reportedstolenat", "is", null)
           .is("deletedat", null)
           .is("legacyat", null),
-        /*supabase
-          .from("audit_logs")
-          .select("*", { count: "exact", head: true })
-          .eq("severity", "high"),*/
+        supabase
+          .from("users")
+          .select("id")
+          .is("deleted_at", null)
+          .is("suspended_at", null)
+          .is("disabled_at", null),
+        supabase.rpc("list_owner_active_item_counts"),
       ]);
+
+      const activeItemCountByOwner = new Map<string, number>();
+      for (const row of itemCountRows.data || []) {
+        const oid = (row as { owner_id?: string })?.owner_id;
+        const c = (row as { item_count?: unknown })?.item_count;
+        if (oid == null) continue;
+        const n = typeof c === "number" && Number.isFinite(c) ? c : Number(c);
+        if (Number.isFinite(n)) activeItemCountByOwner.set(String(oid), Math.max(0, Math.floor(n)));
+      }
+
+      let users_without_items = 0;
+      for (const u of activeUserRows.data || []) {
+        const uid = (u as { id?: string })?.id;
+        if (!uid) continue;
+        if ((activeItemCountByOwner.get(String(uid)) ?? 0) === 0) users_without_items += 1;
+      }
 
       return respond(
         {
@@ -97,9 +116,10 @@ serve(async (req) => {
           data: {
             users_total: users.count ?? 0,
             users_active: activeUsers.count ?? 0,
+            users_without_items,
             items_total: items.count ?? 0,
             items_stolen: stolenItems.count ?? 0,
-            security_alerts: highAlerts.count ?? 0,
+            security_alerts: 0,
           },
         },
         corsHeaders

@@ -4,9 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle, MessageSquare } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
+import { deriveUserStatus } from "../../lib/userState.js";
 import DashboardAlertsPanel from "../../components/DashboardAlertsPanel.jsx";
 import PromoModeBanner from "../../components/PromoModeBanner.jsx";
+import TimeAgo from "../../components/TimeAgo.jsx";
+import { getIcon } from "../../utils/iconResolver.js";
+import { displayActivityActorRole } from "../../lib/activityActorRole.js";
 import { DISPLAY, NAV, NAV_ACTIONS } from "../../lib/navLabels.js";
+
+function countActiveUsersWithoutItems(users) {
+  return (users || []).filter((u) => {
+    if (deriveUserStatus(u) !== "active") return false;
+    return Math.max(0, Math.floor(Number(u?.active_items_count) || 0)) === 0;
+  }).length;
+}
 
 export default function AdminHome() {
   const navigate = useNavigate();
@@ -15,6 +26,7 @@ export default function AdminHome() {
   const [dashboard, setDashboard] = useState(null); // from get-dashboard-data (alerts, activity)
   const [paymentAttention, setPaymentAttention] = useState({ pending: [], failed: [] });
   const [suspendedUsers, setSuspendedUsers] = useState([]);
+  const [usersWithoutItemsCount, setUsersWithoutItemsCount] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,13 +40,8 @@ export default function AdminHome() {
     setError("");
 
     try {
-      // Primary source for alerts + activity
       const dashReq = invokeWithAuth("get-dashboard-data", { body: { limit: 6, page: 1 } });
-
-      // Stats function expects a query param. Supabase functions.invoke supports passing it via name.
-      // If this ever fails, we still render the dashboard using get-dashboard-data.
       const statsReq = invokeWithAuth("stats?mode=admin");
-
       const paymentsReq = invokeWithAuth("list-payments", {
         body: { limit: 200, offset: 0, scope: "user" },
       });
@@ -84,8 +91,10 @@ export default function AdminHome() {
           return st === "suspended" || st === "disabled";
         });
         setSuspendedUsers(susp.slice(0, 8));
+        setUsersWithoutItemsCount(countActiveUsersWithoutItems(all));
       } else {
         setSuspendedUsers([]);
+        setUsersWithoutItemsCount(null);
       }
 
     } catch (err) {
@@ -97,7 +106,7 @@ export default function AdminHome() {
     }
   }
 
-  const roleActivity = dashboard?.roleData?.roleActivity?.data || [];
+  const systemActivity = dashboard?.roleData?.systemActivity?.data || [];
   const alerts = dashboard?.personal?.alerts || [];
 
   const statCards = useMemo(() => {
@@ -105,17 +114,25 @@ export default function AdminHome() {
     const fallbackItems = dashboard?.roleData?.adminOverview?.totalItems;
 
     const usersTotal = stats?.users_total ?? (typeof fallbackUsers === "number" ? fallbackUsers : null);
-    const usersActive = stats?.users_active ?? null;
+    const usersWithoutItems =
+      usersWithoutItemsCount ??
+      stats?.users_without_items ??
+      null;
     const itemsTotal = stats?.items_total ?? (typeof fallbackItems === "number" ? fallbackItems : null);
     const itemsStolen = stats?.items_stolen ?? null;
 
     return [
       { label: DISPLAY.stats.totalUsers, value: usersTotal, icon: Users },
-      { label: DISPLAY.stats.activeUsers, value: usersActive, icon: Users },
+      {
+        label: DISPLAY.stats.usersWithoutItems,
+        value: usersWithoutItems,
+        icon: Users,
+        onClick: () => navigate("/admin/users?items=without"),
+      },
       { label: DISPLAY.stats.registeredItems, value: itemsTotal, icon: Package },
       { label: DISPLAY.stats.stolenItems, value: itemsStolen, icon: Package, danger: true },
     ];
-  }, [dashboard, stats]);
+  }, [dashboard, stats, usersWithoutItemsCount, navigate]);
 
   return (
     <div className="max-w-7xl mx-auto w-full">
@@ -154,6 +171,7 @@ export default function AdminHome() {
             value={loading ? "—" : (c.value ?? "—")}
             icon={c.icon}
             danger={c.danger}
+            onClick={c.onClick}
           />
         ))}
       </section>
@@ -178,7 +196,7 @@ export default function AdminHome() {
         <div className="lg:col-span-5 space-y-4">
           <DashboardAlertsPanel alerts={alerts} />
           <RecentActivityCard
-            events={roleActivity}
+            events={systemActivity}
             loading={loading}
             onGoActivity={() => navigate("/admin/activity")}
           />
@@ -216,9 +234,19 @@ function AdminTransfersShortcut() {
   );
 }
 
-function StatCard({ label, value, danger, icon: Icon }) {
+function StatCard({ label, value, danger, icon: Icon, onClick }) {
+  const interactive = typeof onClick === "function";
+  const Tag = interactive ? "button" : "div";
+
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <Tag
+      type={interactive ? "button" : undefined}
+      onClick={onClick}
+      className={[
+        "bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left w-full",
+        interactive ? "hover:border-emerald-200 hover:shadow-md transition cursor-pointer" : "",
+      ].join(" ")}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">{label}</p>
@@ -232,7 +260,7 @@ function StatCard({ label, value, danger, icon: Icon }) {
           </div>
         ) : null}
       </div>
-    </div>
+    </Tag>
   );
 }
 
@@ -284,15 +312,45 @@ function RecentActivityCard({ events, loading, onGoActivity }) {
         <div className="text-sm text-gray-400">No recent activity.</div>
       ) : (
         <div className="space-y-2">
-          {events.slice(0, 6).map((e) => (
-            <div key={e.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-              <div className="text-sm text-gray-800 font-medium truncate">{e.entity_name || e.entity_type || "Activity"}</div>
-              <div className="text-xs text-gray-500 mt-0.5 truncate">{e.message || e.action}</div>
-              <div className="text-[11px] text-gray-400 mt-1">
-                {e.created_at ? new Date(e.created_at).toLocaleString() : ""}
+          {events.slice(0, 6).map((e) => {
+            const Icon = getIcon(e);
+            return (
+              <div key={e.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <Icon size={16} className="text-gray-400 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-gray-800 break-words leading-snug">{e.message || e.action}</div>
+                    {e.entity_name ? (
+                      <div className="text-xs text-gray-500 mt-0.5 break-words">{e.entity_name}</div>
+                    ) : null}
+                    {e?.actor?.display_name ? (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {e.actor.display_name}
+                        {e?.actor?.role || e?.actor_role ? (
+                          <>
+                            {" "}
+                            ·{" "}
+                            {e?.actor?.role ??
+                              displayActivityActorRole(e, {
+                                resourceOwnerUserId:
+                                  e.entity_type === "item"
+                                    ? e.metadata?.ownerId
+                                    : e.entity_type === "user"
+                                      ? e.entity_id
+                                      : null,
+                              })}
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="text-[11px] text-gray-400 mt-1">
+                      <TimeAgo date={e.created_at} />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

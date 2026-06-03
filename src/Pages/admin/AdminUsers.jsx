@@ -489,6 +489,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("active");
   const [stationFilter, setStationFilter] = useState("");
+  const [itemsFilter, setItemsFilter] = useState("all");
   const [sortBy, setSortBy] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -517,9 +518,16 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   }, [usersDirectoryError, addToast]);
 
   useEffect(() => {
+    if (searchParams.get("items") === "without") {
+      setItemsFilter("without");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!currentUserId) return;
     const scope = readStaffUsersListScope(currentUserId);
     const viewMatchesStored = scope?.listView === usersListView;
+    const urlWithoutItems = searchParams.get("items") === "without";
     if (scope) {
       if (scope.q != null) setQ(String(scope.q));
       if (scope.roleFilter != null) setRoleFilter(String(scope.roleFilter));
@@ -527,6 +535,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         setStatusFilter(normalizeUsersStatusFilter(scope.statusFilter, usersListView));
       } else {
         setStatusFilter(isActiveUsersView ? "active" : "all");
+      }
+      if (urlWithoutItems) {
+        setItemsFilter("without");
+      } else if (viewMatchesStored && scope.itemsFilter != null) {
+        setItemsFilter(String(scope.itemsFilter));
+      } else {
+        setItemsFilter("all");
       }
       if (scope.stationFilter != null) setStationFilter(String(scope.stationFilter));
       if (scope.sortBy != null) setSortBy(String(scope.sortBy));
@@ -536,9 +551,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       }
     } else {
       setStatusFilter(isActiveUsersView ? "active" : "all");
+      setItemsFilter(urlWithoutItems ? "without" : "all");
     }
     listScopeReadyRef.current = true;
-  }, [currentUserId, usersListView, isActiveUsersView]);
+  }, [currentUserId, usersListView, isActiveUsersView, searchParams]);
 
   useEffect(() => {
     if (!currentUserId || !listScopeReadyRef.current) return;
@@ -548,11 +564,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       roleFilter,
       statusFilter,
       stationFilter,
+      itemsFilter,
       sortBy,
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
     });
-  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir]);
+  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, itemsFilter, sortBy, sortDir]);
 
   const persistUsersListScope = () => {
     if (!currentUserId) return;
@@ -562,11 +579,21 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       roleFilter,
       statusFilter,
       stationFilter,
+      itemsFilter,
       sortBy,
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
     });
   };
+
+  function clearWithoutItemsFilter() {
+    setItemsFilter("all");
+    if (searchParams.get("items")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("items");
+      setSearchParams(next, { replace: true });
+    }
+  }
 
   useLayoutEffect(() => {
     if (mode === "idle") return;
@@ -721,6 +748,10 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       }
       if (roleQ !== "all" && String(u.role || "").toLowerCase() !== roleQ) return false;
       if (statusQ !== "all" && status !== statusQ) return false;
+      if (itemsFilter === "without") {
+        const itemCount = Math.max(0, Math.floor(Number(u.active_items_count) || 0));
+        if (itemCount > 0) return false;
+      }
 
       if (stationQ) {
         const st = String(u.police_station || "").toLowerCase();
@@ -745,7 +776,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     const sorted = [...list];
     sorted.sort((a, b) => compareAdminUsersRow(a, b, sortBy, sortDir));
     return sorted;
-  }, [users, q, roleFilter, statusFilter, stationFilter, sortBy, sortDir, isActiveUsersView]);
+  }, [users, q, roleFilter, statusFilter, stationFilter, itemsFilter, sortBy, sortDir, isActiveUsersView]);
 
   async function refresh() {
     const r = await refreshUsers();
@@ -1245,13 +1276,15 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 : "Users — Non-Active"
           }
           subtitle={
-            canAdminister
-              ? isActiveUsersView
-                ? "Active accounts only. Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
-                : "Suspended, disabled, and deleted accounts. Restore or remove users from this list."
-              : isActiveUsersView
-                ? "Search active users, add new accounts, and update basic profile details. Roles, status, and deletion are admin-only."
-                : "Search non-active users. Roles, status, and deletion are admin-only."
+            itemsFilter === "without" && isActiveUsersView
+              ? "Active users with no registered items."
+              : canAdminister
+                ? isActiveUsersView
+                  ? "Active accounts only. Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
+                  : "Suspended, disabled, and deleted accounts. Restore or remove users from this list."
+                : isActiveUsersView
+                  ? "Search active users, add new accounts, and update basic profile details. Roles, status, and deletion are admin-only."
+                  : "Search non-active users. Roles, status, and deletion are admin-only."
           }
           icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
           actions={
@@ -1267,6 +1300,19 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         {error ? (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
+          </div>
+        ) : null}
+
+        {itemsFilter === "without" && isActiveUsersView ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
+            <span>Showing {DISPLAY.stats.usersWithoutItems.toLowerCase()}.</span>
+            <button
+              type="button"
+              onClick={clearWithoutItemsFilter}
+              className="text-xs font-semibold text-iregistrygreen hover:underline"
+            >
+              Clear filter
+            </button>
           </div>
         ) : null}
 
