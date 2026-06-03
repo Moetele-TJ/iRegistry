@@ -16,6 +16,7 @@ import RippleButton from "../../components/RippleButton.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
 import PromoModeBanner from "../../components/PromoModeBanner.jsx";
 import { NAV } from "../../lib/navLabels.js";
+import { formatBwpCurrency } from "../../lib/formatBWP.js";
 
 export default function CashierHome() {
   const { user } = useAuth();
@@ -24,6 +25,8 @@ export default function CashierHome() {
 
   const adminOverview = data?.roleData?.adminOverview;
   const cashierOverview = data?.roleData?.cashierOverview;
+  const recentTopupRequests = cashierOverview?.recentTopupRequests ?? [];
+  const pendingTopupCount = cashierOverview?.pendingTopupRequests ?? 0;
   const roleActivity = data?.roleData?.roleActivity?.data ?? [];
   const activityPagination = data?.roleData?.roleActivity?.pagination;
   const totalPages = activityPagination?.totalPages ?? 1;
@@ -53,6 +56,10 @@ export default function CashierHome() {
       <PromoModeBanner />
       {loading && (
         <div className="space-y-4 animate-pulse">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="h-28 bg-gray-200 rounded-xl lg:col-span-4" />
+            <div className="h-48 bg-gray-200 rounded-2xl lg:col-span-8" />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-28 bg-gray-200 rounded-xl" />
@@ -89,25 +96,22 @@ export default function CashierHome() {
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
               Registry &amp; top-ups
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-              <StatCard
-                icon={<Package size={18} />}
-                label="Registered items"
-                value={adminOverview?.totalItems ?? "—"}
-                hint="All non-deleted registrations"
-                accent="bg-slate-600"
-              />
-              <StatCard
-                icon={<Wallet size={18} />}
-                label={NAV.topUpRequests}
-                value={
-                  cashierOverview?.pendingTopupRequests != null
-                    ? cashierOverview.pendingTopupRequests
-                    : "—"
-                }
-                hint="User-initiated top-ups awaiting cashier confirmation"
-                accent="bg-amber-600"
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-4">
+                <StatCard
+                  icon={<Package size={18} />}
+                  label="Registered items"
+                  value={adminOverview?.totalItems ?? "—"}
+                  hint="All non-deleted registrations"
+                  accent="bg-slate-600"
+                />
+              </div>
+              <div className="lg:col-span-8">
+                <RecentTopUpRequestsCard
+                  requests={recentTopupRequests}
+                  pendingCount={pendingTopupCount}
+                />
+              </div>
             </div>
           </section>
 
@@ -149,14 +153,6 @@ export default function CashierHome() {
           </section>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              to="/cashier/topup"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium hover:opacity-90 shadow-sm"
-            >
-              <Wallet size={18} />
-              {NAV.topUpRequests}
-              <ChevronRight size={16} />
-            </Link>
             <Link
               to="/cashier/notifications"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50"
@@ -243,9 +239,107 @@ export default function CashierHome() {
   );
 }
 
+function RecentTopUpRequestsCard({ requests, pendingCount }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 h-full flex flex-col">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800 border border-amber-100">
+            <Wallet size={18} />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900">{NAV.topUpRequests}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {pendingCount > 0
+                ? `${pendingCount} awaiting confirmation`
+                : "No pending requests"}
+            </p>
+          </div>
+        </div>
+        {pendingCount > 0 ? (
+          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 tabular-nums">
+            {pendingCount}
+          </span>
+        ) : null}
+      </div>
+
+      {requests.length === 0 ? (
+        <p className="text-sm text-gray-400 flex-1">
+          When users request credits from their account, they will appear here for you to confirm.
+        </p>
+      ) : (
+        <ul className="space-y-2 flex-1 min-h-0">
+          {requests.map((req, index) => (
+            <li
+              key={req.id}
+              className={index >= 3 ? "hidden lg:block" : undefined}
+            >
+              <Link
+                to={
+                  req.userId
+                    ? `/cashier/topup?user=${encodeURIComponent(req.userId)}`
+                    : "/cashier/topup"
+                }
+                className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5 hover:bg-amber-50/80 hover:border-amber-100 transition-colors group"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 truncate group-hover:text-iregistrygreen">
+                    {req.displayName || "Unknown user"}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                    {formatBwpCurrency(req.amount, { empty: "—" })}
+                    {req.creditsGranted != null && req.creditsGranted !== "" ? (
+                      <>
+                        {" "}
+                        · <span className="font-medium">{Number(req.creditsGranted)}</span> credits
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right flex items-center gap-2">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                    <TimeAgo date={req.createdAt} />
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className="text-gray-300 group-hover:text-iregistrygreen shrink-0"
+                    aria-hidden
+                  />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {pendingCount > 3 ? (
+        <p className="text-xs text-gray-400 mt-2 lg:hidden">
+          Showing 3 of {pendingCount} pending requests.
+        </p>
+      ) : null}
+      {pendingCount > 5 ? (
+        <p className="text-xs text-gray-400 mt-2 hidden lg:block">
+          Showing 5 most recent of {pendingCount} pending.
+        </p>
+      ) : null}
+
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <Link
+          to="/cashier/topup"
+          className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium hover:opacity-90 shadow-sm"
+        >
+          <Wallet size={18} />
+          Open top-up desk
+          <ChevronRight size={16} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ icon, label, value, hint, accent, danger }) {
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 relative overflow-hidden h-full">
       <div className={`absolute left-0 top-0 h-full w-1 ${accent}`} />
       <div className="flex items-start justify-between gap-2 pl-1">
         <div className="min-w-0">

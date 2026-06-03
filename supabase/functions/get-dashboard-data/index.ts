@@ -380,13 +380,47 @@ serve(async (req) => {
 
       const { data: pendingPaymentRows } = await supabase
         .from("payments")
-        .select("id, metadata")
-        .eq("status", "PENDING");
+        .select(
+          `
+            id,
+            user_id,
+            amount,
+            currency,
+            credits_granted,
+            created_at,
+            metadata,
+            users!payments_user_id_fkey(first_name, last_name, email)
+          `,
+        )
+        .eq("status", "PENDING")
+        .order("created_at", { ascending: false })
+        .limit(40);
 
-      const pendingTopupRequests = (pendingPaymentRows || []).filter((row) => {
+      const pendingUserTopups = (pendingPaymentRows || []).filter((row) => {
         const meta = (row as { metadata?: { kind?: string } }).metadata;
         return meta?.kind === "user_pending_topup";
-      }).length;
+      });
+
+      const recentTopupRequests = pendingUserTopups.slice(0, 5).map((row) => {
+        const r = row as {
+          id: string;
+          user_id: string;
+          amount?: unknown;
+          currency?: string | null;
+          credits_granted?: unknown;
+          created_at?: string;
+          users?: { first_name?: string; last_name?: string; email?: string } | null;
+        };
+        return {
+          id: String(r.id),
+          userId: r.user_id ? String(r.user_id) : "",
+          amount: r.amount,
+          currency: r.currency || "BWP",
+          creditsGranted: r.credits_granted,
+          createdAt: r.created_at,
+          displayName: displayName(r.users),
+        };
+      });
 
       roleData.cashierOverview = {
         activeUsers: activeUsers ?? 0,
@@ -395,7 +429,8 @@ serve(async (req) => {
         averageEstimatedValue:
           itemsWithEstimate > 0 ? totalEstimatedValue / itemsWithEstimate : 0,
         highSeverityAudits: highSeverityAudits ?? 0,
-        pendingTopupRequests,
+        pendingTopupRequests: pendingUserTopups.length,
+        recentTopupRequests,
       };
     }
 
