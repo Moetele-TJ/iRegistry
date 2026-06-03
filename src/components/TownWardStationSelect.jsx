@@ -33,12 +33,12 @@ export default function TownWardStationSelect({
   stationLabel = "Nearest police station",
 }) {
   const normalizedTown = useMemo(() => normOption(town), [town]);
-  const [debouncedTown, setDebouncedTown] = useState(normalizedTown);
+  /** Town used for ward/station API loads — updated on blur (or list pick), not each keystroke. */
+  const [committedTown, setCommittedTown] = useState(normalizedTown);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedTown(normalizedTown), 280);
-    return () => window.clearTimeout(t);
-  }, [normalizedTown]);
+    setCommittedTown(normalizedTown);
+  }, [user?.village, user?.id]);
 
   const fetchTaxonomy = useCallback(
     async (village) => {
@@ -56,71 +56,61 @@ export default function TownWardStationSelect({
     [withAuth],
   );
 
-  const fallbackVillages = useCallback(() => {
-    const fromItems = (items || []).map((it) => it?.village);
-    const fromUser = user?.village;
-    return uniqSorted([...(fromItems || []), fromUser, town]);
-  }, [items, user?.village, town]);
-
-  const fallbackWards = useCallback(() => {
-    const townKey = debouncedTown.toLowerCase();
-    if (!townKey) return uniqSorted([ward]);
-    const filtered = (items || []).filter((it) => {
-      const v = normOption(it?.village);
-      return v && v.toLowerCase() === townKey;
-    });
-    const fromWards = filtered.map((it) => it?.ward);
-    const fromUserWard =
-      normOption(user?.village).toLowerCase() === townKey ? user?.ward : null;
-    return uniqSorted([...(fromWards || []), fromUserWard, ward]);
-  }, [debouncedTown, items, user?.village, user?.ward, ward]);
-
-  const fallbackStations = useCallback(() => {
-    const townKey = debouncedTown.toLowerCase();
-    if (!townKey) return uniqSorted([station]);
-    const filtered = (items || []).filter((it) => {
-      const v = normOption(it?.village);
-      return v && v.toLowerCase() === townKey;
-    });
-    const fromStations = filtered.map((it) => it?.station || it?.location);
-    const fromUserStation =
-      normOption(user?.village).toLowerCase() === townKey ? user?.police_station : null;
-    return uniqSorted([...(fromStations || []), fromUserStation, station]);
-  }, [debouncedTown, items, user?.village, user?.police_station, station]);
-
   const loadVillages = useCallback(async () => {
     try {
       const data = await fetchTaxonomy("");
       return Array.isArray(data.villages) ? data.villages : [];
     } catch {
-      return fallbackVillages();
+      const fromItems = (items || []).map((it) => it?.village);
+      const fromUser = user?.village;
+      return uniqSorted([...(fromItems || []), fromUser]);
     }
-  }, [fetchTaxonomy, fallbackVillages]);
+  }, [fetchTaxonomy, items, user?.village]);
 
   const loadWards = useCallback(async () => {
-    if (!debouncedTown) return [];
+    if (!committedTown) return [];
     try {
-      const data = await fetchTaxonomy(debouncedTown);
+      const data = await fetchTaxonomy(committedTown);
       return Array.isArray(data.wards) ? data.wards : [];
     } catch {
-      return fallbackWards();
+      const townKey = committedTown.toLowerCase();
+      const filtered = (items || []).filter((it) => {
+        const v = normOption(it?.village);
+        return v && v.toLowerCase() === townKey;
+      });
+      const fromWards = filtered.map((it) => it?.ward);
+      const fromUserWard =
+        normOption(user?.village).toLowerCase() === townKey ? user?.ward : null;
+      return uniqSorted([...(fromWards || []), fromUserWard]);
     }
-  }, [debouncedTown, fetchTaxonomy, fallbackWards]);
+  }, [committedTown, fetchTaxonomy, items, user?.village, user?.ward]);
 
   const loadStations = useCallback(async () => {
-    if (!debouncedTown) return [];
+    if (!committedTown) return [];
     try {
-      const data = await fetchTaxonomy(debouncedTown);
+      const data = await fetchTaxonomy(committedTown);
       return Array.isArray(data.stations) ? data.stations : [];
     } catch {
-      return fallbackStations();
+      const townKey = committedTown.toLowerCase();
+      const filtered = (items || []).filter((it) => {
+        const v = normOption(it?.village);
+        return v && v.toLowerCase() === townKey;
+      });
+      const fromStations = filtered.map((it) => it?.station || it?.location);
+      const fromUserStation =
+        normOption(user?.village).toLowerCase() === townKey ? user?.police_station : null;
+      return uniqSorted([...(fromStations || []), fromUserStation]);
     }
-  }, [debouncedTown, fetchTaxonomy, fallbackStations]);
+  }, [committedTown, fetchTaxonomy, items, user?.village, user?.police_station]);
 
   const townClass = townInputClassName || inputClassName;
   const wardClass = wardInputClassName || inputClassName;
   const stationClass = stationInputClassName || inputClassName;
-  const wardDisabled = disabled || !normalizedTown;
+  const wardDisabled = disabled || !committedTown;
+
+  function handleTownCommit(next) {
+    setCommittedTown(normOption(next));
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -129,6 +119,7 @@ export default function TownWardStationSelect({
           label={townLabel}
           value={town}
           onChange={onTownChange}
+          onCommit={handleTownCommit}
           required={requiredTown}
           disabled={disabled}
           variant="searchable"
@@ -155,9 +146,9 @@ export default function TownWardStationSelect({
           variant="searchable"
           inputClassName={wardClass}
           loadOptions={loadWards}
-          reloadKey={`wards-${debouncedTown}-${withAuth}`}
+          reloadKey={`wards-${committedTown}-${withAuth}`}
           placeholder={
-            normalizedTown ? "Select or type your ward / street" : "Pick a town / village first"
+            committedTown ? "Select or type your ward / street" : "Pick a town / village first"
           }
           loadingPlaceholder="Loading wards…"
           retryLabel="Load wards list"
@@ -165,7 +156,7 @@ export default function TownWardStationSelect({
           emptyNoMatchMessage="No matching wards."
           typedValueLabel={(q) => `Use "${q}" as ward / street`}
           helpText={
-            normalizedTown
+            committedTown
               ? "Pick from the list, search to narrow it, or type a name if yours is not listed."
               : undefined
           }
@@ -183,9 +174,9 @@ export default function TownWardStationSelect({
             variant="searchable"
             inputClassName={stationClass}
             loadOptions={loadStations}
-            reloadKey={`stations-${debouncedTown}-${withAuth}`}
+            reloadKey={`stations-${committedTown}-${withAuth}`}
             placeholder={
-              normalizedTown ? "Select or type a station…" : "Pick a town / village first"
+              committedTown ? "Select or type a station…" : "Pick a town / village first"
             }
             loadingPlaceholder="Loading stations…"
             retryLabel="Load stations list"

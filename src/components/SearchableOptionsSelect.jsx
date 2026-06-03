@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import RippleButton from "./RippleButton.jsx";
 
@@ -21,6 +21,7 @@ function SearchableListPicker({
   emptyNoMatchMessage,
   typedValueLabel,
   loadingPlaceholder,
+  onCommit,
 }) {
   const wrapRef = useRef(null);
   const listRef = useRef(null);
@@ -76,8 +77,13 @@ function SearchableListPicker({
     }
   }, [highlight, open, filtered.length]);
 
+  function commitValue(next) {
+    onCommit?.(normOption(next));
+  }
+
   function pick(option) {
     onChange?.(option);
+    commitValue(option);
     setOpen(false);
     setQuery("");
   }
@@ -86,6 +92,7 @@ function SearchableListPicker({
     const t = query.trim();
     if (!t) return;
     onChange?.(t);
+    commitValue(t);
     setOpen(false);
     setQuery("");
   }
@@ -141,6 +148,8 @@ function SearchableListPicker({
           onBlur={(e) => {
             window.setTimeout(() => {
               if (!e.currentTarget) return;
+              const committed = allowOther ? query.trim() || valueNorm : valueNorm;
+              commitValue(committed);
               setOpen(false);
               setHighlight(0);
               setQuery("");
@@ -239,6 +248,7 @@ export default function SearchableOptionsSelect({
   listboxAriaLabel = "Options",
   emptyNoMatchMessage = "No matching options.",
   typedValueLabel = (q) => `Use "${q}"`,
+  onCommit,
 }) {
   const listboxId = useId();
   const [options, setOptions] = useState([]);
@@ -254,7 +264,8 @@ export default function SearchableOptionsSelect({
   const selectValue = !valueNorm ? "" : known ? valueNorm : "__OTHER__";
   const useSearchable = variant === "searchable" || variant === "combobox";
 
-  const load = useCallback(async () => {
+  const loadRef = useRef(null);
+  loadRef.current = async () => {
     setLoading(true);
     setErr("");
     try {
@@ -266,11 +277,13 @@ export default function SearchableOptionsSelect({
     } finally {
       setLoading(false);
     }
-  }, [loadOptions]);
+  };
 
   useEffect(() => {
-    void load();
-  }, [load, reloadKey]);
+    void loadRef.current?.();
+    // Only reload when reloadKey changes — not when loadOptions identity changes while typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   const triggerClassName = inputClassName.replace(/\bw-full\b/g, "").trim();
 
@@ -297,6 +310,7 @@ export default function SearchableOptionsSelect({
           emptyNoMatchMessage={emptyNoMatchMessage}
           typedValueLabel={typedValueLabel}
           loadingPlaceholder={loadingPlaceholder}
+          onCommit={onCommit}
         />
       ) : options.length > 0 ? (
         <>
@@ -345,7 +359,7 @@ export default function SearchableOptionsSelect({
             <RippleButton
               type="button"
               className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-60"
-              onClick={() => void load()}
+              onClick={() => void loadRef.current?.()}
               disabled={disabled || loading}
             >
               {loading ? loadingPlaceholder : retryLabel}
