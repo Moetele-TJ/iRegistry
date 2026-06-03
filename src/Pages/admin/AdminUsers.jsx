@@ -925,7 +925,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const suspendVerb = suspendStatus === "disabled" ? "Disable" : "Suspend";
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-[60vh]">
       <ConfirmModal
         isOpen={roleModal.isOpen}
         onClose={closeRoleModal}
@@ -1005,10 +1005,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         </div>
       </ConfirmModal>
 
-      <div className="w-full px-0 py-2 sm:py-3">
-        <PageSectionCard
-          maxWidthClass="max-w-full"
-          headerPaddingClass="px-3 sm:px-4 py-4 sm:py-5"
+      <PageSectionCard
+          maxWidthClass="max-w-7xl"
           title={
             canAdminister
               ? isActiveUsersView
@@ -1039,7 +1037,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             </RippleButton>
           }
         >
-        <div className="px-2 py-4 sm:px-3 sm:py-5 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5">
         {error ? (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
@@ -1060,7 +1058,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         ) : null}
 
         {/* Toolbar: Add + filters */}
-        <div className="bg-white rounded-lg px-2 py-3 sm:px-3 sm:py-4 shadow-sm mb-5">
+        <div className="bg-white rounded-2xl border border-gray-100 px-4 py-4 sm:px-5 sm:py-5 shadow-sm mb-5">
           <div className="flex flex-col lg:flex-row gap-3 lg:items-end lg:justify-between">
             <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end flex-1 min-w-0">
               <div className="flex-1 min-w-[220px]">
@@ -1179,8 +1177,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg px-2 py-3 sm:px-3 sm:py-4 shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Users</h2>
+        <div className="bg-white rounded-2xl border border-gray-100 px-4 py-4 sm:px-5 sm:py-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Users</h2>
 
           {(usersDirectoryLoading || loading) && users.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">Loading…</div>
@@ -1323,7 +1321,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         </div>
         </div>
         </PageSectionCard>
-      </div>
     </div>
   );
 }

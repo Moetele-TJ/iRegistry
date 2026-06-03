@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil, UserPlus } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
 import YearMonthDaySelect from "../../components/YearMonthDaySelect.jsx";
@@ -291,56 +291,87 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
 
   const title = isAdd ? NAV_ACTIONS.addUser : NAV_ACTIONS.editUser;
   const editingId = targetUser?.id;
+  const subtitle = isAdd
+    ? "Create a new registry account with required identity and location details."
+    : targetUser
+      ? displayUser(targetUser)
+      : "Update account details, role, and status.";
+  const backHref = returnTo || usersListPath;
+
+  const backAction = (
+    <Link
+      to={backHref}
+      className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-semibold shadow-sm hover:bg-gray-50"
+    >
+      <ArrowLeft size={16} />
+      Back to users
+    </Link>
+  );
 
   if (!isAdd && profileLoading) {
     return (
-      <div className="p-4 text-gray-500">Loading user…</div>
+      <div className="min-h-[60vh]">
+        <PageSectionCard
+          maxWidthClass="max-w-7xl"
+          title={title}
+          subtitle="Loading user…"
+          icon={<Pencil className="w-6 h-6 text-iregistrygreen shrink-0" />}
+          actions={backAction}
+        >
+          <div className="p-4 sm:p-6 text-gray-500">Loading user…</div>
+        </PageSectionCard>
+      </div>
     );
   }
 
   if (!isAdd && profileError) {
     return (
-      <div className="p-4 space-y-3">
-        <p className="text-red-700 text-sm">{profileError}</p>
-        <RippleButton
-          type="button"
-          className="px-4 py-2 rounded border bg-white text-sm"
-          onClick={() => goBack()}
+      <div className="min-h-[60vh]">
+        <PageSectionCard
+          maxWidthClass="max-w-7xl"
+          title={title}
+          subtitle={profileError}
+          icon={<Pencil className="w-6 h-6 text-iregistrygreen shrink-0" />}
+          actions={backAction}
         >
-          Back to users
-        </RippleButton>
+          <div className="p-4 sm:p-6 space-y-4">
+            <p className="text-red-700 text-sm">{profileError}</p>
+            <RippleButton
+              type="button"
+              className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold"
+              onClick={() => goBack()}
+            >
+              Back to users
+            </RippleButton>
+          </div>
+        </PageSectionCard>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <PageSectionCard>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-            {!isAdd && targetUser ? (
-              <p className="text-sm text-gray-500 mt-1">{displayUser(targetUser)}</p>
-            ) : (
-              <p className="text-sm text-gray-500 mt-1">New registry account</p>
-            )}
-          </div>
-          <Link
-            to={returnTo || usersListPath}
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft size={16} />
-            Back to users
-          </Link>
-        </div>
-
+    <div className="min-h-[60vh]">
+      <PageSectionCard
+        maxWidthClass="max-w-7xl"
+        title={title}
+        subtitle={subtitle}
+        icon={
+          isAdd ? (
+            <UserPlus className="w-6 h-6 text-iregistrygreen shrink-0" />
+          ) : (
+            <Pencil className="w-6 h-6 text-iregistrygreen shrink-0" />
+          )
+        }
+        actions={backAction}
+      >
+        <div className="p-4 sm:p-6 space-y-4">
         {error ? (
-          <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
             {error}
           </div>
         ) : null}
 
-        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
           <div>
             <label className="text-xs text-gray-600">First name</label>
             <input
@@ -535,6 +566,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             </RippleButton>
           </div>
         </form>
+        </div>
       </PageSectionCard>
     </div>
   );
