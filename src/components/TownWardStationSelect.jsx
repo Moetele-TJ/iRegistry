@@ -197,12 +197,14 @@ export default function TownWardStationSelect({
   const wardsAbortRef = useRef(null);
   const stationsAbortRef = useRef(null);
 
-  async function fetchLocationTaxonomy({ village, signal }) {
+  async function fetchLocationTaxonomy({ village }) {
     const { data, error } = await invokeWithAuth("list-location-taxonomy", {
       body: { village: village || "", limit: 5000 },
-      signal,
     });
     if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to load location options");
+    }
     return {
       villages: Array.isArray(data?.villages) ? data.villages : [],
       wards: Array.isArray(data?.wards) ? data.wards : [],
@@ -219,7 +221,7 @@ export default function TownWardStationSelect({
     let alive = true;
     setLoadingVillages(true);
 
-    fetchLocationTaxonomy({ village: "", signal: ac.signal })
+    fetchLocationTaxonomy({ village: "" })
       .then((t) => {
         if (!alive) return;
         setVillages(t.villages);
@@ -229,7 +231,7 @@ export default function TownWardStationSelect({
         const fromItems = (items || []).map((it) => it?.village);
         const fromUser = user?.village;
         if (!alive) return;
-        setVillages(uniqSorted([...(fromItems || []), fromUser, town]));
+        setVillages(uniqSorted([...(fromItems || []), fromUser]));
       })
       .finally(() => {
         if (!alive) return;
@@ -240,7 +242,8 @@ export default function TownWardStationSelect({
       alive = false;
       ac.abort();
     };
-  }, [items, user?.village, town]);
+    // Do not depend on `town` — it changes on every keystroke and would refetch constantly.
+  }, [items, user?.village]);
 
   // 2) Wards + stations (filtered by village)
   useEffect(() => {
@@ -263,7 +266,7 @@ export default function TownWardStationSelect({
     setLoadingStations(true);
 
     // Use one request for both wards + stations.
-    fetchLocationTaxonomy({ village: normalizedTown, signal: wardsAc.signal })
+    fetchLocationTaxonomy({ village: normalizedTown })
       .then((t) => {
         if (!alive) return;
         setWards(t.wards);

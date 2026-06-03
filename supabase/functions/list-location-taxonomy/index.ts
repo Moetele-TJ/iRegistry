@@ -56,34 +56,30 @@ Deno.serve(async (req) => {
     ]);
 
     // Wards (optionally filtered by village)
-    let itemsWardQ = supabase.from("items").select("ward, village").not("ward", "is", null).limit(limit);
-    let usersWardQ = supabase.from("users").select("ward, village").not("ward", "is", null).limit(limit);
-    if (village) {
-      itemsWardQ = itemsWardQ.eq("village", village);
-      usersWardQ = usersWardQ.eq("village", village);
-    }
+    const itemsWardQ = supabase.from("items").select("ward, village").not("ward", "is", null).limit(limit);
+    const usersWardQ = supabase.from("users").select("ward, village").not("ward", "is", null).limit(limit);
+    const villageKey = village.toLowerCase();
 
     const [itemsWardRes, usersWardRes] = await Promise.all([itemsWardQ, usersWardQ]);
     if (itemsWardRes.error || usersWardRes.error) {
       return respond({ success: false, message: "Failed to load wards" }, corsHeaders, 500);
     }
 
+    const wardMatchesVillage = (rowVillage: unknown) =>
+      !village || norm(rowVillage).toLowerCase() === villageKey;
+
     const wards = uniqSorted([
       ...(itemsWardRes.data || [])
-        .filter((r: any) => (village ? norm(r?.village) === village : true))
+        .filter((r: any) => wardMatchesVillage(r?.village))
         .map((r: any) => r?.ward),
       ...(usersWardRes.data || [])
-        .filter((r: any) => (village ? norm(r?.village) === village : true))
+        .filter((r: any) => wardMatchesVillage(r?.village))
         .map((r: any) => r?.ward),
     ]);
 
     // Stations (optionally filtered by village). Pull from items.station + users.police_station.
-    let itemsStQ = supabase.from("items").select("station, village").not("station", "is", null).limit(limit);
-    let usersStQ = supabase.from("users").select("police_station, village").not("police_station", "is", null).limit(limit);
-    if (village) {
-      itemsStQ = itemsStQ.eq("village", village);
-      usersStQ = usersStQ.eq("village", village);
-    }
+    const itemsStQ = supabase.from("items").select("station, village").not("station", "is", null).limit(limit);
+    const usersStQ = supabase.from("users").select("police_station, village").not("police_station", "is", null).limit(limit);
 
     const [itemsStRes, usersStRes] = await Promise.all([itemsStQ, usersStQ]);
     if (itemsStRes.error || usersStRes.error) {
@@ -92,10 +88,10 @@ Deno.serve(async (req) => {
 
     const stations = uniqSorted([
       ...(itemsStRes.data || [])
-        .filter((r: any) => (village ? norm(r?.village) === village : true))
+        .filter((r: any) => wardMatchesVillage(r?.village))
         .map((r: any) => r?.station),
       ...(usersStRes.data || [])
-        .filter((r: any) => (village ? norm(r?.village) === village : true))
+        .filter((r: any) => wardMatchesVillage(r?.village))
         .map((r: any) => r?.police_station),
     ]);
 

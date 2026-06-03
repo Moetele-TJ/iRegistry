@@ -571,6 +571,12 @@ verify_jwt = false
 import_map = "./functions/list-police-stations/deno.json"
 entrypoint = "./functions/list-police-stations/index.ts"
 
+[functions.list-location-taxonomy]
+enabled = true
+verify_jwt = false
+import_map = "./functions/list-location-taxonomy/deno.json"
+entrypoint = "./functions/list-location-taxonomy/index.ts"
+
 [functions.list-item-taxonomy]
 enabled = true
 verify_jwt = false
