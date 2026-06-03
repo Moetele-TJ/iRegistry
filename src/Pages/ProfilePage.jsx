@@ -1179,8 +1179,8 @@ export default function ProfilePage() {
     if (viewingOther) {
       return (
         <p className="text-xs text-gray-500 leading-relaxed px-1 lg:px-2">
-          Staff read-only profile view. Identity verification and national ID changes use the same controls as on the Users
-          page (Edit).
+          Staff read-only profile view. Use <strong>Edit user</strong> in the sidebar (or actions above on mobile) to change
+          account details, role, and status.
         </p>
       );
     }

@@ -7,6 +7,7 @@ import { deriveUserStatus, isInactiveLockout } from "../lib/userState.js";
 import { displayUser } from "../lib/userDisplay.js";
 import { isAppAdminRole } from "../lib/roleUtils.js";
 import { writeItemsListScope } from "../lib/itemsListScopeStorage.js";
+import { staffUserEditPath } from "../lib/staffUserForm.js";
 import { useAddItemPreflight } from "./useAddItemPreflight.js";
 
 export const STAFF_SUSPEND_REASONS = [
@@ -134,8 +135,11 @@ export function useStaffProfileUserActions({
       });
       return;
     }
-    navigate(`${usersPath}?user=${encodeURIComponent(targetId)}&mode=edit`);
-  }, [targetId, targetUser, usersPath, navigate, addToast]);
+    const roleKey = isAppAdminRole(sessionUser?.role) ? "admin" : "cashier";
+    navigate(staffUserEditPath(roleKey, targetId), {
+      state: { returnTo: profilePath },
+    });
+  }, [targetId, targetUser, profilePath, navigate, addToast, sessionUser?.role]);
 
   const goToAddItemForTarget = useCallback(() => {
     if (!accountActive) {

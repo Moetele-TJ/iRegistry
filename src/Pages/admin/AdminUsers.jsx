@@ -1,11 +1,9 @@
 // src/Pages/admin/AdminUsers.jsx
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Users } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
-import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
-import YearMonthDaySelect from "../../components/YearMonthDaySelect.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
@@ -20,7 +18,6 @@ import {
   DISPLAY,
   NAV_ACTIONS,
   USER_ACCOUNT_NON_ACTIVE_FILTER_OPTIONS,
-  USER_ACCOUNT_STATUS_FORM_OPTIONS,
   addItemAriaLabel,
   addItemButtonLabel,
 } from "../../lib/navLabels.js";
@@ -33,6 +30,11 @@ import {
   staffUsersListViewFromPath,
 } from "../../lib/staffUsersListView.js";
 import { useStaffUserScope } from "../../contexts/StaffUserScopeContext.jsx";
+import {
+  MSG_NOTHING_TO_SUBMIT,
+  staffUserAddPath,
+  staffUserEditPath,
+} from "../../lib/staffUserForm.js";
 
 function displayName(u) {
   return displayUser(u) || "—";
@@ -88,9 +90,6 @@ const SUSPEND_REASONS = [
   "Duplicate account",
   "Other",
 ];
-
-const MSG_NOTHING_TO_SUBMIT =
-  "Nothing to submit — you have not changed any information.";
 
 const ROW_HIGHLIGHT_MS = 4500;
 const USERS_PER_PAGE = 10;
@@ -170,62 +169,6 @@ const USER_SORT_DIR_OPTIONS = [
   { value: "asc", label: "Ascending" },
   { value: "desc", label: "Descending" },
 ];
-
-function normEmail(v) {
-  const s = String(v ?? "").trim();
-  return s === "" ? null : s;
-}
-
-function normIdNumber(v) {
-  return String(v ?? "").replace(/\s+/g, "").trim();
-}
-
-function dobInputStr(v) {
-  const s = String(v ?? "").trim();
-  if (!s) return "";
-  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
-}
-
-function dobFromRow(row) {
-  const v = row?.date_of_birth;
-  if (typeof v === "string" && v.length >= 10) return v.slice(0, 10);
-  return "";
-}
-
-function toDateInputValue(v) {
-  if (v == null || v === "") return "";
-  const s = String(v).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
-}
-
-/** True when the edit form differs from the server row (user management). */
-function adminEditHasChanges(row, form, canAdminister) {
-  if (!row) return true;
-  if (normStr(form.first_name) !== normStr(row.first_name)) return true;
-  if (normStr(form.last_name) !== normStr(row.last_name)) return true;
-  if (normEmail(form.email) !== normEmail(row.email ?? "")) return true;
-  if (normStr(form.phone) !== normStr(row.phone)) return true;
-  if (normStr(form.police_station) !== normStr(row.police_station)) return true;
-  if (normStr(form.village) !== normStr(row.village)) return true;
-  if (normStr(form.ward) !== normStr(row.ward)) return true;
-  if (normIdNumber(form.id_number) !== normIdNumber(row.id_number)) return true;
-  if (dobInputStr(form.date_of_birth) !== dobFromRow(row)) return true;
-  if (!canAdminister) return false;
-
-  const prev = deriveUserStatus(row);
-  if (String(form.role || "user").toLowerCase() !== String(row.role || "user").toLowerCase()) {
-    return true;
-  }
-  if (String(form.status || "active") !== prev) return true;
-
-  const reason = normStr(form.status_reason);
-  if (prev === "suspended" && reason !== normStr(row.suspended_reason)) return true;
-  if (prev === "disabled" && reason !== normStr(row.disabled_reason)) return true;
-
-  return false;
-}
 
 /**
  * Role dropdown width matches the combined width of the action buttons (measured).
@@ -462,7 +405,9 @@ export default function AdminUsers({ variant = "admin" } = {}) {
 
   const canAdminister = String(variant || "admin").toLowerCase() === "admin";
   const canCreateUser = canAdminister || String(variant || "").toLowerCase() === "cashier";
+  const staffRole = canAdminister ? "admin" : "cashier";
   const profileListBase = canAdminister ? "/admin/profile" : "/cashier/profile";
+  const usersReturnPath = `${location.pathname}${location.search}`;
   const usersListView = useMemo(
     () => staffUsersListViewFromPath(location.pathname),
     [location.pathname],
@@ -478,26 +423,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     error: usersDirectoryError,
     refresh: refreshUsers,
   } = useListUsers();
-  const [editing, setEditing] = useState(null); // user being edited or null
-  const [form, setForm] = useState({
-    first_name: "",
-    last_name: "",
-    id_number: "",
-    date_of_birth: "",
-    email: "",
-    phone: "",
-    role: "user",
-    status: "active",
-    status_reason: "",
-    police_station: "",
-    village: "",
-    ward: "",
-  });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const [mode, setMode] = useState("idle"); // idle | add | edit
 
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -517,16 +444,28 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [roleModal, setRoleModal] = useState({ isOpen: false, user: null });
   const [roleNext, setRoleNext] = useState("");
 
-  const editFormSectionRef = useRef(null);
-  const editDeepLinkHandledRef = useRef(false);
   const listScopeReadyRef = useRef(false);
   const filtersReadyForPageResetRef = useRef(false);
   const prevUsersFiltersKeyRef = useRef(null);
   const [highlightUserId, setHighlightUserId] = useState(null);
 
-  const isEditing = mode === "edit" && !!editing;
-  const isAdding = mode === "add";
   const currentUserId = currentUser?.id != null ? String(currentUser.id) : "";
+
+  function goToAddUser() {
+    if (!canCreateUser) return;
+    navigate(staffUserAddPath(staffRole), { state: { returnTo: usersReturnPath } });
+  }
+
+  function goToEditUser(u) {
+    if (!u?.id || isInactiveLockout(u)) {
+      addToast({
+        type: "error",
+        message: "Suspended or disabled accounts cannot be edited. Reactivate the account first.",
+      });
+      return;
+    }
+    navigate(staffUserEditPath(staffRole, u.id), { state: { returnTo: usersReturnPath } });
+  }
 
   useEffect(() => {
     if (!usersDirectoryError) return;
@@ -690,19 +629,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     }
   }
 
-  useLayoutEffect(() => {
-    if (mode === "idle") return;
-    const el = editFormSectionRef.current;
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (typeof el.focus === "function") {
-      try {
-        el.focus({ preventScroll: true });
-      } catch {
-        /* ignore */
-      }
-    }
-  }, [mode, editing]);
+  useEffect(() => {
+    const h = searchParams.get("highlight");
+    if (!h) return;
+    setHighlightUserId(h);
+    const next = new URLSearchParams(searchParams);
+    next.delete("highlight");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!highlightUserId) return;
@@ -712,84 +646,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return () => clearTimeout(t);
   }, [highlightUserId]);
-
-  useEffect(() => {
-    const uid = searchParams.get("user");
-    const modeParam = searchParams.get("mode");
-    if (!uid || modeParam !== "edit" || editDeepLinkHandledRef.current) return;
-    if (usersDirectoryLoading) return;
-
-    const u = (users || []).find((row) => String(row.id) === String(uid));
-    if (!u) {
-      if ((users || []).length > 0) {
-        editDeepLinkHandledRef.current = true;
-        addToast({ type: "error", message: "User not found in the directory." });
-        setSearchParams({}, { replace: true });
-      }
-      return;
-    }
-
-    editDeepLinkHandledRef.current = true;
-    setSearchParams({}, { replace: true });
-    if (isInactiveLockout(u)) {
-      addToast({
-        type: "error",
-        message: "Suspended or disabled accounts cannot be edited. Reactivate the account first.",
-      });
-      return;
-    }
-    startEdit(u);
-    setHighlightUserId(String(uid));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when list loads for ?user=&mode=edit
-  }, [users, usersDirectoryLoading, searchParams]);
-
-  function startEdit(u) {
-    if (isInactiveLockout(u)) {
-      addToast({
-        type: "error",
-        message: "Suspended or disabled accounts cannot be edited. Reactivate the account first.",
-      });
-      return;
-    }
-    setHighlightUserId(null);
-    setMode("edit");
-    setEditing(u.id);
-    setForm({
-      first_name: u.first_name || "",
-      last_name: u.last_name || "",
-      id_number: u.id_number || "",
-      date_of_birth: toDateInputValue(u.date_of_birth),
-      email: u.email || "",
-      phone: u.phone || "",
-      role: u.role || "user",
-      status: deriveUserStatus(u) || "active",
-      status_reason: u.suspended_reason || u.disabled_reason || "",
-      police_station: u.police_station || "",
-      village: u.village || "",
-      ward: u.ward || "",
-    });
-  }
-
-  function startAdd() {
-    if (!canCreateUser) return;
-    setHighlightUserId(null);
-    setMode("add");
-    setEditing(null);
-    setForm({
-      first_name: "",
-      last_name: "",
-      id_number: "",
-      date_of_birth: "",
-      email: "",
-      phone: "",
-      role: "user",
-      status: "active",
-      status_reason: "",
-      police_station: "",
-      village: "",
-      ward: "",
-    });
-  }
 
   function handleAddItemForUser(u) {
     const st = deriveUserStatus(u);
@@ -803,25 +659,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     void goToAddItem({
       ownerId: String(u.id),
       ownerLabel: displayName(u),
-    });
-  }
-
-  function closeForm() {
-    setEditing(null);
-    setMode("idle");
-    setForm({
-      first_name: "",
-      last_name: "",
-      id_number: "",
-      date_of_birth: "",
-      email: "",
-      phone: "",
-      role: "user",
-      status: "active",
-      status_reason: "",
-      police_station: "",
-      village: "",
-      ward: "",
     });
   }
 
@@ -891,208 +728,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   async function refresh() {
     const r = await refreshUsers();
     if (!r.ok) throw new Error(r.message || "Failed to refresh");
-  }
-
-  async function handleSave(e) {
-    e.preventDefault();
-    setError("");
-
-    const row = isEditing && editing ? users.find((u) => String(u.id) === String(editing)) : null;
-    if (isEditing && editing && !row) {
-      const msg = "This user is not in the current list. Refresh the page and try again.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-    if (row && isInactiveLockout(row)) {
-      const msg = "Suspended or disabled accounts cannot be edited. Reactivate the account first.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-
-    if (isAdding || isEditing) {
-      if (!normStr(form.last_name)) {
-        const msg = "Last name is required.";
-        setError(msg);
-        addToast({ type: "error", message: msg });
-        return;
-      }
-      if (!normStr(form.phone)) {
-        const msg = "Phone number is required.";
-        setError(msg);
-        addToast({ type: "error", message: msg });
-        return;
-      }
-      if (isAdding || isEditing) {
-        const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
-        if (!idn) {
-          const msg = "National ID / Passport is required.";
-          setError(msg);
-          addToast({ type: "error", message: msg });
-          return;
-        }
-        if (!normStr(form.village)) {
-          const msg = "Town / village is required.";
-          setError(msg);
-          addToast({ type: "error", message: msg });
-          return;
-        }
-        if (!normStr(form.ward)) {
-          const msg = "Ward / street is required.";
-          setError(msg);
-          addToast({ type: "error", message: msg });
-          return;
-        }
-        if (!normStr(form.police_station)) {
-          const msg = "Nearest police station is required.";
-          setError(msg);
-          addToast({ type: "error", message: msg });
-          return;
-        }
-      }
-    }
-
-    if (isEditing && row && !adminEditHasChanges(row, form, canAdminister)) {
-      addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
-      return;
-    }
-
-    const prevDerived = row ? deriveUserStatus(row) : undefined;
-    const statusIsChanging =
-      isAdding ||
-      (isEditing && typeof prevDerived === "string" && form.status !== prevDerived);
-    const statusNeedsReason = form.status !== "active";
-
-    if (canAdminister) {
-      if (
-        (isAdding || isEditing) &&
-        statusIsChanging &&
-        statusNeedsReason &&
-        !String(form.status_reason || "").trim()
-      ) {
-        const msg = "A reason is required when setting status to suspended/disabled.";
-        setError(msg);
-        addToast({ type: "error", message: msg });
-        return;
-      }
-    }
-
-    setLoading(true);
-    try {
-      let rowIdToHighlight = null;
-
-      if (isAdding) {
-        if (!canCreateUser) return;
-        const ok = await confirm({
-          title: "Confirm",
-          message: "Create this user? This will add a new user record.",
-          confirmLabel: "Create",
-          cancelLabel: "Cancel",
-        }).catch(() => false);
-        if (!ok) return;
-
-        const reasonTrim = String(form.status_reason || "").trim();
-        const { data, error } = await invokeWithAuth("admin-create-user", {
-          body: {
-            first_name: form.first_name,
-            last_name: form.last_name,
-            id_number: form.id_number,
-            email: form.email,
-            phone: form.phone,
-            village: form.village,
-            ward: form.ward,
-            police_station: form.police_station,
-            role: canAdminister ? form.role : "user",
-            status: canAdminister ? form.status : "active",
-            ...(dobInputStr(form.date_of_birth)
-              ? { date_of_birth: dobInputStr(form.date_of_birth) }
-              : {}),
-            ...(form.status === "suspended" && reasonTrim
-              ? { suspended_reason: reasonTrim }
-              : {}),
-            ...(form.status === "disabled" && reasonTrim
-              ? { disabled_reason: reasonTrim }
-              : {}),
-          },
-        });
-
-        if (error || !data?.success) {
-          throw new Error(data?.message || error?.message || "Failed to create user");
-        }
-        if (data?.user?.id != null) {
-          rowIdToHighlight = String(data.user.id);
-        }
-        addToast({ type: "success", message: "User was created successfully." });
-      } else if (isEditing) {
-        const ok = await confirm({
-          title: "Confirm",
-          message: "Save changes to this user? This will update the user record immediately.",
-          confirmLabel: "Save changes",
-          cancelLabel: "Cancel",
-        }).catch(() => false);
-        if (!ok) return;
-
-        const reasonTrim = String(form.status_reason || "").trim();
-        const idn = normIdNumber(form.id_number);
-        const rowIdNorm = normIdNumber(row.id_number);
-        const rowDob = dobFromRow(row);
-        const formDob = dobInputStr(form.date_of_birth);
-        const updates = {
-          first_name: form.first_name,
-          last_name: form.last_name,
-          email: form.email,
-          phone: form.phone,
-          police_station: form.police_station,
-          village: form.village,
-          ward: form.ward,
-          ...(idn !== rowIdNorm ? { id_number: idn } : {}),
-          ...(formDob !== rowDob ? { date_of_birth: formDob || null } : {}),
-          ...(canAdminister
-            ? {
-                role: form.role,
-                status: form.status,
-                ...(form.status === "suspended" && reasonTrim
-                  ? { suspended_reason: reasonTrim }
-                  : {}),
-                ...(form.status === "disabled" && reasonTrim
-                  ? { disabled_reason: reasonTrim }
-                  : {}),
-              }
-            : {}),
-        };
-
-        const { data, error } = await invokeWithAuth("update-user", {
-          body: { id: editing, updates },
-        });
-
-        if (error || !data?.success) {
-          throw new Error(data?.message || error?.message || "Failed to update user");
-        }
-        if (String(data?.message || "").toLowerCase().includes("no changes")) {
-          addToast({ type: "info", message: MSG_NOTHING_TO_SUBMIT });
-          await refresh();
-          return;
-        }
-        rowIdToHighlight = String(editing);
-        addToast({ type: "success", message: "User was updated successfully." });
-      } else {
-        return;
-      }
-
-      await refresh();
-      closeForm();
-
-      if (rowIdToHighlight) {
-        setHighlightUserId(rowIdToHighlight);
-      }
-    } catch (e) {
-      const msg = e.message || "Failed to save user";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-    } finally {
-      setLoading(false);
-    }
   }
 
   function isSelf(id) {
@@ -1279,7 +914,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       }
       addToast({ type: "success", message: "User was deleted successfully." });
       await refresh();
-      if (editing != null && String(editing) === String(id)) closeForm();
     } catch (e) {
       const msg = e.message || "Failed to delete user";
       setError(msg);
@@ -1537,7 +1171,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
               <RippleButton
                 type="button"
                 className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60 shrink-0"
-                onClick={startAdd}
+                onClick={goToAddUser}
                 disabled={loading || usersDirectoryLoading}
               >
                 {NAV_ACTIONS.addUser}
@@ -1545,241 +1179,6 @@ export default function AdminUsers({ variant = "admin" } = {}) {
             ) : null}
           </div>
         </div>
-
-        {/* Add/Edit form (shown only when active) */}
-        {mode !== "idle" ? (
-          <div
-            ref={editFormSectionRef}
-            tabIndex={-1}
-            className="bg-white rounded-lg px-2 py-3 sm:px-3 sm:py-4 shadow-sm mb-5 scroll-mt-6 outline-none focus-visible:ring-2 focus-visible:ring-iregistrygreen/35 focus-visible:ring-offset-2"
-          >
-            <div className="flex items-center justify-between mb-3 gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">
-                  {isAdding ? NAV_ACTIONS.addUser : NAV_ACTIONS.editUser}
-                </h2>
-              </div>
-              <button
-                type="button"
-                className="text-sm text-gray-500 hover:text-gray-700"
-                onClick={closeForm}
-                disabled={loading || usersDirectoryLoading}
-              >
-                Close
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-              <div>
-                <label className="text-xs text-gray-600">First name</label>
-                <input
-                  value={form.first_name}
-                  onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Thato"
-                  disabled={loading || usersDirectoryLoading}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-600">Last name *</label>
-                <input
-                  value={form.last_name}
-                  onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="Kgosi"
-                  required
-                  disabled={loading || usersDirectoryLoading}
-                />
-              </div>
-
-              {isAdding || isEditing ? (
-                <div>
-                  <label className="text-xs text-gray-600">ID / Passport *</label>
-                  <input
-                    value={form.id_number}
-                    onChange={(e) => setForm((s) => ({ ...s, id_number: e.target.value }))}
-                    className="mt-1 w-full border rounded-lg px-3 py-2"
-                    placeholder="12345678901"
-                    required
-                    disabled={loading || usersDirectoryLoading}
-                  />
-                </div>
-              ) : null}
-
-              {isAdding || isEditing ? (
-                <div>
-                  <YearMonthDaySelect
-                    label="Date of birth"
-                    value={form.date_of_birth}
-                    onChange={(v) => setForm((s) => ({ ...s, date_of_birth: v }))}
-                    maxYear={new Date().getFullYear()}
-                    minYear={1920}
-                    disabled={loading || usersDirectoryLoading}
-                    selectClassName="w-full border rounded-lg px-3 py-2"
-                    labelClassName="text-xs text-gray-600 block mb-1"
-                    showHint={false}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    {isAdding
-                      ? "Optional."
-                      : "Optional. Clear year, month, and day to remove stored date of birth."}
-                  </p>
-                </div>
-              ) : null}
-
-              <div>
-                <label className="text-xs text-gray-600">Email</label>
-                <input
-                  value={form.email}
-                  onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="thato@iregsys.com"
-                  disabled={loading || usersDirectoryLoading}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-600">Phone *</label>
-                <input
-                  value={form.phone}
-                  onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
-                  className="mt-1 w-full border rounded-lg px-3 py-2"
-                  placeholder="+267…"
-                  required
-                  disabled={loading || usersDirectoryLoading}
-                />
-              </div>
-
-              {canAdminister ? (
-                <>
-                  <div>
-                    <label className="text-xs text-gray-600">Role</label>
-                    <select
-                      value={form.role}
-                      onChange={(e) => setForm((s) => ({ ...s, role: e.target.value }))}
-                      className="mt-1 w-full border rounded-lg px-3 py-2"
-                      disabled={loading || usersDirectoryLoading || (isEditing && isSelf(editing))}
-                    >
-                      <option value="user">User</option>
-                      <option value="police">Police</option>
-                      <option value="cashier">Cashier</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    {isEditing && isSelf(editing) ? (
-                      <p className="text-xs text-gray-400 mt-1">You cannot change your own role.</p>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-gray-600">Status</label>
-                    <select
-                      value={form.status}
-                      onChange={(e) =>
-                        setForm((s) => ({ ...s, status: e.target.value }))
-                      }
-                      className="mt-1 w-full border rounded-lg px-3 py-2"
-                      disabled={loading || usersDirectoryLoading || (isEditing && isSelf(editing))}
-                    >
-                      {USER_ACCOUNT_STATUS_FORM_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    {isEditing && isSelf(editing) ? (
-                      <p className="text-xs text-gray-400 mt-1">Use another admin account to change your status.</p>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
-
-              {isAdding || isEditing ? (
-                <>
-                  <div>
-                    <label className="text-xs text-gray-600">Police station *</label>
-                    <div className="mt-1">
-                      <PoliceStationSelect
-                        label={null}
-                        value={form.police_station}
-                        onChange={(v) => setForm((s) => ({ ...s, police_station: v }))}
-                        required
-                        withAuth={true}
-                        inputClassName="w-full border rounded-lg px-3 py-2"
-                        placeholder={
-                          canAdminister
-                            ? "Search, pick from list, or type a station name…"
-                            : "Select police station…"
-                        }
-                        allowOther={true}
-                        variant={canAdminister ? "searchable" : "select"}
-                        disabled={loading || usersDirectoryLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-gray-600">Town / village *</label>
-                    <input
-                      value={form.village}
-                      onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
-                      className="mt-1 w-full border rounded-lg px-3 py-2"
-                      required
-                      disabled={loading || usersDirectoryLoading}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-gray-600">Ward / street *</label>
-                    <input
-                      value={form.ward}
-                      onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
-                      className="mt-1 w-full border rounded-lg px-3 py-2"
-                      required
-                      disabled={loading || usersDirectoryLoading}
-                    />
-                  </div>
-                </>
-              ) : null}
-
-              {canAdminister && form.status !== "active" ? (
-                <div className="sm:col-span-3">
-                  <label className="text-xs text-gray-600">
-                    Reason for {form.status}
-                  </label>
-                  <textarea
-                    value={form.status_reason}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, status_reason: e.target.value }))
-                    }
-                    className="mt-1 w-full border rounded-lg px-3 py-2"
-                    placeholder="Required"
-                    required
-                    disabled={loading || usersDirectoryLoading}
-                  />
-                </div>
-              ) : null}
-
-              <div className="sm:col-span-3 flex gap-2 justify-end pt-2">
-                <RippleButton
-                  type="button"
-                  className="px-4 py-2 rounded border bg-white disabled:opacity-60"
-                  onClick={closeForm}
-                  disabled={loading || usersDirectoryLoading}
-                >
-                  Cancel
-                </RippleButton>
-                <RippleButton
-                  type="submit"
-                  className="px-4 py-2 rounded bg-iregistrygreen text-white disabled:opacity-60"
-                  disabled={loading || usersDirectoryLoading}
-                >
-                  {isAdding ? "Create user" : "Save changes"}
-                </RippleButton>
-              </div>
-            </form>
-          </div>
-        ) : null}
 
         <div className="bg-white rounded-lg px-2 py-3 sm:px-3 sm:py-4 shadow-sm">
           <h2 className="text-lg font-semibold mb-3">Users</h2>
@@ -1877,14 +1276,14 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                           if (action === "disable") return openSuspendModal(u, "disabled");
                           if (action === "reactivate") return void quickReactivate(u);
                           if (action === "add_item") return handleAddItemForUser(u);
-                          if (action === "edit") return startEdit(u);
+                          if (action === "edit") return goToEditUser(u);
                           if (action === "delete") return void handleDelete(u.id);
                         }}
                         onAddItem={() => handleAddItemForUser(u)}
                         onSuspend={() => openSuspendModal(u, "suspended")}
                         onDisable={() => openSuspendModal(u, "disabled")}
                         onReactivate={() => void quickReactivate(u)}
-                        onEdit={() => startEdit(u)}
+                        onEdit={() => goToEditUser(u)}
                         onDelete={() => handleDelete(u.id)}
                       />
                     </div>

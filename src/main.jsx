@@ -41,6 +41,7 @@ import AdminLayout from "./Pages/admin/AdminLayout.jsx";
 import AdminHome from "./Pages/admin/AdminHome.jsx";
 import AdminTransfersPage from "./Pages/admin/AdminTransfersPage.jsx";
 import AdminUsers from "./Pages/admin/AdminUsers.jsx";
+import StaffUserFormPage from "./Pages/shared/StaffUserFormPage.jsx";
 import AdminAuditLogs from "./Pages/admin/AdminAuditLogs.jsx";
 import AdminSmsOtpUsagePage from "./Pages/admin/AdminSmsOtpUsagePage.jsx";
 import AdminRecentLoginsPage from "./Pages/admin/AdminRecentLoginsPage.jsx";
@@ -167,6 +168,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   >
                     <Route index element={<AdminHome />} />
                     <Route path="profile" element={<ProfilePage />} />
+                    <Route path="users/new" element={<StaffUserFormPage variant="admin" mode="add" />} />
+                    <Route
+                      path="users/:userId/edit"
+                      element={<StaffUserFormPage variant="admin" mode="edit" />}
+                    />
                     <Route path="users" element={<AdminUsers />} />
                     <Route path="users/non-active" element={<AdminUsers />} />
                     <Route path="audit-logs" element={<AdminAuditLogs />} />
@@ -245,6 +251,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<CashierItemsPage />} />
                     <Route path="items/deleted" element={<CashierDeletedItemsPage />} />
                     <Route path="items/legacy" element={<CashierLegacyItemsPage />} />
+                    <Route path="users/new" element={<StaffUserFormPage variant="cashier" mode="add" />} />
+                    <Route
+                      path="users/:userId/edit"
+                      element={<StaffUserFormPage variant="cashier" mode="edit" />}
+                    />
                     <Route path="users" element={<CashierUsersPage />} />
                     <Route path="users/non-active" element={<CashierUsersPage />} />
                     <Route path="topup" element={<CashierTopupPage />} />
