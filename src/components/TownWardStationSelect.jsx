@@ -192,15 +192,27 @@ export default function TownWardStationSelect({
   const [loadingVillages, setLoadingVillages] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
   const [loadingStations, setLoadingStations] = useState(false);
+  const [debouncedTown, setDebouncedTown] = useState(normalizedTown);
 
-  const villagesAbortRef = useRef(null);
-  const wardsAbortRef = useRef(null);
-  const stationsAbortRef = useRef(null);
+  const villagesRequestIdRef = useRef(0);
+  const wardsRequestIdRef = useRef(0);
+
+  // Debounce ward/station loads so typing a town does not refetch on every keystroke.
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedTown(normalizedTown), 280);
+    return () => window.clearTimeout(t);
+  }, [normalizedTown]);
 
   async function fetchLocationTaxonomy({ village }) {
-    const { data, error } = await invokeWithAuth("list-location-taxonomy", {
+    const timeoutMs = 20000;
+    const fetchPromise = invokeWithAuth("list-location-taxonomy", {
       body: { village: village || "", limit: 5000 },
     });
+    const timeoutPromise = new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error("Location options request timed out")), timeoutMs);
+    });
+
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
     if (error) throw error;
     if (!data?.success) {
       throw new Error(data?.message || "Failed to load location options");
@@ -214,96 +226,77 @@ export default function TownWardStationSelect({
 
   // 1) Villages (independent list)
   useEffect(() => {
-    villagesAbortRef.current?.abort?.();
-    const ac = new AbortController();
-    villagesAbortRef.current = ac;
-
-    let alive = true;
+    const requestId = ++villagesRequestIdRef.current;
     setLoadingVillages(true);
 
     fetchLocationTaxonomy({ village: "" })
       .then((t) => {
-        if (!alive) return;
+        if (requestId !== villagesRequestIdRef.current) return;
         setVillages(t.villages);
       })
       .catch(() => {
-        // Fallback to local memory if API unavailable.
+        if (requestId !== villagesRequestIdRef.current) return;
         const fromItems = (items || []).map((it) => it?.village);
         const fromUser = user?.village;
-        if (!alive) return;
         setVillages(uniqSorted([...(fromItems || []), fromUser]));
       })
       .finally(() => {
-        if (!alive) return;
-        setLoadingVillages(false);
+        if (requestId === villagesRequestIdRef.current) {
+          setLoadingVillages(false);
+        }
       });
 
-    return () => {
-      alive = false;
-      ac.abort();
-    };
+    return undefined;
     // Do not depend on `town` — it changes on every keystroke and would refetch constantly.
   }, [items, user?.village]);
 
-  // 2) Wards + stations (filtered by village)
+  // 2) Wards + stations (filtered by debounced town — not every keystroke)
   useEffect(() => {
-    // If town is cleared, downstream lists should clear too.
-    if (!normalizedTown) {
+    if (!debouncedTown) {
       setWards([]);
       setStations([]);
+      setLoadingWards(false);
+      setLoadingStations(false);
       return;
     }
 
-    wardsAbortRef.current?.abort?.();
-    stationsAbortRef.current?.abort?.();
-    const wardsAc = new AbortController();
-    const stationsAc = new AbortController();
-    wardsAbortRef.current = wardsAc;
-    stationsAbortRef.current = stationsAc;
-
-    let alive = true;
+    const requestId = ++wardsRequestIdRef.current;
     setLoadingWards(true);
     setLoadingStations(true);
 
-    // Use one request for both wards + stations.
-    fetchLocationTaxonomy({ village: normalizedTown })
+    const townKey = debouncedTown.toLowerCase();
+
+    fetchLocationTaxonomy({ village: debouncedTown })
       .then((t) => {
-        if (!alive) return;
+        if (requestId !== wardsRequestIdRef.current) return;
         setWards(t.wards);
         setStations(t.stations);
       })
       .catch(() => {
-        // Fallback: filter local items by selected town.
+        if (requestId !== wardsRequestIdRef.current) return;
         const filtered = (items || []).filter((it) => {
           const v = norm(it?.village);
-          return v && v.toLowerCase() === normalizedTown.toLowerCase();
+          return v && v.toLowerCase() === townKey;
         });
         const fromWards = filtered.map((it) => it?.ward);
         const fromStations = filtered.map((it) => it?.station || it?.location);
         const fromUserWard =
-          norm(user?.village).toLowerCase() === normalizedTown.toLowerCase()
-            ? user?.ward
-            : null;
+          norm(user?.village).toLowerCase() === townKey ? user?.ward : null;
         const fromUserStation =
-          norm(user?.village).toLowerCase() === normalizedTown.toLowerCase()
-            ? user?.police_station
-            : null;
-        if (!alive) return;
+          norm(user?.village).toLowerCase() === townKey ? user?.police_station : null;
         setWards(uniqSorted([...(fromWards || []), fromUserWard, ward]));
         setStations(uniqSorted([...(fromStations || []), fromUserStation, station]));
       })
       .finally(() => {
-        if (!alive) return;
-        setLoadingWards(false);
-        setLoadingStations(false);
+        if (requestId === wardsRequestIdRef.current) {
+          setLoadingWards(false);
+          setLoadingStations(false);
+        }
       });
 
-    return () => {
-      alive = false;
-      wardsAc.abort();
-      stationsAc.abort();
-    };
-  }, [normalizedTown, items, user?.village, user?.ward, user?.police_station, ward, station]);
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ward/station only seed fallbacks; omit to avoid refetch loops
+  }, [debouncedTown, items, user?.village, user?.ward, user?.police_station]);
 
   const townOptions = useMemo(
     () => uniqSorted([...(villages || []), town]),
@@ -318,8 +311,18 @@ export default function TownWardStationSelect({
     [stations, station],
   );
 
-  const locationLoading = loadingVillages || loadingWards || loadingStations;
-  const hint = locationLoading ? "Loading options..." : "Type to add a new entry";
+  const townHint = loadingVillages
+    ? "Loading towns…"
+    : townOptions.length > 0
+      ? "Search or pick a town / village"
+      : "Type a town / village (none in registry yet)";
+  const wardHint = loadingWards
+    ? "Loading wards…"
+    : wardOptions.length > 0
+      ? "Search or pick a ward / street"
+      : norm(town)
+        ? "Type a ward / street"
+        : undefined;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -330,9 +333,9 @@ export default function TownWardStationSelect({
           onChange={onTownChange}
           options={townOptions}
           required={requiredTown}
-          disabled={disabled}
+          disabled={disabled || loadingVillages}
           placeholder="e.g. Gaborone"
-          hint={hint}
+          hint={townHint}
           inputClassName={townInputClassName || inputClassName}
         />
       ) : null}
@@ -344,9 +347,9 @@ export default function TownWardStationSelect({
           onChange={onWardChange}
           options={wardOptions}
           required={requiredWard}
-          disabled={disabled || !norm(town)}
+          disabled={disabled || !norm(town) || loadingWards}
           placeholder={norm(town) ? "e.g. Ward 3" : "Pick a town/village first"}
-          hint={norm(town) ? hint : undefined}
+          hint={wardHint}
           inputClassName={wardInputClassName || inputClassName}
         />
       ) : null}
@@ -359,9 +362,9 @@ export default function TownWardStationSelect({
             onChange={onStationChange}
             options={stationOptions}
             required={requiredStation}
-            disabled={disabled || !norm(town)}
+            disabled={disabled || !norm(town) || loadingStations}
             placeholder={norm(town) ? "Type or pick a station…" : "Pick a town/village first"}
-            hint={norm(town) ? hint : undefined}
+            hint={loadingStations ? "Loading stations…" : norm(town) ? "Type or pick a station" : undefined}
             inputClassName={stationInputClassName || inputClassName}
           />
         </div>
