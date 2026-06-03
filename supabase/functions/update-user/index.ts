@@ -59,7 +59,7 @@ serve(async (req) => {
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
       .select(
-        "id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth, first_name, last_name, email, phone, police_station, village, ward",
+        "id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth, first_name, last_name, email, country, phone, police_station, village, ward",
       )
       .eq("id", id)
       .maybeSingle();
@@ -198,6 +198,7 @@ serve(async (req) => {
     setIfString("first_name", 100);
     setIfString("last_name", 100, { required: true });
     setIfString("email", 254);
+    setIfString("country", 10);
     setIfString("phone", 50, { required: true });
     setIfString("police_station", 200, { required: true });
     setIfString("village", 200, { required: true });

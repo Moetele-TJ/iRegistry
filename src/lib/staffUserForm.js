@@ -1,5 +1,6 @@
 import { deriveUserStatus } from "./userState.js";
 import { staffUsersBasePath } from "./staffUsersListView.js";
+import { inferCountryCodeFromPhone } from "./phoneCountry.js";
 
 export const MSG_NOTHING_TO_SUBMIT =
   "Nothing to submit — you have not changed any information.";
@@ -9,6 +10,7 @@ export const EMPTY_STAFF_USER_FORM = {
   last_name: "",
   id_number: "",
   date_of_birth: "",
+  country: "",
   email: "",
   phone: "",
   role: "user",
@@ -71,13 +73,15 @@ export function toDateInputValue(v) {
 }
 
 export function staffUserFormFromRow(u) {
+  const phone = u.phone || "";
   return {
     first_name: u.first_name || "",
     last_name: u.last_name || "",
     id_number: u.id_number || "",
     date_of_birth: toDateInputValue(u.date_of_birth),
+    country: u.country || inferCountryCodeFromPhone(phone) || "",
     email: u.email || "",
-    phone: u.phone || "",
+    phone,
     role: u.role || "user",
     status: deriveUserStatus(u) || "active",
     status_reason: u.suspended_reason || u.disabled_reason || "",
@@ -94,6 +98,7 @@ export function staffUserEditHasChanges(row, form, canAdminister) {
   if (normStr(form.last_name) !== normStr(row.last_name)) return true;
   if (normEmail(form.email) !== normEmail(row.email ?? "")) return true;
   if (normStr(form.phone) !== normStr(row.phone)) return true;
+  if (normStr(form.country) !== normStr(row.country ?? inferCountryCodeFromPhone(row.phone))) return true;
   if (normStr(form.police_station) !== normStr(row.police_station)) return true;
   if (normStr(form.village) !== normStr(row.village)) return true;
   if (normStr(form.ward) !== normStr(row.ward)) return true;

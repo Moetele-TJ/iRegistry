@@ -13,6 +13,7 @@ import { validateSession } from "../../validateSession.ts";
 import { isPrivilegedRole, roleIs } from "../../roles.ts";
 import { logUserActivity } from "../../logUserActivity.ts";
 import { humanizeRole } from "../../userActivityMessages.ts";
+import { validatePhoneForCountry } from "../../phoneCountry.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -57,6 +58,7 @@ export async function run(req: Request): Promise<Response> {
       suspended_reason,
       disabled_reason,
       date_of_birth: dateOfBirthRaw,
+      country: countryRaw,
       village: villageRaw,
       ward: wardRaw,
       police_station: policeStationRaw,
@@ -86,12 +88,18 @@ export async function run(req: Request): Promise<Response> {
     const police_station =
       typeof policeStationRaw === "string" ? policeStationRaw.trim() : "";
 
-    if (!ln || !idn || !ph) {
+    if (!ln || !idn) {
       return respond(
-        { success: false, message: "Last name, ID number, and phone are required." },
+        { success: false, message: "Last name and ID number are required." },
         corsHeaders,
         400,
       );
+    }
+
+    const countryCode = typeof countryRaw === "string" ? countryRaw.trim() : "";
+    const phoneCheck = validatePhoneForCountry(countryCode, ph);
+    if (!phoneCheck.ok) {
+      return respond({ success: false, message: phoneCheck.message }, corsHeaders, 400);
     }
 
     if (!village || !ward || !police_station) {
@@ -129,13 +137,37 @@ export async function run(req: Request): Promise<Response> {
       );
     }
 
+    if (!em) {
+      return respond(
+        { success: false, message: "Email address is required." },
+        corsHeaders,
+        400,
+      );
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(em)) {
+      return respond(
+        { success: false, message: "Enter a valid email address." },
+        corsHeaders,
+        400,
+      );
+    }
+
     let dateOfBirth: string | null = null;
     if (dateOfBirthRaw === undefined || dateOfBirthRaw === null || dateOfBirthRaw === "") {
-      dateOfBirth = null;
+      return respond(
+        { success: false, message: "Date of birth is required." },
+        corsHeaders,
+        400,
+      );
     } else if (typeof dateOfBirthRaw === "string") {
       const ds = dateOfBirthRaw.trim();
       if (!ds) {
-        dateOfBirth = null;
+        return respond(
+          { success: false, message: "Date of birth is required." },
+          corsHeaders,
+          400,
+        );
       } else if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) {
         return respond(
           { success: false, message: "Invalid date of birth (use YYYY-MM-DD)." },
@@ -169,21 +201,19 @@ export async function run(req: Request): Promise<Response> {
       );
     }
 
-    if (em) {
-      const { data: emailExists } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", em)
-        .is("deleted_at", null)
-        .maybeSingle();
+    const { data: emailExists } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", em)
+      .is("deleted_at", null)
+      .maybeSingle();
 
-      if (emailExists) {
-        return respond(
-          { success: false, message: "A user with this email already exists." },
-          corsHeaders,
-          409,
-        );
-      }
+    if (emailExists) {
+      return respond(
+        { success: false, message: "A user with this email already exists." },
+        corsHeaders,
+        409,
+      );
     }
 
     // Phone must be unique.
@@ -209,6 +239,7 @@ export async function run(req: Request): Promise<Response> {
       id_number: idn,
       email: em || null,
       phone: ph,
+      country: countryCode || null,
       village: village.slice(0, 200),
       ward: ward.slice(0, 200),
       police_station: police_station.slice(0, 200),

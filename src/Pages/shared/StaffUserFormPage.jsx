@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil, UserPlus } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
+import CountryPhoneInput from "../../components/CountryPhoneInput.jsx";
 import PoliceStationSelect from "../../components/PoliceStationSelect.jsx";
+import TownWardStationSelect from "../../components/TownWardStationSelect.jsx";
 import YearMonthDaySelect from "../../components/YearMonthDaySelect.jsx";
+import { invokeFn } from "../../lib/invokeFn.js";
 import PageSectionCard from "./PageSectionCard.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -27,7 +30,10 @@ import {
   staffUserFormFromRow,
   staffUsersReturnUrl,
 } from "../../lib/staffUserForm.js";
+import { validateStaffUserForm } from "../../lib/staffUserFormValidation.js";
 import { staffUsersListPath } from "../../lib/staffUsersListView.js";
+
+const locationInputClass = "w-full border rounded-lg px-3 py-2";
 
 export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) {
   const isAdd = mode === "add";
@@ -122,41 +128,10 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
       }
     }
 
-    if (!normStr(form.last_name)) {
-      const msg = "Last name is required.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-    if (!normStr(form.phone)) {
-      const msg = "Phone number is required.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-    const idn = String(form.id_number ?? "").replace(/\s+/g, "").trim();
-    if (!idn) {
-      const msg = "National ID / Passport is required.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-    if (!normStr(form.village)) {
-      const msg = "Town / village is required.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-    if (!normStr(form.ward)) {
-      const msg = "Ward / street is required.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
-      return;
-    }
-    if (!normStr(form.police_station)) {
-      const msg = "Nearest police station is required.";
-      setError(msg);
-      addToast({ type: "error", message: msg });
+    const validation = validateStaffUserForm(form, { isAdd });
+    if (!validation.ok) {
+      setError(validation.message);
+      addToast({ type: "error", message: validation.message });
       return;
     }
 
@@ -195,6 +170,23 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
         }).catch(() => false);
         if (!ok) return;
 
+        const { data: checkData, error: checkError } = await invokeFn(
+          "check-user-details",
+          {
+            body: {
+              id_number: form.id_number,
+              phone: form.phone,
+              email: form.email,
+              country: form.country,
+            },
+          },
+          { withAuth: false },
+        );
+
+        if (checkError || !checkData?.success) {
+          throw new Error(checkData?.message || checkError?.message || "Could not verify user details");
+        }
+
         const reasonTrim = String(form.status_reason || "").trim();
         const { data, error: invokeError } = await invokeWithAuth("admin-create-user", {
           body: {
@@ -203,14 +195,13 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             id_number: form.id_number,
             email: form.email,
             phone: form.phone,
+            country: form.country,
+            date_of_birth: dobInputStr(form.date_of_birth),
             village: form.village,
             ward: form.ward,
             police_station: form.police_station,
             role: canAdminister ? form.role : "user",
             status: canAdminister ? form.status : "active",
-            ...(dobInputStr(form.date_of_birth)
-              ? { date_of_birth: dobInputStr(form.date_of_birth) }
-              : {}),
             ...(form.status === "suspended" && reasonTrim
               ? { suspended_reason: reasonTrim }
               : {}),
@@ -244,6 +235,7 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           last_name: form.last_name,
           email: form.email,
           phone: form.phone,
+          country: form.country,
           police_station: form.police_station,
           village: form.village,
           ward: form.ward,
@@ -371,20 +363,25 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           </div>
         ) : null}
 
-        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
           <div>
-            <label className="text-xs text-gray-600">First name</label>
+            <label className="text-xs text-gray-600">
+              First name <span className="text-red-600">*</span>
+            </label>
             <input
               value={form.first_name}
               onChange={(e) => setForm((s) => ({ ...s, first_name: e.target.value }))}
               className="mt-1 w-full border rounded-lg px-3 py-2"
               placeholder="Thato"
+              required
               disabled={loading || profileLoading}
             />
           </div>
 
           <div>
-            <label className="text-xs text-gray-600">Last name *</label>
+            <label className="text-xs text-gray-600">
+              Last name <span className="text-red-600">*</span>
+            </label>
             <input
               value={form.last_name}
               onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
@@ -396,7 +393,9 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
           </div>
 
           <div>
-            <label className="text-xs text-gray-600">ID / Passport *</label>
+            <label className="text-xs text-gray-600">
+              ID / Passport <span className="text-red-600">*</span>
+            </label>
             <input
               value={form.id_number}
               onChange={(e) => setForm((s) => ({ ...s, id_number: e.target.value }))}
@@ -407,44 +406,92 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
             />
           </div>
 
-          <div>
+          <div className="sm:col-span-2 lg:col-span-1">
             <YearMonthDaySelect
               label="Date of birth"
+              required={isAdd}
               value={form.date_of_birth}
               onChange={(v) => setForm((s) => ({ ...s, date_of_birth: v }))}
               maxYear={new Date().getFullYear()}
               minYear={1920}
               disabled={loading || profileLoading}
-              selectClassName="w-full border rounded-lg px-3 py-2"
+              selectClassName={locationInputClass}
               labelClassName="text-xs text-gray-600 block mb-1"
               showHint={false}
             />
-            <p className="text-xs text-gray-400 mt-1">
-              {isAdd
-                ? "Optional."
-                : "Optional. Clear year, month, and day to remove stored date of birth."}
-            </p>
+            {!isAdd ? (
+              <p className="text-xs text-gray-400 mt-1">
+                Optional. Clear year, month, and day to remove stored date of birth.
+              </p>
+            ) : null}
           </div>
 
-          <div>
-            <label className="text-xs text-gray-600">Email</label>
-            <input
-              value={form.email}
-              onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
-              placeholder="thato@iregsys.com"
+          <div className="sm:col-span-2 lg:col-span-3">
+            <CountryPhoneInput
+              country={form.country}
+              phone={form.phone}
+              onChange={({ country, phone }) => {
+                setForm((s) => ({ ...s, country, phone }));
+              }}
+            />
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <TownWardStationSelect
+              town={form.village}
+              ward={form.ward}
+              station=""
+              showStation={false}
+              requiredTown
+              requiredWard
+              disabled={loading || profileLoading}
+              user={targetUser}
+              townLabel="Town / village"
+              wardLabel="Ward / street"
+              inputClassName={locationInputClass}
+              onTownChange={(v) => {
+                setForm((s) => {
+                  const prev = String(s.village ?? "").trim();
+                  const next = String(v ?? "").trim();
+                  if (prev === next) return s;
+                  return { ...s, village: v, ward: "" };
+                });
+              }}
+              onWardChange={(v) => setForm((s) => ({ ...s, ward: v }))}
+              onStationChange={() => {}}
+            />
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <PoliceStationSelect
+              label="Nearest police station"
+              value={form.police_station}
+              onChange={(v) => setForm((s) => ({ ...s, police_station: v }))}
+              required
+              withAuth={true}
+              inputClassName={locationInputClass}
+              placeholder={
+                canAdminister
+                  ? "Search, pick from list, or type a station name…"
+                  : "Select police station…"
+              }
+              allowOther={true}
+              variant={canAdminister ? "searchable" : "select"}
               disabled={loading || profileLoading}
             />
           </div>
 
-          <div>
-            <label className="text-xs text-gray-600">Phone *</label>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className="text-xs text-gray-600">
+              Email address {isAdd ? <span className="text-red-600">*</span> : null}
+            </label>
             <input
-              value={form.phone}
-              onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
               className="mt-1 w-full border rounded-lg px-3 py-2"
-              placeholder="+267…"
-              required
+              placeholder="thato@iregsys.com"
+              required={isAdd}
               disabled={loading || profileLoading}
             />
           </div>
@@ -489,50 +536,6 @@ export default function StaffUserFormPage({ variant = "admin", mode = "edit" }) 
               </div>
             </>
           ) : null}
-
-          <div>
-            <label className="text-xs text-gray-600">Police station *</label>
-            <div className="mt-1">
-              <PoliceStationSelect
-                label={null}
-                value={form.police_station}
-                onChange={(v) => setForm((s) => ({ ...s, police_station: v }))}
-                required
-                withAuth={true}
-                inputClassName="w-full border rounded-lg px-3 py-2"
-                placeholder={
-                  canAdminister
-                    ? "Search, pick from list, or type a station name…"
-                    : "Select police station…"
-                }
-                allowOther={true}
-                variant={canAdminister ? "searchable" : "select"}
-                disabled={loading || profileLoading}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-600">Town / village *</label>
-            <input
-              value={form.village}
-              onChange={(e) => setForm((s) => ({ ...s, village: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
-              required
-              disabled={loading || profileLoading}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-600">Ward / street *</label>
-            <input
-              value={form.ward}
-              onChange={(e) => setForm((s) => ({ ...s, ward: e.target.value }))}
-              className="mt-1 w-full border rounded-lg px-3 py-2"
-              required
-              disabled={loading || profileLoading}
-            />
-          </div>
 
           {canAdminister && form.status !== "active" ? (
             <div className="sm:col-span-3">
