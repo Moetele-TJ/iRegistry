@@ -1,6 +1,6 @@
 // src/Pages/Items.jsx
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
-import { useNavigate, useMatch } from "react-router-dom";
+import { useNavigate, useMatch, useSearchParams } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import PrivilegedItemDeleteModal from "../components/PrivilegedItemDeleteModal.jsx";
@@ -177,6 +177,7 @@ function photoEntryPath(entry, preferThumb = true) {
 export default function Items({ view = "active", defaultPoliceStationStolenView = false } = {}) {
   const { confirm } = useModal();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   /** `/items` has no dashboard layout padding; nested `/user/items` already does. */
   const standaloneItemsRoute = useMatch({ path: "/items", end: true });
     const {
@@ -361,7 +362,14 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
       setSelectedOwnerId(user.id);
     }
     if (typeof saved?.query === "string") setQuery(saved.query);
-    if (saved?.statusFilter) setStatusFilter(saved.statusFilter);
+    const urlStatus = String(searchParams.get("status") || "").trim();
+    const urlStatusAllowed =
+      view === "active" && (urlStatus === "Active" || urlStatus === "Stolen");
+    if (urlStatusAllowed) {
+      setStatusFilter(urlStatus);
+    } else if (saved?.statusFilter) {
+      setStatusFilter(saved.statusFilter);
+    }
     if (saved?.categoryFilter) setCategoryFilter(saved.categoryFilter);
     const p = Number(saved?.page);
     if (p >= 1) setPage(p);
@@ -372,7 +380,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     scrollPersistEnabledRef.current = false;
 
     setScopeRestored(true);
-  }, [user?.id, isPrivileged, view]);
+  }, [user?.id, isPrivileged, view, searchParams]);
 
   useEffect(() => {
     if (!user?.id || !scopeRestored) return;

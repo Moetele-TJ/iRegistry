@@ -1,7 +1,7 @@
 // src/Pages/admin/AdminHome.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle, MessageSquare } from "lucide-react";
+import { RefreshCw, Users, Package, Bell, Activity, ReceiptText, Coins, MonitorSmartphone, Tag, AlertTriangle, MessageSquare, ChevronRight } from "lucide-react";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import { deriveUserStatus } from "../../lib/userState.js";
@@ -10,7 +10,7 @@ import PromoModeBanner from "../../components/PromoModeBanner.jsx";
 import TimeAgo from "../../components/TimeAgo.jsx";
 import { getIcon } from "../../utils/iconResolver.js";
 import { displayActivityActorRole } from "../../lib/activityActorRole.js";
-import { DISPLAY, NAV, NAV_ACTIONS } from "../../lib/navLabels.js";
+import { DISPLAY, NAV, NAV_ACTIONS, itemStatusLabel, userAccountStatusLabel } from "../../lib/navLabels.js";
 
 function countActiveUsersWithoutItems(users) {
   return (users || []).filter((u) => {
@@ -22,18 +22,38 @@ function countActiveUsersWithoutItems(users) {
 export default function AdminHome() {
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState(null); // from stats(mode=admin)
-  const [dashboard, setDashboard] = useState(null); // from get-dashboard-data (alerts, activity)
+  const [stats, setStats] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
   const [paymentAttention, setPaymentAttention] = useState({ pending: [], failed: [] });
   const [suspendedUsers, setSuspendedUsers] = useState([]);
   const [usersWithoutItemsCount, setUsersWithoutItemsCount] = useState(null);
+  const [expandedCard, setExpandedCard] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const statCardsRef = useRef(null);
 
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!expandedCard) return undefined;
+    function collapseIfOutside(e) {
+      if (!statCardsRef.current?.contains(e.target)) {
+        setExpandedCard(null);
+      }
+    }
+    function collapseOnEscape(e) {
+      if (e.key === "Escape") setExpandedCard(null);
+    }
+    document.addEventListener("mousedown", collapseIfOutside);
+    document.addEventListener("keydown", collapseOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", collapseIfOutside);
+      document.removeEventListener("keydown", collapseOnEscape);
+    };
+  }, [expandedCard]);
 
   async function load() {
     setLoading(true);
@@ -109,30 +129,58 @@ export default function AdminHome() {
   const systemActivity = dashboard?.roleData?.systemActivity?.data || [];
   const alerts = dashboard?.personal?.alerts || [];
 
-  const statCards = useMemo(() => {
-    const fallbackUsers = dashboard?.roleData?.adminOverview?.totalUsers;
-    const fallbackItems = dashboard?.roleData?.adminOverview?.totalItems;
+  const fallbackUsers = dashboard?.roleData?.adminOverview?.totalUsers;
+  const fallbackItems = dashboard?.roleData?.adminOverview?.totalItems;
 
-    const usersTotal = stats?.users_total ?? (typeof fallbackUsers === "number" ? fallbackUsers : null);
-    const usersWithoutItems =
-      usersWithoutItemsCount ??
-      stats?.users_without_items ??
-      null;
-    const itemsTotal = stats?.items_total ?? (typeof fallbackItems === "number" ? fallbackItems : null);
-    const itemsStolen = stats?.items_stolen ?? null;
+  const usersTotal = stats?.users_total ?? (typeof fallbackUsers === "number" ? fallbackUsers : null);
+  const usersWithoutItems =
+    usersWithoutItemsCount ??
+    stats?.users_without_items ??
+    null;
+  const itemsTotal = stats?.items_total ?? (typeof fallbackItems === "number" ? fallbackItems : null);
+  const itemsStolen = stats?.items_stolen ?? null;
 
-    return [
-      { label: DISPLAY.stats.totalUsers, value: usersTotal, icon: Users },
+  const userSubsets = useMemo(
+    () => [
       {
-        label: DISPLAY.stats.usersWithoutItems,
-        value: usersWithoutItems,
-        icon: Users,
-        onClick: () => navigate("/admin/users?items=without"),
+        key: "suspended",
+        label: userAccountStatusLabel("suspended"),
+        value: stats?.users_suspended ?? null,
+        onClick: () => navigate("/admin/users/non-active?status=suspended"),
       },
-      { label: DISPLAY.stats.registeredItems, value: itemsTotal, icon: Package },
-      { label: DISPLAY.stats.stolenItems, value: itemsStolen, icon: Package, danger: true },
-    ];
-  }, [dashboard, stats, usersWithoutItemsCount, navigate]);
+      {
+        key: "disabled",
+        label: userAccountStatusLabel("disabled"),
+        value: stats?.users_disabled ?? null,
+        onClick: () => navigate("/admin/users/non-active?status=disabled"),
+      },
+      {
+        key: "deleted",
+        label: userAccountStatusLabel("deleted"),
+        value: stats?.users_deleted ?? null,
+        onClick: () => navigate("/admin/users/non-active?status=deleted"),
+      },
+    ],
+    [stats, navigate],
+  );
+
+  const itemSubsets = useMemo(
+    () => [
+      {
+        key: "deleted",
+        label: itemStatusLabel("Deleted"),
+        value: stats?.items_deleted ?? null,
+        onClick: () => navigate("/admin/items/deleted"),
+      },
+      {
+        key: "legacy",
+        label: itemStatusLabel("Legacy"),
+        value: stats?.items_legacy ?? null,
+        onClick: () => navigate("/admin/items/legacy"),
+      },
+    ],
+    [stats, navigate],
+  );
 
   return (
     <div className="max-w-7xl mx-auto w-full">
@@ -163,17 +211,63 @@ export default function AdminHome() {
         </div>
       ) : null}
 
-      <section className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {statCards.map((c) => (
-          <StatCard
-            key={c.label}
-            label={c.label}
-            value={loading ? "—" : (c.value ?? "—")}
-            icon={c.icon}
-            danger={c.danger}
-            onClick={c.onClick}
-          />
-        ))}
+      <section ref={statCardsRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
+        <ExpandableStatCard
+          cardKey="users"
+          label={DISPLAY.stats.activeUsers}
+          value={loading ? "—" : (usersTotal ?? "—")}
+          icon={Users}
+          loading={loading}
+          expanded={expandedCard === "users"}
+          onToggle={() => setExpandedCard(expandedCard === "users" ? null : "users")}
+        >
+          <p>Active accounts in the registry (not suspended, disabled, or deleted).</p>
+          <StatSubsetList title="Other account states" rows={userSubsets} loading={loading} />
+        </ExpandableStatCard>
+
+        <StatCard
+          label={DISPLAY.stats.usersWithoutItems}
+          value={loading ? "—" : (usersWithoutItems ?? "—")}
+          icon={Users}
+          onClick={() => navigate("/admin/users?items=without")}
+        />
+
+        <ExpandableStatCard
+          cardKey="items"
+          label={DISPLAY.stats.registeredItems}
+          value={loading ? "—" : (itemsTotal ?? "—")}
+          icon={Package}
+          loading={loading}
+          expanded={expandedCard === "items"}
+          onToggle={() => setExpandedCard(expandedCard === "items" ? null : "items")}
+        >
+          <p>Active registry items (not deleted or legacy).</p>
+          <StatSubsetList title="Removed from active registry" rows={itemSubsets} loading={loading} />
+        </ExpandableStatCard>
+
+        <ExpandableStatCard
+          cardKey="stolen"
+          label={DISPLAY.stats.stolenItems}
+          value={loading ? "—" : (itemsStolen ?? "—")}
+          icon={Package}
+          danger
+          loading={loading}
+          expanded={expandedCard === "stolen"}
+          onToggle={() => setExpandedCard(expandedCard === "stolen" ? null : "stolen")}
+        >
+          <p>Items currently flagged as stolen in the active registry.</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/admin/items?status=Stolen");
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-iregistrygreen hover:underline"
+          >
+            View stolen items
+            <ChevronRight size={14} />
+          </button>
+        </ExpandableStatCard>
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -188,7 +282,7 @@ export default function AdminHome() {
           <SuspendedUsersCard
             loading={loading}
             users={suspendedUsers}
-            onGoUsers={() => navigate("/admin/users")}
+            onGoUsers={() => navigate("/admin/users/non-active")}
           />
           <QuickActions onGo={(to) => navigate(to)} />
         </div>
@@ -202,6 +296,89 @@ export default function AdminHome() {
           />
         </div>
       </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatSubsetList({ title, rows, loading }) {
+  return (
+    <>
+      <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">{title}</div>
+      <div className="mt-2 space-y-1">
+        {rows.map((row) => (
+          <button
+            key={row.key}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              row.onClick?.();
+            }}
+            className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 -mx-2 text-left text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition"
+          >
+            <span className="truncate">{row.label}</span>
+            <span className="inline-flex items-center gap-1 font-medium tabular-nums shrink-0">
+              {loading ? "—" : (row.value ?? "—")}
+              <ChevronRight size={14} className="text-gray-400" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ExpandableStatCard({
+  cardKey,
+  label,
+  value,
+  danger,
+  icon: Icon,
+  loading,
+  expanded,
+  onToggle,
+  children,
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className={[
+        "bg-white rounded-2xl p-4 shadow-sm border text-left w-full cursor-pointer transition-all duration-300",
+        expanded ? "border-emerald-300 ring-2 ring-emerald-500/40 shadow-md" : "border-gray-100 hover:border-emerald-200 hover:shadow-md",
+      ].join(" ")}
+      aria-expanded={expanded}
+      data-stat-card={cardKey}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">{label}</p>
+          <p className={`text-2xl font-bold mt-1 tabular-nums ${danger ? "text-red-600" : "text-gray-900"}`}>
+            {value}
+          </p>
+        </div>
+        {Icon ? (
+          <div className={`shrink-0 rounded-xl p-2 ${danger ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+            <Icon size={18} />
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
+          expanded ? "max-h-[320px] mt-3 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="text-sm text-gray-600 space-y-2 border-t pt-3">
+          {children}
         </div>
       </div>
     </div>

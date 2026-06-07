@@ -304,12 +304,15 @@ serve(async (req) => {
       const { count: totalUsers } = await supabase
         .from("users")
         .select("*", { count: "exact", head: true })
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .is("suspended_at", null)
+        .is("disabled_at", null);
 
       const { count: totalItems } = await supabase
         .from("items")
         .select("*", { count: "exact", head: true })
-        .is("deletedat", null);
+        .is("deletedat", null)
+        .is("legacyat", null);
 
       roleData.adminOverview = {
         totalUsers: totalUsers ?? 0,

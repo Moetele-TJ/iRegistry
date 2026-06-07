@@ -476,6 +476,12 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     if (!currentUserId) return;
 
     const urlWithoutItems = searchParams.get("items") === "without";
+    const urlStatusRaw = String(searchParams.get("status") || "").trim().toLowerCase();
+    const urlStatus =
+      urlStatusRaw === "suspended" || urlStatusRaw === "disabled" || urlStatusRaw === "deleted"
+        ? urlStatusRaw
+        : null;
+
     setItemsFilter(urlWithoutItems ? "without" : "all");
 
     if (urlWithoutItems) {
@@ -485,6 +491,28 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         statusFilter: "active",
         stationFilter: "",
         itemsFilter: "without",
+        usersListView,
+        sortBy: "last_name",
+        sortDir: "asc",
+      };
+      prevUsersFiltersKeyRef.current = staffUsersFiltersKey(snapshot);
+      setQ(snapshot.q);
+      setRoleFilter(snapshot.roleFilter);
+      setStatusFilter(snapshot.statusFilter);
+      setStationFilter(snapshot.stationFilter);
+      setPage(1);
+      listScopeReadyRef.current = true;
+      filtersReadyForPageResetRef.current = true;
+      return;
+    }
+
+    if (urlStatus && !isActiveUsersView) {
+      const snapshot = {
+        q: "",
+        roleFilter: "all",
+        statusFilter: urlStatus,
+        stationFilter: "",
+        itemsFilter: "all",
         usersListView,
         sortBy: "last_name",
         sortDir: "asc",

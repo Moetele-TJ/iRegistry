@@ -102,7 +102,7 @@ export default function CashierHome() {
                   icon={<Package size={18} />}
                   label="Registered items"
                   value={adminOverview?.totalItems ?? "—"}
-                  hint="All non-deleted registrations"
+                  hint="Active registry items"
                   accent="bg-slate-600"
                 />
               </div>
@@ -123,16 +123,9 @@ export default function CashierHome() {
               <StatCard
                 icon={<Users size={18} />}
                 label="Active accounts"
-                value={cashierOverview?.activeUsers ?? "—"}
-                hint="Users with status active"
+                value={adminOverview?.totalUsers ?? cashierOverview?.activeUsers ?? "—"}
+                hint="Active users in the registry"
                 accent="bg-emerald-700"
-              />
-              <StatCard
-                icon={<Users size={18} />}
-                label="Total user records"
-                value={adminOverview?.totalUsers ?? "—"}
-                hint="Including non-active"
-                accent="bg-gray-600"
               />
               <StatCard
                 icon={<ShieldAlert size={18} />}

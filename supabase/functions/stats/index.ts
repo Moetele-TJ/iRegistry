@@ -34,11 +34,9 @@ serve(async (req) => {
     if (mode === "public") {
       const { count: registeredItems } = await supabase
         .from("items")
-        .select("*", { count: "exact", head: true });
-
-      const { count: activeItems } = await supabase
-        .from("items")
-        .select("Active", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .is("deletedat", null)
+        .is("legacyat", null);
 
       return respond(
         {
@@ -64,21 +62,52 @@ serve(async (req) => {
       }
 
       const [
-        users,
         activeUsers,
-        items,
+        suspendedUsers,
+        disabledUsers,
+        deletedUsers,
+        activeItems,
+        deletedItems,
+        legacyItems,
         stolenItems,
         activeUserRows,
         itemCountRows,
       ] = await Promise.all([
-        supabase.from("users").select("*", { count: "exact", head: true }),
         supabase
           .from("users")
           .select("*", { count: "exact", head: true })
           .is("deleted_at", null)
           .is("suspended_at", null)
           .is("disabled_at", null),
-        supabase.from("items").select("*", { count: "exact", head: true }),
+        supabase
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .is("deleted_at", null)
+          .is("disabled_at", null)
+          .not("suspended_at", "is", null),
+        supabase
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .is("deleted_at", null)
+          .not("disabled_at", "is", null),
+        supabase
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .not("deleted_at", "is", null),
+        supabase
+          .from("items")
+          .select("*", { count: "exact", head: true })
+          .is("deletedat", null)
+          .is("legacyat", null),
+        supabase
+          .from("items")
+          .select("*", { count: "exact", head: true })
+          .not("deletedat", "is", null),
+        supabase
+          .from("items")
+          .select("*", { count: "exact", head: true })
+          .is("deletedat", null)
+          .not("legacyat", "is", null),
         supabase
           .from("items")
           .select("*", { count: "exact", head: true })
@@ -110,14 +139,21 @@ serve(async (req) => {
         if ((activeItemCountByOwner.get(String(uid)) ?? 0) === 0) users_without_items += 1;
       }
 
+      const usersActive = activeUsers.count ?? 0;
+
       return respond(
         {
           success: true,
           data: {
-            users_total: users.count ?? 0,
-            users_active: activeUsers.count ?? 0,
+            users_total: usersActive,
+            users_active: usersActive,
+            users_suspended: suspendedUsers.count ?? 0,
+            users_disabled: disabledUsers.count ?? 0,
+            users_deleted: deletedUsers.count ?? 0,
             users_without_items,
-            items_total: items.count ?? 0,
+            items_total: activeItems.count ?? 0,
+            items_deleted: deletedItems.count ?? 0,
+            items_legacy: legacyItems.count ?? 0,
             items_stolen: stolenItems.count ?? 0,
             security_alerts: 0,
           },

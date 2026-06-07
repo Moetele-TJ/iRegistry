@@ -299,7 +299,7 @@ export default function HomePage() {
 
           <StatCard
             id = "users"
-            title="Total Users"
+            title={DISPLAY.stats.activeUsers}
             value={totalUsers}
             initialLoading={initialLoading}
             icon={<Users size={22} />}

@@ -838,15 +838,19 @@ export default function AdminSettings() {
                   Registry snapshot
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Counts from the database (same source as the admin dashboard).
+                  Active registry counts (same source as the admin dashboard).
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { key: "users_total", label: DISPLAY.stats.totalUsers },
-                { key: "users_active", label: DISPLAY.stats.activeUsers },
+                { key: "users_total", label: DISPLAY.stats.activeUsers },
+                { key: "users_suspended", label: DISPLAY.userAccountStatus.suspended },
+                { key: "users_disabled", label: DISPLAY.userAccountStatus.disabled },
+                { key: "users_deleted", label: DISPLAY.userAccountStatus.deleted },
                 { key: "items_total", label: DISPLAY.stats.registeredItems },
+                { key: "items_deleted", label: DISPLAY.itemStatus.Deleted },
+                { key: "items_legacy", label: DISPLAY.itemStatus.Legacy },
                 { key: "items_stolen", label: DISPLAY.stats.stolenItems, danger: true },
               ].map((row) => (
                 <div
