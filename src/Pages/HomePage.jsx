@@ -5,6 +5,7 @@ import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
 import HomeContactCard from "../components/HomeContactCard.jsx";
 import { usePublicStats } from "../hooks/usePublicStats.js";
+import { DISPLAY } from "../lib/navLabels.js";
 import { Users, Package, AlertTriangle, ChevronRight } from "lucide-react";
 import CountUp from "react-countup";
 import { useAuth } from "../contexts/AuthContext.jsx";
