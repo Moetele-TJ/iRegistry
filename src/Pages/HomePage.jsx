@@ -130,7 +130,17 @@ export default function HomePage() {
   const totals = stats?.totals || {};
   const topStolenItems = Array.isArray(stats?.topStolenItems) ? stats.topStolenItems : [];
   const topStolenVillages = Array.isArray(stats?.topStolenVillages) ? stats.topStolenVillages : [];
-  const topUserVillages = Array.isArray(stats?.topUserVillages) ? stats.topUserVillages : [];
+  const topUserVillages = useMemo(
+    () =>
+      (Array.isArray(stats?.topUserVillages) ? stats.topUserVillages : [])
+        .map((r) => ({
+          village: r?.village || "Unknown",
+          count: Number(r?.count) || 0,
+        }))
+        .sort((a, b) => b.count - a.count || String(a.village).localeCompare(String(b.village)))
+        .slice(0, 5),
+    [stats?.topUserVillages],
+  );
 
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
@@ -319,13 +329,13 @@ export default function HomePage() {
               {topUserVillages.length === 0 ? (
                 <div className="text-sm text-gray-500">No location data yet.</div>
               ) : (
-                topUserVillages.slice(0, 5).map((r) => (
+                topUserVillages.map((r) => (
                   <div
-                    key={r?.village || "Unknown"}
+                    key={r.village}
                     className="flex justify-between gap-3"
                   >
-                    <span className="truncate">{r?.village || "Unknown"}</span>
-                    <span className="font-medium tabular-nums">{r?.count ?? 0}</span>
+                    <span className="truncate">{r.village}</span>
+                    <span className="font-medium tabular-nums">{r.count}</span>
                   </div>
                 ))
               )}
