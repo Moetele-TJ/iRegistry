@@ -10,6 +10,7 @@ import CreditsSummaryStrip from "../components/CreditsSummaryStrip.jsx";
 import { useDashboard } from "../hooks/useDashboard";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 import PromoModeBanner from "../components/PromoModeBanner.jsx";
+import ReferralCompetitionCard from "../components/ReferralCompetitionCard.jsx";
 import { filterActivityForViewer } from "../lib/activityVisibility.js";
 
 function useCountUp(target = 0, duration = 800) {
@@ -85,6 +86,7 @@ export default function UserDashboard() {
           </div>
           <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 bg-gradient-to-b from-white to-gray-50/40">
         <PromoModeBanner />
+        <ReferralCompetitionCard initialReferral={data?.personal?.referral} />
         {showFirstItemCallout && (
           <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm p-8 text-center">
 

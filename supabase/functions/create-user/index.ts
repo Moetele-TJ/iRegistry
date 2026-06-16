@@ -9,6 +9,8 @@ import {
   findSignupIdentifierConflict,
   mapSignupInsertError,
 } from "../shared/signupUniqueness.ts";
+import { normalizeAgentNumber } from "../shared/referralAgentNumber.ts";
+import { deriveUserStatus } from "../shared/userState.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,6 +118,51 @@ serve(async (req) => {
       );
     }
 
+    const rawReferral =
+      typeof body.agent_number === "string" ? body.agent_number
+      : typeof body.referral_code === "string" ? body.referral_code
+      : "";
+    const referralInput = String(rawReferral || "").trim();
+
+    let referredByUserId: string | null = null;
+    let referredByAgentNumber: string | null = null;
+
+    if (referralInput) {
+      const canonical = normalizeAgentNumber(referralInput);
+      if (!canonical) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "Referral code is not valid. Use the format IR-1001 or similar.",
+          }),
+          { status: 400, headers: corsHeaders },
+        );
+      }
+
+      const { data: referrer, error: referrerErr } = await supabase
+        .from("users")
+        .select("id, agent_number, deleted_at, suspended_at, disabled_at")
+        .eq("agent_number", canonical)
+        .maybeSingle();
+
+      if (referrerErr) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Unable to verify referral code." }),
+          { status: 500, headers: corsHeaders },
+        );
+      }
+
+      if (!referrer?.id || deriveUserStatus(referrer) !== "active") {
+        return new Response(
+          JSON.stringify({ success: false, message: "Referral code not found." }),
+          { status: 400, headers: corsHeaders },
+        );
+      }
+
+      referredByUserId = String(referrer.id);
+      referredByAgentNumber = canonical;
+    }
+
     const { data: created, error } = await supabase
       .from("users")
       .insert({
@@ -138,6 +185,9 @@ serve(async (req) => {
         alt_phone: body.alt_phone?.trim() || null,
         landline: body.landline?.trim() || null,
         police_station,
+
+        referred_by_user_id: referredByUserId,
+        referred_by_agent_number: referredByAgentNumber,
 
         // SYSTEM
         role: "user",
@@ -169,7 +219,11 @@ serve(async (req) => {
       targetDisplayName: displayName,
       action: "USER_CREATED",
       message: "Self-registration completed",
-      metadata: { source: "public_signup" },
+      metadata: {
+        source: "public_signup",
+        referred_by_user_id: referredByUserId,
+        referred_by_agent_number: referredByAgentNumber,
+      },
     });
 
     return new Response(

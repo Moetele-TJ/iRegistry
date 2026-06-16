@@ -10,6 +10,11 @@ import { getPoliceStation } from "../shared/getPoliceStation.ts";
 import { getPoliceCaseActivity } from "../shared/getPoliceCaseActivity.ts";
 import { isActivityVisibleToViewer } from "../shared/activityVisibility.ts";
 import { resolveActivityActorRole } from "../shared/resolveActivityActorRole.ts";
+import {
+  buildReferralPersonalBlock,
+  handleClaimReferralCode,
+  handleGetReferralStats,
+} from "../shared/referralDashboard.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -194,6 +199,14 @@ serve(async (req) => {
     const role = session.role;
 
     const body = await req.json().catch(() => ({}));
+    const operation = typeof body?.operation === "string" ? body.operation.trim() : "";
+
+    if (operation === "claim-referral-code") {
+      return await handleClaimReferralCode(supabase, session, corsHeaders);
+    }
+    if (operation === "get-referral-stats") {
+      return await handleGetReferralStats(supabase, session, corsHeaders);
+    }
 
     const {
       limit = 5,
@@ -272,6 +285,20 @@ serve(async (req) => {
       );
     const personalActivity = await attachActorDetails(supabase, personalActivityRaw);
 
+    let referral = null;
+    if (roleIs(role, "user")) {
+      try {
+        referral = await buildReferralPersonalBlock(supabase, userId);
+      } catch (referralErr) {
+        console.error("get-dashboard-data referral block:", referralErr);
+        referral = {
+          agent_number: null,
+          assigned_at: null,
+          stats: { signup_count: 0, qualified_count: 0 },
+        };
+      }
+    }
+
     const personal = {
       summary: {
         activeItems: activeItems ?? 0,
@@ -281,6 +308,8 @@ serve(async (req) => {
       },
 
       alerts: alerts ?? [],
+
+      referral,
 
       activity: {
         data: personalActivity ?? [],

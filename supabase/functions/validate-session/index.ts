@@ -7,6 +7,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { jwtNeedsRotation } from "../shared/sessionConfig.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
+import { loadReferralCompetitionConfig } from "../shared/bundles/admin/referralCompetition.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -74,6 +75,8 @@ serve(async (req) => {
         village,
         ward,
         police_station,
+        agent_number,
+        agent_number_assigned_at,
         user_credits(balance)
       `,
       )
@@ -145,12 +148,21 @@ serve(async (req) => {
         ? (lastSessionRow as any).last_login_at
         : null;
 
+    let referral_signup_button_enabled = false;
+    try {
+      const referralConfig = await loadReferralCompetitionConfig();
+      referral_signup_button_enabled = referralConfig.signup_button_enabled;
+    } catch (referralCfgErr) {
+      console.error("validate-session referral config:", referralCfgErr);
+    }
+
     const normalizedUser = {
       ...(user as any),
       credit_balance,
       last_login_at,
       promo_active,
       promo,
+      referral_signup_button_enabled,
     };
     delete (normalizedUser as any).user_credits;
 

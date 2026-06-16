@@ -33,6 +33,7 @@ export default function Signup() {
     ward: "",
     alt_phone: "",
     landline: "",
+    referral_code: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -191,7 +192,12 @@ export default function Signup() {
     try {
       const { data, error } = await invokeFn(
         "create-user",
-        { body: form },
+        {
+          body: {
+            ...form,
+            agent_number: form.referral_code,
+          },
+        },
         { withAuth: false }
       );
 
@@ -408,6 +414,15 @@ export default function Signup() {
                 />
               </div>
 
+              <Input
+                label="Referral code (optional)"
+                value={form.referral_code}
+                onChange={(v) => setField("referral_code", v)}
+                required={false}
+                placeholder="e.g. IR-1001"
+                helpText="If someone helped you register, enter their referral code here."
+              />
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Alt. phone"
@@ -551,6 +566,8 @@ function Input({
   type = "text",
   required = true,
   error,
+  placeholder,
+  helpText,
 }) {
   return (
     <div className="min-w-0">
@@ -560,9 +577,11 @@ function Input({
       <input
         type={type}
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`${formControlClass} ${error ? "border-red-500" : ""}`}
       />
+      {helpText ? <p className="text-xs text-gray-500 mt-1">{helpText}</p> : null}
     </div>
   );
 }

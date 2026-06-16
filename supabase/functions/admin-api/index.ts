@@ -21,6 +21,11 @@ import {
   runGetPublicContactConfig,
   runUpsertPublicContact,
 } from "../shared/bundles/admin/publicContact.ts";
+import {
+  runGetReferralCompetitionConfig,
+  runUpsertReferralCompetitionConfig,
+  runGetReferralLeaderboard,
+} from "../shared/bundles/admin/referralCompetition.ts";
 
 const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-create-user": runCreateUser,
@@ -36,6 +41,9 @@ const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-delete-scheduled-promo": runDeleteScheduledPromo,
   "admin-get-public-contact": runGetPublicContactConfig,
   "admin-upsert-public-contact": runUpsertPublicContact,
+  "admin-get-referral-competition-config": runGetReferralCompetitionConfig,
+  "admin-upsert-referral-competition-config": runUpsertReferralCompetitionConfig,
+  "admin-get-referral-leaderboard": runGetReferralLeaderboard,
 };
 
 serve(async (req) => {
