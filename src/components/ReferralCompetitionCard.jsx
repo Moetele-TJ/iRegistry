@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Gift, RefreshCw } from "lucide-react";
+import { Copy, Gift, RefreshCw, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -61,7 +61,7 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
       title: "Join the referral competition?",
       message:
         "You will receive a personal referral code (e.g. IR-1001). Share it when helping others sign up. " +
-        "At the end of the promotion, the participant with the most active referred signups wins — " +
+        "The participant with the most referred signups wins — " +
         "ties are broken by referred users who registered at least 2 items.",
       confirmLabel: "Get my code",
       cancelLabel: "Not now",
@@ -100,79 +100,106 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
   }
 
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm overflow-hidden">
-      <div className="flex items-start gap-3 px-6 py-5 border-b border-emerald-100/80">
-        <div className="rounded-xl bg-emerald-100 text-emerald-700 p-2.5 shrink-0">
-          <Gift size={20} />
+    <div className="relative rounded-2xl border-2 border-red-500 bg-white shadow-lg shadow-red-200/60 overflow-hidden ring-1 ring-red-400/30">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-amber-400 to-red-500" aria-hidden />
+
+      <div className="flex flex-wrap items-start justify-between gap-3 px-5 sm:px-6 py-5 bg-gradient-to-br from-red-50 via-amber-50/80 to-white border-b border-red-100">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-white p-3 shrink-0 shadow-md shadow-red-300/50">
+            <Gift size={22} strokeWidth={2.25} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">Referral competition</h2>
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
+                <Sparkles size={11} />
+                Live promo
+              </span>
+            </div>
+            <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+              Help others signup and register at least 2 items. Top referrer wins a share of{" "}
+              <span className="font-bold text-red-700">P1,000</span>.
+            </p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold text-gray-900">Referral competition</h2>
-          <p className="text-sm text-gray-600 mt-0.5 leading-relaxed">
-            Help others register and enter their referral code on signup. Top referrer wins a hamper at promo end.
-          </p>
+
+        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950 shadow-sm shrink-0">
+          <Trophy size={18} className="text-amber-600 shrink-0" />
+          <div className="text-xs leading-tight">
+            <div className="font-semibold uppercase tracking-wide text-amber-800">Prize pool</div>
+            <div className="text-sm font-bold tabular-nums">P1,000</div>
+          </div>
         </div>
       </div>
 
-      <div className="px-6 py-5 space-y-4">
+      <div className="px-5 sm:px-6 py-5 space-y-4 bg-gradient-to-b from-white to-red-50/20">
         {!agentNumber ? (
           <>
-            <p className="text-sm text-gray-600">
-              Opt in to receive your unique code. Only participants who claim a code can earn referral credit.
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Opt in to get your unique code. Only participants who claim a code can earn referral credit toward the
+              prize.
             </p>
             <button
               type="button"
               onClick={() => void handleClaim()}
               disabled={claiming}
-              className="inline-flex items-center justify-center rounded-xl bg-iregistrygreen px-5 py-2.5 text-sm font-semibold text-white hover:shadow-md transition disabled:opacity-60"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 text-sm font-bold text-white shadow-md shadow-red-300/40 hover:from-red-700 hover:to-red-600 hover:shadow-lg transition disabled:opacity-60"
             >
-              {claiming ? "Assigning…" : "Get a referral code"}
+              <Sparkles size={16} />
+              {claiming ? "Assigning your code…" : "Get a referral code"}
             </button>
           </>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500">Your referral code</div>
-                <div className="text-2xl font-bold text-iregistrygreen tabular-nums mt-0.5">{agentNumber}</div>
+            <div className="rounded-xl border-2 border-dashed border-red-300 bg-red-50/60 px-4 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Your referral code</div>
+                  <div className="text-3xl font-extrabold text-red-600 tabular-nums mt-1 tracking-tight">
+                    {agentNumber}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void copyCode()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 shadow-sm"
+                  >
+                    <Copy size={15} />
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void loadStats()}
+                    disabled={loadingStats}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+                    title="Refresh counts"
+                  >
+                    <RefreshCw size={15} className={loadingStats ? "animate-spin" : ""} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => void copyCode()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-emerald-50"
-              >
-                <Copy size={15} />
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={() => void loadStats()}
-                disabled={loadingStats}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-60"
-                title="Refresh counts"
-              >
-                <RefreshCw size={15} className={loadingStats ? "animate-spin" : ""} />
-              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-gray-100 bg-white px-4 py-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wide">Referred signups</div>
+              <div className="rounded-xl border border-red-100 bg-white px-4 py-3 shadow-sm">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Referred signups</div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums mt-1">
                   {loadingStats ? "—" : stats.signup_count}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">Active users during promo</div>
               </div>
-              <div className="rounded-xl border border-gray-100 bg-white px-4 py-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wide">Tie-break score</div>
-                <div className="text-2xl font-bold text-gray-900 tabular-nums mt-1">
+              <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3 shadow-sm">
+                <div className="text-xs font-medium text-amber-800 uppercase tracking-wide">Tie-break score</div>
+                <div className="text-2xl font-bold text-amber-900 tabular-nums mt-1">
                   {loadingStats ? "—" : stats.qualified_count}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">Referred users with 2+ items</div>
+                <div className="text-xs text-amber-800/80 mt-1">Referred users with 2+ items</div>
               </div>
             </div>
 
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Ask new users to enter your code on the signup form. Codes like IR1001, ir-1001, and IR-1001 all work.
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Ask new users to enter your code on the signup form. Formats like IR1001 and ir-1001 also work.
             </p>
           </>
         )}
