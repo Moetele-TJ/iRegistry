@@ -10,6 +10,7 @@ import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { countries } from "../Data/countries";
 import { formControlClass } from "../lib/formFieldStyles.js";
+import { normalizeAgentNumber } from "../lib/referralAgentNumber.js";
 
 export default function Signup() {
 
@@ -25,6 +26,7 @@ export default function Signup() {
   const [referralGateDraft, setReferralGateDraft] = useState("");
   const [referralCodeLocked, setReferralCodeLocked] = useState(false);
   const [invalidReferralModalOpen, setInvalidReferralModalOpen] = useState(false);
+  const [invalidReferralFormat, setInvalidReferralFormat] = useState(false);
   const [invalidReferralWarnCount, setInvalidReferralWarnCount] = useState(0);
   const referralCodeInputRef = useRef(null);
 
@@ -143,9 +145,14 @@ export default function Signup() {
   const referralGateHasCode = String(referralGateDraft || "").trim().length >= 4;
 
   async function verifyReferralCode(raw) {
+    const canonical = normalizeAgentNumber(raw);
+    if (!canonical) {
+      return { ok: true, exists: false, canonical: null, invalidFormat: true };
+    }
+
     const { data, error } = await invokeFn(
       "check-user-details",
-      { body: { mode: "referral", referral_code: raw } },
+      { body: { mode: "referral", referral_code: raw, agent_number: raw } },
       { withAuth: false },
     );
     if (error || !data?.success) {
@@ -154,7 +161,7 @@ export default function Signup() {
     return {
       ok: true,
       exists: Boolean(data.exists),
-      canonical: data.canonical ? String(data.canonical) : null,
+      canonical: data.canonical ? String(data.canonical) : canonical,
     };
   }
 
@@ -332,6 +339,7 @@ export default function Signup() {
         if (!check.exists) {
           const nextWarnCount = invalidReferralWarnCount + 1;
           setInvalidReferralWarnCount(nextWarnCount);
+          setInvalidReferralFormat(Boolean(check.invalidFormat));
 
           if (nextWarnCount > 3) {
             setReferralCodeLocked(false);
@@ -698,7 +706,7 @@ export default function Signup() {
                   className={formControlClass}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Formats like IR1001, ir-1001, and IR-1001 all work. We will verify the code when you save.
+                  Formats like IR1001, ir-1001, and IR-1001 all work the same.
                 </p>
               </div>
 
@@ -723,12 +731,23 @@ export default function Signup() {
         >
           <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-red-200 p-6">
             <h2 id="invalid-referral-title" className="text-lg font-semibold text-red-700">
-              Referral code not found
+              {invalidReferralFormat ? "Referral code not recognised" : "Referral code not found"}
             </h2>
             <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-              We could not find an active account with code{" "}
-              <span className="font-semibold text-gray-900">{form.referral_code || "—"}</span>.
-              You can correct the code or create your account without a referral.
+              {invalidReferralFormat ? (
+                <>
+                  Referral codes use the format <span className="font-semibold text-gray-900">IR-1001</span>{" "}
+                  (for example IR1001 or ir-1001 also work). You entered{" "}
+                  <span className="font-semibold text-gray-900">{form.referral_code || "—"}</span>.
+                  Correct the code or continue without one.
+                </>
+              ) : (
+                <>
+                  We could not find an active account with code{" "}
+                  <span className="font-semibold text-gray-900">{form.referral_code || "—"}</span>.
+                  You can correct the code or create your account without a referral.
+                </>
+              )}
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button

@@ -101,14 +101,14 @@ serve(async (req) => {
     // 1️⃣ ID NUMBER CHECK
     // =====================================================
     if (!id_number) {
-      return respondError("An ID number is required, please type in and ID");
+      return respondError("ID or passport number is required.");
     }
 
     // =====================================================
     // 3️⃣ PHONE + COUNTRY CHECK
     // =====================================================
     if (!country) {
-      return respondError("Country is required, please select a country from the list");
+      return respondError("Please select your country.");
     }
 
     const countryMeta = countries.find(
@@ -116,11 +116,11 @@ serve(async (req) => {
     );
 
     if (!countryMeta) {
-      return respondError("Invalid country selection, please make a new selection");
+      return respondError("Invalid country selection. Please choose again.");
     }
 
     if (!phone) {
-      return respondError("Phone number is required, please enter a phone number");
+      return respondError("Phone number is required.");
     }
 
     // Strip non-digits
@@ -144,12 +144,12 @@ serve(async (req) => {
     }
 
     if (!email) {
-      return respondError("Email address is required, please type in a valid email address");
+      return respondError("Email address is required.");
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return respondError("The email address you entered is Invalid");
+      return respondError("Please enter a valid email address.");
     }
 
     const identifierConflict = await findSignupIdentifierConflict(supabase, {
