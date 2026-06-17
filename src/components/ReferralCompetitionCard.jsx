@@ -143,7 +143,7 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
               type="button"
               onClick={() => void handleClaim()}
               disabled={claiming}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 text-sm font-bold text-white shadow-md shadow-red-300/40 hover:from-red-700 hover:to-red-600 hover:shadow-lg transition disabled:opacity-60"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-3 text-sm font-bold text-white shadow-md shadow-amber-300/50 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 hover:shadow-lg transition disabled:opacity-60"
             >
               <Sparkles size={16} />
               {claiming ? "Assigning your code…" : "Get a referral code"}
