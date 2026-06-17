@@ -128,6 +128,17 @@ serve(async (req) => {
     let referredByAgentNumber: string | null = null;
 
     if (referralInput) {
+      const { data: competitionActive, error: competitionErr } = await supabase.rpc(
+        "is_referral_competition_active",
+      );
+      if (competitionErr) {
+        console.error("create-user competition check:", competitionErr.message);
+      }
+
+      if (!competitionActive) {
+        referredByUserId = null;
+        referredByAgentNumber = null;
+      } else {
       const canonical = normalizeAgentNumber(referralInput);
       if (!canonical) {
         return new Response(
@@ -161,6 +172,7 @@ serve(async (req) => {
 
       referredByUserId = String(referrer.id);
       referredByAgentNumber = canonical;
+      }
     }
 
     const { data: created, error } = await supabase

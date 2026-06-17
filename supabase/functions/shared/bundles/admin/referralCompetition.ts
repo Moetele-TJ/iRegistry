@@ -12,7 +12,7 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const CONFIG_SELECT = "signup_button_enabled, updated_at, updated_by";
+const CONFIG_SELECT = "competition_enabled, signup_button_enabled, updated_at, updated_by";
 
 async function requireAdmin(req: Request) {
   const auth = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -36,10 +36,23 @@ export async function loadReferralCompetitionConfig() {
   if (error) throw new Error(error.message || "Failed to load referral competition config");
 
   return {
+    competition_enabled: Boolean((data as { competition_enabled?: boolean } | null)?.competition_enabled),
     signup_button_enabled: Boolean((data as { signup_button_enabled?: boolean } | null)?.signup_button_enabled),
     updated_at: (data as { updated_at?: string } | null)?.updated_at ?? null,
     updated_by: (data as { updated_by?: string } | null)?.updated_by ?? null,
   };
+}
+
+async function loadReferralCompetitionActive() {
+  const { data, error } = await supabase.rpc("is_referral_competition_active");
+  if (error) throw new Error(error.message || "Failed to load referral competition status");
+  return Boolean(data);
+}
+
+async function loadSystemPromoActive() {
+  const { data, error } = await supabase.rpc("is_promo_active", { p_user_id: null });
+  if (error) throw new Error(error.message || "Failed to load promotion status");
+  return Boolean(data);
 }
 
 export async function runGetReferralCompetitionConfig(req: Request): Promise<Response> {
@@ -51,7 +64,20 @@ export async function runGetReferralCompetitionConfig(req: Request): Promise<Res
 
   try {
     const config = await loadReferralCompetitionConfig();
-    return respond({ success: true, config }, corsHeaders, 200);
+    const [competition_active, promo_active] = await Promise.all([
+      loadReferralCompetitionActive(),
+      loadSystemPromoActive(),
+    ]);
+    return respond(
+      {
+        success: true,
+        config,
+        competition_active,
+        promo_active,
+      },
+      corsHeaders,
+      200,
+    );
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to load referral competition config";
     return respond({ success: false, message: msg }, corsHeaders, 500);
@@ -68,11 +94,15 @@ export async function runUpsertReferralCompetitionConfig(req: Request): Promise<
 
   try {
     const body = await req.json().catch(() => ({}));
-    const enabled = Boolean((body as { signup_button_enabled?: unknown })?.signup_button_enabled);
+    const enabled = Boolean(
+      (body as { competition_enabled?: unknown })?.competition_enabled
+      ?? (body as { signup_button_enabled?: unknown })?.signup_button_enabled,
+    );
 
     const { data, error } = await supabase
       .from("referral_competition_config")
       .update({
+        competition_enabled: enabled,
         signup_button_enabled: enabled,
         updated_by: session.user_id,
       })
@@ -89,6 +119,7 @@ export async function runUpsertReferralCompetitionConfig(req: Request): Promise<
     }
 
     const config = {
+      competition_enabled: Boolean((data as { competition_enabled?: boolean }).competition_enabled),
       signup_button_enabled: Boolean((data as { signup_button_enabled?: boolean }).signup_button_enabled),
       updated_at: (data as { updated_at?: string }).updated_at ?? null,
       updated_by: (data as { updated_by?: string }).updated_by ?? null,
@@ -103,11 +134,19 @@ export async function runUpsertReferralCompetitionConfig(req: Request): Promise<
       success: true,
       severity: "medium",
       diag: "REF-CFG-UP",
-      metadata: { signup_button_enabled: config.signup_button_enabled },
+      metadata: {
+        competition_enabled: config.competition_enabled,
+        signup_button_enabled: config.signup_button_enabled,
+      },
       req,
     });
 
-    return respond({ success: true, config }, corsHeaders, 200);
+    const [competition_active, promo_active] = await Promise.all([
+      loadReferralCompetitionActive(),
+      loadSystemPromoActive(),
+    ]);
+
+    return respond({ success: true, config, competition_active, promo_active }, corsHeaders, 200);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to save referral competition config";
     return respond({ success: false, message: msg }, corsHeaders, 500);

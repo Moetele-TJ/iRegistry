@@ -100,7 +100,7 @@ export async function handleClaimReferralCode(
   }
 
   const config = await loadReferralCompetitionConfig();
-  if (!config.signup_button_enabled) {
+  if (!config.competition_enabled) {
     return respond(
       { success: false, message: "The referral competition is not open right now." },
       corsHeaders,
@@ -108,15 +108,23 @@ export async function handleClaimReferralCode(
     );
   }
 
-  const { data: promoActive, error: promoErr } = await supabase.rpc("is_promo_active", {
-    p_user_id: session.user_id,
-  });
-  if (promoErr) {
-    console.error("claim-referral-code promo check:", promoErr.message);
+  const { data: competitionActive, error: competitionErr } = await supabase.rpc(
+    "is_referral_competition_active",
+  );
+  if (competitionErr) {
+    console.error("claim-referral-code competition check:", competitionErr.message);
   }
-  if (!promoActive) {
+  if (!competitionActive) {
     return respond(
-      { success: false, message: "Referral codes are only available during the active promotion." },
+      { success: false, message: "The referral competition is not open right now." },
+      corsHeaders,
+      403,
+    );
+  }
+
+  if (!config.signup_button_enabled) {
+    return respond(
+      { success: false, message: "Referral code signup is not available right now." },
       corsHeaders,
       403,
     );

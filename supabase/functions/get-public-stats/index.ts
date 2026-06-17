@@ -22,9 +22,12 @@ serve(async (req) => {
   try {
     /* ================= CALL MASTER SQL FUNCTION ================= */
 
-    const { data, error } = await supabase.rpc(
-      "public_registry_stats"
-    );
+    const [{ data, error }, { data: promoActive, error: promoErr }, { data: competitionActive, error: competitionErr }] =
+      await Promise.all([
+      supabase.rpc("public_registry_stats"),
+      supabase.rpc("is_promo_active", { p_user_id: null }),
+      supabase.rpc("is_referral_competition_active"),
+    ]);
 
     if (error) {
       console.error("RPC ERROR:", error);
@@ -39,12 +42,22 @@ serve(async (req) => {
       );
     }
 
+    if (promoErr) {
+      console.error("PROMO RPC ERROR:", promoErr);
+    }
+
+    if (competitionErr) {
+      console.error("COMPETITION RPC ERROR:", competitionErr);
+    }
+
     /* ================= RESPONSE ================= */
 
     return respond(
       {
         success: true,
         stats: data ?? {},
+        promo_active: promoErr ? false : Boolean(promoActive),
+        referral_competition_active: competitionErr ? false : Boolean(competitionActive),
       },
       corsHeaders,
       200

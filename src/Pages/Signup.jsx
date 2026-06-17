@@ -1,27 +1,32 @@
 // src/Pages/Signup.jsx
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Gift } from "lucide-react";
 import { invokeFn } from "../lib/invokeFn";
+import { useToast } from "../contexts/ToastContext.jsx";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { countries } from "../Data/countries";
 import { formControlClass } from "../lib/formFieldStyles.js";
-import { normalizeAgentNumber } from "../lib/referralAgentNumber.js";
 
 export default function Signup() {
 
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [referralGateOpen, setReferralGateOpen] = useState(true);
+  const [competitionActive, setCompetitionActive] = useState(false);
+  const [competitionChecked, setCompetitionChecked] = useState(false);
+  const [referralGateOpen, setReferralGateOpen] = useState(false);
   const [referralGateDraft, setReferralGateDraft] = useState("");
-  const [referralGateError, setReferralGateError] = useState("");
   const [referralCodeLocked, setReferralCodeLocked] = useState(false);
+  const [invalidReferralModalOpen, setInvalidReferralModalOpen] = useState(false);
+  const [invalidReferralWarnCount, setInvalidReferralWarnCount] = useState(0);
+  const referralCodeInputRef = useRef(null);
 
   const [form, setForm] = useState({
     // STEP 1 — identity + contact + location (required)
@@ -74,39 +79,115 @@ export default function Signup() {
   }, [modal.type, navigate]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadCompetitionStatus() {
+      const { data, error } = await invokeFn(
+        "get-public-stats",
+        {},
+        { withAuth: false },
+      );
+
+      if (cancelled) return;
+
+      const active = !error && data?.success && Boolean(data.referral_competition_active);
+      setCompetitionActive(active);
+      setCompetitionChecked(true);
+      if (active) {
+        setReferralGateOpen(true);
+      }
+    }
+
+    void loadCompetitionStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!competitionChecked) return;
+
     const fromUrl =
       searchParams.get("ref") ||
       searchParams.get("referral") ||
       searchParams.get("agent") ||
       "";
     const trimmed = String(fromUrl).trim();
-    if (trimmed) {
+    if (!trimmed) return;
+
+    if (competitionActive) {
       setReferralGateDraft(trimmed);
+      return;
     }
-  }, [searchParams]);
+
+    setField("referral_code", trimmed);
+  }, [searchParams, competitionActive, competitionChecked]);
 
   function skipReferralGate() {
-    setReferralGateError("");
     setReferralGateOpen(false);
   }
 
-  function applyReferralFromGate() {
+  function handleReferralGateContinue() {
     const raw = String(referralGateDraft || "").trim();
-    if (!raw) {
+    if (raw.length < 4) {
       skipReferralGate();
       return;
     }
 
-    const canonical = normalizeAgentNumber(raw);
-    if (!canonical) {
-      setReferralGateError("Enter a valid code (e.g. IR-1001, IR1001, or ir-1001).");
-      return;
+    setField("referral_code", raw);
+    setReferralCodeLocked(true);
+    setReferralGateOpen(false);
+  }
+
+  const referralGateHasCode = String(referralGateDraft || "").trim().length >= 4;
+
+  async function verifyReferralCode(raw) {
+    const { data, error } = await invokeFn(
+      "check-user-details",
+      { body: { mode: "referral", referral_code: raw } },
+      { withAuth: false },
+    );
+    if (error || !data?.success) {
+      return { ok: false, message: data?.message || error?.message || "Unable to verify referral code." };
+    }
+    return {
+      ok: true,
+      exists: Boolean(data.exists),
+      canonical: data.canonical ? String(data.canonical) : null,
+    };
+  }
+
+  async function submitCreateUser({ omitReferral = false } = {}) {
+    const payload = {
+      ...form,
+      agent_number: omitReferral ? "" : form.referral_code,
+      referral_code: omitReferral ? "" : form.referral_code,
+    };
+
+    const { data, error } = await invokeFn(
+      "create-user",
+      { body: payload },
+      { withAuth: false },
+    );
+
+    if (error || data?.success === false) {
+      setModal({
+        open: true,
+        title: "Error",
+        message: data?.message || "Failed to create account",
+        type: "error",
+      });
+      return false;
     }
 
-    setField("referral_code", canonical);
-    setReferralCodeLocked(true);
-    setReferralGateError("");
-    setReferralGateOpen(false);
+    setModal({
+      open: true,
+      title: "Success",
+      message: "Account created successfully",
+      type: "success",
+    });
+    return true;
   }
 
   // ----------------------------
@@ -208,7 +289,7 @@ export default function Signup() {
   // ----------------------------
   // FINAL SUBMIT
   // ----------------------------
-  async function handleSubmit() {
+  async function handleSubmit({ skipReferralCheck = false, omitReferral = false } = {}) {
 
     if (loading) return;
 
@@ -231,37 +312,57 @@ export default function Signup() {
       }
     }
 
+    const referralRaw = omitReferral ? "" : String(form.referral_code || "").trim();
+
     setLoading(true);
 
     try {
-      const { data, error } = await invokeFn(
-        "create-user",
-        {
-          body: {
-            ...form,
-            agent_number: form.referral_code,
-          },
-        },
-        { withAuth: false }
-      );
+      if (competitionActive && !skipReferralCheck && referralRaw) {
+        const check = await verifyReferralCode(referralRaw);
+        if (!check.ok) {
+          setModal({
+            open: true,
+            title: "Error",
+            message: check.message,
+            type: "error",
+          });
+          return;
+        }
 
-      if (error || data?.success === false) {
-      setModal({
-        open: true,
-        title: "Error",
-        message: data?.message || "Failed to create account",
-        type: "error"
-      });
-      return;
-    }
+        if (!check.exists) {
+          const nextWarnCount = invalidReferralWarnCount + 1;
+          setInvalidReferralWarnCount(nextWarnCount);
 
-    // ✅ SHOW SUCCESS MODAL
-    setModal({
-      open: true,
-      title: "Success",
-      message: "Account created successfully",
-      type: "success",
-    });
+          if (nextWarnCount > 3) {
+            setReferralCodeLocked(false);
+            setField("referral_code", "");
+            setErrors((e) => {
+              const next = { ...e };
+              delete next.referral_code;
+              return next;
+            });
+            addToast({
+              type: "info",
+              message:
+                "Account saved without a referral code. It will not count toward the referral competition.",
+              duration: 6000,
+            });
+            await submitCreateUser({ omitReferral: true });
+            return;
+          }
+
+          setReferralCodeLocked(false);
+          setErrors((e) => ({ ...e, referral_code: true }));
+          setInvalidReferralModalOpen(true);
+          return;
+        }
+
+        if (check.canonical && check.canonical !== form.referral_code) {
+          setField("referral_code", check.canonical);
+        }
+      }
+
+      await submitCreateUser({ omitReferral });
 
     } catch {
       setModal({
@@ -273,6 +374,27 @@ export default function Signup() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleContinueWithoutReferral() {
+    setInvalidReferralModalOpen(false);
+    setField("referral_code", "");
+    setErrors((e) => {
+      const next = { ...e };
+      delete next.referral_code;
+      return next;
+    });
+    void handleSubmit({ skipReferralCheck: true, omitReferral: true });
+  }
+
+  function handleEditReferralCode() {
+    setInvalidReferralModalOpen(false);
+    setReferralCodeLocked(false);
+    setErrors((e) => ({ ...e, referral_code: true }));
+    requestAnimationFrame(() => {
+      referralCodeInputRef.current?.focus();
+      referralCodeInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   }
 
   const stepBlurb =
@@ -464,11 +586,16 @@ export default function Signup() {
                 onChange={(v) => setField("referral_code", v)}
                 required={false}
                 readOnly={referralCodeLocked}
+                error={errors.referral_code}
+                inputRef={referralCodeInputRef}
+                inputId="signup-referral-code-input"
                 placeholder="e.g. IR-1001"
                 helpText={
                   referralCodeLocked
-                    ? "Applied at signup. This code is locked."
-                    : "If someone helped you register, enter their referral code here."
+                    ? "Prefilled from the signup prompt. It will be verified when you create your account."
+                    : errors.referral_code
+                      ? "This referral code was not found. Update it or continue without a code."
+                      : "If someone helped you register, enter their referral code here."
                 }
               />
 
@@ -510,7 +637,7 @@ export default function Signup() {
 
                 <button
                   type="button"
-                  onClick={handleSubmit}
+                  onClick={() => void handleSubmit()}
                   disabled={loading}
                   className="w-full rounded-lg bg-iregistrygreen py-3 font-semibold text-white disabled:opacity-60 sm:w-auto sm:min-w-[12rem] lg:min-w-[14rem]"
                 >
@@ -524,7 +651,7 @@ export default function Signup() {
         </div>
       </div>
 
-      {referralGateOpen ? (
+      {competitionActive && referralGateOpen ? (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
           role="dialog"
@@ -559,43 +686,66 @@ export default function Signup() {
                   value={referralGateDraft}
                   onChange={(e) => {
                     setReferralGateDraft(e.target.value);
-                    if (referralGateError) setReferralGateError("");
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      applyReferralFromGate();
+                      handleReferralGateContinue();
                     }
                   }}
                   placeholder="e.g. IR-1001"
                   autoFocus
-                  className={`${formControlClass} ${referralGateError ? "border-red-500" : ""}`}
+                  className={formControlClass}
                 />
-                {referralGateError ? (
-                  <p className="text-xs text-red-600 mt-1">{referralGateError}</p>
-                ) : (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Formats like IR1001, ir-1001, and IR-1001 all work.
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Formats like IR1001, ir-1001, and IR-1001 all work. We will verify the code when you save.
+                </p>
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={skipReferralGate}
-                  className="w-full sm:w-auto rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Continue without code
-                </button>
-                <button
-                  type="button"
-                  onClick={applyReferralFromGate}
-                  className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-amber-300/40 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700"
-                >
-                  {referralGateDraft.trim() ? "Continue with code" : "Continue"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleReferralGateContinue}
+                className="w-full rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-amber-300/40 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700"
+              >
+                {referralGateHasCode ? "Continue" : "Continue without code"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {competitionActive && invalidReferralModalOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invalid-referral-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-red-200 p-6">
+            <h2 id="invalid-referral-title" className="text-lg font-semibold text-red-700">
+              Referral code not found
+            </h2>
+            <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+              We could not find an active account with code{" "}
+              <span className="font-semibold text-gray-900">{form.referral_code || "—"}</span>.
+              You can correct the code or create your account without a referral.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={handleEditReferralCode}
+                className="w-full sm:w-auto rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Edit referral code
+              </button>
+              <button
+                type="button"
+                onClick={handleContinueWithoutReferral}
+                disabled={loading}
+                className="w-full sm:w-auto rounded-xl bg-iregistrygreen px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                Continue without code
+              </button>
             </div>
           </div>
         </div>
@@ -695,27 +845,33 @@ function Input({
   placeholder,
   helpText,
   readOnly = false,
+  inputRef,
+  inputId,
 }) {
   return (
     <div className="min-w-0">
-      <label className="block text-sm mb-1">
+      <label className="block text-sm mb-1" htmlFor={inputId}>
         {label} {required && <span className="text-red-600">*</span>}
         {readOnly ? (
           <span className="ml-2 text-xs font-normal text-amber-700">(locked)</span>
         ) : null}
       </label>
       <input
+        id={inputId}
+        ref={inputRef}
         type={type}
         value={value}
         placeholder={placeholder}
         readOnly={readOnly}
         disabled={readOnly}
         onChange={(e) => onChange(e.target.value)}
-        className={`${formControlClass} ${error ? "border-red-500" : ""} ${
+        className={`${formControlClass} ${error ? "border-red-500 ring-1 ring-red-200" : ""} ${
           readOnly ? "bg-amber-50/60 border-amber-200 text-gray-800 cursor-not-allowed" : ""
         }`}
       />
-      {helpText ? <p className="text-xs text-gray-500 mt-1">{helpText}</p> : null}
+      {helpText ? (
+        <p className={`text-xs mt-1 ${error ? "text-red-600" : "text-gray-500"}`}>{helpText}</p>
+      ) : null}
     </div>
   );
 }

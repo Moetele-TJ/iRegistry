@@ -18,7 +18,10 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
   const [claiming, setClaiming] = useState(false);
 
   const agentNumber = user?.agent_number ? String(user.agent_number) : null;
-  const showCard = Boolean(user?.referral_signup_button_enabled && user?.promo_active);
+  const showCard = Boolean(
+    user?.referral_competition_active
+    && (agentNumber || user?.referral_signup_button_enabled),
+  );
 
   const loadStats = useCallback(async () => {
     if (!agentNumber) {

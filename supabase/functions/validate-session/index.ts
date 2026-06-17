@@ -149,12 +149,21 @@ serve(async (req) => {
         : null;
 
     let referral_signup_button_enabled = false;
+    let referral_competition_active = false;
     try {
       const referralConfig = await loadReferralCompetitionConfig();
       referral_signup_button_enabled = referralConfig.signup_button_enabled;
     } catch (referralCfgErr) {
       console.error("validate-session referral config:", referralCfgErr);
     }
+
+    const { data: competitionRows, error: competitionErr } = await supabase.rpc(
+      "is_referral_competition_active",
+    );
+    if (competitionErr) {
+      console.error("validate-session competition check:", competitionErr.message);
+    }
+    referral_competition_active = typeof competitionRows === "boolean" ? competitionRows : false;
 
     const normalizedUser = {
       ...(user as any),
@@ -163,6 +172,7 @@ serve(async (req) => {
       promo_active,
       promo,
       referral_signup_button_enabled,
+      referral_competition_active,
     };
     delete (normalizedUser as any).user_credits;
 

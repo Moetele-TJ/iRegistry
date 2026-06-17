@@ -163,6 +163,8 @@ export default function AdminSettings() {
   const [referralLoading, setReferralLoading] = useState(true);
   const [referralSaving, setReferralSaving] = useState(false);
   const [referralButtonEnabled, setReferralButtonEnabled] = useState(false);
+  const [referralCompetitionLive, setReferralCompetitionLive] = useState(false);
+  const [referralPromoLive, setReferralPromoLive] = useState(false);
   const [referralLeaderboard, setReferralLeaderboard] = useState([]);
 
   const host = useMemo(() => projectLabel(SUPABASE_URL), []);
@@ -276,8 +278,12 @@ export default function AdminSettings() {
 
       if (configRes.error || !configRes.data?.success) {
         setReferralButtonEnabled(false);
+        setReferralCompetitionLive(false);
+        setReferralPromoLive(false);
       } else {
-        setReferralButtonEnabled(Boolean(configRes.data?.config?.signup_button_enabled));
+        setReferralButtonEnabled(Boolean(configRes.data?.config?.competition_enabled));
+        setReferralCompetitionLive(Boolean(configRes.data?.competition_active));
+        setReferralPromoLive(Boolean(configRes.data?.promo_active));
       }
 
       if (boardRes.error || !boardRes.data?.success) {
@@ -287,6 +293,8 @@ export default function AdminSettings() {
       }
     } catch {
       setReferralButtonEnabled(false);
+      setReferralCompetitionLive(false);
+      setReferralPromoLive(false);
       setReferralLeaderboard([]);
     } finally {
       setReferralLoading(false);
@@ -303,7 +311,7 @@ export default function AdminSettings() {
       const { data, error } = await invokeWithAuth("admin-api", {
         body: {
           operation: "admin-upsert-referral-competition-config",
-          signup_button_enabled: enabled,
+          competition_enabled: enabled,
         },
       });
       if (error || !data?.success) {
@@ -313,12 +321,14 @@ export default function AdminSettings() {
         });
         return;
       }
-      setReferralButtonEnabled(Boolean(data?.config?.signup_button_enabled));
+      setReferralButtonEnabled(Boolean(data?.config?.competition_enabled));
+      setReferralCompetitionLive(Boolean(data?.competition_active));
+      setReferralPromoLive(Boolean(data?.promo_active));
       addToast({
         type: "success",
         message: enabled
-          ? "Referral button is now visible on user dashboards."
-          : "Referral button hidden from user dashboards.",
+          ? "Referral competition enabled."
+          : "Referral competition disabled.",
       });
     } catch {
       addToast({ type: "error", message: "Failed to save referral competition settings" });
@@ -947,8 +957,9 @@ export default function AdminSettings() {
                   Referral competition
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Let users opt in for a referral code on their dashboard. Leaderboard ranks by active promo signups;
-                  ties break on referred users with 2+ registered items.
+                  Separate from free-registration promotions. The competition window currently follows the active
+                  system promo schedule; leaderboard ranks competition signups, with ties broken on referred users
+                  with 2+ registered items.
                 </p>
               </div>
               <RippleButton
@@ -961,11 +972,35 @@ export default function AdminSettings() {
               </RippleButton>
             </div>
 
+            <div className="flex flex-wrap gap-2">
+              <span
+                className={[
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                  referralCompetitionLive
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-gray-100 text-gray-600 border border-gray-200",
+                ].join(" ")}
+              >
+                Competition {referralCompetitionLive ? "live" : "inactive"}
+              </span>
+              <span
+                className={[
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                  referralPromoLive
+                    ? "bg-sky-50 text-sky-800 border border-sky-200"
+                    : "bg-gray-100 text-gray-600 border border-gray-200",
+                ].join(" ")}
+              >
+                Free-registration promo {referralPromoLive ? "live" : "inactive"}
+              </span>
+            </div>
+
             <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3">
               <div>
-                <div className="text-sm font-medium text-gray-800">Show “Get a referral code” on user dashboard</div>
+                <div className="text-sm font-medium text-gray-800">Enable referral competition</div>
                 <div className="text-xs text-gray-500 mt-0.5">
-                  Only visible during an active promo for standard users who have not claimed a code yet, or to show their code.
+                  When live, users see referral signup prompts and can claim codes on their dashboard. Requires the
+                  competition window to be open (currently tied to the system promo).
                 </div>
               </div>
               <button
