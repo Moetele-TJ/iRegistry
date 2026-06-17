@@ -1,6 +1,7 @@
 // src/Pages/Signup.jsx
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { Gift } from "lucide-react";
 import { invokeFn } from "../lib/invokeFn";
 import CountryPhoneInput from "../components/CountryPhoneInput";
 import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
@@ -8,12 +9,19 @@ import TownWardStationSelect from "../components/TownWardStationSelect.jsx";
 import YearMonthDaySelect from "../components/YearMonthDaySelect.jsx";
 import { countries } from "../Data/countries";
 import { formControlClass } from "../lib/formFieldStyles.js";
+import { normalizeAgentNumber } from "../lib/referralAgentNumber.js";
 
 export default function Signup() {
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  const [referralGateOpen, setReferralGateOpen] = useState(true);
+  const [referralGateDraft, setReferralGateDraft] = useState("");
+  const [referralGateError, setReferralGateError] = useState("");
+  const [referralCodeLocked, setReferralCodeLocked] = useState(false);
 
   const [form, setForm] = useState({
     // STEP 1 — identity + contact + location (required)
@@ -64,6 +72,42 @@ export default function Signup() {
       return () => clearTimeout(t);
     }
   }, [modal.type, navigate]);
+
+  useEffect(() => {
+    const fromUrl =
+      searchParams.get("ref") ||
+      searchParams.get("referral") ||
+      searchParams.get("agent") ||
+      "";
+    const trimmed = String(fromUrl).trim();
+    if (trimmed) {
+      setReferralGateDraft(trimmed);
+    }
+  }, [searchParams]);
+
+  function skipReferralGate() {
+    setReferralGateError("");
+    setReferralGateOpen(false);
+  }
+
+  function applyReferralFromGate() {
+    const raw = String(referralGateDraft || "").trim();
+    if (!raw) {
+      skipReferralGate();
+      return;
+    }
+
+    const canonical = normalizeAgentNumber(raw);
+    if (!canonical) {
+      setReferralGateError("Enter a valid code (e.g. IR-1001, IR1001, or ir-1001).");
+      return;
+    }
+
+    setField("referral_code", canonical);
+    setReferralCodeLocked(true);
+    setReferralGateError("");
+    setReferralGateOpen(false);
+  }
 
   // ----------------------------
   // STEP 1 VALIDATION (STRICT)
@@ -419,8 +463,13 @@ export default function Signup() {
                 value={form.referral_code}
                 onChange={(v) => setField("referral_code", v)}
                 required={false}
+                readOnly={referralCodeLocked}
                 placeholder="e.g. IR-1001"
-                helpText="If someone helped you register, enter their referral code here."
+                helpText={
+                  referralCodeLocked
+                    ? "Applied at signup. This code is locked."
+                    : "If someone helped you register, enter their referral code here."
+                }
               />
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -474,6 +523,83 @@ export default function Signup() {
           </div>
         </div>
       </div>
+
+      {referralGateOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="referral-gate-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border-2 border-red-400 bg-white shadow-2xl shadow-red-200/40 overflow-hidden">
+            <div className="bg-gradient-to-br from-red-50 via-amber-50 to-white px-6 py-5 border-b border-red-100">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-2.5 shrink-0 shadow-sm">
+                  <Gift size={20} />
+                </div>
+                <div>
+                  <h2 id="referral-gate-title" className="text-lg font-bold text-gray-900">
+                    Do you have a referral code?
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                    If someone helped you sign up, enter their code now. You can also continue without one.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label htmlFor="referral-gate-input" className="block text-sm font-medium text-gray-700 mb-1">
+                  Referral code
+                </label>
+                <input
+                  id="referral-gate-input"
+                  type="text"
+                  value={referralGateDraft}
+                  onChange={(e) => {
+                    setReferralGateDraft(e.target.value);
+                    if (referralGateError) setReferralGateError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyReferralFromGate();
+                    }
+                  }}
+                  placeholder="e.g. IR-1001"
+                  autoFocus
+                  className={`${formControlClass} ${referralGateError ? "border-red-500" : ""}`}
+                />
+                {referralGateError ? (
+                  <p className="text-xs text-red-600 mt-1">{referralGateError}</p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Formats like IR1001, ir-1001, and IR-1001 all work.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={skipReferralGate}
+                  className="w-full sm:w-auto rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Continue without code
+                </button>
+                <button
+                  type="button"
+                  onClick={applyReferralFromGate}
+                  className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-amber-300/40 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700"
+                >
+                  {referralGateDraft.trim() ? "Continue with code" : "Continue"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* ================= MODAL ================= */}
       {modal.open && (
@@ -568,18 +694,26 @@ function Input({
   error,
   placeholder,
   helpText,
+  readOnly = false,
 }) {
   return (
     <div className="min-w-0">
       <label className="block text-sm mb-1">
         {label} {required && <span className="text-red-600">*</span>}
+        {readOnly ? (
+          <span className="ml-2 text-xs font-normal text-amber-700">(locked)</span>
+        ) : null}
       </label>
       <input
         type={type}
         value={value}
         placeholder={placeholder}
+        readOnly={readOnly}
+        disabled={readOnly}
         onChange={(e) => onChange(e.target.value)}
-        className={`${formControlClass} ${error ? "border-red-500" : ""}`}
+        className={`${formControlClass} ${error ? "border-red-500" : ""} ${
+          readOnly ? "bg-amber-50/60 border-amber-200 text-gray-800 cursor-not-allowed" : ""
+        }`}
       />
       {helpText ? <p className="text-xs text-gray-500 mt-1">{helpText}</p> : null}
     </div>
