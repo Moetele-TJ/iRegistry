@@ -5,20 +5,32 @@ import {
   Building2,
   LayoutDashboard,
   Package,
+  PlusCircle,
   ReceiptText,
   Tag,
   UserCircle,
   Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
-import { NAV } from "../lib/navLabels.js";
+import { NAV, NAV_ACTIONS } from "../lib/navLabels.js";
 
-export function useUserSidebar({ visible = true } = {}) {
+export function useUserSidebar({
+  visible = true,
+  onRegisterItem,
+  registerLoading = false,
+} = {}) {
   const { setSidebar, clearSidebar } = useSidebar();
 
   const items = useMemo(
     () => [
       { to: "/user", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
+      {
+        onClick: onRegisterItem,
+        disabled: registerLoading || !onRegisterItem,
+        icon: <PlusCircle size={20} />,
+        label: NAV_ACTIONS.registerItem,
+        variant: "action",
+      },
       { to: "/user/profile", icon: <UserCircle size={20} />, label: NAV.profile },
       {
         to: "/user/items",
@@ -37,7 +49,7 @@ export function useUserSidebar({ visible = true } = {}) {
       { to: "/user/topup", icon: <Wallet size={20} />, label: NAV.topUp },
       { to: "/user/pricing", icon: <Tag size={20} />, label: NAV.pricing },
     ],
-    []
+    [onRegisterItem, registerLoading]
   );
 
   useEffect(() => {

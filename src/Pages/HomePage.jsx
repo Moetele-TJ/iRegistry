@@ -9,6 +9,9 @@ import { DISPLAY } from "../lib/navLabels.js";
 import { Users, Package, AlertTriangle, ChevronRight } from "lucide-react";
 import CountUp from "react-countup";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useDashboard } from "../hooks/useDashboard.js";
+import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
+import { roleIs } from "../lib/roleUtils.js";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -150,6 +153,15 @@ export default function HomePage() {
   const [expandedCard, setExpandedCard] = useState(null);
   const [stolenPanel, setStolenPanel] = useState("category"); // category | village
   const { user } = useAuth();
+  const isOrdinaryUser = roleIs(user?.role, "user");
+  const { data: dashData, loading: dashLoading } = useDashboard({ limit: 1, page: 1 });
+  const { goToAddItem, tasksLoading: addPreflightLoading } = useAddItemPreflight();
+  const summary = dashData?.personal?.summary || {};
+  const userItemCount =
+    (Number(summary.activeItems) || 0) + (Number(summary.stolenItems) || 0);
+  const showFirstItemHomeCta =
+    isOrdinaryUser && !dashLoading && userItemCount === 0;
+  const promoActive = Boolean(user?.promo_active);
   const [, setOpenMenu] = useState(false);
   const menuRef = useRef(null);
   const statCardsRef = useRef(null);
@@ -299,6 +311,28 @@ export default function HomePage() {
             )}
 
         </div>
+
+        {showFirstItemHomeCta ? (
+          <div className="rounded-3xl border-2 border-emerald-200 bg-white shadow-md p-6 sm:p-8 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                You haven&apos;t registered any items yet
+              </h2>
+              <p className="text-sm text-gray-600 mt-2 max-w-xl leading-relaxed">
+                {promoActive
+                  ? "Register a phone, laptop, or bicycle now — it's free during our promotion and takes about 2 minutes."
+                  : "Register a phone, laptop, or bicycle now. Your first two items are free and it takes about 2 minutes."}
+              </p>
+            </div>
+            <RippleButton
+              className="shrink-0 px-6 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+              onClick={() => void goToAddItem()}
+              disabled={addPreflightLoading}
+            >
+              {promoActive ? "Register my first item" : "Add your first item"}
+            </RippleButton>
+          </div>
+        ) : null}
 
         <VerificationPanel/>
 

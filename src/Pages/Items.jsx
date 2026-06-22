@@ -231,6 +231,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
   const isOrdinaryUser = roleIs(role, "user");
   const promoActive = Boolean(user?.promo_active);
   const showUserPromoUx = isOrdinaryUser && view === "active" && promoActive;
+  const showFirstItemEmptyBanner = isOrdinaryUser && view === "active";
 
   scopeSnapshotRef.current = {
     query,
@@ -1441,15 +1442,26 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
 
         {showUserPromoUx && <PromoModeBanner />}
 
-        {showUserPromoUx && !showListLoading && items.length === 0 && (
+        {showFirstItemEmptyBanner && !showListLoading && items.length === 0 && (
           <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm p-6 sm:p-8 text-center">
             <div className="text-4xl mb-3">📦</div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Start protecting what matters to you
+              {promoActive
+                ? "Start protecting what matters to you"
+                : "Protect your first asset on iRegistry"}
             </h2>
             <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto leading-relaxed">
-              Add a phone, laptop, bicycle, or any valuable item — takes about 3 minutes.
-              No credits or cashier top-up required during the promotion.
+              {promoActive ? (
+                <>
+                  Add a phone, laptop, bicycle, or any valuable item — takes about 3
+                  minutes. No credits or cashier top-up required during the promotion.
+                </>
+              ) : (
+                <>
+                  Add a phone, laptop, bicycle, or any valuable item — takes about 3
+                  minutes. Your first two lifetime registrations are free.
+                </>
+              )}
             </p>
             <RippleButton
               className="mt-5 px-6 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
@@ -1457,7 +1469,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
               disabled={addPreflightLoading}
               title={addPreflightLoading ? "Loading…" : undefined}
             >
-              Register my first item — free
+              {promoActive ? "Register my first item — free" : "+ Add your first item"}
             </RippleButton>
           </div>
         )}
@@ -2223,13 +2235,13 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
               <div className="text-4xl mb-3">📦</div>
 
-              {items.length === 0 && showUserPromoUx ? (
+              {items.length === 0 && showFirstItemEmptyBanner ? (
                 <>
                   <div className="text-lg font-semibold text-gray-800">
                     Your registry is empty
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    Use Register my first item above — it only takes a few minutes.
+                    Use the button above to register your first item — it only takes a few minutes.
                   </p>
                 </>
               ) : items.length === 0 ? (

@@ -73,8 +73,8 @@ export default function Signup() {
   useEffect(() => {
     if (modal.type === "success") {
       const t = setTimeout(() => {
-        navigate("/login", { replace: true });
-      }, 3000);
+        navigate("/login?welcome=signup", { replace: true });
+      }, 3500);
 
       return () => clearTimeout(t);
     }
@@ -191,7 +191,8 @@ export default function Signup() {
     setModal({
       open: true,
       title: "Success",
-      message: "Account created successfully",
+      message:
+        "Your account is ready. Log in next, then register your first item to protect it on iRegistry.",
       type: "success",
     });
     return true;
@@ -418,6 +419,11 @@ export default function Signup() {
             <div className="border-b border-emerald-100/90 bg-emerald-50/90 px-5 py-4 sm:px-6 sm:py-5">
               <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
               <p className="mt-1 text-sm text-gray-600">{stepBlurb}</p>
+              <p className="mt-2 text-xs text-emerald-800/90 leading-relaxed">
+                Step 1 is your profile. After you log in, you&apos;ll register items
+                (phone, laptop, TV, etc.) to protect them on Botswana&apos;s digital
+                asset registry.
+              </p>
             </div>
 
             <div className="p-6 sm:p-8">

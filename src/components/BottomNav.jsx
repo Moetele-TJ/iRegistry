@@ -8,27 +8,34 @@ export default function BottomNav() {
   const { goToAddItem, tasksLoading } = useAddItemPreflight();
 
   const links = [
-    { to: "/", icon: "🏠", label: NAV_HEADER.home },
-    { to: "/items", icon: "📦", label: NAV_MOBILE.myItems },
+    { to: "/user", icon: "🏠", label: NAV_HEADER.home },
+    { to: "/user/items", icon: "📦", label: NAV_MOBILE.myItems },
     { to: "/items/add", icon: "➕", label: NAV_MOBILE.addItem, isAdd: true },
-    { to: "/profile", icon: "👤", label: NAV.profile },
+    { to: "/user/profile", icon: "👤", label: NAV.profile },
   ];
 
+  function isLinkActive(to) {
+    if (to === "/user") return location.pathname === "/user";
+    return location.pathname === to || location.pathname.startsWith(`${to}/`);
+  }
+
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-[60]">
+    <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-[60] pb-[env(safe-area-inset-bottom)]">
       <ul className="flex justify-around py-2">
         {links.map((link) => {
-          const active = location.pathname === link.to;
+          const active = link.isAdd
+            ? location.pathname === "/items/add"
+            : isLinkActive(link.to);
 
           if (link.isAdd) {
             return (
-              <li key={link.to} className="text-center">
+              <li key={link.to} className="text-center flex-1">
                 <button
                   type="button"
                   onClick={() => void goToAddItem()}
                   disabled={tasksLoading}
                   title={tasksLoading ? "Loading credit prices…" : undefined}
-                  className={`flex flex-col items-center text-xs w-full ${
+                  className={`flex flex-col items-center text-xs w-full mx-auto ${
                     active ? "text-green-600 font-semibold" : "text-gray-500"
                   } disabled:opacity-60`}
                 >
@@ -40,10 +47,10 @@ export default function BottomNav() {
           }
 
           return (
-            <li key={link.to} className="text-center">
+            <li key={link.to} className="text-center flex-1">
               <Link
                 to={link.to}
-                className={`flex flex-col items-center text-xs ${
+                className={`flex flex-col items-center text-xs mx-auto ${
                   active ? "text-green-600 font-semibold" : "text-gray-500"
                 }`}
               >

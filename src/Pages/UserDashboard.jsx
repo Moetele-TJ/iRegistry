@@ -125,7 +125,7 @@ export default function UserDashboard() {
           </div>
         )}
 
-        {!promoActive && <CreditsSummaryStrip />}
+        {!promoActive && hasItems && <CreditsSummaryStrip />}
 
         {/* ===== Summary Cards ===== */}
         <div className="space-y-4">

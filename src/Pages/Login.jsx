@@ -1,9 +1,9 @@
 // src/Pages/Login.jsx
-
 import { useEffect, useState, useRef } from "react";
 import { invokeFn } from "../lib/invokeFn";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { markPostLoginWelcome } from "../lib/firstItemOnboarding.js";
 
 function getDeviceId() {
   try {
@@ -66,6 +66,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loginWithToken } = useAuth();
+  const justSignedUp = searchParams.get("welcome") === "signup";
 
   async function invokePublicFn(name, body) {
     const res = await invokeFn(name, { body }, { withAuth: false });
@@ -386,6 +387,11 @@ export default function Login() {
 
       await loginWithToken(data.session_token);
 
+      const loginRole = String(data.role || "").toLowerCase();
+      if (loginRole === "user") {
+        markPostLoginWelcome();
+      }
+
       setTimeout(() => {
         setSuccessAnim(false);
         const target = getPostLoginTarget();
@@ -394,7 +400,7 @@ export default function Login() {
         } else {
           navigate("/redirect", { replace: true });
         }
-      }, 3000);
+      }, 1200);
 
       setOtp("");
     } catch (err) {
@@ -539,6 +545,16 @@ export default function Login() {
                 : "Choose how you want to receive your OTP"
               : ""}
           </p>
+
+          {justSignedUp && step === "identity" ? (
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+              <div className="font-semibold">Account created successfully</div>
+              <p className="mt-1 text-emerald-900/90 leading-relaxed">
+                Log in below, then register your first item — a phone, laptop, or
+                anything with a serial number — to start protecting it on iRegistry.
+              </p>
+            </div>
+          ) : null}
 
           {error && (
             <div className="mb-4 text-sm text-red-600 bg-red-50 p-2 rounded">
@@ -869,6 +885,7 @@ export default function Login() {
                 type="button"
                 onClick={handleVerifyOtp}
                 disabled={verifyingOtp || !revokeSessionId}
+                
                 className="w-full py-3 rounded-lg bg-iregistrygreen text-white font-semibold disabled:opacity-60"
               >
                 {verifyingOtp ? "Revoking & logging in…" : "Revoke selected session and login"}
