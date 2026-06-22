@@ -33,33 +33,21 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
       const { data, error } = await invokeWithAuth("get-dashboard-data", {
         body: { operation: "get-referral-stats" },
       });
-      if (error || !data?.success) return;
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Failed to load referral stats");
+      }
       setStats({
         signup_count: Number(data?.stats?.signup_count) || 0,
         qualified_count: Number(data?.stats?.qualified_count) || 0,
       });
+    } catch (err) {
+      addToast({ type: "error", message: err?.message || "Failed to load referral stats" });
     } finally {
       setLoadingStats(false);
     }
-  }, [agentNumber]);
+  }, [agentNumber, addToast]);
 
-  useEffect(() => {
-    if (!initialReferral?.stats) return;
-    setStats({
-      signup_count: Number(initialReferral.stats.signup_count) || 0,
-      qualified_count: Number(initialReferral.stats.qualified_count) || 0,
-    });
-  }, [initialReferral]);
-
-  useEffect(() => {
-    if (!showCard || !agentNumber) return;
-    if (initialReferral?.stats) return;
-    void loadStats();
-  }, [showCard, agentNumber, loadStats, initialReferral]);
-
-  if (!showCard) return null;
-
-  async function handleClaim() {
+  const handleClaim = useCallback(async () => {
     const ok = await confirm({
       title: "Join the referral competition?",
       message:
@@ -90,9 +78,9 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
     } finally {
       setClaiming(false);
     }
-  }
+  }, [addToast, confirm, refreshUser]);
 
-  async function copyCode() {
+  const copyCode = useCallback(async () => {
     if (!agentNumber) return;
     try {
       await navigator.clipboard.writeText(agentNumber);
@@ -100,7 +88,23 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
     } catch {
       addToast({ type: "error", message: "Could not copy to clipboard." });
     }
-  }
+  }, [addToast, agentNumber]);
+
+  useEffect(() => {
+    if (initialReferral == null || loadingStats) return;
+    setStats({
+      signup_count: Number(initialReferral.stats?.signup_count) || 0,
+      qualified_count: Number(initialReferral.stats?.qualified_count) || 0,
+    });
+  }, [initialReferral, loadingStats]);
+
+  useEffect(() => {
+    if (!showCard || !agentNumber) return;
+    if (initialReferral != null) return;
+    void loadStats();
+  }, [showCard, agentNumber, loadStats, initialReferral]);
+
+  if (!showCard) return null;
 
   return (
     <div className="relative rounded-2xl border-2 border-red-500 bg-white shadow-lg shadow-red-200/60 overflow-hidden ring-1 ring-red-400/30">
@@ -202,7 +206,7 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
             </div>
 
             <p className="text-xs text-gray-600 leading-relaxed">
-              Ask new users to enter your code on the signup form. Formats like IR1001 and ir-1001 also work.
+              Ask new users you refer to enter your code on the signup form. Formats like IR1001 and ir-1001 also work.
             </p>
           </>
         )}
