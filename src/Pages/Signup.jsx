@@ -408,8 +408,13 @@ export default function Signup() {
 
   const stepBlurb =
     step === 1
-      ? "Step 1 of 2 · Enter your details, then continue."
-      : "Step 2 of 2 · Optional extra details.";
+      ? "Required details — enter your information, then continue."
+      : "Optional details — add any extras, then create your account.";
+
+  const journeyBlurb =
+    step === 1
+      ? "This form creates your profile. After you log in, you'll register items (phone, laptop, TV, etc.) on Botswana's digital asset registry."
+      : "Almost done. Once your account is created, log in and register your first item to protect it on iRegistry.";
 
   return (
     <>
@@ -419,11 +424,7 @@ export default function Signup() {
             <div className="border-b border-emerald-100/90 bg-emerald-50/90 px-5 py-4 sm:px-6 sm:py-5">
               <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
               <p className="mt-1 text-sm text-gray-600">{stepBlurb}</p>
-              <p className="mt-2 text-xs text-emerald-800/90 leading-relaxed">
-                Step 1 is your profile. After you log in, you&apos;ll register items
-                (phone, laptop, TV, etc.) to protect them on Botswana&apos;s digital
-                asset registry.
-              </p>
+              <p className="mt-2 text-xs text-emerald-800/90 leading-relaxed">{journeyBlurb}</p>
             </div>
 
             <div className="p-6 sm:p-8">
