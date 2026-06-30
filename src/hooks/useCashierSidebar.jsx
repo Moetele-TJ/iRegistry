@@ -10,20 +10,23 @@ import {
   Package,
   ReceiptText,
   Tag,
+  Trophy,
   Users,
   UserCircle,
   Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 import { NAV } from "../lib/navLabels.js";
+import { useReferralLeaderboardNavVisible } from "./useReferralLeaderboardNavVisible.js";
 
 export function useCashierSidebar({ visible: visibleProp = true } = {}) {
   const staffScope = useStaffUserScopeOptional();
   const { setSidebar, clearSidebar } = useSidebar();
   const visible = visibleProp && !staffScope?.isActive;
+  const { visible: leaderboardNavVisible } = useReferralLeaderboardNavVisible();
 
-  const items = useMemo(
-    () => [
+  const items = useMemo(() => {
+    const base = [
       { to: "/cashier", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
       { to: "/cashier/profile", icon: <UserCircle size={20} />, label: NAV.profile },
       {
@@ -55,11 +58,23 @@ export function useCashierSidebar({ visible: visibleProp = true } = {}) {
       },
       { to: "/cashier/pricing", icon: <Tag size={20} />, label: NAV.pricing },
       { to: "/cashier/revenue", icon: <Coins size={20} />, label: NAV.revenue },
+    ];
+
+    if (leaderboardNavVisible) {
+      base.push({
+        to: "/cashier/referral-leaderboard",
+        icon: <Trophy size={20} />,
+        label: NAV.referralLeaderboard,
+      });
+    }
+
+    base.push(
       { to: "/cashier/notifications", icon: <Bell size={20} />, label: NAV.notifications },
       { to: "/cashier/activity", icon: <Activity size={20} />, label: NAV.activity },
-    ],
-    []
-  );
+    );
+
+    return base;
+  }, [leaderboardNavVisible]);
 
   useEffect(() => {
     if (staffScope?.isActive) {

@@ -78,6 +78,7 @@ import CashierTopupPage from "./Pages/cashier/CashierTopupPage.jsx";
 import CashierTransactionsPage from "./Pages/cashier/CashierTransactionsPage.jsx";
 import CashierPricingPage from "./Pages/cashier/CashierPricingPage.jsx";
 import CashierRevenuePage from "./Pages/cashier/CashierRevenuePage.jsx";
+import CashierReferralLeaderboardPage from "./Pages/cashier/CashierReferralLeaderboardPage.jsx";
 import CashierUsersPage from "./Pages/cashier/CashierUsersPage.jsx";
 import OrganizationItemsPage from "./Pages/shared/OrganizationItemsPage.jsx";
 import OrganizationWalletPage from "./Pages/shared/OrganizationWalletPage.jsx";
@@ -262,6 +263,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="transactions" element={<CashierTransactionsPage />} />
                     <Route path="pricing" element={<CashierPricingPage />} />
                     <Route path="revenue" element={<CashierRevenuePage />} />
+                    <Route path="referral-leaderboard" element={<CashierReferralLeaderboardPage />} />
                     <Route path="notifications" element={<CashierNotificationsPage />} />
                     <Route path="activity" element={<CashierActivityPage />} />
                     <Route

@@ -80,6 +80,8 @@ export const NAV = Object.freeze({
 
   orgTransferRequests: "Org Transfer Requests",
 
+  referralLeaderboard: "Referral Leaderboard",
+
   impoundFoundItem: "Impound / Found Item",
 
 });

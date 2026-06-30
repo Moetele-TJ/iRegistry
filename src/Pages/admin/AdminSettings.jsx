@@ -22,6 +22,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
+import ReferralLeaderboardSection from "../../components/ReferralLeaderboardSection.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import { contactRowToForm, emptyContactForm } from "../../lib/publicContact.js";
@@ -160,13 +161,6 @@ export default function AdminSettings() {
   const [contactSaving, setContactSaving] = useState(false);
   const [contactForm, setContactForm] = useState(() => emptyContactForm());
 
-  const [referralLoading, setReferralLoading] = useState(true);
-  const [referralSaving, setReferralSaving] = useState(false);
-  const [referralButtonEnabled, setReferralButtonEnabled] = useState(false);
-  const [referralCompetitionLive, setReferralCompetitionLive] = useState(false);
-  const [referralPromoLive, setReferralPromoLive] = useState(false);
-  const [referralLeaderboard, setReferralLeaderboard] = useState([]);
-
   const host = useMemo(() => projectLabel(SUPABASE_URL), []);
 
   const filteredUserPromos = useMemo(() => {
@@ -267,75 +261,6 @@ export default function AdminSettings() {
   useEffect(() => {
     void loadPublicContact();
   }, [loadPublicContact]);
-
-  const loadReferralCompetition = useCallback(async () => {
-    setReferralLoading(true);
-    try {
-      const [configRes, boardRes] = await Promise.all([
-        invokeWithAuth("admin-api", { body: { operation: "admin-get-referral-competition-config" } }),
-        invokeWithAuth("admin-api", { body: { operation: "admin-get-referral-leaderboard" } }),
-      ]);
-
-      if (configRes.error || !configRes.data?.success) {
-        setReferralButtonEnabled(false);
-        setReferralCompetitionLive(false);
-        setReferralPromoLive(false);
-      } else {
-        setReferralButtonEnabled(Boolean(configRes.data?.config?.competition_enabled));
-        setReferralCompetitionLive(Boolean(configRes.data?.competition_active));
-        setReferralPromoLive(Boolean(configRes.data?.promo_active));
-      }
-
-      if (boardRes.error || !boardRes.data?.success) {
-        setReferralLeaderboard([]);
-      } else {
-        setReferralLeaderboard(Array.isArray(boardRes.data?.leaderboard) ? boardRes.data.leaderboard : []);
-      }
-    } catch {
-      setReferralButtonEnabled(false);
-      setReferralCompetitionLive(false);
-      setReferralPromoLive(false);
-      setReferralLeaderboard([]);
-    } finally {
-      setReferralLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadReferralCompetition();
-  }, [loadReferralCompetition]);
-
-  async function saveReferralCompetition(enabled) {
-    setReferralSaving(true);
-    try {
-      const { data, error } = await invokeWithAuth("admin-api", {
-        body: {
-          operation: "admin-upsert-referral-competition-config",
-          competition_enabled: enabled,
-        },
-      });
-      if (error || !data?.success) {
-        addToast({
-          type: "error",
-          message: data?.message || error?.message || "Failed to save referral competition settings",
-        });
-        return;
-      }
-      setReferralButtonEnabled(Boolean(data?.config?.competition_enabled));
-      setReferralCompetitionLive(Boolean(data?.competition_active));
-      setReferralPromoLive(Boolean(data?.promo_active));
-      addToast({
-        type: "success",
-        message: enabled
-          ? "Referral competition enabled."
-          : "Referral competition disabled.",
-      });
-    } catch {
-      addToast({ type: "error", message: "Failed to save referral competition settings" });
-    } finally {
-      setReferralSaving(false);
-    }
-  }
 
   async function savePublicContact() {
     setContactSaving(true);
@@ -950,118 +875,8 @@ export default function AdminSettings() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6 space-y-4">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-                  Referral competition
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Separate from free-registration promotions. The competition window currently follows the active
-                  system promo schedule; leaderboard ranks competition signups, with ties broken on referred users
-                  with 2+ registered items.
-                </p>
-              </div>
-              <RippleButton
-                type="button"
-                className="px-4 py-2 rounded-xl border bg-white text-sm"
-                onClick={() => void loadReferralCompetition()}
-                disabled={referralLoading || referralSaving}
-              >
-                Refresh
-              </RippleButton>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <span
-                className={[
-                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                  referralCompetitionLive
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                    : "bg-gray-100 text-gray-600 border border-gray-200",
-                ].join(" ")}
-              >
-                Competition {referralCompetitionLive ? "live" : "inactive"}
-              </span>
-              <span
-                className={[
-                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                  referralPromoLive
-                    ? "bg-sky-50 text-sky-800 border border-sky-200"
-                    : "bg-gray-100 text-gray-600 border border-gray-200",
-                ].join(" ")}
-              >
-                Free-registration promo {referralPromoLive ? "live" : "inactive"}
-              </span>
-            </div>
-
-            <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3">
-              <div>
-                <div className="text-sm font-medium text-gray-800">Enable referral competition</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  When live, users see referral signup prompts and can claim codes on their dashboard. Requires the
-                  competition window to be open (currently tied to the system promo).
-                </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={referralButtonEnabled}
-                disabled={referralLoading || referralSaving}
-                onClick={() => void saveReferralCompetition(!referralButtonEnabled)}
-                className={[
-                  "relative inline-flex h-7 w-12 shrink-0 rounded-full transition",
-                  referralButtonEnabled ? "bg-emerald-600" : "bg-gray-300",
-                  referralLoading || referralSaving ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
-                ].join(" ")}
-              >
-                <span
-                  className={[
-                    "inline-block h-5 w-5 transform rounded-full bg-white shadow transition mt-1",
-                    referralButtonEnabled ? "translate-x-6" : "translate-x-1",
-                  ].join(" ")}
-                />
-              </button>
-            </label>
-
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Leaderboard</h3>
-              {referralLoading ? (
-                <div className="text-sm text-gray-400">Loading…</div>
-              ) : referralLeaderboard.length === 0 ? (
-                <div className="text-sm text-gray-400">No participants with referral codes yet.</div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">#</th>
-                        <th className="px-3 py-2 font-medium">Code</th>
-                        <th className="px-3 py-2 font-medium">Participant</th>
-                        <th className="px-3 py-2 font-medium text-right">Signups</th>
-                        <th className="px-3 py-2 font-medium text-right">Tie-break</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {referralLeaderboard.slice(0, 20).map((row, idx) => {
-                        const name = [row?.first_name, row?.last_name].filter(Boolean).join(" ").trim()
-                          || row?.email
-                          || row?.user_id;
-                        return (
-                          <tr key={row?.user_id || idx} className="border-t border-gray-100">
-                            <td className="px-3 py-2 tabular-nums text-gray-500">{idx + 1}</td>
-                            <td className="px-3 py-2 font-medium text-iregistrygreen tabular-nums">{row?.agent_number || "—"}</td>
-                            <td className="px-3 py-2 text-gray-800">{name}</td>
-                            <td className="px-3 py-2 text-right tabular-nums font-medium">{row?.signup_count ?? 0}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-gray-600">{row?.qualified_count ?? 0}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+          <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6">
+            <ReferralLeaderboardSection manageConfig />
           </section>
 
           <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6 space-y-4">
