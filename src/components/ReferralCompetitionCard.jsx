@@ -204,7 +204,6 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
                 <div className="text-xs text-amber-800/80 mt-1">Referred users with 2+ items</div>
               </div>
             </div>
-
             <p className="text-xs text-gray-600 leading-relaxed">
               Ask new users you refer to enter your code on the signup form. Formats like IR1001 and ir-1001 also work.
             </p>
