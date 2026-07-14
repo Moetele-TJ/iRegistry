@@ -22,7 +22,8 @@ function formatVisibleUntil(iso) {
 }
 
 /**
- * Referral competition status + leaderboard (read-only for staff; optional admin controls).
+ * Referral competition status + leaderboard (read-only for staff; optional admin override control).
+ * Competition calendar is managed separately in Admin Settings.
  */
 export default function ReferralLeaderboardSection({
   manageConfig = false,
@@ -34,9 +35,7 @@ export default function ReferralLeaderboardSection({
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [buttonEnabled, setButtonEnabled] = useState(false);
   const [competitionLive, setCompetitionLive] = useState(false);
-  const [promoLive, setPromoLive] = useState(false);
   const [leaderboardVisible, setLeaderboardVisible] = useState(false);
   const [leaderboardVisibleUntil, setLeaderboardVisibleUntil] = useState(null);
   const [leaderboardOverride, setLeaderboardOverride] = useState(false);
@@ -54,14 +53,10 @@ export default function ReferralLeaderboardSection({
       let visibleUntil = null;
 
       if (configRes.error || !configRes.data?.success) {
-        setButtonEnabled(false);
         setCompetitionLive(false);
-        setPromoLive(false);
         setLeaderboardOverride(false);
       } else {
-        setButtonEnabled(Boolean(configRes.data?.config?.competition_enabled));
         setCompetitionLive(Boolean(configRes.data?.competition_active));
-        setPromoLive(Boolean(configRes.data?.promo_active));
         setLeaderboardOverride(Boolean(configRes.data?.config?.leaderboard_override_visible));
         visible = Boolean(configRes.data?.leaderboard_visible);
         visibleUntil = configRes.data?.leaderboard_visible_until ?? null;
@@ -89,9 +84,7 @@ export default function ReferralLeaderboardSection({
 
       onVisibilityChange?.(visible);
     } catch {
-      setButtonEnabled(false);
       setCompetitionLive(false);
-      setPromoLive(false);
       setLeaderboardOverride(false);
       setLeaderboardVisible(false);
       setLeaderboardVisibleUntil(null);
@@ -105,41 +98,6 @@ export default function ReferralLeaderboardSection({
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function saveConfig(enabled) {
-    setSaving(true);
-    try {
-      const { data, error } = await invokeWithAuth("admin-api", {
-        body: {
-          operation: "admin-upsert-referral-competition-config",
-          competition_enabled: enabled,
-        },
-      });
-      if (error || !data?.success) {
-        addToast({
-          type: "error",
-          message: data?.message || error?.message || "Failed to save referral competition settings",
-        });
-        return;
-      }
-      setButtonEnabled(Boolean(data?.config?.competition_enabled));
-      setCompetitionLive(Boolean(data?.competition_active));
-      setPromoLive(Boolean(data?.promo_active));
-      setLeaderboardOverride(Boolean(data?.config?.leaderboard_override_visible));
-      setLeaderboardVisible(Boolean(data?.leaderboard_visible));
-      setLeaderboardVisibleUntil(data?.leaderboard_visible_until ?? null);
-      onVisibilityChange?.(Boolean(data?.leaderboard_visible));
-      addToast({
-        type: "success",
-        message: enabled ? "Referral competition enabled." : "Referral competition disabled.",
-      });
-      await load();
-    } catch {
-      addToast({ type: "error", message: "Failed to save referral competition settings" });
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function saveLeaderboardOverride(enabled) {
     setSaving(true);
@@ -188,49 +146,59 @@ export default function ReferralLeaderboardSection({
 
   return (
     <section className={`space-y-4 ${className}`.trim()}>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-            Referral competition
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Separate from free-registration promotions. The competition window currently follows the active
-            system promo schedule; leaderboard ranks competition signups, with ties broken on referred users
-            with 2+ registered items. Staff can view standings during the competition and for 7 days after it
-            ends.
-          </p>
+      {!manageConfig ? (
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+              Referral competition
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Leaderboard ranks referred signups during competition windows, with ties broken on referred
+              users with 2+ registered items.
+            </p>
+          </div>
+          <RippleButton
+            type="button"
+            className="px-4 py-2 rounded-xl border bg-white text-sm"
+            onClick={() => void load()}
+            disabled={loading || saving}
+          >
+            Refresh
+          </RippleButton>
         </div>
-        <RippleButton
-          type="button"
-          className="px-4 py-2 rounded-xl border bg-white text-sm"
-          onClick={() => void load()}
-          disabled={loading || saving}
-        >
-          Refresh
-        </RippleButton>
-      </div>
+      ) : (
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800">Leaderboard &amp; staff visibility</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Staff can view standings during a live competition and for 7 days after it ends. After that,
+              use the override below.
+            </p>
+          </div>
+          <RippleButton
+            type="button"
+            className="px-4 py-2 rounded-xl border bg-white text-sm"
+            onClick={() => void load()}
+            disabled={loading || saving}
+          >
+            Refresh board
+          </RippleButton>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
-        <span
-          className={[
-            "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-            competitionLive
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-gray-100 text-gray-600 border border-gray-200",
-          ].join(" ")}
-        >
-          Competition {competitionLive ? "live" : "inactive"}
-        </span>
-        <span
-          className={[
-            "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-            promoLive
-              ? "bg-sky-50 text-sky-800 border border-sky-200"
-              : "bg-gray-100 text-gray-600 border border-gray-200",
-          ].join(" ")}
-        >
-          Free-registration promo {promoLive ? "live" : "inactive"}
-        </span>
+        {!manageConfig ? (
+          <span
+            className={[
+              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+              competitionLive
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-gray-100 text-gray-600 border border-gray-200",
+            ].join(" ")}
+          >
+            Competition {competitionLive ? "live" : "inactive"}
+          </span>
+        ) : null}
         <span
           className={[
             "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
@@ -252,41 +220,10 @@ export default function ReferralLeaderboardSection({
       {manageConfig ? (
         <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3">
           <div>
-            <div className="text-sm font-medium text-gray-800">Enable referral competition</div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              When live, users see referral signup prompts and can claim codes on their dashboard. Requires the
-              competition window to be open (currently tied to the system promo).
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={buttonEnabled}
-            disabled={loading || saving}
-            onClick={() => void saveConfig(!buttonEnabled)}
-            className={[
-              "relative inline-flex h-7 w-12 shrink-0 rounded-full transition",
-              buttonEnabled ? "bg-emerald-600" : "bg-gray-300",
-              loading || saving ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
-            ].join(" ")}
-          >
-            <span
-              className={[
-                "inline-block h-5 w-5 transform rounded-full bg-white shadow transition mt-1",
-                buttonEnabled ? "translate-x-6" : "translate-x-1",
-              ].join(" ")}
-            />
-          </button>
-        </label>
-      ) : null}
-
-      {manageConfig ? (
-        <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3">
-          <div>
             <div className="text-sm font-medium text-gray-800">Show leaderboard to staff</div>
             <div className="text-xs text-gray-500 mt-0.5">
-              After the 7-day post-competition window, cashiers no longer see standings unless you turn this on.
-              Turning it off hides the page from cashiers again.
+              After the 7-day post-competition window, cashiers no longer see standings unless you turn this
+              on. Turning it off hides the page from cashiers again.
             </div>
           </div>
           <button

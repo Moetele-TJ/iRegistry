@@ -2,7 +2,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { respond } from "./respond.ts";
 import { roleIs } from "./roles.ts";
 import { logUserActivity } from "./logUserActivity.ts";
-import { loadReferralCompetitionConfig } from "./bundles/admin/referralCompetition.ts";
 
 type SupabaseClient = ReturnType<typeof createClient>;
 type Session = { user_id: string; role: string };
@@ -99,15 +98,6 @@ export async function handleClaimReferralCode(
     );
   }
 
-  const config = await loadReferralCompetitionConfig();
-  if (!config.competition_enabled) {
-    return respond(
-      { success: false, message: "The referral competition is not open right now." },
-      corsHeaders,
-      403,
-    );
-  }
-
   const { data: competitionActive, error: competitionErr } = await supabase.rpc(
     "is_referral_competition_active",
   );
@@ -117,14 +107,6 @@ export async function handleClaimReferralCode(
   if (!competitionActive) {
     return respond(
       { success: false, message: "The referral competition is not open right now." },
-      corsHeaders,
-      403,
-    );
-  }
-
-  if (!config.signup_button_enabled) {
-    return respond(
-      { success: false, message: "Referral code signup is not available right now." },
       corsHeaders,
       403,
     );

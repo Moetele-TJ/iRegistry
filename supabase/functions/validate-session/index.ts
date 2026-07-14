@@ -7,7 +7,6 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { jwtNeedsRotation } from "../shared/sessionConfig.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
-import { loadReferralCompetitionConfig } from "../shared/bundles/admin/referralCompetition.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -148,15 +147,7 @@ serve(async (req) => {
         ? (lastSessionRow as any).last_login_at
         : null;
 
-    let referral_signup_button_enabled = false;
     let referral_competition_active = false;
-    try {
-      const referralConfig = await loadReferralCompetitionConfig();
-      referral_signup_button_enabled = referralConfig.signup_button_enabled;
-    } catch (referralCfgErr) {
-      console.error("validate-session referral config:", referralCfgErr);
-    }
-
     const { data: competitionRows, error: competitionErr } = await supabase.rpc(
       "is_referral_competition_active",
     );
@@ -164,6 +155,8 @@ serve(async (req) => {
       console.error("validate-session competition check:", competitionErr.message);
     }
     referral_competition_active = typeof competitionRows === "boolean" ? competitionRows : false;
+    // Signup/claim UI follows the competition calendar (not stale config flags).
+    const referral_signup_button_enabled = referral_competition_active;
 
     const normalizedUser = {
       ...(user as any),

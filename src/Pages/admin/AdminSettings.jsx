@@ -22,7 +22,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import RippleButton from "../../components/RippleButton.jsx";
-import ReferralLeaderboardSection from "../../components/ReferralLeaderboardSection.jsx";
+import ReferralCompetitionSettingsSection from "../../components/ReferralCompetitionSettingsSection.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { sortUsersAlphabetically } from "../../lib/userDisplay.js";
 import { contactRowToForm, emptyContactForm } from "../../lib/publicContact.js";
@@ -875,9 +875,7 @@ export default function AdminSettings() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6">
-            <ReferralLeaderboardSection manageConfig />
-          </section>
+          <ReferralCompetitionSettingsSection />
 
           <section className="rounded-2xl border border-gray-100 bg-white/90 shadow-sm p-5 sm:p-6 space-y-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -886,6 +884,7 @@ export default function AdminSettings() {
                   Promo mode (billing)
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
+                  Free-registration billing bypass — independent of the referral competition calendar.
                   Toggle promo for the entire system, and enroll specific users with start/end dates.
                 </p>
               </div>

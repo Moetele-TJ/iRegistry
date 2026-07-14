@@ -24,6 +24,9 @@ import {
 import {
   runGetReferralCompetitionConfig,
   runUpsertReferralCompetitionConfig,
+  runUpsertReferralCompetitionCampaign,
+  runEndReferralCompetitionCampaign,
+  runDeleteScheduledReferralCompetition,
   runGetReferralLeaderboard,
 } from "../shared/bundles/admin/referralCompetition.ts";
 
@@ -43,6 +46,9 @@ const HANDLERS: Record<string, (req: Request) => Promise<Response>> = {
   "admin-upsert-public-contact": runUpsertPublicContact,
   "admin-get-referral-competition-config": runGetReferralCompetitionConfig,
   "admin-upsert-referral-competition-config": runUpsertReferralCompetitionConfig,
+  "admin-upsert-referral-competition-campaign": runUpsertReferralCompetitionCampaign,
+  "admin-end-referral-competition-campaign": runEndReferralCompetitionCampaign,
+  "admin-delete-scheduled-referral-competition": runDeleteScheduledReferralCompetition,
   "admin-get-referral-leaderboard": runGetReferralLeaderboard,
 };
 
