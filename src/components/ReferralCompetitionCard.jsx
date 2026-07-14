@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Gift, RefreshCw, Sparkles, Trophy } from "lucide-react";
+import { Copy, RefreshCw, Trophy } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useModal } from "../contexts/ModalContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -34,14 +34,14 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
         body: { operation: "get-referral-stats" },
       });
       if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Failed to load referral stats");
+        throw new Error(data?.message || error?.message || "Unable to load referral standings.");
       }
       setStats({
         signup_count: Number(data?.stats?.signup_count) || 0,
         qualified_count: Number(data?.stats?.qualified_count) || 0,
       });
     } catch (err) {
-      addToast({ type: "error", message: err?.message || "Failed to load referral stats" });
+      addToast({ type: "error", message: err?.message || "Unable to load referral standings." });
     } finally {
       setLoadingStats(false);
     }
@@ -49,12 +49,13 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
 
   const handleClaim = useCallback(async () => {
     const ok = await confirm({
-      title: "Join the referral competition?",
+      title: "Join the referral programme?",
       message:
-        "You will receive a personal referral code (e.g. IR-1001). Share it when helping others sign up. " +
-        "The participant with the most referred signups wins — " +
-        "ties are broken by referred users who registered at least 2 items.",
-      confirmLabel: "Get my code",
+        "You will be issued a personal referral code (for example IR-1001). "
+        + "Share it with people you introduce to iRegistry. "
+        + "Standings are ranked by referred signups; ties are resolved by referred members who register at least two items. "
+        + "The leading participant receives a share of the P1,000 prize pool.",
+      confirmLabel: "Claim my code",
       cancelLabel: "Not now",
     });
     if (!ok) return;
@@ -65,16 +66,19 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
         body: { operation: "claim-referral-code" },
       });
       if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Failed to claim referral code");
+        throw new Error(data?.message || error?.message || "Unable to issue your referral code.");
       }
       setStats({
         signup_count: Number(data?.stats?.signup_count) || 0,
         qualified_count: Number(data?.stats?.qualified_count) || 0,
       });
       await refreshUser();
-      addToast({ type: "success", message: `Your referral code is ${data.agent_number}.` });
+      addToast({
+        type: "success",
+        message: `Your referral code is ${data.agent_number}.`,
+      });
     } catch (err) {
-      addToast({ type: "error", message: err?.message || "Failed to claim referral code" });
+      addToast({ type: "error", message: err?.message || "Unable to issue your referral code." });
     } finally {
       setClaiming(false);
     }
@@ -113,18 +117,20 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 sm:px-6 py-5 bg-gradient-to-br from-red-50 via-amber-50/80 to-white border-b border-red-100">
         <div className="flex items-start gap-3 min-w-0">
           <div className="rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-white p-3 shrink-0 shadow-md shadow-red-300/50">
-            <Gift size={22} strokeWidth={2.25} />
+            <Trophy size={22} strokeWidth={2.25} />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight">Referral competition</h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
-                <Sparkles size={11} />
-                Live promo
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                Referral programme
+              </h2>
+              <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
+                Now open
               </span>
             </div>
             <p className="text-sm text-gray-700 mt-1 leading-relaxed">
-              Help others signup and register at least 2 items. Top referrer wins a share of{" "}
+              Introduce new members to iRegistry. Successful signups under your code count toward the
+              standings. The leading referrer receives a share of{" "}
               <span className="font-bold text-red-700">P1,000</span>.
             </p>
           </div>
@@ -143,8 +149,8 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
         {!agentNumber ? (
           <>
             <p className="text-sm text-gray-700 leading-relaxed">
-              Opt in to get your unique code. Only participants who claim a code can earn referral credit toward the
-              prize.
+              Claim your personal referral code to participate. Credit is awarded only after you have
+              claimed a code and new members enter it at signup.
             </p>
             <button
               type="button"
@@ -152,8 +158,8 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
               disabled={claiming}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-3 text-sm font-bold text-white shadow-md shadow-amber-300/50 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 hover:shadow-lg transition disabled:opacity-60"
             >
-              <Sparkles size={16} />
-              {claiming ? "Assigning your code…" : "Get a referral code"}
+              <Trophy size={16} />
+              {claiming ? "Issuing your code…" : "Claim your referral code"}
             </button>
           </>
         ) : (
@@ -161,7 +167,9 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
             <div className="rounded-xl border-2 border-dashed border-red-300 bg-red-50/60 px-4 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Your referral code</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                    Your referral code
+                  </div>
                   <div className="text-3xl font-extrabold text-red-600 tabular-nums mt-1 tracking-tight">
                     {agentNumber}
                   </div>
@@ -180,7 +188,7 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
                     onClick={() => void loadStats()}
                     disabled={loadingStats}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-60"
-                    title="Refresh counts"
+                    title="Refresh standings"
                   >
                     <RefreshCw size={15} className={loadingStats ? "animate-spin" : ""} />
                   </button>
@@ -190,22 +198,31 @@ export default function ReferralCompetitionCard({ initialReferral = null } = {})
 
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-red-100 bg-white px-4 py-3 shadow-sm">
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Referred signups</div>
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Referred signups
+                </div>
                 <div className="text-2xl font-bold text-gray-900 tabular-nums mt-1">
                   {loadingStats ? "—" : stats.signup_count}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">Active users during promo</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Accounts created with your code
+                </div>
               </div>
               <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3 shadow-sm">
-                <div className="text-xs font-medium text-amber-800 uppercase tracking-wide">Tie-break score</div>
+                <div className="text-xs font-medium text-amber-800 uppercase tracking-wide">
+                  Qualified referrals
+                </div>
                 <div className="text-2xl font-bold text-amber-900 tabular-nums mt-1">
                   {loadingStats ? "—" : stats.qualified_count}
                 </div>
-                <div className="text-xs text-amber-800/80 mt-1">Referred users with 2+ items</div>
+                <div className="text-xs text-amber-800/80 mt-1">
+                  Referred members with 2+ items
+                </div>
               </div>
             </div>
             <p className="text-xs text-gray-600 leading-relaxed">
-              Ask new users you refer to enter your code on the signup form. Formats like IR1001 and ir-1001 also work.
+              Ask new members to enter your code on the signup form. Formats such as IR-1001, IR1001,
+              and ir-1001 are accepted.
             </p>
           </>
         )}
