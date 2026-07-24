@@ -8,12 +8,12 @@ export default function PoliceStationSelect({
   label = "Police station",
   required = false,
   disabled = false,
-  placeholder = "Select a police station…",
+  placeholder = "Search or type a police station…",
   allowOther = true,
-  variant = "select",
+  variant = "searchable",
   inputClassName = "form-control",
   withAuth = true,
-  helpText,
+  helpText = "Pick from the list, or type a station name if yours is not listed.",
 }) {
   const loadOptions = useCallback(async () => {
     const { data, error } = await invokeFn("list-police-stations", {}, { withAuth });
@@ -40,7 +40,7 @@ export default function PoliceStationSelect({
       loadingPlaceholder="Loading stations…"
       retryLabel="Load stations list"
       listboxAriaLabel="Police stations"
-      emptyNoMatchMessage="No matching stations."
+      emptyNoMatchMessage="No matching stations. You can still use the name you typed."
       typedValueLabel={(q) => `Use "${q}" as station name`}
     />
   );

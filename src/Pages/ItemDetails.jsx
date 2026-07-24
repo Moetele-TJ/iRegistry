@@ -41,6 +41,7 @@ import {
   SOFT_DELETE_CONFIRM_MESSAGE,
   PERMANENT_DELETE_CONFIRM_MESSAGE,
 } from "../lib/itemLifecycleUx.js";
+import PoliceStationSelect from "../components/PoliceStationSelect.jsx";
 
 const MAX_PHOTOS = 5;
 
@@ -191,6 +192,12 @@ export default function ItemDetails() {
   const [confirmOpen, setConfirmOpen] = useState(false); // soft-delete modal (owner)
   const [staffDeleteOpen, setStaffDeleteOpen] = useState(false);
   const [stolenStationDraft, setStolenStationDraft] = useState("");
+  const [stolenConfirmOpen, setStolenConfirmOpen] = useState(false);
+  const [stolenConfirmMessage, setStolenConfirmMessage] = useState("");
+  const stolenStationDraftRef = useRef("");
+  useEffect(() => {
+    stolenStationDraftRef.current = stolenStationDraft;
+  }, [stolenStationDraft]);
   const [ownerActiveItems, setOwnerActiveItems] = useState([]);
   const [working, setWorking] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -816,7 +823,7 @@ export default function ItemDetails() {
     const ownerRole = item.ownerRole ?? null;
     const chargesOwner = willUpdateItemChargeOwnerWallet(user?.role, ownerRole);
     const ownerBal = resolveOwnerBalanceForItem(item, user);
-    let stolenMsg = `Report "${item.name || item.id}" as stolen? A police case is opened for the station you choose.`;
+    let stolenMsg = `Report "${item.name || item.id}" as stolen? A police case is opened for the station you choose below.`;
     if (chargesOwner) {
       const cost = getCost("MARK_STOLEN");
       if (cost != null) {
@@ -826,16 +833,8 @@ export default function ItemDetails() {
         }
       }
     }
-
-    const ok = await confirm({
-      title: "Report stolen",
-      message: stolenMsg,
-      confirmLabel: "Mark stolen",
-      cancelLabel: "Cancel",
-      variant: "warning",
-    }).catch(() => false);
-    if (!ok) return;
-    await doToggleStolenStatus(stolenStationDraft);
+    setStolenConfirmMessage(stolenMsg);
+    setStolenConfirmOpen(true);
   }
 
   async function confirmMoveToLegacy() {
@@ -2039,6 +2038,39 @@ export default function ItemDetails() {
         loading={working}
         onConfirm={handleStaffDeleteConfirm}
       />
+
+      <ConfirmModal
+        isOpen={stolenConfirmOpen}
+        onClose={() => !working && setStolenConfirmOpen(false)}
+        action={async () => {
+          await doToggleStolenStatus(stolenStationDraftRef.current);
+          setStolenConfirmOpen(false);
+        }}
+        title="Report stolen"
+        message={stolenConfirmMessage}
+        confirmLabel={working ? "Reporting…" : "Mark stolen"}
+        cancelLabel="Cancel"
+        danger={true}
+        confirmDisabled={working}
+      >
+        <div className="text-left space-y-1.5">
+          <PoliceStationSelect
+            label="Police station"
+            value={stolenStationDraft}
+            onChange={setStolenStationDraft}
+            required={false}
+            withAuth={true}
+            variant="searchable"
+            allowOther={true}
+            inputClassName="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
+            placeholder="Search or type a police station…"
+            helpText="Choose from the list, or type a new station name if it is not listed."
+          />
+          <p className="text-xs text-gray-500">
+            If you leave this blank, your item&apos;s nearest police station is used when the case opens.
+          </p>
+        </div>
+      </ConfirmModal>
 
       {/* ConfirmModal (shared component) */}
       <ConfirmModal

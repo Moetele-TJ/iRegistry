@@ -476,9 +476,14 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
     arg: undefined,
     afterConfirmMessage: null,
     children: null,
+    showStolenStation: false,
   });
 
   const [stolenStationDraft, setStolenStationDraft] = useState("");
+  const stolenStationDraftRef = useRef("");
+  useEffect(() => {
+    stolenStationDraftRef.current = stolenStationDraft;
+  }, [stolenStationDraft]);
 
   // Toast state (keeps Toast component usage compatible)
   const [toast, setToast] = useState({ message: "", type: "info", visible: false });
@@ -564,6 +569,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
       arg: opts.arg,
       afterConfirmMessage: opts.afterConfirmMessage || null,
       children: opts.children ?? null,
+      showStolenStation: Boolean(opts.showStolenStation),
     });
   }
 
@@ -579,6 +585,7 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
       arg: undefined,
       afterConfirmMessage: null,
       children: null,
+      showStolenStation: false,
     });
   }
 
@@ -1115,26 +1122,10 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         confirmLabel: "Mark Stolen",
         cancelLabel: "Cancel",
         danger: true,
+        showStolenStation: true,
         action: () =>
-          doToggleStatus(id, () => stolenStationDraft),
+          doToggleStatus(id, () => stolenStationDraftRef.current),
         afterConfirmMessage: `${it.name || it.id} reported stolen`,
-        children: (
-          <div className="text-left space-y-1.5">
-            <PoliceStationSelect
-              label="Police station (optional)"
-              value={stolenStationDraft}
-              onChange={setStolenStationDraft}
-              required={false}
-              withAuth={true}
-              inputClassName="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
-              placeholder="Select a police station…"
-              allowOther={true}
-            />
-            <p className="text-xs text-gray-500">
-              If you leave this blank, your item&apos;s nearest police station is used when the case opens.
-            </p>
-          </div>
-        ),
       });
       return;
     }
@@ -1287,8 +1278,29 @@ export default function Items({ view = "active", defaultPoliceStationStolenView 
         confirmLabel={confirmState.confirmLabel}
         cancelLabel={confirmState.cancelLabel}
         danger={confirmState.danger}
-        children={confirmState.children}
-      />
+      >
+        {confirmState.showStolenStation ? (
+          <div className="text-left space-y-1.5">
+            <PoliceStationSelect
+              label="Police station"
+              value={stolenStationDraft}
+              onChange={setStolenStationDraft}
+              required={false}
+              withAuth={true}
+              variant="searchable"
+              allowOther={true}
+              inputClassName="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900"
+              placeholder="Search or type a police station…"
+              helpText="Choose from the list, or type a new station name if it is not listed."
+            />
+            <p className="text-xs text-gray-500">
+              If you leave this blank, your item&apos;s nearest police station is used when the case opens.
+            </p>
+          </div>
+        ) : (
+          confirmState.children
+        )}
+      </ConfirmModal>
 
       <PrivilegedItemDeleteModal
         isOpen={!!staffDeleteTarget}

@@ -159,7 +159,7 @@ export default function ConfirmModal({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative rounded-xl shadow-md w-full max-w-xs sm:max-w-sm mx-4 p-5 max-h-[90vh] overflow-y-auto z-10 border ${getDialogBg()}`}
+        className={`relative rounded-xl shadow-md w-full max-w-sm sm:max-w-md mx-4 p-5 max-h-[90vh] overflow-y-auto z-10 border ${getDialogBg()}`}
       >
         {title && (
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
