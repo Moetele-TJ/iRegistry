@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
@@ -24,6 +25,7 @@ export default function UserLivestockDetailPage() {
   const { addToast } = useToast();
   const [animal, setAnimal] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusBusy, setStatusBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,28 @@ export default function UserLivestockDetailPage() {
     void load();
   }, [load]);
 
+  async function setStatus(status) {
+    if (!animal || animal.status === status) return;
+    setStatusBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-set-status", id: animal.id, status },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not update status");
+      }
+      setAnimal((a) => (a ? { ...a, status: data.animal?.status || status } : a));
+      addToast({
+        type: "success",
+        message: status === "missing" ? "Marked as missing." : "Marked as active.",
+      });
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Update failed" });
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto p-4 sm:p-6 text-sm text-gray-500">Loading…</div>
@@ -68,6 +92,7 @@ export default function UserLivestockDetailPage() {
   const brands = Array.isArray(animal.brands) ? animal.brands : [];
   const earTags = Array.isArray(animal.ear_tags) ? animal.ear_tags : [];
   const earMarks = Array.isArray(animal.ear_marks) ? animal.ear_marks : [];
+  const isMissing = animal.status === "missing";
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
@@ -91,6 +116,40 @@ export default function UserLivestockDetailPage() {
         >
           Sightings
         </Link>
+      </div>
+
+      <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-gray-700">
+          Status:{" "}
+          <span className={`font-semibold capitalize ${isMissing ? "text-red-600" : "text-emerald-700"}`}>
+            {animal.status || "active"}
+          </span>
+          <div className="text-xs text-gray-500 mt-0.5">
+            Mark missing so public stats and recovery workflows treat this animal as astray.
+          </div>
+        </div>
+        <div className="inline-flex rounded-xl border border-gray-200 p-1 bg-gray-50">
+          <RippleButton
+            type="button"
+            disabled={statusBusy || !isMissing}
+            className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${
+              !isMissing ? "bg-white text-iregistrygreen shadow-sm" : "text-gray-600"
+            } disabled:opacity-60`}
+            onClick={() => void setStatus("active")}
+          >
+            Active
+          </RippleButton>
+          <RippleButton
+            type="button"
+            disabled={statusBusy || isMissing}
+            className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${
+              isMissing ? "bg-white text-red-600 shadow-sm" : "text-gray-600"
+            } disabled:opacity-60`}
+            onClick={() => void setStatus("missing")}
+          >
+            Missing
+          </RippleButton>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

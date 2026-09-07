@@ -24,9 +24,17 @@ import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import BillingCostBanner from "./BillingCostBanner.jsx";
 import LivestockIdentifyPanel from "./LivestockIdentifyPanel.jsx";
 
-export default function VerificationPanel() {
+export default function VerificationPanel({
+  verifyTab: controlledTab,
+  onVerifyTabChange,
+} = {}) {
   // State
-  const [verifyTab, setVerifyTab] = useState("items"); // items | livestock
+  const [internalTab, setInternalTab] = useState("items"); // items | livestock
+  const verifyTab = controlledTab ?? internalTab;
+  const setVerifyTab = (tab) => {
+    if (typeof onVerifyTabChange === "function") onVerifyTabChange(tab);
+    if (controlledTab === undefined) setInternalTab(tab);
+  };
   const [serial, setSerial] = useState("");
   const [action, setAction] = useState(null);
   const [message, setMessage] = useState("");

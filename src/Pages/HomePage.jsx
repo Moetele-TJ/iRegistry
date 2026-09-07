@@ -6,7 +6,7 @@ import VerificationPanel from "../components/VerificationPanel.jsx";
 import HomeContactCard from "../components/HomeContactCard.jsx";
 import { usePublicStats } from "../hooks/usePublicStats.js";
 import { DISPLAY } from "../lib/navLabels.js";
-import { Users, Package, AlertTriangle, ChevronRight } from "lucide-react";
+import { Users, Package, AlertTriangle, ChevronRight, PawPrint } from "lucide-react";
 import CountUp from "react-countup";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useDashboard } from "../hooks/useDashboard.js";
@@ -84,11 +84,30 @@ export default function HomePage() {
     [stats?.dailyUserTrend],
   );
 
-  const [trendMetric, setTrendMetric] = useState("items"); // "items" | "users"
+  const animalTimelineData = useMemo(
+    () => normalizeDailyTrend(stats?.dailyAnimalTrend, 14),
+    [stats?.dailyAnimalTrend],
+  );
+
+  const [verifyDomain, setVerifyDomain] = useState("items"); // items | livestock
+  const [trendMetric, setTrendMetric] = useState("items"); // items | animals | users
+
+  function handleVerifyDomainChange(tab) {
+    setVerifyDomain(tab);
+    if (tab === "livestock") {
+      setTrendMetric((m) => (m === "items" ? "animals" : m));
+    } else {
+      setTrendMetric((m) => (m === "animals" ? "items" : m));
+    }
+  }
 
   const activityChart = useMemo(() => {
     const daily =
-      trendMetric === "users" ? userTimelineData14 : itemTimelineData;
+      trendMetric === "users"
+        ? userTimelineData14
+        : trendMetric === "animals"
+          ? animalTimelineData
+          : itemTimelineData;
     const data = toCumulativeTrend(daily);
     const peak = data.reduce((m, d) => Math.max(m, d.count), 0);
     const yMax = Math.max(peak, 1);
@@ -97,7 +116,7 @@ export default function HomePage() {
       yMax,
       yTicks: yAxisTicksForMax(yMax),
     };
-  }, [trendMetric, itemTimelineData, userTimelineData14]);
+  }, [trendMetric, itemTimelineData, userTimelineData14, animalTimelineData]);
 
   const itemTrend = useMemo(
     () => normalizeDailyTrend(stats?.dailyItemTrend, 7),
@@ -111,6 +130,10 @@ export default function HomePage() {
     () => normalizeDailyTrend(stats?.dailyStolenTrend, 7),
     [stats?.dailyStolenTrend],
   );
+  const animalTrend = useMemo(
+    () => normalizeDailyTrend(stats?.dailyAnimalTrend, 7),
+    [stats?.dailyAnimalTrend],
+  );
   const topCategories = useMemo(
     () =>
       Object.entries(stats?.categoryBreakdown || {})
@@ -120,9 +143,26 @@ export default function HomePage() {
     [stats?.categoryBreakdown],
   );
 
+  const topAnimalTypes = useMemo(
+    () =>
+      Object.entries(stats?.animalTypeBreakdown || {})
+        .map(([type, count]) => ({ type, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+    [stats?.animalTypeBreakdown],
+  );
+
   const stolenCategoryData = Object.entries(
     stats?.stolenCategoryBreakdown || {}
   )
+    .map(([category, count]) => ({
+      category,
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
+  const missingTypeData = Object.entries(stats?.missingTypeBreakdown || {})
     .map(([category, count]) => ({
       category,
       count,
@@ -145,10 +185,17 @@ export default function HomePage() {
     [stats?.topUserVillages],
   );
 
+  const livestockMode = verifyDomain === "livestock";
   const stolen = totals.stolenItems ?? 0;
   const total = totals.totalItems ?? 0;
+  const totalAnimals = totals.totalAnimals ?? 0;
+  const missingAnimals = totals.missingAnimals ?? 0;
   const totalUsers = totals.totalUsers ?? 0;
-  const chartKey = stats?.totals?.totalItems || 0;
+  const chartKey = livestockMode
+    ? totals.totalAnimals || 0
+    : totals.totalItems || 0;
+  const primaryTotal = livestockMode ? totalAnimals : total;
+  const alertTotal = livestockMode ? missingAnimals : stolen;
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [stolenPanel, setStolenPanel] = useState("category"); // category | village
@@ -334,7 +381,10 @@ export default function HomePage() {
           </div>
         ) : null}
 
-        <VerificationPanel/>
+        <VerificationPanel
+          verifyTab={verifyDomain}
+          onVerifyTabChange={handleVerifyDomainChange}
+        />
 
         {/* STAT CARDS */}
         <div
@@ -378,24 +428,39 @@ export default function HomePage() {
 
           <StatCard
             id = "total"
-            title="Total Items"
-            value={total}
+            title={livestockMode ? "Total Animals" : "Total Items"}
+            value={primaryTotal}
             initialLoading={initialLoading}
-            icon={<Package size={22} />}
-            miniTrend = {itemTrend}
+            icon={livestockMode ? <PawPrint size={22} /> : <Package size={22} />}
+            miniTrend = {livestockMode ? animalTrend : itemTrend}
             expanded={expandedCard === "total"}
             onToggle={() =>
               setExpandedCard(expandedCard === "total" ? null : "total")
             }
           >
-            <div>Total items recorded in registry.</div>
+            <div>
+              {livestockMode
+                ? "Total animals recorded in the livestock registry."
+                : "Total items recorded in registry."}
+            </div>
 
             <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">
-              Top Categories
+              {livestockMode ? "Top Types" : "Top Categories"}
             </div>
 
             <div className="mt-2 space-y-1">
-              {topCategories.length === 0 ? (
+              {livestockMode ? (
+                topAnimalTypes.length === 0 ? (
+                  <div className="text-sm text-gray-500">No type data yet.</div>
+                ) : (
+                  topAnimalTypes.map(({ type, count }) => (
+                    <div key={type} className="flex justify-between gap-3">
+                      <span className="truncate">{type}</span>
+                      <span className="font-medium tabular-nums">{count}</span>
+                    </div>
+                  ))
+                )
+              ) : topCategories.length === 0 ? (
                 <div className="text-sm text-gray-500">No category data yet.</div>
               ) : (
                 topCategories.map(({ category, count }) => (
@@ -410,19 +475,46 @@ export default function HomePage() {
 
           <StatCard
             id = "stolen"
-            title="Stolen Items"
-            value={stolen}
+            title={livestockMode ? "Missing Animals" : "Stolen Items"}
+            value={alertTotal}
             initialLoading={initialLoading}
             red
             icon={<AlertTriangle size={22} />}
-            miniTrend = {stolenTrend}
+            miniTrend = {livestockMode ? [] : stolenTrend}
             expanded={expandedCard === "stolen"}
             onToggle={() =>
               setExpandedCard(expandedCard === "stolen" ? null : "stolen")
             }
           >
-            <div>Assets flagged as stolen.</div>
+            <div>
+              {livestockMode
+                ? "Animals marked as missing by their owners."
+                : "Assets flagged as stolen."}
+            </div>
 
+            {livestockMode ? (
+              <>
+                <div className="mt-3 text-xs text-gray-400 uppercase tracking-wide">
+                  Missing by type
+                </div>
+                <div className="mt-2 space-y-1">
+                  {missingTypeData.length === 0 ? (
+                    <div className="text-sm text-gray-500">No missing animals yet.</div>
+                  ) : (
+                    missingTypeData.slice(0, 5).map((r) => (
+                      <div
+                        key={r.category}
+                        className="flex justify-between gap-3"
+                      >
+                        <span className="truncate">{r.category}</span>
+                        <span className="font-medium tabular-nums">{r.count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
             <div className="mt-3 flex items-center justify-between">
               <div className="text-xs text-gray-400 uppercase tracking-wide">
                 {stolenPanel === "category" ? "Top 5 most stolen" : "Stolen by village / town"}
@@ -496,6 +588,8 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+              </>
+            )}
           </StatCard>
 
         </div>
@@ -512,7 +606,9 @@ export default function HomePage() {
                   <p className="text-xs text-gray-500 mt-1 max-w-md leading-snug">
                     {trendMetric === "users"
                       ? "Cumulative new user accounts over the last 14 days."
-                      : "Cumulative assets registered over the last 14 days."}
+                      : trendMetric === "animals"
+                        ? "Cumulative animals registered over the last 14 days."
+                        : "Cumulative assets registered over the last 14 days."}
                   </p>
                 </div>
                 <div
@@ -533,6 +629,21 @@ export default function HomePage() {
                   >
                     Items
                   </button>
+                  {livestockMode ? (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={trendMetric === "animals"}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                        trendMetric === "animals"
+                          ? "bg-white text-iregistrygreen shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                      onClick={() => setTrendMetric("animals")}
+                    >
+                      Animals
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     role="tab"
@@ -598,7 +709,9 @@ export default function HomePage() {
                         String(value),
                         trendMetric === "users"
                           ? "Cumulative new users"
-                          : "Cumulative items registered",
+                          : trendMetric === "animals"
+                            ? "Cumulative animals registered"
+                            : "Cumulative items registered",
                       ]}
                     />
 
@@ -608,7 +721,9 @@ export default function HomePage() {
                       name={
                         trendMetric === "users"
                           ? "Cumulative new users"
-                          : "Cumulative items registered"
+                          : trendMetric === "animals"
+                            ? "Cumulative animals registered"
+                            : "Cumulative items registered"
                       }
                       stroke={IREG_GREEN}
                       fill="url(#g)"
@@ -619,10 +734,10 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Stolen Category Breakdown */}
+          {/* Stolen / Missing breakdown */}
           <div className="bg-white rounded-3xl p-6 shadow-sm">
             <div className="text-sm font-semibold text-gray-700 mb-4">
-              Stolen Items by Category
+              {livestockMode ? "Missing Animals by Type" : "Stolen Items by Category"}
             </div>
 
             <div style={{ height: 240 }}>
@@ -630,8 +745,8 @@ export default function HomePage() {
                 <div className="h-full bg-gray-100 rounded-2xl animate-pulse" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart key={chartKey}
-                    data={stolenCategoryData}
+                  <BarChart key={`${chartKey}-${livestockMode ? "animals" : "items"}`}
+                    data={livestockMode ? missingTypeData : stolenCategoryData}
                     layout="vertical"
                   >
                     <CartesianGrid strokeDasharray="3 3" />

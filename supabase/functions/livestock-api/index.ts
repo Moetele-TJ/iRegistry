@@ -877,6 +877,43 @@ async function runStoreEmbedding(req: Request, session: Session, body: Record<st
   return respond({ success: true }, corsHeaders, 200);
 }
 
+async function runSetStatus(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  const status = asString(body.status).toLowerCase();
+  if (!id || !["active", "missing"].includes(status)) {
+    return respond(
+      { success: false, message: "id and status (active|missing) are required" },
+      corsHeaders,
+      400,
+    );
+  }
+
+  const { data: animal } = await supabase
+    .from("livestock_animals")
+    .select("id, owner_id, status")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!animal || animal.owner_id !== session.user_id) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { data: updated, error } = await supabase
+    .from("livestock_animals")
+    .update({ status })
+    .eq("id", id)
+    .select("id, status")
+    .single();
+
+  if (error) {
+    return respond({ success: false, message: error.message }, corsHeaders, 500);
+  }
+
+  return respond({ success: true, animal: updated }, corsHeaders, 200);
+}
+
 async function runAddVocab(req: Request, session: Session, body: Record<string, unknown>) {
   const corsHeaders = getCorsHeaders(req);
   const kind = asString(body.kind); // colour | ear_mark | type
@@ -983,6 +1020,8 @@ serve(async (req) => {
         return await runSignPhotoUploads(req, session!, body);
       case "livestock-store-embedding":
         return await runStoreEmbedding(req, session!, body);
+      case "livestock-set-status":
+        return await runSetStatus(req, session!, body);
       case "livestock-add-vocab":
         return await runAddVocab(req, session!, body);
       default:
