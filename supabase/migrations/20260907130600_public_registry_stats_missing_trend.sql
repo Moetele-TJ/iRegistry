@@ -1,4 +1,4 @@
--- Extend public_registry_stats with livestock totals, trends, and type breakdowns.
+-- Add dailyMissingTrend to public_registry_stats (sparkline for Missing Animals panel).
 
 DROP FUNCTION IF EXISTS public.public_registry_stats ();
 

@@ -134,6 +134,10 @@ export default function HomePage() {
     () => normalizeDailyTrend(stats?.dailyAnimalTrend, 7),
     [stats?.dailyAnimalTrend],
   );
+  const missingTrend = useMemo(
+    () => normalizeDailyTrend(stats?.dailyMissingTrend, 7),
+    [stats?.dailyMissingTrend],
+  );
   const topCategories = useMemo(
     () =>
       Object.entries(stats?.categoryBreakdown || {})
@@ -480,7 +484,7 @@ export default function HomePage() {
             initialLoading={initialLoading}
             red
             icon={<AlertTriangle size={22} />}
-            miniTrend = {livestockMode ? [] : stolenTrend}
+            miniTrend={livestockMode ? missingTrend : stolenTrend}
             expanded={expandedCard === "stolen"}
             onToggle={() =>
               setExpandedCard(expandedCard === "stolen" ? null : "stolen")
@@ -826,36 +830,38 @@ function StatCard({
             </div>
           )}
 
-          {/* MINI SPARKLINE */}
-          {!initialLoading && miniTrend.length > 0 && (
+          {/* MINI SPARKLINE — always reserve height so all cards match */}
+          {!initialLoading && (
             <div className="mt-3 h-10">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={miniTrend}>
-                  <defs>
-                    <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor={red ? IREG_RED : IREG_GREEN}
-                        stopOpacity={0.4}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={red ? IREG_RED : IREG_GREEN}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
+              {miniTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={miniTrend}>
+                    <defs>
+                      <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="0%"
+                          stopColor={red ? IREG_RED : IREG_GREEN}
+                          stopOpacity={0.4}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={red ? IREG_RED : IREG_GREEN}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
 
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke={red ? IREG_RED : IREG_GREEN}
-                    strokeWidth={2}
-                    fill={`url(#spark-${id})`}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke={red ? IREG_RED : IREG_GREEN}
+                      strokeWidth={2}
+                      fill={`url(#spark-${id})`}
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : null}
             </div>
           )}
 
