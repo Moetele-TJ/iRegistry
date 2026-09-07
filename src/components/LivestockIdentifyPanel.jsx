@@ -53,6 +53,7 @@ export default function LivestockIdentifyPanel() {
   const [matches, setMatches] = useState([]);
   const [geo, setGeo] = useState(null);
   const [geoAsked, setGeoAsked] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [pickedId, setPickedId] = useState(null);
   const [lastImageUrl, setLastImageUrl] = useState(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -60,16 +61,21 @@ export default function LivestockIdentifyPanel() {
   const fileRef = useRef(null);
 
   const askGeo = useCallback(async ({ quiet = false } = {}) => {
-    setGeoAsked(true);
-    const g = await getPosition();
-    setGeo(g);
-    if (!g && !quiet) {
-      addToast({
-        type: "info",
-        message: "Location not available. You can still search; the owner will not get a distance.",
-      });
+    setGeoLoading(true);
+    try {
+      const g = await getPosition();
+      setGeo(g);
+      setGeoAsked(true);
+      if (!g && !quiet) {
+        addToast({
+          type: "info",
+          message: "Location not available. You can still search; the owner will not get a distance.",
+        });
+      }
+      return g;
+    } finally {
+      setGeoLoading(false);
     }
-    return g;
   }, [addToast]);
 
   // Request location as soon as the Livestock tab mounts (no click required).
@@ -292,14 +298,18 @@ export default function LivestockIdentifyPanel() {
           className={`inline-flex items-center px-3 py-1.5 rounded-xl border text-sm ${
             geo
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : geoAsked
-                ? "bg-amber-50 border-amber-200 text-amber-900"
-                : "bg-white border-gray-200 text-gray-600"
+              : geoLoading || !geoAsked
+                ? "bg-white border-gray-200 text-gray-600"
+                : "bg-amber-50 border-amber-200 text-amber-900"
           }`}
         >
-          {geo ? "Location ready" : geoAsked ? "Location unavailable" : "Requesting location…"}
+          {geo
+            ? "Location ready"
+            : geoLoading || !geoAsked
+              ? "Requesting location…"
+              : "Location unavailable"}
         </span>
-        {geoAsked && !geo ? (
+        {geoAsked && !geo && !geoLoading ? (
           <RippleButton
             type="button"
             className="px-3 py-1.5 rounded-xl border bg-white text-sm"
