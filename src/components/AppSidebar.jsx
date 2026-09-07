@@ -16,6 +16,8 @@ export default function AppSidebar({ sidebar }) {
   const [contentExpanded, setContentExpanded] = useState(false);
   const [expandAnimationComplete, setExpandAnimationComplete] = useState(false);
   const [flyoutCloseNonce, setFlyoutCloseNonce] = useState(0);
+  /** Which submenu group currently owns the flyout (only one at a time). */
+  const [activeFlyoutKey, setActiveFlyoutKey] = useState(null);
   const location = useLocation();
 
   const sections = useMemo(() => sidebar?.sections || [], [sidebar?.sections]);
@@ -28,7 +30,7 @@ export default function AppSidebar({ sidebar }) {
   const touchMode = !canHover;
 
   const asideRef = useRef(null);
-  const flyoutOpenRef = useRef(false);
+  const flyoutOpenKeysRef = useRef(new Set());
   const expandFallbackTimer = useRef(null);
   const collapseContentTimer = useRef(null);
   const asideLeaveTimer = useRef(null);
@@ -127,11 +129,25 @@ export default function AppSidebar({ sidebar }) {
     setContentExpanded(false);
     setExpandAnimationComplete(false);
     pendingCollapseRef.current = false;
+    setActiveFlyoutKey(null);
+    flyoutOpenKeysRef.current.clear();
     clearAsideLeaveTimer();
   }, [location.pathname, clearAsideLeaveTimer]);
 
-  const setFlyoutOpenFromChild = useCallback((open) => {
-    flyoutOpenRef.current = open;
+  const anyFlyoutOpen = useCallback(() => flyoutOpenKeysRef.current.size > 0, []);
+
+  const setFlyoutOpenFromChild = useCallback((groupKey, open) => {
+    const keys = flyoutOpenKeysRef.current;
+    if (open) keys.add(groupKey);
+    else keys.delete(groupKey);
+  }, []);
+
+  const claimFlyout = useCallback((groupKey) => {
+    setActiveFlyoutKey(groupKey);
+  }, []);
+
+  const releaseFlyout = useCallback((groupKey) => {
+    setActiveFlyoutKey((prev) => (prev === groupKey ? null : prev));
   }, []);
 
   const handleAsideMouseEnter = () => {
@@ -147,7 +163,7 @@ export default function AppSidebar({ sidebar }) {
     clearAsideLeaveTimer();
     asideLeaveTimer.current = window.setTimeout(() => {
       asideLeaveTimer.current = null;
-      if (flyoutOpenRef.current) {
+      if (anyFlyoutOpen()) {
         pendingCollapseRef.current = true;
         setFlyoutCloseNonce((n) => n + 1);
       } else {
@@ -162,19 +178,21 @@ export default function AppSidebar({ sidebar }) {
 
   const handleFlyoutExitComplete = useCallback(() => {
     if (!pendingCollapseRef.current) return;
+    if (anyFlyoutOpen()) return;
     pendingCollapseRef.current = false;
-    flyoutOpenRef.current = false;
+    setActiveFlyoutKey(null);
     setRailExpanded(false);
-  }, []);
+  }, [anyFlyoutOpen]);
 
   const collapseTouchSidebar = useCallback(() => {
     clearAsideLeaveTimer();
     pendingCollapseRef.current = false;
-    if (flyoutOpenRef.current) {
+    if (anyFlyoutOpen()) {
       setFlyoutCloseNonce((n) => n + 1);
     }
+    setActiveFlyoutKey(null);
     setRailExpanded(false);
-  }, [clearAsideLeaveTimer]);
+  }, [clearAsideLeaveTimer, anyFlyoutOpen]);
 
   useEffect(() => {
     if (!touchMode || !railExpanded) return;
@@ -206,6 +224,7 @@ export default function AppSidebar({ sidebar }) {
       return (
         <SidebarItemGroup
           key={itemKey}
+          groupKey={itemKey}
           to={it.to}
           icon={it.icon}
           label={it.label}
@@ -213,6 +232,9 @@ export default function AppSidebar({ sidebar }) {
           expanded={childExpanded}
           expandAnimationComplete={expandAnimationComplete}
           flyoutCloseNonce={flyoutCloseNonce}
+          activeFlyoutKey={activeFlyoutKey}
+          onClaimFlyout={claimFlyout}
+          onReleaseFlyout={releaseFlyout}
           onFlyoutExitComplete={handleFlyoutExitComplete}
           onFlyoutOpenChange={setFlyoutOpenFromChild}
           onFlyoutPointerEnter={handleFlyoutPointerEnter}

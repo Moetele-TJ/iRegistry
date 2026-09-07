@@ -12,8 +12,10 @@ const SUBMENU_SLIDE_PX = 14;
 
 /**
  * Flyout sub-links in a portal; coordinates with AppSidebar width transition + collapse order.
+ * Only one group flyout is shown at a time (activeFlyoutKey from AppSidebar).
  */
 export default function SidebarItemGroup({
+  groupKey,
   to: baseTo,
   icon,
   label,
@@ -21,6 +23,9 @@ export default function SidebarItemGroup({
   expanded,
   expandAnimationComplete = false,
   flyoutCloseNonce = 0,
+  activeFlyoutKey = null,
+  onClaimFlyout,
+  onReleaseFlyout,
   onFlyoutExitComplete,
   onFlyoutOpenChange,
   onNavigate,
@@ -29,6 +34,7 @@ export default function SidebarItemGroup({
   onFlyoutPointerEnter,
 }) {
   const location = useLocation();
+  const key = groupKey || baseTo || label;
   const anchorRef = useRef(null);
   const leaveTimer = useRef(null);
   const prevCloseNonce = useRef(0);
@@ -44,11 +50,16 @@ export default function SidebarItemGroup({
     return p === baseTo || p.startsWith(`${baseTo}/`);
   }, [location.pathname, baseTo]);
 
+  // Desktop: path-active groups show by default unless another group claimed the flyout.
+  // Hover / touch claim takes exclusive ownership so Items + Livestock never overlap.
+  const claimed = activeFlyoutKey === key;
+  const defaultSectionOpen = !touchMode && activeFlyoutKey == null && groupPathActive;
+
   const wantShow =
     expanded &&
     expandAnimationComplete &&
     subItems.length > 0 &&
-    (touchMode ? touchFlyoutOpen : groupPathActive || inHoverZone);
+    (touchMode ? touchFlyoutOpen && claimed : claimed || defaultSectionOpen);
 
   const clearLeaveTimer = () => {
     if (leaveTimer.current != null) {
@@ -60,11 +71,15 @@ export default function SidebarItemGroup({
   const enterZone = () => {
     clearLeaveTimer();
     setInHoverZone(true);
+    if (!touchMode) onClaimFlyout?.(key);
   };
 
   const leaveZone = () => {
     clearLeaveTimer();
-    leaveTimer.current = window.setTimeout(() => setInHoverZone(false), LEAVE_MS);
+    leaveTimer.current = window.setTimeout(() => {
+      setInHoverZone(false);
+      if (!touchMode) onReleaseFlyout?.(key);
+    }, LEAVE_MS);
   };
 
   useLayoutEffect(() => {
@@ -92,14 +107,26 @@ export default function SidebarItemGroup({
   }, [wantShow, exiting, expanded, location.pathname]);
 
   useEffect(() => {
-    if (!expanded) setTouchFlyoutOpen(false);
-  }, [expanded]);
+    if (!expanded) {
+      setTouchFlyoutOpen(false);
+      onReleaseFlyout?.(key);
+    }
+  }, [expanded, key, onReleaseFlyout]);
+
+  // Another group claimed the flyout — drop local hover/touch open state.
+  useEffect(() => {
+    if (activeFlyoutKey == null || activeFlyoutKey === key) return;
+    clearLeaveTimer();
+    setInHoverZone(false);
+    setTouchFlyoutOpen(false);
+  }, [activeFlyoutKey, key]);
 
   // Parent: close submenu first, then collapse rail.
   useEffect(() => {
     if (flyoutCloseNonce === prevCloseNonce.current) return;
     prevCloseNonce.current = flyoutCloseNonce;
     setTouchFlyoutOpen(false);
+    onReleaseFlyout?.(key);
 
     if (!pos) {
       onFlyoutExitComplete?.();
@@ -107,7 +134,7 @@ export default function SidebarItemGroup({
     }
 
     setExiting(true);
-    onFlyoutOpenChange?.(false);
+    onFlyoutOpenChange?.(key, false);
 
     const t = window.setTimeout(() => {
       setExiting(false);
@@ -118,7 +145,7 @@ export default function SidebarItemGroup({
     }, SUBMENU_EXIT_MS + 40);
 
     return () => window.clearTimeout(t);
-  }, [flyoutCloseNonce, pos, onFlyoutExitComplete, onFlyoutOpenChange]);
+  }, [flyoutCloseNonce, pos, onFlyoutExitComplete, onFlyoutOpenChange, onReleaseFlyout, key]);
 
   const showPanel = Boolean(pos && (wantShow || exiting));
 
@@ -137,12 +164,11 @@ export default function SidebarItemGroup({
     return () => clearLeaveTimer();
   }, []);
 
-  const flyoutVisible =
-    showPanel && !exiting && enterVisible;
+  const flyoutVisible = showPanel && !exiting && enterVisible;
 
   useEffect(() => {
-    onFlyoutOpenChange?.(flyoutVisible);
-  }, [flyoutVisible, onFlyoutOpenChange]);
+    onFlyoutOpenChange?.(key, flyoutVisible);
+  }, [flyoutVisible, onFlyoutOpenChange, key]);
 
   const flyout = showPanel ? (
     <div
@@ -223,7 +249,12 @@ export default function SidebarItemGroup({
             }
             if (touchMode && expanded) {
               e.preventDefault();
-              setTouchFlyoutOpen((o) => !o);
+              setTouchFlyoutOpen((o) => {
+                const next = !o;
+                if (next) onClaimFlyout?.(key);
+                else onReleaseFlyout?.(key);
+                return next;
+              });
               return;
             }
             onNavigate?.();
