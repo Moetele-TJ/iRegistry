@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -16,13 +16,37 @@ function listBackPath(role) {
   return "/user/livestock";
 }
 
+function statusBadgeClass(status) {
+  switch (String(status || "").toLowerCase()) {
+    case "missing":
+      return "bg-red-50 text-red-700 border-red-100";
+    case "recovered":
+      return "bg-sky-50 text-sky-800 border-sky-100";
+    case "deleted":
+      return "bg-gray-50 text-gray-700 border-gray-200";
+    default:
+      return "bg-emerald-50 text-emerald-800 border-emerald-100";
+  }
+}
+
+function Fact({ label, children }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="mt-1 text-sm text-gray-900 break-words">{children}</div>
+    </div>
+  );
+}
+
 export default function UserLivestockDetailPage() {
   const { animalId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { addToast } = useToast();
   const [animal, setAnimal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [activePhoto, setActivePhoto] = useState(0);
 
   const backPath = listBackPath(user?.role);
   const canMutate =
@@ -39,6 +63,7 @@ export default function UserLivestockDetailPage() {
         throw new Error(data?.message || error?.message || "Failed to load");
       }
       setAnimal(data.animal);
+      setActivePhoto(0);
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed to load animal" });
       setAnimal(null);
@@ -75,7 +100,7 @@ export default function UserLivestockDetailPage() {
         active: "Marked as active.",
         missing: "Marked as missing.",
         recovered: "Marked as recovered.",
-        deleted: "Animal moved to deleted.",
+        deleted: "Moved to recycle bin.",
       };
       addToast({ type: "success", message: messages[status] || "Status updated." });
     } catch (e) {
@@ -87,178 +112,285 @@ export default function UserLivestockDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto p-4 sm:p-6 text-sm text-gray-500">Loading…</div>
+      <div className="min-h-screen bg-gray-100">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden p-8 flex items-center gap-3 text-sm text-emerald-900">
+            <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent shrink-0" />
+            Loading animal…
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (!animal) {
     return (
-      <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-2">
-        <Link to={backPath} className="text-sm text-iregistrygreen hover:underline">
-          ← {NAV.livestock}
-        </Link>
-        <p className="text-sm text-gray-600">Animal not found.</p>
+      <div className="min-h-screen bg-gray-100">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6 text-center">
+            <h2 className="text-lg font-semibold">Animal not found</h2>
+            <p className="text-sm text-gray-500 mt-2">
+              The requested animal does not exist or you do not have access to it.
+            </p>
+            <div className="mt-4 flex gap-2 justify-center">
+              <RippleButton
+                className="px-4 py-2 rounded-xl border bg-white text-sm"
+                onClick={() => navigate(backPath)}
+              >
+                Back to livestock
+              </RippleButton>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   const photos = Array.isArray(animal.photos) ? animal.photos : [];
+  const photoSrcs = photos.map(livestockPhotoSrc).filter(Boolean);
   const brands = Array.isArray(animal.brands) ? animal.brands : [];
   const earTags = Array.isArray(animal.ear_tags) ? animal.ear_tags : [];
   const earMarks = Array.isArray(animal.ear_marks) ? animal.ear_marks : [];
   const status = String(animal.status || "active").toLowerCase();
   const isDeleted = status === "deleted" || Boolean(animal.deleted_at);
+  const isMissing = status === "missing";
+  const mainSrc = photoSrcs[Math.min(activePhoto, Math.max(0, photoSrcs.length - 1))] || null;
+  const title = animal.name || animal.breed || animal.type_code || "Animal";
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link to={backPath} className="text-sm text-iregistrygreen hover:underline">
-            ← {NAV.livestock}
-          </Link>
-          <h1 className="text-xl font-semibold text-gray-900 mt-2">
-            {animal.name || animal.breed || animal.type_code || "Animal"}
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {[animal.type_code, animal.gender, animal.colour, animal.breed]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        </div>
-        {roleIs(user?.role, "user") ? (
-          <Link
-            to="/user/livestock/sightings"
-            className="px-4 py-2 rounded-xl border bg-white text-sm font-medium"
-          >
-            {NAV.livestockSightings}
-          </Link>
-        ) : null}
-      </div>
+    <div className="min-h-screen bg-gray-100">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="px-5 sm:px-6 py-4 border-b border-emerald-100/70 bg-gradient-to-r from-emerald-50/95 via-emerald-50/50 to-white">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-iregistrygreen truncate">
+                    {title}
+                  </h1>
+                  {isDeleted ? (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-200">
+                      Deleted
+                    </span>
+                  ) : null}
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border capitalize ${statusBadgeClass(status)}`}
+                  >
+                    {status}
+                  </span>
+                  {animal.type_code ? (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-100">
+                      {animal.type_code}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-1 text-sm text-gray-600">
+                  {[animal.breed, animal.colour, animal.gender].filter(Boolean).join(" · ") || "—"}
+                  {animal.dwelling_village ? (
+                    <>
+                      <span className="mx-2 text-gray-300">|</span>
+                      {animal.dwelling_village}
+                    </>
+                  ) : null}
+                </div>
+              </div>
 
-      <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-gray-700">
-            Status:{" "}
-            <span className="font-semibold capitalize text-gray-900">{status}</span>
-          </div>
-          {canMutate && !isDeleted ? (
-            <div className="inline-flex flex-wrap rounded-xl border border-gray-200 p-1 bg-gray-50 gap-0.5">
-              {["active", "missing", "recovered"].map((s) => (
+              <div className="flex flex-wrap gap-2 sm:justify-end">
                 <RippleButton
-                  key={s}
-                  type="button"
-                  disabled={statusBusy || status === s}
-                  className={`px-3 py-1.5 text-sm font-semibold rounded-lg capitalize ${
-                    status === s ? "bg-white text-iregistrygreen shadow-sm" : "text-gray-600"
-                  } disabled:opacity-60`}
-                  onClick={() => void setStatus(s)}
+                  className="px-4 py-2 rounded-xl border bg-white text-sm"
+                  onClick={() => navigate(backPath)}
                 >
-                  {s}
+                  Back
                 </RippleButton>
-              ))}
+
+                {roleIs(user?.role, "user") ? (
+                  <Link
+                    to="/user/livestock/sightings"
+                    className="inline-flex items-center px-4 py-2 rounded-xl border border-emerald-200/80 bg-white text-sm font-medium text-gray-700"
+                  >
+                    {NAV.livestockSightings}
+                  </Link>
+                ) : null}
+
+                {canMutate && isDeleted ? (
+                  <RippleButton
+                    className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:opacity-95 disabled:opacity-60"
+                    onClick={() => void setStatus("active")}
+                    disabled={statusBusy}
+                  >
+                    {statusBusy ? "Restoring…" : "Restore"}
+                  </RippleButton>
+                ) : null}
+
+                {canMutate && !isDeleted ? (
+                  <>
+                    <RippleButton
+                      className={`px-4 py-2 rounded-xl text-white text-sm disabled:opacity-60 ${
+                        isMissing
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-red-600 hover:bg-red-700"
+                      }`}
+                      onClick={() => void setStatus(isMissing ? "active" : "missing")}
+                      disabled={statusBusy}
+                    >
+                      {isMissing ? "Mark active" : "Mark missing"}
+                    </RippleButton>
+
+                    {status !== "recovered" ? (
+                      <RippleButton
+                        className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm disabled:opacity-60"
+                        onClick={() => void setStatus("recovered")}
+                        disabled={statusBusy}
+                      >
+                        Mark recovered
+                      </RippleButton>
+                    ) : null}
+
+                    <RippleButton
+                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm disabled:opacity-60"
+                      onClick={() => void setStatus("deleted")}
+                      disabled={statusBusy}
+                    >
+                      Recycle bin
+                    </RippleButton>
+                  </>
+                ) : null}
+              </div>
             </div>
-          ) : null}
-        </div>
-        {canMutate ? (
-          <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
-            {isDeleted ? (
-              <RippleButton
-                type="button"
-                disabled={statusBusy}
-                className="px-3 py-1.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
-                onClick={() => void setStatus("active")}
-              >
-                Restore to active
-              </RippleButton>
-            ) : (
-              <RippleButton
-                type="button"
-                disabled={statusBusy}
-                className="px-3 py-1.5 rounded-xl border border-red-200 text-red-700 text-sm font-semibold disabled:opacity-60"
-                onClick={() => void setStatus("deleted")}
-              >
-                Move to deleted
-              </RippleButton>
-            )}
           </div>
-        ) : null}
-      </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {photos.map((p, i) => {
-          const src = livestockPhotoSrc(p);
-          return src ? (
-            <div key={i} className="aspect-square rounded-xl overflow-hidden bg-gray-100">
-              <img src={src} alt="" className="w-full h-full object-cover" />
+          <div className="p-5 sm:p-6">
+            {isDeleted && canMutate ? (
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+                <div className="font-semibold">In your recycle bin</div>
+                <p className="mt-1 text-amber-900/90">
+                  You can restore this animal to active from the header actions.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-5 space-y-4">
+                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                    Photos
+                  </div>
+                  <div className="relative w-full aspect-square rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden">
+                    {mainSrc ? (
+                      <img src={mainSrc} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                        No photos
+                      </div>
+                    )}
+                  </div>
+                  {photoSrcs.length > 1 ? (
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                      {photoSrcs.map((src, i) => (
+                        <button
+                          key={src + i}
+                          type="button"
+                          onClick={() => setActivePhoto(i)}
+                          className={`shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 ${
+                            i === activePhoto
+                              ? "border-iregistrygreen"
+                              : "border-gray-200"
+                          }`}
+                        >
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="lg:col-span-7 space-y-4">
+                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">
+                    Details
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Fact label="Name">{animal.name || "—"}</Fact>
+                    <Fact label="Type">{animal.type_code || "—"}</Fact>
+                    <Fact label="Breed">{animal.breed || "—"}</Fact>
+                    <Fact label="Colour">{animal.colour || "—"}</Fact>
+                    <Fact label="Gender">{animal.gender || "—"}</Fact>
+                    <Fact label="Status">
+                      <span className="capitalize">{status}</span>
+                    </Fact>
+                    <Fact label="Dwelling">
+                      {animal.dwelling_village || "—"}
+                      {animal.dwelling_lat != null && animal.dwelling_lng != null ? (
+                        <span className="text-gray-500 tabular-nums">
+                          {" "}
+                          ({Number(animal.dwelling_lat).toFixed(5)},{" "}
+                          {Number(animal.dwelling_lng).toFixed(5)})
+                        </span>
+                      ) : (
+                        <span className="text-amber-700">
+                          {" "}
+                          — no coordinates (distance alerts limited)
+                        </span>
+                      )}
+                    </Fact>
+                    {animal.zone_brand ? (
+                      <Fact label="Zone brand">{animal.zone_brand}</Fact>
+                    ) : null}
+                  </div>
+                </div>
+
+                {brands.length ? (
+                  <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                      Brands
+                    </div>
+                    <ul className="space-y-2 text-sm text-gray-800">
+                      {brands.map((b) => (
+                        <li key={b.id || `${b.characters}-${b.side}-${b.body_part}`}>
+                          <span className="font-semibold tracking-wide">{b.characters}</span>
+                          {" · "}
+                          {b.layout} · {b.side} {b.body_part}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {earTags.length ? (
+                  <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                      Ear tags
+                    </div>
+                    <ul className="space-y-1 text-sm text-gray-800">
+                      {earTags.map((t) => (
+                        <li key={t.id || t.tag_id}>
+                          {t.tag_id} ({t.side})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {earMarks.length ? (
+                  <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                      Ear marks
+                    </div>
+                    <ul className="space-y-1 text-sm text-gray-800">
+                      {earMarks.map((m) => (
+                        <li key={m.id || m.mark_label}>
+                          {m.mark_label}
+                          {m.side ? ` (${m.side})` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          ) : null;
-        })}
-      </div>
-
-      <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3 text-sm">
-        <div>
-          <div className="text-xs text-gray-500">Dwelling</div>
-          <div className="text-gray-800">
-            {animal.dwelling_village || "—"}
-            {animal.dwelling_lat != null && animal.dwelling_lng != null ? (
-              <span className="text-gray-500 tabular-nums">
-                {" "}
-                ({Number(animal.dwelling_lat).toFixed(5)}, {Number(animal.dwelling_lng).toFixed(5)})
-              </span>
-            ) : (
-              <span className="text-amber-700"> — no coordinates (distance alerts limited)</span>
-            )}
           </div>
         </div>
-
-        {animal.zone_brand ? (
-          <div>
-            <div className="text-xs text-gray-500">Zone brand</div>
-            <div className="font-medium">{animal.zone_brand}</div>
-          </div>
-        ) : null}
-
-        {brands.length ? (
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Brands</div>
-            <ul className="space-y-1">
-              {brands.map((b) => (
-                <li key={b.id || `${b.characters}-${b.side}-${b.body_part}`}>
-                  <span className="font-semibold tracking-wide">{b.characters}</span>
-                  {" · "}
-                  {b.layout} · {b.side} {b.body_part}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {earTags.length ? (
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Ear tags</div>
-            <ul className="space-y-1">
-              {earTags.map((t) => (
-                <li key={t.id || t.tag_id}>
-                  {t.tag_id} ({t.side})
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {earMarks.length ? (
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Ear marks</div>
-            <ul className="space-y-1">
-              {earMarks.map((m) => (
-                <li key={m.id || m.mark_label}>
-                  {m.mark_label}
-                  {m.side ? ` (${m.side})` : ""}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </div>
   );

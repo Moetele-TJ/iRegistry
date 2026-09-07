@@ -444,7 +444,11 @@ export function addItemButtonLabel(forUser = false) {
 
 }
 
-
+export function registerAnimalButtonLabel(forUser = false) {
+  return forUser
+    ? `+ ${NAV_ACTIONS.registerAnimalForUser}`
+    : `+ ${NAV_ACTIONS.registerAnimal}`;
+}
 
 export function addItemAriaLabel(displayName) {
 

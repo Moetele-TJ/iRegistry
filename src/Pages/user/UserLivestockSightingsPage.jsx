@@ -95,23 +95,44 @@ export default function UserLivestockSightingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
-      <div>
-        <Link to="/user/livestock" className="text-sm text-iregistrygreen hover:underline">
-          ← Livestock
-        </Link>
-        <h1 className="text-xl font-semibold text-gray-900 mt-2">Livestock sightings</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Accept or reject reports. After accept, reveal the exact pin for 2 credits when GPS was
-          captured.
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto w-full py-6 sm:py-8 lg:py-10 pb-12">
+      <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-emerald-50/80 to-emerald-50/60 px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-iregistrygreen tracking-tight">
+                Livestock sightings
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Accept or reject reports. After accept, reveal the exact pin for 2 credits when GPS was
+                captured.
+              </p>
+            </div>
+            <Link
+              to="/user/livestock"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200/80 bg-white/90 text-sm font-medium text-gray-700 shadow-sm hover:bg-white transition-colors"
+            >
+              Back to livestock
+            </Link>
+          </div>
+        </div>
 
+        <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-4 bg-gradient-to-b from-white to-gray-50/40">
       {loading ? (
-        <div className="text-sm text-gray-500">Loading…</div>
+        <div
+          className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent shrink-0" />
+          Loading sightings…
+        </div>
       ) : sightings.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-600">
-          No sightings yet.
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+          <div className="text-4xl mb-3">📍</div>
+          <div className="text-lg font-semibold text-gray-800">No sightings yet</div>
+          <p className="text-sm text-gray-500 mt-2">
+            Public reports for your animals will show up here.
+          </p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -128,17 +149,21 @@ export default function UserLivestockSightingsPage() {
             return (
               <li
                 key={s.id}
-                className="rounded-2xl border border-gray-100 bg-white p-4 flex flex-col sm:flex-row gap-3"
+                className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4 flex flex-col sm:flex-row gap-3"
               >
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
                   {thumb ? (
                     <img src={thumb} alt="" className="w-full h-full object-cover" />
-                  ) : null}
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                      —
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     <Link
-                      to={`/user/livestock/${s.animal_id}`}
+                      to={`/livestock/${s.animal_id}`}
                       className="font-semibold text-gray-900 hover:underline"
                     >
                       {label}
@@ -160,7 +185,7 @@ export default function UserLivestockSightingsPage() {
                       <RippleButton
                         type="button"
                         disabled={busy}
-                        className="px-3 py-1.5 rounded-xl bg-iregistrygreen text-white text-sm disabled:opacity-60"
+                        className="px-3 py-1.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium disabled:opacity-60"
                         onClick={() => void decide(s.id, "accepted")}
                       >
                         Accept
@@ -168,7 +193,7 @@ export default function UserLivestockSightingsPage() {
                       <RippleButton
                         type="button"
                         disabled={busy}
-                        className="px-3 py-1.5 rounded-xl border text-sm disabled:opacity-60"
+                        className="px-3 py-1.5 rounded-xl border border-emerald-200/80 bg-white text-sm disabled:opacity-60"
                         onClick={() => void decide(s.id, "rejected")}
                       >
                         Reject
@@ -192,7 +217,7 @@ export default function UserLivestockSightingsPage() {
                         <RippleButton
                           type="button"
                           disabled={busy}
-                          className="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-sm disabled:opacity-60"
+                          className="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-sm font-medium disabled:opacity-60"
                           onClick={() => void reveal(s.id)}
                         >
                           Reveal location — 2 credits
@@ -210,6 +235,8 @@ export default function UserLivestockSightingsPage() {
           })}
         </ul>
       )}
+        </div>
+      </div>
     </div>
   );
 }
