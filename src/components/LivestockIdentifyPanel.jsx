@@ -59,11 +59,11 @@ export default function LivestockIdentifyPanel() {
   const videoRef = useRef(null);
   const fileRef = useRef(null);
 
-  const askGeo = useCallback(async () => {
+  const askGeo = useCallback(async ({ quiet = false } = {}) => {
     setGeoAsked(true);
     const g = await getPosition();
     setGeo(g);
-    if (!g) {
+    if (!g && !quiet) {
       addToast({
         type: "info",
         message: "Location not available. You can still search; the owner will not get a distance.",
@@ -71,6 +71,11 @@ export default function LivestockIdentifyPanel() {
     }
     return g;
   }, [addToast]);
+
+  // Request location as soon as the Livestock tab mounts (no click required).
+  useEffect(() => {
+    void askGeo({ quiet: true });
+  }, [askGeo]);
 
   useEffect(() => {
     return () => {
@@ -283,14 +288,27 @@ export default function LivestockIdentifyPanel() {
         >
           Ear tag / brand
         </button>
-        <RippleButton
-          type="button"
-          className="px-3 py-1.5 rounded-xl border bg-white text-sm"
-          onClick={() => void askGeo()}
-          disabled={busy}
+        <span
+          className={`inline-flex items-center px-3 py-1.5 rounded-xl border text-sm ${
+            geo
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : geoAsked
+                ? "bg-amber-50 border-amber-200 text-amber-900"
+                : "bg-white border-gray-200 text-gray-600"
+          }`}
         >
-          {geo ? "Location ready" : "Allow location"}
-        </RippleButton>
+          {geo ? "Location ready" : geoAsked ? "Location unavailable" : "Requesting location…"}
+        </span>
+        {geoAsked && !geo ? (
+          <RippleButton
+            type="button"
+            className="px-3 py-1.5 rounded-xl border bg-white text-sm"
+            onClick={() => void askGeo()}
+            disabled={busy}
+          >
+            Try location again
+          </RippleButton>
+        ) : null}
       </div>
 
       {mode === "photo" ? (
