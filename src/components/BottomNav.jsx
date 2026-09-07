@@ -10,6 +10,7 @@ export default function BottomNav() {
   const links = [
     { to: "/user", icon: "🏠", label: NAV_HEADER.home },
     { to: "/user/items", icon: "📦", label: NAV_MOBILE.myItems },
+    { to: "/user/livestock", icon: "🐾", label: NAV.livestock },
     { to: "/items/add", icon: "➕", label: NAV_MOBILE.addItem, isAdd: true },
     { to: "/user/profile", icon: "👤", label: NAV.profile },
   ];

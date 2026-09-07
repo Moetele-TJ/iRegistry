@@ -9,6 +9,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { invokeWithAuth } from "../lib/invokeWithAuth.js";
 import { isPrivilegedRole } from "../lib/billingUx.js";
 import { deriveUserStatus, isInactiveLockout } from "../lib/userState.js";
+import { isUserIdUuid } from "../lib/userProfilePath.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 import {
   ArrowLeft,
@@ -209,8 +210,8 @@ export default function ProfilePage() {
   const { addToast } = useToast();
   const { confirm } = useModal();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const queryUserId = searchParams.get("user");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryUserKey = searchParams.get("user");
 
   const [profileUser, setProfileUser] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -242,16 +243,21 @@ export default function ProfilePage() {
   /** lg+ desktop: tabbed sections (mobile keeps stacked cards). */
   const [desktopTab, setDesktopTab] = useState("profile");
 
-  /** Admin/cashier opened `/profile?user=<uuid>` to inspect another account. */
-  const viewingOther =
-    !!(queryUserId && sessionUser?.id && String(queryUserId) !== String(sessionUser.id));
+  /** Admin/cashier opened `/profile?user=<slug|uuid>` to inspect another account. */
+  const queryLooksLikeSelf =
+    !!queryUserKey &&
+    !!sessionUser &&
+    (String(queryUserKey) === String(sessionUser.id) ||
+      (sessionUser.slug &&
+        String(queryUserKey).toLowerCase() === String(sessionUser.slug).toLowerCase()));
+  const viewingOther = !!(queryUserKey && sessionUser?.id && !queryLooksLikeSelf);
 
   const loadProfile = useCallback(async () => {
     if (!sessionUser?.id) return;
     setProfileLoading(true);
     setProfileError("");
     try {
-      const body = queryUserId ? { user_id: queryUserId } : {};
+      const body = queryUserKey ? { user_id: queryUserKey } : {};
       const { data, error } = await invokeWithAuth("get-user-profile", { body });
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Could not load profile");
@@ -263,11 +269,26 @@ export default function ProfilePage() {
     } finally {
       setProfileLoading(false);
     }
-  }, [sessionUser?.id, queryUserId]);
+  }, [sessionUser?.id, queryUserKey]);
 
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  /** Prefer surname-name slug in the address bar once the profile is loaded. */
+  useEffect(() => {
+    if (!profileUser?.slug || !queryUserKey) return;
+    if (!isUserIdUuid(queryUserKey)) return;
+    if (String(queryUserKey) === String(profileUser.slug)) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("user", profileUser.slug);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [profileUser?.slug, queryUserKey, setSearchParams]);
 
   const staffProfileSidebar =
     viewingOther && isPrivilegedRole(sessionUser?.role);
@@ -284,7 +305,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!viewingOther || !sessionUser?.id) return;
     resetPrivilegedItemsViewToSelf(sessionUser.id);
-  }, [viewingOther, queryUserId, sessionUser?.id]);
+  }, [viewingOther, queryUserKey, sessionUser?.id]);
 
   const {
     activity: userRegistryActivity,

@@ -9,6 +9,7 @@ import { validateSession } from "../shared/validateSession.ts";
 import { logAudit } from "../shared/logAudit.ts";
 import { logUserActivity } from "../shared/logUserActivity.ts";
 import { roleIs } from "../shared/roles.ts";
+import { vacateUserSlugOnDelete } from "../shared/userSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -49,7 +50,7 @@ serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
-      .select("id, deleted_at, first_name, last_name, email")
+      .select("id, deleted_at, first_name, last_name, email, slug")
       .eq("id", id)
       .maybeSingle();
 
@@ -58,9 +59,18 @@ serve(async (req) => {
     }
 
     const now = new Date().toISOString();
+    const vacatedSlug = await vacateUserSlugOnDelete({
+      supabase,
+      id,
+      currentSlug: (existing as { slug?: string | null }).slug,
+      lastName: existing.last_name,
+      firstName: existing.first_name,
+    });
 
     // Soft-delete: deleted_at only. users_derived_status_check requires
     // disabled_at and suspended_at to be null when deleted_at is set.
+    // Renumber bare profile slug (e.g. mphuting-ntebogang → mphuting-ntebogang-1)
+    // so an active account can keep the original.
     const { error: delErr } = await supabase
       .from("users")
       .update({
@@ -69,6 +79,7 @@ serve(async (req) => {
         disabled_reason: null,
         suspended_at: null,
         suspended_reason: null,
+        slug: vacatedSlug,
       })
       .eq("id", id);
 

@@ -59,6 +59,7 @@ serve(async (req) => {
       .select(
         `
         id,
+        slug,
         first_name,
         last_name,
         phone,

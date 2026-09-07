@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Activity, Bell, LayoutDashboard, Package, Shield, Tag, UserCircle, Wallet } from "lucide-react";
+import { Activity, Bell, LayoutDashboard, Package, PawPrint, Shield, Tag, UserCircle, Wallet } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 import { NAV, NAV_POLICE_ITEMS } from "../lib/navLabels.js";
 
@@ -19,6 +19,17 @@ export function usePoliceSidebar({ visible = true } = {}) {
           { to: "/police/items?mine=1", label: NAV_POLICE_ITEMS.myActiveItems, end: true },
           { to: "/police/items/deleted", label: NAV_POLICE_ITEMS.myDeletedItems, end: true },
           { to: "/police/items/legacy", label: NAV_POLICE_ITEMS.myLegacyItems, end: true },
+        ],
+      },
+      {
+        to: "/police/livestock",
+        icon: <PawPrint size={20} />,
+        label: NAV.livestock,
+        subItems: [
+          { to: "/police/livestock", label: NAV.activeAnimals, end: true },
+          { to: "/police/livestock/missing", label: NAV.missingAnimals, end: true },
+          { to: "/police/livestock/recovered", label: NAV.recoveredAnimals, end: true },
+          { to: "/police/livestock/deleted", label: NAV.deletedAnimals, end: true },
         ],
       },
       { to: "/police/impound", icon: <Shield size={20} />, label: NAV.impoundFoundItem },

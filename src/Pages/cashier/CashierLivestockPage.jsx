@@ -1,5 +1,4 @@
 import Livestock from "../Livestock.jsx";
-
-export default function UserLivestockPage() {
+export default function CashierLivestockPage() {
   return <Livestock view="active" />;
 }

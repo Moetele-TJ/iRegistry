@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Package,
   PauseCircle,
+  PawPrint,
   Pencil,
   Plus,
   ReceiptText,
@@ -19,6 +20,7 @@ import { useStaffUserScope } from "../../contexts/StaffUserScopeContext.jsx";
 import { useStaffProfileUserActions } from "../../hooks/useStaffProfileUserActions.js";
 import StaffProfileActionsModals from "./StaffProfileActionsModals.jsx";
 import { NAV, NAV_ACTIONS } from "../../lib/navLabels.js";
+import { staffBasePath } from "../../hooks/useStaffProfileUserActions.js";
 
 function actionItem(item) {
   return { ...item, variant: "action" };
@@ -41,6 +43,8 @@ export default function StaffUserScopeSidebarBridge() {
     onAfterDelete: exitScope,
   });
 
+  const base = staffBasePath(sessionUser?.role);
+
   const sections = useMemo(() => {
     if (!isActive || !actions.targetId) return [];
 
@@ -60,14 +64,25 @@ export default function StaffUserScopeSidebarBridge() {
         icon: <Package size={20} />,
         label: NAV_ACTIONS.viewItems,
       },
+      {
+        to: `${base}/livestock`,
+        icon: <PawPrint size={20} />,
+        label: NAV.livestock,
+        subItems: [
+          { to: `${base}/livestock`, label: NAV.activeAnimals, end: true },
+          { to: `${base}/livestock/missing`, label: NAV.missingAnimals, end: true },
+          { to: `${base}/livestock/recovered`, label: NAV.recoveredAnimals, end: true },
+          { to: `${base}/livestock/deleted`, label: NAV.deletedAnimals, end: true },
+        ],
+      },
     ];
 
     if (actions.accountActive) {
       navItems.push(
         {
-          onClick: () => actions.goToAddItemForTarget(),
+          onClick: () => actions.goToRegisterAnimalForTarget(),
           icon: <Plus size={20} />,
-          label: NAV_ACTIONS.addItem,
+          label: NAV_ACTIONS.registerAnimalForUser,
           disabled: actions.disabled,
         },
         {
@@ -168,6 +183,7 @@ export default function StaffUserScopeSidebarBridge() {
     return result;
   }, [
     isActive,
+    base,
     actions.targetId,
     actions.accountActive,
     actions.isDeleted,
@@ -178,7 +194,7 @@ export default function StaffUserScopeSidebarBridge() {
     exitScope,
     actions.goToProfile,
     actions.goToItems,
-    actions.goToAddItemForTarget,
+    actions.goToRegisterAnimalForTarget,
     actions.goToTopup,
     actions.goToTransactions,
     actions.goToEdit,
@@ -190,7 +206,6 @@ export default function StaffUserScopeSidebarBridge() {
 
   const hasSidebarContent = sections.some((s) => (s.items?.length || 0) > 0);
 
-  /** Reserve main-content gutter; scoped items render in a local AppSidebar (live handlers). */
   useEffect(() => {
     if (!isActive || !targetUser) {
       clearSidebar();

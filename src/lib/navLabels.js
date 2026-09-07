@@ -36,6 +36,14 @@ export const NAV = Object.freeze({
 
   myAnimals: "My Animals",
 
+  activeAnimals: "Active Animals",
+
+  missingAnimals: "Missing Animals",
+
+  recoveredAnimals: "Recovered Animals",
+
+  deletedAnimals: "Deleted Animals",
+
   livestockSightings: "Livestock Sightings",
 
   activeItems: "Active Items",
@@ -175,6 +183,10 @@ export const NAV_ACTIONS = Object.freeze({
   editUser: "Edit User",
 
   addItem: "Add Item",
+
+  registerAnimal: "Register Animal",
+
+  registerAnimalForUser: "Register Animal for User",
 
   addItemForUser: "Add Item for User",
 

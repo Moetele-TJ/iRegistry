@@ -7,6 +7,7 @@ import { validateSession } from "../../validateSession.ts";
 import { isPrivilegedRole } from "../../roles.ts";
 import { orgRoleIs } from "../../orgAuth.ts";
 import { logOrgItemActivity } from "../../logOrgItemActivity.ts";
+import { allocateUserSlug } from "../../userSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -125,6 +126,11 @@ export async function run(req: Request): Promise<Response> {
       .maybeSingle();
 
     let createdUserId: string | null = null;
+    const slug = await allocateUserSlug({
+      supabase,
+      lastName: last_name,
+      firstName: first_name,
+    });
     const { data: created, error: insErr } = await supabase
       .from("users")
       .insert({
@@ -140,8 +146,9 @@ export async function run(req: Request): Promise<Response> {
         role: "user",
         identity_verified: false,
         email_verified: false,
+        slug,
       })
-      .select("id, first_name, last_name, email, phone, id_number")
+      .select("id, first_name, last_name, email, phone, id_number, slug")
       .single();
 
     if (insErr || !created) {

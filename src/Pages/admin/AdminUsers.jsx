@@ -28,6 +28,7 @@ import {
   STAFF_USERS_LIST_VIEWS,
   staffUsersListViewFromPath,
 } from "../../lib/staffUsersListView.js";
+import { staffProfileUserKey } from "../../lib/userProfilePath.js";
 import { useStaffUserScope } from "../../contexts/StaffUserScopeContext.jsx";
 import {
   MSG_NOTHING_TO_SUBMIT,
@@ -1234,7 +1235,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Link
-                            to={`${profileListBase}?user=${encodeURIComponent(u.id)}`}
+                            to={`${profileListBase}?user=${encodeURIComponent(staffProfileUserKey(u) || u.id)}`}
                             onClick={() => {
                               persistUsersListScope();
                               enterScope(u);

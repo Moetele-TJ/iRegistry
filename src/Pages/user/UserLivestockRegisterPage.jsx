@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
 import { putSignedUpload } from "../../lib/putSignedUpload.js";
+import { isPrivilegedRole } from "../../lib/billingUx.js";
+import { roleIs } from "../../lib/roleUtils.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -16,9 +19,25 @@ const BRAND_LAYOUTS_3 = [
 ];
 
 export default function UserLivestockRegisterPage() {
-  useUserSidebar({ visible: true });
+  const { user } = useAuth();
+  const isUserRole = roleIs(user?.role, "user");
+  useUserSidebar({ visible: isUserRole });
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addToast } = useToast();
+  const ownerFromQuery = searchParams.get("owner") || "";
+  const registerOwnerId =
+    isPrivilegedRole(user?.role) && ownerFromQuery
+      ? ownerFromQuery
+      : user?.id != null
+        ? String(user.id)
+        : "";
+
+  const listBack = roleIs(user?.role, "admin")
+    ? "/admin/livestock"
+    : roleIs(user?.role, "cashier")
+      ? "/cashier/livestock"
+      : "/user/livestock";
 
   const [vocab, setVocab] = useState({ types: [], colours: [], ear_mark_types: [] });
   const [saving, setSaving] = useState(false);
@@ -113,6 +132,7 @@ export default function UserLivestockRegisterPage() {
       const { data, error } = await invokeWithAuth("livestock-api", {
         body: {
           operation: "livestock-register",
+          owner_id: registerOwnerId || undefined,
           type_code,
           gender,
           breed: breed.trim() || null,
@@ -156,7 +176,7 @@ export default function UserLivestockRegisterPage() {
       }
 
       addToast({ type: "success", message: "Animal registered." });
-      navigate(`/user/livestock/${data.animal.id}`);
+      navigate(`/livestock/${data.animal.id}`);
     } catch (err) {
       addToast({ type: "error", message: err?.message || "Registration failed" });
     } finally {
@@ -167,7 +187,7 @@ export default function UserLivestockRegisterPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-4">
       <div>
-        <Link to="/user/livestock" className="text-sm text-iregistrygreen hover:underline">
+        <Link to={listBack} className="text-sm text-iregistrygreen hover:underline">
           ← Livestock
         </Link>
         <h1 className="text-xl font-semibold text-gray-900 mt-2">Register animal</h1>

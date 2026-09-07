@@ -17,6 +17,7 @@ import {
   UserCircle,
   Users,
   Wallet,
+  PawPrint,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 import { NAV } from "../lib/navLabels.js";
@@ -58,6 +59,17 @@ export function useAdminSidebar({ visible: visibleProp = true } = {}) {
           { to: "/admin/items", label: NAV.activeItems, end: true },
           { to: "/admin/items/deleted", label: NAV.deletedItems, end: true },
           { to: "/admin/items/legacy", label: NAV.legacyItems, end: true },
+        ],
+      },
+      {
+        to: "/admin/livestock",
+        icon: <PawPrint size={20} />,
+        label: NAV.livestock,
+        subItems: [
+          { to: "/admin/livestock", label: NAV.activeAnimals, end: true },
+          { to: "/admin/livestock/missing", label: NAV.missingAnimals, end: true },
+          { to: "/admin/livestock/recovered", label: NAV.recoveredAnimals, end: true },
+          { to: "/admin/livestock/deleted", label: NAV.deletedAnimals, end: true },
         ],
       },
       { to: "/admin/notifications", icon: <Bell size={20} />, label: NAV.notifications },

@@ -6,6 +6,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { isPrivilegedRole } from "../shared/roles.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
+import { isUserIdUuid } from "../shared/userSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -31,18 +32,38 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const requested = typeof body?.user_id === "string" ? body.user_id.trim() : "";
+    const requestedRaw =
+      typeof body?.user_id === "string"
+        ? body.user_id.trim()
+        : typeof body?.user === "string"
+          ? body.user.trim()
+          : typeof body?.slug === "string"
+            ? body.slug.trim()
+            : "";
 
     let targetId = session.user_id;
-    if (requested && requested !== session.user_id) {
-      if (!isPrivilegedRole(session.role)) {
-        return respond(
-          { success: false, message: "You can only load your own profile here." },
-          corsHeaders,
-          403,
-        );
+    if (requestedRaw) {
+      if (isUserIdUuid(requestedRaw)) {
+        targetId = requestedRaw;
+      } else {
+        const { data: bySlug, error: slugErr } = await supabase
+          .from("users")
+          .select("id")
+          .ilike("slug", requestedRaw)
+          .maybeSingle();
+        if (slugErr || !bySlug?.id) {
+          return respond({ success: false, message: "User not found" }, corsHeaders, 404);
+        }
+        targetId = String(bySlug.id);
       }
-      targetId = requested;
+    }
+
+    if (String(targetId) !== String(session.user_id) && !isPrivilegedRole(session.role)) {
+      return respond(
+        { success: false, message: "You can only load your own profile here." },
+        corsHeaders,
+        403,
+      );
     }
 
     const { data: row, error } = await supabase
@@ -50,6 +71,7 @@ serve(async (req) => {
       .select(
         `
         id,
+        slug,
         first_name,
         last_name,
         id_number,

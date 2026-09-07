@@ -3,29 +3,31 @@ import { Link, useParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import { livestockPhotoSrc } from "../../lib/livestockPhotos.js";
+import { isPrivilegedRole } from "../../lib/billingUx.js";
+import { roleIs } from "../../lib/roleUtils.js";
+import { NAV } from "../../lib/navLabels.js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
-function photoSrc(p) {
-  if (!p) return null;
-  if (typeof p === "string") {
-    if (p.startsWith("http")) return p;
-    return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${p}`;
-  }
-  const path = p.thumb || p.original || p.path || p.url;
-  if (!path) return null;
-  if (String(path).startsWith("http")) return path;
-  return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+function listBackPath(role) {
+  if (roleIs(role, "admin")) return "/admin/livestock";
+  if (roleIs(role, "cashier")) return "/cashier/livestock";
+  if (roleIs(role, "police")) return "/police/livestock";
+  return "/user/livestock";
 }
 
 export default function UserLivestockDetailPage() {
-  useUserSidebar({ visible: true });
   const { animalId } = useParams();
+  const { user } = useAuth();
   const { addToast } = useToast();
   const [animal, setAnimal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusBusy, setStatusBusy] = useState(false);
+
+  const backPath = listBackPath(user?.role);
+  const canMutate =
+    Boolean(animal) &&
+    (String(animal.owner_id) === String(user?.id) || isPrivilegedRole(user?.role));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,7 +52,8 @@ export default function UserLivestockDetailPage() {
   }, [load]);
 
   async function setStatus(status) {
-    if (!animal || animal.status === status) return;
+    if (!animal || !canMutate) return;
+    if (animal.status === status && status !== "deleted") return;
     setStatusBusy(true);
     try {
       const { data, error } = await invokeWithAuth("livestock-api", {
@@ -59,11 +62,22 @@ export default function UserLivestockDetailPage() {
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Could not update status");
       }
-      setAnimal((a) => (a ? { ...a, status: data.animal?.status || status } : a));
-      addToast({
-        type: "success",
-        message: status === "missing" ? "Marked as missing." : "Marked as active.",
-      });
+      setAnimal((a) =>
+        a
+          ? {
+              ...a,
+              status: data.animal?.status || status,
+              deleted_at: data.animal?.deleted_at ?? a.deleted_at,
+            }
+          : a,
+      );
+      const messages = {
+        active: "Marked as active.",
+        missing: "Marked as missing.",
+        recovered: "Marked as recovered.",
+        deleted: "Animal moved to deleted.",
+      };
+      addToast({ type: "success", message: messages[status] || "Status updated." });
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Update failed" });
     } finally {
@@ -80,8 +94,8 @@ export default function UserLivestockDetailPage() {
   if (!animal) {
     return (
       <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-2">
-        <Link to="/user/livestock" className="text-sm text-iregistrygreen hover:underline">
-          ← Livestock
+        <Link to={backPath} className="text-sm text-iregistrygreen hover:underline">
+          ← {NAV.livestock}
         </Link>
         <p className="text-sm text-gray-600">Animal not found.</p>
       </div>
@@ -92,14 +106,15 @@ export default function UserLivestockDetailPage() {
   const brands = Array.isArray(animal.brands) ? animal.brands : [];
   const earTags = Array.isArray(animal.ear_tags) ? animal.ear_tags : [];
   const earMarks = Array.isArray(animal.ear_marks) ? animal.ear_marks : [];
-  const isMissing = animal.status === "missing";
+  const status = String(animal.status || "active").toLowerCase();
+  const isDeleted = status === "deleted" || Boolean(animal.deleted_at);
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to="/user/livestock" className="text-sm text-iregistrygreen hover:underline">
-            ← Livestock
+          <Link to={backPath} className="text-sm text-iregistrygreen hover:underline">
+            ← {NAV.livestock}
           </Link>
           <h1 className="text-xl font-semibold text-gray-900 mt-2">
             {animal.name || animal.breed || animal.type_code || "Animal"}
@@ -110,51 +125,68 @@ export default function UserLivestockDetailPage() {
               .join(" · ")}
           </p>
         </div>
-        <Link
-          to="/user/livestock/sightings"
-          className="px-4 py-2 rounded-xl border bg-white text-sm font-medium"
-        >
-          Sightings
-        </Link>
+        {roleIs(user?.role, "user") ? (
+          <Link
+            to="/user/livestock/sightings"
+            className="px-4 py-2 rounded-xl border bg-white text-sm font-medium"
+          >
+            {NAV.livestockSightings}
+          </Link>
+        ) : null}
       </div>
 
-      <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-gray-700">
-          Status:{" "}
-          <span className={`font-semibold capitalize ${isMissing ? "text-red-600" : "text-emerald-700"}`}>
-            {animal.status || "active"}
-          </span>
-          <div className="text-xs text-gray-500 mt-0.5">
-            Mark missing so public stats and recovery workflows treat this animal as astray.
+      <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-gray-700">
+            Status:{" "}
+            <span className="font-semibold capitalize text-gray-900">{status}</span>
           </div>
+          {canMutate && !isDeleted ? (
+            <div className="inline-flex flex-wrap rounded-xl border border-gray-200 p-1 bg-gray-50 gap-0.5">
+              {["active", "missing", "recovered"].map((s) => (
+                <RippleButton
+                  key={s}
+                  type="button"
+                  disabled={statusBusy || status === s}
+                  className={`px-3 py-1.5 text-sm font-semibold rounded-lg capitalize ${
+                    status === s ? "bg-white text-iregistrygreen shadow-sm" : "text-gray-600"
+                  } disabled:opacity-60`}
+                  onClick={() => void setStatus(s)}
+                >
+                  {s}
+                </RippleButton>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <div className="inline-flex rounded-xl border border-gray-200 p-1 bg-gray-50">
-          <RippleButton
-            type="button"
-            disabled={statusBusy || !isMissing}
-            className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${
-              !isMissing ? "bg-white text-iregistrygreen shadow-sm" : "text-gray-600"
-            } disabled:opacity-60`}
-            onClick={() => void setStatus("active")}
-          >
-            Active
-          </RippleButton>
-          <RippleButton
-            type="button"
-            disabled={statusBusy || isMissing}
-            className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${
-              isMissing ? "bg-white text-red-600 shadow-sm" : "text-gray-600"
-            } disabled:opacity-60`}
-            onClick={() => void setStatus("missing")}
-          >
-            Missing
-          </RippleButton>
-        </div>
+        {canMutate ? (
+          <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+            {isDeleted ? (
+              <RippleButton
+                type="button"
+                disabled={statusBusy}
+                className="px-3 py-1.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
+                onClick={() => void setStatus("active")}
+              >
+                Restore to active
+              </RippleButton>
+            ) : (
+              <RippleButton
+                type="button"
+                disabled={statusBusy}
+                className="px-3 py-1.5 rounded-xl border border-red-200 text-red-700 text-sm font-semibold disabled:opacity-60"
+                onClick={() => void setStatus("deleted")}
+              >
+                Move to deleted
+              </RippleButton>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {photos.map((p, i) => {
-          const src = photoSrc(p);
+          const src = livestockPhotoSrc(p);
           return src ? (
             <div key={i} className="aspect-square rounded-xl overflow-hidden bg-gray-100">
               <img src={src} alt="" className="w-full h-full object-cover" />

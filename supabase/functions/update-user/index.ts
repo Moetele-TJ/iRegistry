@@ -11,6 +11,10 @@ import { logAudit } from "../shared/logAudit.ts";
 import { logUserActivity } from "../shared/logUserActivity.ts";
 import { summarizeUserRecordUpdate } from "../shared/userActivityMessages.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
+import {
+  allocateUserSlug,
+  reclaimUserSlugOnRestore,
+} from "../shared/userSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -59,7 +63,7 @@ serve(async (req) => {
     const { data: existing, error: fetchErr } = await supabase
       .from("users")
       .select(
-        "id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth, first_name, last_name, email, country, phone, police_station, village, ward",
+        "id, role, deleted_at, suspended_at, suspended_reason, disabled_at, disabled_reason, id_number, date_of_birth, first_name, last_name, email, country, phone, police_station, village, ward, slug",
       )
       .eq("id", id)
       .maybeSingle();
@@ -91,6 +95,14 @@ serve(async (req) => {
         );
       }
 
+      const restoredSlug = await reclaimUserSlugOnRestore({
+        supabase,
+        id,
+        currentSlug: (existing as { slug?: string | null }).slug,
+        lastName: existing.last_name,
+        firstName: existing.first_name,
+      });
+
       const { data: restored, error: restoreErr } = await supabase
         .from("users")
         .update({
@@ -99,10 +111,11 @@ serve(async (req) => {
           suspended_reason: null,
           disabled_at: null,
           disabled_reason: null,
+          slug: restoredSlug,
         })
         .eq("id", id)
         .select(
-          "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, date_of_birth",
+          "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, date_of_birth, slug",
         )
         .single();
 
@@ -436,6 +449,28 @@ serve(async (req) => {
       }
     }
 
+    const nameChanged = "first_name" in clean || "last_name" in clean;
+    if (nameChanged) {
+      const nextLast =
+        "last_name" in clean
+          ? (clean as { last_name?: unknown }).last_name
+          : existing.last_name;
+      const nextFirst =
+        "first_name" in clean
+          ? (clean as { first_name?: unknown }).first_name
+          : existing.first_name;
+      const nextSlug = await allocateUserSlug({
+        supabase,
+        lastName: nextLast,
+        firstName: nextFirst,
+        excludeId: id,
+      });
+      const prevSlug = String((existing as { slug?: string | null }).slug || "").trim();
+      if (nextSlug !== prevSlug) {
+        (clean as Record<string, unknown>).slug = nextSlug;
+      }
+    }
+
     // prune no-op / undefined
     const entries = Object.entries(clean).filter(([, v]) => typeof v !== "undefined");
     if (entries.length === 0) {
@@ -456,7 +491,7 @@ serve(async (req) => {
       .update(clean)
       .eq("id", id)
       .select(
-        "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, date_of_birth",
+        "id, first_name, last_name, id_number, phone, email, role, police_station, village, ward, suspended_reason, suspended_at, disabled_reason, disabled_at, deleted_at, date_of_birth, slug",
       )
       .single();
 

@@ -27,7 +27,10 @@ export function useUserSidebar({
         icon: <PawPrint size={20} />,
         label: NAV.livestock,
         subItems: [
-          { to: "/user/livestock", label: NAV.myAnimals, end: true },
+          { to: "/user/livestock", label: NAV.activeAnimals, end: true },
+          { to: "/user/livestock/missing", label: NAV.missingAnimals, end: true },
+          { to: "/user/livestock/recovered", label: NAV.recoveredAnimals, end: true },
+          { to: "/user/livestock/deleted", label: NAV.deletedAnimals, end: true },
           { to: "/user/livestock/sightings", label: NAV.livestockSightings, end: true },
         ],
       },

@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { generateEmbedding } from "../shared/generateEmbedding.ts";
+import { isPrivilegedRole } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -58,13 +59,10 @@ function identityPhrase(animal: {
   return parts.length ? parts.join(", ") : "your animal";
 }
 
-async function loadAnimalBundle(animalId: string) {
-  const { data: animal, error } = await supabase
-    .from("livestock_animals")
-    .select("*")
-    .eq("id", animalId)
-    .is("deleted_at", null)
-    .maybeSingle();
+async function loadAnimalBundle(animalId: string, { includeDeleted = false } = {}) {
+  let q = supabase.from("livestock_animals").select("*").eq("id", animalId);
+  if (!includeDeleted) q = q.is("deleted_at", null);
+  const { data: animal, error } = await q.maybeSingle();
   if (error || !animal) return null;
 
   const [{ data: brands }, { data: ear_tags }, { data: ear_marks }] = await Promise.all([
@@ -79,6 +77,24 @@ async function loadAnimalBundle(animalId: string) {
     ear_tags: ear_tags || [],
     ear_marks: ear_marks || [],
   };
+}
+
+function canAccessAnimal(session: Session, ownerId: string) {
+  return session.user_id === ownerId || isPrivilegedRole(session.role);
+}
+
+async function resolveOwnerId(
+  session: Session,
+  requestedOwner: string,
+  corsHeaders: Record<string, string>,
+): Promise<{ ownerId: string } | { res: Response }> {
+  if (!requestedOwner || requestedOwner === session.user_id) {
+    return { ownerId: session.user_id };
+  }
+  if (!isPrivilegedRole(session.role)) {
+    return { res: respond({ success: false, message: "Forbidden" }, corsHeaders, 403) };
+  }
+  return { ownerId: requestedOwner };
 }
 
 async function requireUser(req: Request) {
@@ -112,16 +128,20 @@ async function runGetVocab(req: Request) {
   );
 }
 
-async function runGetPackStatus(req: Request, session: Session) {
+async function runGetPackStatus(req: Request, session: Session, body: Record<string, unknown> = {}) {
   const corsHeaders = getCorsHeaders(req);
-  await supabase.from("livestock_owner_packs").upsert({ user_id: session.user_id }, { onConflict: "user_id" });
+  const ownerResolved = await resolveOwnerId(session, asString(body.owner_id), corsHeaders);
+  if ("res" in ownerResolved) return ownerResolved.res;
+  const ownerId = ownerResolved.ownerId;
+
+  await supabase.from("livestock_owner_packs").upsert({ user_id: ownerId }, { onConflict: "user_id" });
   const { data: pack } = await supabase
     .from("livestock_owner_packs")
     .select("lifetime_registered, pack_slots_remaining")
-    .eq("user_id", session.user_id)
+    .eq("user_id", ownerId)
     .maybeSingle();
 
-  const { data: can } = await supabase.rpc("livestock_can_register", { p_user_id: session.user_id });
+  const { data: can } = await supabase.rpc("livestock_can_register", { p_user_id: ownerId });
   const row = Array.isArray(can) ? can[0] : can;
 
   return respond(
@@ -167,19 +187,73 @@ async function runBuyPack(req: Request, session: Session) {
   );
 }
 
-async function runListMine(req: Request, session: Session) {
+async function runListMine(req: Request, session: Session, body: Record<string, unknown> = {}) {
   const corsHeaders = getCorsHeaders(req);
-  const { data, error } = await supabase
-    .from("livestock_animals")
-    .select("id, type_code, gender, breed, colour, name, status, photos, dwelling_village, created_at, updated_at")
-    .eq("owner_id", session.user_id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+  const view = asString(body.view).toLowerCase() || "active";
+  const query = asString(body.query).toLowerCase();
+  const page = Math.max(1, Math.floor(asFiniteNumber(body.page) || 1));
+  const pageSize = Math.min(50, Math.max(1, Math.floor(asFiniteNumber(body.pageSize) || 12)));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
+  const requestedOwner = asString(body.owner_id);
+  const viewAll =
+    isPrivilegedRole(session.role) &&
+    (!requestedOwner || requestedOwner === "__all__");
+
+  let ownerId: string | null = session.user_id;
+  if (viewAll) {
+    ownerId = null;
+  } else if (requestedOwner && requestedOwner !== session.user_id) {
+    if (!isPrivilegedRole(session.role)) {
+      return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
+    }
+    ownerId = requestedOwner;
+  }
+
+  let q = supabase
+    .from("livestock_animals")
+    .select(
+      "id, owner_id, type_code, gender, breed, colour, name, status, photos, dwelling_village, created_at, updated_at, deleted_at",
+      { count: "exact" },
+    );
+
+  if (ownerId) q = q.eq("owner_id", ownerId);
+
+  if (view === "deleted") {
+    q = q.or("status.eq.deleted,deleted_at.not.is.null");
+  } else if (view === "missing") {
+    q = q.is("deleted_at", null).eq("status", "missing");
+  } else if (view === "recovered") {
+    q = q.is("deleted_at", null).eq("status", "recovered");
+  } else {
+    q = q.is("deleted_at", null).eq("status", "active");
+  }
+
+  if (query) {
+    const esc = query.replace(/%/g, "").replace(/,/g, " ");
+    q = q.or(
+      `name.ilike.%${esc}%,breed.ilike.%${esc}%,colour.ilike.%${esc}%,type_code.ilike.%${esc}%,dwelling_village.ilike.%${esc}%`,
+    );
+  }
+
+  q = q.order("created_at", { ascending: false }).range(from, to);
+
+  const { data, error, count } = await q;
   if (error) {
     return respond({ success: false, message: error.message || "Failed to list animals" }, corsHeaders, 500);
   }
-  return respond({ success: true, animals: data || [] }, corsHeaders, 200);
+  return respond(
+    {
+      success: true,
+      animals: data || [],
+      page,
+      pageSize,
+      total: typeof count === "number" ? count : (data || []).length,
+    },
+    corsHeaders,
+    200,
+  );
 }
 
 async function runGetMine(req: Request, session: Session, body: Record<string, unknown>) {
@@ -187,8 +261,8 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
   const id = asString(body.id);
   if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
 
-  const animal = await loadAnimalBundle(id);
-  if (!animal || animal.owner_id !== session.user_id) {
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
   }
   return respond({ success: true, animal }, corsHeaders, 200);
@@ -212,6 +286,10 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
   const brands = Array.isArray(body.brands) ? body.brands : [];
   const ear_tags = Array.isArray(body.ear_tags) ? body.ear_tags : [];
   const ear_marks = Array.isArray(body.ear_marks) ? body.ear_marks : [];
+
+  const ownerResolved = await resolveOwnerId(session, asString(body.owner_id), corsHeaders);
+  if ("res" in ownerResolved) return ownerResolved.res;
+  const ownerId = ownerResolved.ownerId;
 
   if (!type_code) {
     return respond({ success: false, message: "type_code is required" }, corsHeaders, 400);
@@ -240,7 +318,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
     return respond({ success: false, message: "This animal type does not use brands" }, corsHeaders, 400);
   }
 
-  const { data: canRows } = await supabase.rpc("livestock_can_register", { p_user_id: session.user_id });
+  const { data: canRows } = await supabase.rpc("livestock_can_register", { p_user_id: ownerId });
   const can = Array.isArray(canRows) ? canRows[0] : canRows;
   if (!can?.allowed) {
     return respond(
@@ -256,7 +334,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
   }
 
   const { data: consumed, error: consumeErr } = await supabase.rpc("livestock_consume_registration_slot", {
-    p_user_id: session.user_id,
+    p_user_id: ownerId,
   });
   if (consumeErr) {
     return respond({ success: false, message: consumeErr.message || "Billing failed" }, corsHeaders, 500);
@@ -278,7 +356,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
   const { data: animal, error: insErr } = await supabase
     .from("livestock_animals")
     .insert({
-      owner_id: session.user_id,
+      owner_id: ownerId,
       type_code,
       gender: gender && ["male", "female", "unknown"].includes(gender) ? gender : "unknown",
       breed,
@@ -337,9 +415,6 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
     })).filter((m: { mark_label: string }) => m.mark_label);
     if (markRows.length) await supabase.from("livestock_ear_marks").insert(markRows);
   }
-
-  // Best-effort: enqueue embeddings for photo paths (reuse item embedding job table if paths are public URLs later)
-  // For Phase 1, embeddings are generated on identify-photo when comparing; optional store on register via URLs in photos.
 
   const bundle = await loadAnimalBundle(animal.id);
   return respond(
@@ -881,9 +956,13 @@ async function runSetStatus(req: Request, session: Session, body: Record<string,
   const corsHeaders = getCorsHeaders(req);
   const id = asString(body.id) || asString(body.animal_id);
   const status = asString(body.status).toLowerCase();
-  if (!id || !["active", "missing"].includes(status)) {
+  const allowed = ["active", "missing", "recovered", "deleted"];
+  if (!id || !allowed.includes(status)) {
     return respond(
-      { success: false, message: "id and status (active|missing) are required" },
+      {
+        success: false,
+        message: "id and status (active|missing|recovered|deleted) are required",
+      },
       corsHeaders,
       400,
     );
@@ -891,20 +970,27 @@ async function runSetStatus(req: Request, session: Session, body: Record<string,
 
   const { data: animal } = await supabase
     .from("livestock_animals")
-    .select("id, owner_id, status")
+    .select("id, owner_id, status, deleted_at")
     .eq("id", id)
-    .is("deleted_at", null)
     .maybeSingle();
 
-  if (!animal || animal.owner_id !== session.user_id) {
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { status };
+  if (status === "deleted") {
+    patch.deleted_at = animal.deleted_at || now;
+  } else {
+    patch.deleted_at = null;
   }
 
   const { data: updated, error } = await supabase
     .from("livestock_animals")
-    .update({ status })
+    .update(patch)
     .eq("id", id)
-    .select("id, status")
+    .select("id, status, deleted_at")
     .single();
 
   if (error) {
@@ -995,11 +1081,11 @@ serve(async (req) => {
       case "livestock-get-vocab":
         return await runGetVocab(req);
       case "livestock-get-pack-status":
-        return await runGetPackStatus(req, session!);
+        return await runGetPackStatus(req, session!, body);
       case "livestock-buy-pack":
         return await runBuyPack(req, session!);
       case "livestock-list-mine":
-        return await runListMine(req, session!);
+        return await runListMine(req, session!, body);
       case "livestock-get-mine":
         return await runGetMine(req, session!, body);
       case "livestock-register":

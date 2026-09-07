@@ -11,6 +11,7 @@ import {
 } from "../shared/signupUniqueness.ts";
 import { normalizeAgentNumber } from "../shared/referralAgentNumber.ts";
 import { deriveUserStatus } from "../shared/userState.ts";
+import { allocateUserSlug } from "../shared/userSlug.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,6 +187,11 @@ serve(async (req) => {
         country: body.country?.trim() || null,
         phone,
         email: email || null,
+        slug: await allocateUserSlug({
+          supabase,
+          lastName: body.last_name?.trim(),
+          firstName: body.first_name?.trim(),
+        }),
 
         // STEP 2
         state: body.state?.trim() || null,
@@ -207,7 +213,7 @@ serve(async (req) => {
         email_verified: false,
         created_at: new Date().toISOString(),
       })
-      .select("id, first_name, last_name, email")
+      .select("id, first_name, last_name, email, slug")
       .single();
 
     if (error) {

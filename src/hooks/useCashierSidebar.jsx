@@ -14,6 +14,7 @@ import {
   Users,
   UserCircle,
   Wallet,
+  PawPrint,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
 import { NAV } from "../lib/navLabels.js";
@@ -37,6 +38,17 @@ export function useCashierSidebar({ visible: visibleProp = true } = {}) {
           { to: "/cashier/items", label: NAV.activeItems, end: true },
           { to: "/cashier/items/deleted", label: NAV.deletedItems, end: true },
           { to: "/cashier/items/legacy", label: NAV.legacyItems, end: true },
+        ],
+      },
+      {
+        to: "/cashier/livestock",
+        icon: <PawPrint size={20} />,
+        label: NAV.livestock,
+        subItems: [
+          { to: "/cashier/livestock", label: NAV.activeAnimals, end: true },
+          { to: "/cashier/livestock/missing", label: NAV.missingAnimals, end: true },
+          { to: "/cashier/livestock/recovered", label: NAV.recoveredAnimals, end: true },
+          { to: "/cashier/livestock/deleted", label: NAV.deletedAnimals, end: true },
         ],
       },
       {

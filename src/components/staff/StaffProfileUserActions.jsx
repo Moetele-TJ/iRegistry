@@ -1,7 +1,7 @@
 import { useState } from "react";
 import StaffProfileActionsModals from "./StaffProfileActionsModals.jsx";
 import { useStaffProfileUserActions } from "../../hooks/useStaffProfileUserActions.js";
-import { NAV_ACTIONS } from "../../lib/navLabels.js";
+import { NAV, NAV_ACTIONS } from "../../lib/navLabels.js";
 
 const mobileSelectClass =
   "mt-1 w-full min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-white disabled:opacity-50 box-border";
@@ -24,6 +24,8 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
     lockoutRestricted,
     showAccountDropdown,
     goToItems,
+    goToLivestock,
+    goToRegisterAnimalForTarget,
     goToTopup,
     goToTransactions,
     goToEdit,
@@ -58,6 +60,10 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
     switch (action) {
       case "items":
         return goToItems();
+      case "livestock":
+        return goToLivestock();
+      case "register_animal":
+        return goToRegisterAnimalForTarget();
       case "add_item":
         return goToAddItemForTarget();
       case "topup":
@@ -144,6 +150,10 @@ export default function StaffProfileUserActions({ targetUser, sessionUser, onUse
           >
             <option value="">Choose action…</option>
             <option value="items">{NAV_ACTIONS.viewItems}</option>
+            <option value="livestock">{NAV.livestock}</option>
+            {accountActive ? (
+              <option value="register_animal">{NAV_ACTIONS.registerAnimalForUser}</option>
+            ) : null}
             {accountActive ? <option value="add_item">{NAV_ACTIONS.addItem}</option> : null}
             {accountActive ? <option value="topup">{NAV_ACTIONS.topUpCredits}</option> : null}
             <option value="transactions">Transactions</option>

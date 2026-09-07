@@ -14,6 +14,7 @@ import { isPrivilegedRole, roleIs } from "../../roles.ts";
 import { logUserActivity } from "../../logUserActivity.ts";
 import { humanizeRole } from "../../userActivityMessages.ts";
 import { validatePhoneForCountry } from "../../phoneCountry.ts";
+import { allocateUserSlug } from "../../userSlug.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -233,6 +234,11 @@ export async function run(req: Request): Promise<Response> {
     }
 
     const now = new Date().toISOString();
+    const slug = await allocateUserSlug({
+      supabase,
+      lastName: ln,
+      firstName: fn,
+    });
     const baseRow: Record<string, unknown> = {
       first_name: fn || null,
       last_name: ln,
@@ -246,6 +252,7 @@ export async function run(req: Request): Promise<Response> {
       role: rl,
       identity_verified: false,
       email_verified: false,
+      slug,
     };
     if (dateOfBirth) {
       baseRow.date_of_birth = dateOfBirth;
@@ -261,7 +268,7 @@ export async function run(req: Request): Promise<Response> {
     const { data: created, error: insErr } = await supabase
       .from("users")
       .insert(baseRow)
-      .select("id, first_name, last_name, email, role, police_station, village, ward")
+      .select("id, first_name, last_name, email, role, police_station, village, ward, slug")
       .single();
 
     if (insErr || !created) {

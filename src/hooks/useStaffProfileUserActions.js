@@ -8,6 +8,8 @@ import { displayUser } from "../lib/userDisplay.js";
 import { isAppAdminRole } from "../lib/roleUtils.js";
 import { writeItemsListScope } from "../lib/itemsListScopeStorage.js";
 import { staffUserEditPath } from "../lib/staffUserForm.js";
+import { staffProfilePath } from "../lib/userProfilePath.js";
+import { writeLivestockListScope } from "../lib/livestockListScopeStorage.js";
 import { useAddItemPreflight } from "./useAddItemPreflight.js";
 
 export const STAFF_SUSPEND_REASONS = [
@@ -65,7 +67,7 @@ export function useStaffProfileUserActions({
   const suspendVerb = suspendStatus === "disabled" ? "Disable" : "Suspend";
   const disabled = busy || addItemLoading;
   const showAccountDropdown = isDeleted || !lockoutRestricted || canAdminister;
-  const profilePath = targetId ? `${base}/profile?user=${encodeURIComponent(targetId)}` : `${base}/profile`;
+  const profilePath = staffProfilePath(base, targetUser);
 
   async function refreshTarget() {
     await onUserUpdated?.();
@@ -108,6 +110,28 @@ export function useStaffProfileUserActions({
     });
     navigate(`${base}/items`);
   }, [targetId, selfId, base, navigate]);
+
+  const goToLivestock = useCallback(() => {
+    if (!targetId || !selfId) return;
+    writeLivestockListScope(selfId, "active", {
+      ownerScope: targetId,
+      query: "",
+      page: 1,
+    });
+    navigate(`${base}/livestock`);
+  }, [targetId, selfId, base, navigate]);
+
+  const goToRegisterAnimalForTarget = useCallback(() => {
+    if (!targetId) return;
+    if (!accountActive) {
+      addToast({
+        type: "error",
+        message: "Animals can only be registered for active accounts. Reactivate the account first.",
+      });
+      return;
+    }
+    navigate(`${base}/livestock/register?owner=${encodeURIComponent(targetId)}`);
+  }, [accountActive, addToast, base, navigate, targetId]);
 
   const goToTopup = useCallback(() => {
     if (!targetId) return;
@@ -319,6 +343,8 @@ export function useStaffProfileUserActions({
     setSuspendPreset,
     suspendStatus,
     goToItems,
+    goToLivestock,
+    goToRegisterAnimalForTarget,
     goToTopup,
     goToTransactions,
     goToEdit,
