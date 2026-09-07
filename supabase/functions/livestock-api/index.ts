@@ -173,7 +173,8 @@ async function runBuyPack(req: Request, session: Session) {
     return respond(
       {
         success: false,
-        message: "Insufficient credits to buy a registration pack (5 credits).",
+        message:
+          "Insufficient credits for a livestock registration pack. Please recharge your account and try again.",
         billing: { required: true, task_code: "LIVESTOCK_REGISTER_PACK" },
       },
       corsHeaders,
@@ -325,7 +326,8 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
       {
         success: false,
         code: "NEED_PACK",
-        message: "Buy a registration pack (5 credits for 10 animals) to register more livestock.",
+        message:
+          "Your first 2 animal registrations are free. To register more, buy a registration pack (10 animals). Please ensure you have enough credits, or recharge your account.",
         billing: { required: true, task_code: "LIVESTOCK_REGISTER_PACK" },
       },
       corsHeaders,
@@ -345,7 +347,8 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
       {
         success: false,
         code: "NEED_PACK",
-        message: "Buy a registration pack (5 credits for 10 animals) to register more livestock.",
+        message:
+          "Your first 2 animal registrations are free. To register more, buy a registration pack (10 animals). Please ensure you have enough credits, or recharge your account.",
         billing: { required: true, task_code: "LIVESTOCK_REGISTER_PACK" },
       },
       corsHeaders,

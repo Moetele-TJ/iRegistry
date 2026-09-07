@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
+import BillingCostBanner from "../../components/BillingCostBanner.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useModal } from "../../contexts/ModalContext.jsx";
 import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
 import { putSignedUpload } from "../../lib/putSignedUpload.js";
-import { isPrivilegedRole } from "../../lib/billingUx.js";
+import {
+  formatInsufficientCreditsMessage,
+  isPrivilegedRole,
+  USER_TOPUP_PATH,
+  POLICE_TOPUP_PATH,
+} from "../../lib/billingUx.js";
 import { roleIs } from "../../lib/roleUtils.js";
+import { useTaskPricing } from "../../hooks/useTaskPricing.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const PACK_TASK = "LIVESTOCK_REGISTER_PACK";
+const FREE_LIFETIME = 2;
 
 const BRAND_LAYOUTS_3 = [
   { value: "horizontal", label: "Horizontal" },
@@ -18,6 +28,11 @@ const BRAND_LAYOUTS_3 = [
   { value: "one_up_two_down", label: "One up, two below" },
 ];
 
+function topupPathForRole(role) {
+  if (roleIs(role, "police")) return POLICE_TOPUP_PATH;
+  return USER_TOPUP_PATH;
+}
+
 export default function UserLivestockRegisterPage() {
   const { user } = useAuth();
   const isUserRole = roleIs(user?.role, "user");
@@ -25,6 +40,8 @@ export default function UserLivestockRegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { addToast } = useToast();
+  const { confirm } = useModal();
+  const { getCost } = useTaskPricing();
   const ownerFromQuery = searchParams.get("owner") || "";
   const registerOwnerId =
     isPrivilegedRole(user?.role) && ownerFromQuery
@@ -33,15 +50,23 @@ export default function UserLivestockRegisterPage() {
         ? String(user.id)
         : "";
 
+  const registeringForOther =
+    isPrivilegedRole(user?.role) &&
+    ownerFromQuery &&
+    ownerFromQuery !== String(user?.id);
+
   const listBack = roleIs(user?.role, "admin")
     ? "/admin/livestock"
     : roleIs(user?.role, "cashier")
       ? "/cashier/livestock"
-      : "/user/livestock";
+      : roleIs(user?.role, "police")
+        ? "/police/livestock"
+        : "/user/livestock";
 
   const [vocab, setVocab] = useState({ types: [], colours: [], ear_mark_types: [] });
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState([]);
+  const [packInfo, setPackInfo] = useState(null);
 
   const [type_code, setTypeCode] = useState("cattle");
   const [gender, setGender] = useState("unknown");
@@ -62,6 +87,35 @@ export default function UserLivestockRegisterPage() {
   );
   const brandBearing = Boolean(selectedType?.brand_bearing);
 
+  const packCost = useMemo(() => {
+    const n = getCost(PACK_TASK);
+    return typeof n === "number" && Number.isFinite(n) ? n : 5;
+  }, [getCost]);
+
+  const needsPack = Boolean(packInfo && !packInfo.can_register && packInfo.needs_pack);
+  const packInUse = Number(packInfo?.pack?.lifetime_registered ?? 0) >= 3;
+
+  const refreshPack = useCallback(async () => {
+    if (!registerOwnerId || registeringForOther) {
+      setPackInfo(null);
+      return;
+    }
+    const { data } = await invokeWithAuth("livestock-api", {
+      body: {
+        operation: "livestock-get-pack-status",
+        owner_id: registerOwnerId,
+      },
+    });
+    if (data?.success) {
+      setPackInfo({
+        pack: data.pack,
+        can_register: data.can_register,
+        needs_pack: data.needs_pack,
+        reason: data.reason,
+      });
+    }
+  }, [registerOwnerId, registeringForOther]);
+
   useEffect(() => {
     void (async () => {
       const { data } = await invokeWithAuth("livestock-api", {
@@ -77,6 +131,10 @@ export default function UserLivestockRegisterPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    void refreshPack();
+  }, [refreshPack]);
 
   const captureDwelling = useCallback(() => {
     if (!navigator.geolocation) {
@@ -94,6 +152,62 @@ export default function UserLivestockRegisterPage() {
     );
   }, [addToast]);
 
+  async function ensurePackSlot() {
+    if (registeringForOther) return true;
+    await refreshPack();
+    const { data } = await invokeWithAuth("livestock-api", {
+      body: {
+        operation: "livestock-get-pack-status",
+        owner_id: registerOwnerId || undefined,
+      },
+    });
+    if (data?.can_register) return true;
+
+    const balance = Number(user?.credit_balance ?? 0);
+    const baseMsg = `Your first ${FREE_LIFETIME} animal registrations are free. To register another animal you need a registration pack (10 animals), which costs at least ${packCost} credits.`;
+
+    if (balance < packCost) {
+      const goTopup = await confirm({
+        title: "Recharge your account",
+        message: formatInsufficientCreditsMessage(
+          `${baseMsg} Please recharge your account, then try again.`,
+          { taskCode: PACK_TASK, creditsCost: packCost, balance },
+        ),
+        confirmLabel: "Go to top-up",
+        cancelLabel: "Cancel",
+        variant: "warning",
+      }).catch(() => false);
+      if (goTopup) navigate(topupPathForRole(user?.role));
+      return false;
+    }
+
+    const buy = await confirm({
+      title: "Registration pack required",
+      message: `${baseMsg} Your balance: ${balance} credits. Buy a pack to continue?`,
+      confirmLabel: `Buy pack (${packCost} credits)`,
+      cancelLabel: "Cancel",
+      variant: "warning",
+    }).catch(() => false);
+    if (!buy) return false;
+
+    const buyRes = await invokeWithAuth("livestock-api", {
+      body: { operation: "livestock-buy-pack" },
+    });
+    if (buyRes.error || !buyRes.data?.success) {
+      addToast({
+        type: "error",
+        message: formatInsufficientCreditsMessage(
+          buyRes.data?.message || buyRes.error?.message || "Could not buy registration pack.",
+          { taskCode: PACK_TASK, creditsCost: packCost, balance },
+        ),
+      });
+      return false;
+    }
+    addToast({ type: "success", message: "Registration pack unlocked (10 animals)." });
+    await refreshPack();
+    return true;
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     if (!files.length) {
@@ -110,6 +224,9 @@ export default function UserLivestockRegisterPage() {
 
     setSaving(true);
     try {
+      const ok = await ensurePackSlot();
+      if (!ok) return;
+
       const signRes = await invokeWithAuth("livestock-api", {
         body: {
           operation: "livestock-sign-uploads",
@@ -157,10 +274,19 @@ export default function UserLivestockRegisterPage() {
       });
 
       if (error || !data?.success) {
+        if (data?.code === "NEED_PACK" || data?.billing?.required) {
+          const balance = Number(user?.credit_balance ?? 0);
+          throw new Error(
+            formatInsufficientCreditsMessage(
+              data?.message ||
+                `You need at least ${packCost} credits for a registration pack. Please recharge your account.`,
+              { taskCode: PACK_TASK, creditsCost: packCost, balance },
+            ),
+          );
+        }
         throw new Error(data?.message || error?.message || "Registration failed");
       }
 
-      // Best-effort embeddings
       const animalId = data.animal?.id;
       if (animalId) {
         for (const p of photos) {
@@ -184,9 +310,11 @@ export default function UserLivestockRegisterPage() {
     }
   }
 
-  const forCustomer = Boolean(
-    isPrivilegedRole(user?.role) && ownerFromQuery && ownerFromQuery !== String(user?.id),
-  );
+  const forCustomer = Boolean(registeringForOther);
+
+  const headerSubtitle = forCustomer
+    ? "This animal will be added to the selected user’s livestock registry."
+    : "Clear photos are required for matching.";
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -199,11 +327,7 @@ export default function UserLivestockRegisterPage() {
             <h1 className="text-2xl font-bold text-gray-900">
               {forCustomer ? "Register animal for customer" : "Register animal"}
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              {forCustomer
-                ? "This animal will be added to the selected user’s livestock registry."
-                : "First two registrations are free; then packs of 10 cost 5 credits. Clear photos are required for matching."}
-            </p>
+            <p className="text-sm text-gray-600 mt-1">{headerSubtitle}</p>
           </div>
 
           <div className="p-6 sm:p-8 space-y-6">
@@ -211,6 +335,23 @@ export default function UserLivestockRegisterPage() {
           <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-sky-900">
             Registering for owner ID:{" "}
             <span className="font-semibold tabular-nums">{ownerFromQuery}</span>
+          </div>
+        ) : null}
+
+        {needsPack && !forCustomer ? (
+          <BillingCostBanner
+            taskCodes={[PACK_TASK]}
+            title="Registration pack required"
+            subtitle={`Your first ${FREE_LIFETIME} animals are free. The next registrations use a pack of 10 — you need at least ${packCost} credits. Recharge your account if your balance is too low.`}
+          />
+        ) : null}
+
+        {packInUse && !needsPack && !forCustomer ? (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 text-sm text-gray-700">
+            Pack slots left:{" "}
+            <span className="font-semibold tabular-nums">
+              {packInfo?.pack?.pack_slots_remaining ?? 0}
+            </span>
           </div>
         ) : null}
 

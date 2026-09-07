@@ -22,6 +22,7 @@ import {
   patchLivestockListScope,
 } from "../lib/livestockListScopeStorage.js";
 import { useStaffUserScopeOptional } from "../contexts/StaffUserScopeContext.jsx";
+import { useRegisterAnimalPreflight } from "../hooks/useRegisterAnimalPreflight.js";
 
 const PAGE_SIZE = 12;
 
@@ -78,6 +79,8 @@ export default function Livestock({ view = "active" } = {}) {
   const { addToast } = useToast();
   const { user } = useAuth();
   const staffScope = useStaffUserScopeOptional();
+  const { goToRegisterAnimal, tasksLoading: registerPreflightLoading } =
+    useRegisterAnimalPreflight();
   const privileged = isPrivilegedRole(user?.role);
   const base = listBasePath(user?.role);
   const sessionUserId = user?.id != null ? String(user.id) : "";
@@ -341,13 +344,19 @@ export default function Livestock({ view = "active" } = {}) {
   }
 
   function goRegister() {
-    navigate(
-      registerPath(
-        base,
-        registrationOwnerId || undefined,
-      ),
-    );
+    void goToRegisterAnimal({
+      path: registerPath(base, registrationOwnerId || undefined),
+      ownerId: registrationOwnerId || undefined,
+    });
   }
+
+  /** Pack chrome only after the 3rd animal (pack in use) — silent during free tier. */
+  const showPackBanner =
+    Boolean(pack) &&
+    view === "active" &&
+    (isOwnerSelf || privileged) &&
+    !privilegedViewAll &&
+    Number(pack.lifetime_registered ?? 0) >= 3;
 
   const showListLoading = loading || !scopeReady;
   const showFirstEmpty =
@@ -367,8 +376,10 @@ export default function Livestock({ view = "active" } = {}) {
             <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
               {showScopeAddAnimal ? (
                 <RippleButton
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
                   onClick={goRegister}
+                  disabled={registerPreflightLoading}
+                  title={registerPreflightLoading ? "Loading…" : undefined}
                 >
                   {registerAnimalButtonLabel(Boolean(registrationOwnerId))}
                 </RippleButton>
@@ -395,7 +406,7 @@ export default function Livestock({ view = "active" } = {}) {
             </div>
           ) : null}
 
-          {pack && view === "active" && (isOwnerSelf || privileged) && !privilegedViewAll ? (
+          {showPackBanner ? (
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 text-sm text-gray-700 flex flex-wrap items-center justify-between gap-2">
               <div>
                 Registered:{" "}
@@ -410,7 +421,7 @@ export default function Livestock({ view = "active" } = {}) {
                   className="px-3 py-1.5 rounded-xl bg-iregistrygreen text-white text-sm font-medium"
                   onClick={() => void buyPack()}
                 >
-                  Buy pack — 5 credits / 10 animals
+                  Buy pack — unlock 10 more animals
                 </RippleButton>
               ) : null}
             </div>
