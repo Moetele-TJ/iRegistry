@@ -5,6 +5,7 @@ import {
   Building2,
   LayoutDashboard,
   Package,
+  PawPrint,
   PlusCircle,
   ReceiptText,
   Tag,
@@ -40,6 +41,15 @@ export function useUserSidebar({
           { to: "/user/items", label: NAV.activeItems, end: true },
           { to: "/user/items/deleted", label: NAV.deletedItems, end: true },
           { to: "/user/items/legacy", label: NAV.legacyItems, end: true },
+        ],
+      },
+      {
+        to: "/user/livestock",
+        icon: <PawPrint size={20} />,
+        label: NAV.livestock,
+        subItems: [
+          { to: "/user/livestock", label: NAV.livestock, end: true },
+          { to: "/user/livestock/sightings", label: NAV.livestockSightings, end: true },
         ],
       },
       { to: "/user/notifications", icon: <Bell size={20} />, label: NAV.notifications },

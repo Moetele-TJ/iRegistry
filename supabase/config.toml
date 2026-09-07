@@ -1035,3 +1035,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/restore-legacy-item/deno.json"
 entrypoint = "./functions/restore-legacy-item/index.ts"
+
+[functions.livestock-api]
+enabled = true
+verify_jwt = false
+import_map = "./functions/livestock-api/deno.json"
+entrypoint = "./functions/livestock-api/index.ts"

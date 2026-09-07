@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "supabase": "supabase"
+    "supabase": "supabase",
+    "sb": "node ./scripts/sb.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",

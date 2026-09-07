@@ -27,6 +27,10 @@ import UserLayout from "./Pages/user/UserLayout.jsx";
 import UserItemsPage from "./Pages/user/UserItemsPage.jsx";
 import UserDeletedItemsPage from "./Pages/user/UserDeletedItemsPage.jsx";
 import UserLegacyItemsPage from "./Pages/user/UserLegacyItemsPage.jsx";
+import UserLivestockPage from "./Pages/user/UserLivestockPage.jsx";
+import UserLivestockRegisterPage from "./Pages/user/UserLivestockRegisterPage.jsx";
+import UserLivestockDetailPage from "./Pages/user/UserLivestockDetailPage.jsx";
+import UserLivestockSightingsPage from "./Pages/user/UserLivestockSightingsPage.jsx";
 import UserNotificationsPage from "./Pages/user/UserNotificationsPage.jsx";
 import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
 import UserTransactionsPage from "./Pages/user/UserTransactionsPage.jsx";
@@ -151,6 +155,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="items" element={<UserItemsPage />} />
                     <Route path="items/deleted" element={<UserDeletedItemsPage />} />
                     <Route path="items/legacy" element={<UserLegacyItemsPage />} />
+                    <Route path="livestock" element={<UserLivestockPage />} />
+                    <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
+                    <Route path="livestock/sightings" element={<UserLivestockSightingsPage />} />
+                    <Route path="livestock/:animalId" element={<UserLivestockDetailPage />} />
                     <Route path="notifications" element={<UserNotificationsPage />} />
                     <Route path="activity" element={<UserActivityPage />} />
                     <Route path="transactions" element={<UserTransactionsPage />} />

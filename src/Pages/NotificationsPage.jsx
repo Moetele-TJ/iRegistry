@@ -309,6 +309,21 @@ export default function NotificationsPage() {
                 </div>
               ) : null}
 
+              {String(openNotification.contact || "").toLowerCase().includes("livestock") ? (
+                <div>
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-emerald-800 hover:underline"
+                    onClick={() => {
+                      closeNotificationModal();
+                      navigate("/user/livestock/sightings");
+                    }}
+                  >
+                    Open Livestock sightings →
+                  </button>
+                </div>
+              ) : null}
+
               <div className="text-xs text-gray-500">
                 <TimeAgo date={openNotification.createdon} />
               </div>

@@ -32,6 +32,10 @@ export const NAV = Object.freeze({
 
   items: "Items",
 
+  livestock: "Livestock",
+
+  livestockSightings: "Livestock Sightings",
+
   activeItems: "Active Items",
 
   deletedItems: "Deleted Items",

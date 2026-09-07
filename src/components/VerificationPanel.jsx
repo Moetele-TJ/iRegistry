@@ -22,9 +22,11 @@ import { invokeWithAuth } from "../lib/invokeWithAuth";
 import { attachBillingToError, willTransferRequestChargeRequester } from "../lib/billingUx.js";
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import BillingCostBanner from "./BillingCostBanner.jsx";
+import LivestockIdentifyPanel from "./LivestockIdentifyPanel.jsx";
 
 export default function VerificationPanel() {
   // State
+  const [verifyTab, setVerifyTab] = useState("items"); // items | livestock
   const [serial, setSerial] = useState("");
   const [action, setAction] = useState(null);
   const [message, setMessage] = useState("");
@@ -272,12 +274,44 @@ export default function VerificationPanel() {
   // Render
   return (
     <div className="relative bg-white rounded-3xl p-6 shadow-md mb-8">
-      {/* Header */}
       <div className="text-lg font-semibold text-gray-800 mb-1">
-        🛒 Buyer Protection Verification
+        Verification
       </div>
       <div className="text-sm text-gray-500 mb-4">
-        🔎 Quick Safety Check - Check the item's serial number before buying to ensure it is not stolen.
+        Check registered items, or identify livestock from a photo, ear tag, or brand.
+      </div>
+
+      <div className="flex gap-2 mb-5 flex-wrap">
+        <button
+          type="button"
+          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+            verifyTab === "items"
+              ? "bg-iregistrygreen text-white border-iregistrygreen"
+              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+          }`}
+          onClick={() => setVerifyTab("items")}
+        >
+          Items
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+            verifyTab === "livestock"
+              ? "bg-iregistrygreen text-white border-iregistrygreen"
+              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+          }`}
+          onClick={() => setVerifyTab("livestock")}
+        >
+          Livestock
+        </button>
+      </div>
+
+      {verifyTab === "livestock" ? (
+        <LivestockIdentifyPanel />
+      ) : (
+      <>
+      <div className="text-sm text-gray-500 mb-4">
+        🔎 Quick Safety Check — check the item&apos;s serial number before buying to ensure it is not stolen.
       </div>
       {/* Input */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -675,6 +709,8 @@ export default function VerificationPanel() {
       <div className="text-xs text-gray-400 text-center">
         Verifying an item protects you from buying stolen property and helps owners recover lost items.
       </div>
+      </>
+      )}
     </div>
   );
 }
