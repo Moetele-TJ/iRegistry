@@ -1,18 +1,10 @@
 import { Outlet } from "react-router-dom";
-import { useCallback } from "react";
 import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
-import { useAddItemPreflight } from "../../hooks/useAddItemPreflight.js";
 import { useFirstItemOnboarding } from "../../hooks/useFirstItemOnboarding.js";
 import FirstItemWelcomeModal from "../../components/FirstItemWelcomeModal.jsx";
 
 export default function UserLayout() {
-  const { goToAddItem, tasksLoading } = useAddItemPreflight();
-  const onRegisterItem = useCallback(() => void goToAddItem(), [goToAddItem]);
-
-  useUserSidebar({
-    onRegisterItem,
-    registerLoading: tasksLoading,
-  });
+  useUserSidebar({ visible: true });
 
   const { open, dismiss } = useFirstItemOnboarding();
 

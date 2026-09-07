@@ -6,19 +6,16 @@ import {
   LayoutDashboard,
   Package,
   PawPrint,
-  PlusCircle,
   ReceiptText,
   Tag,
   UserCircle,
   Wallet,
 } from "lucide-react";
 import { useSidebar } from "../contexts/SidebarContext";
-import { NAV, NAV_ACTIONS } from "../lib/navLabels.js";
+import { NAV } from "../lib/navLabels.js";
 
 export function useUserSidebar({
   visible = true,
-  onRegisterItem,
-  registerLoading = false,
 } = {}) {
   const { setSidebar, clearSidebar } = useSidebar();
 
@@ -26,11 +23,13 @@ export function useUserSidebar({
     () => [
       { to: "/user", end: true, icon: <LayoutDashboard size={20} />, label: NAV.dashboard },
       {
-        onClick: onRegisterItem,
-        disabled: registerLoading || !onRegisterItem,
-        icon: <PlusCircle size={20} />,
-        label: NAV_ACTIONS.registerItem,
-        variant: "action",
+        to: "/user/livestock",
+        icon: <PawPrint size={20} />,
+        label: NAV.livestock,
+        subItems: [
+          { to: "/user/livestock", label: NAV.myAnimals, end: true },
+          { to: "/user/livestock/sightings", label: NAV.livestockSightings, end: true },
+        ],
       },
       { to: "/user/profile", icon: <UserCircle size={20} />, label: NAV.profile },
       {
@@ -43,15 +42,6 @@ export function useUserSidebar({
           { to: "/user/items/legacy", label: NAV.legacyItems, end: true },
         ],
       },
-      {
-        to: "/user/livestock",
-        icon: <PawPrint size={20} />,
-        label: NAV.livestock,
-        subItems: [
-          { to: "/user/livestock", label: NAV.livestock, end: true },
-          { to: "/user/livestock/sightings", label: NAV.livestockSightings, end: true },
-        ],
-      },
       { to: "/user/notifications", icon: <Bell size={20} />, label: NAV.notifications },
       { to: "/user/activity", icon: <Activity size={20} />, label: NAV.activity },
       { to: "/user/transactions", icon: <ReceiptText size={20} />, label: NAV.transactions },
@@ -59,7 +49,7 @@ export function useUserSidebar({
       { to: "/user/topup", icon: <Wallet size={20} />, label: NAV.topUp },
       { to: "/user/pricing", icon: <Tag size={20} />, label: NAV.pricing },
     ],
-    [onRegisterItem, registerLoading]
+    []
   );
 
   useEffect(() => {
