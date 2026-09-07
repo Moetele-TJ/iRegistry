@@ -1,15 +1,7 @@
--- Human-readable profile URL slugs for users (surname-names).
--- Soft-delete vacates the bare slug by appending -1, -2, … so an active account can keep the original.
+-- Repair profile slugs that were generated with lower() AFTER [^a-z0-9] stripping.
+-- That backfill dropped Title Case letters (Kenanao → enanao → lesobela-enanao).
+-- Recompute surname-firstname slugs the same way as shared/userSlug.ts.
 
-ALTER TABLE public.users
-  ADD COLUMN IF NOT EXISTS slug text;
-
-COMMENT ON COLUMN public.users.slug IS
-  'URL segment for staff profile ?user=…; surname-firstname. Soft-deleted rows use -N suffixes.';
-
--- Backfill unique slugs: earliest accounts prefer the bare base.
--- IMPORTANT: lower() before [^a-z0-9] — otherwise Title Case letters are stripped
--- (e.g. Kenanao → enanao → lesobela-enanao instead of lesobela-kenanao).
 DO $$
 DECLARE
   r record;
@@ -17,13 +9,17 @@ DECLARE
   candidate text;
   n int;
 BEGIN
+  -- Free existing values so we can reassign without unique collisions mid-loop.
+  UPDATE public.users
+  SET slug = 'tmp-' || replace(id::text, '-', '')
+  WHERE slug IS NOT NULL;
+
   FOR r IN
     SELECT
       id,
       coalesce(nullif(trim(last_name), ''), '') AS ln,
       coalesce(nullif(trim(first_name), ''), '') AS fn
     FROM public.users
-    WHERE slug IS NULL OR btrim(slug) = ''
     ORDER BY created_at ASC NULLS LAST, id ASC
   LOOP
     base := trim(both '-' FROM regexp_replace(
@@ -56,8 +52,3 @@ BEGIN
     UPDATE public.users SET slug = candidate WHERE id = r.id;
   END LOOP;
 END $$;
-
-ALTER TABLE public.users
-  ALTER COLUMN slug SET NOT NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS users_slug_uidx ON public.users (lower(slug));

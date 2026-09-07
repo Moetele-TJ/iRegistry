@@ -12,6 +12,7 @@ import {
   Home,
   LayoutDashboard,
   Package,
+  PawPrint,
   LogOut,
   UserPlus,
   LogIn,
@@ -97,6 +98,14 @@ export default function Header() {
     if (roleIs(role, "cashier")) return "/cashier/items";
     if (roleIs(role, "user")) return "/user/items";
     return "/items";
+  }
+
+  function livestockPath() {
+    if (roleIs(role, "admin")) return "/admin/livestock";
+    if (roleIs(role, "police")) return "/police/livestock";
+    if (roleIs(role, "cashier")) return "/cashier/livestock";
+    if (roleIs(role, "user")) return "/user/livestock";
+    return "/user/livestock";
   }
 
   function notificationsPath() {
@@ -263,6 +272,16 @@ export default function Header() {
             >
               <Package size={18} className="shrink-0 opacity-80" />
               {NAV.items}
+            </NavLink>
+
+            <NavLink
+              to={livestockPath()}
+              className={({ isActive }) =>
+                `inline-flex items-center gap-1.5 ${isActive ? "text-iregistrygreen font-semibold" : ""}`
+              }
+            >
+              <PawPrint size={18} className="shrink-0 opacity-80" />
+              {NAV.livestock}
             </NavLink>
 
             <NavLink
@@ -445,6 +464,21 @@ export default function Header() {
                   >
                     <Package size={18} className="shrink-0 opacity-80" />
                     {NAV.items}
+                  </NavLink>
+
+                  <NavLink
+                    to={livestockPath()}
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2 font-medium transition ${
+                        isActive
+                          ? "bg-iregistrygreen/10 text-iregistrygreen font-semibold"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`
+                    }
+                  >
+                    <PawPrint size={18} className="shrink-0 opacity-80" />
+                    {NAV.livestock}
                   </NavLink>
 
                   <NavLink

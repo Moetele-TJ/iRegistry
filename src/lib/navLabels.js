@@ -166,6 +166,8 @@ export const NAV_MOBILE = Object.freeze({
 
   myItems: "My Items",
 
+  myLivestock: "My Livestock",
+
   addItem: "Add Item",
 
 });
@@ -183,6 +185,10 @@ export const NAV_ACTIONS = Object.freeze({
   editUser: "Edit User",
 
   addItem: "Add Item",
+
+  addAnimal: "Add Animal",
+
+  addAnimalForUser: "Add Animal for User",
 
   registerAnimal: "Register Animal",
 
@@ -446,8 +452,8 @@ export function addItemButtonLabel(forUser = false) {
 
 export function registerAnimalButtonLabel(forUser = false) {
   return forUser
-    ? `+ ${NAV_ACTIONS.registerAnimalForUser}`
-    : `+ ${NAV_ACTIONS.registerAnimal}`;
+    ? `+ ${NAV_ACTIONS.addAnimalForUser}`
+    : `+ ${NAV_ACTIONS.addAnimal}`;
 }
 
 export function addItemAriaLabel(displayName) {

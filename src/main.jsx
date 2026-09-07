@@ -270,6 +270,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="livestock/missing" element={<PoliceLivestockMissingPage />} />
                     <Route path="livestock/recovered" element={<PoliceLivestockRecoveredPage />} />
                     <Route path="livestock/deleted" element={<PoliceLivestockDeletedPage />} />
+                    <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
                     <Route path="impound" element={<PoliceImpoundPage />} />
                     <Route path="notifications" element={<PoliceNotificationsPage />} />
                     <Route path="activity" element={<PoliceActivityPage />} />
