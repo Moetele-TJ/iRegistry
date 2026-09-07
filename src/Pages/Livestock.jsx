@@ -113,18 +113,18 @@ export default function Livestock({ view = "active" } = {}) {
 
   useEffect(() => {
     if (!sessionUserId) return;
-    if (staffScope?.scopedUserId) {
-      setOwnerScope(String(staffScope.scopedUserId));
-      setScopeReady(true);
-      return;
-    }
     if (!privileged) {
       setOwnerScope(sessionUserId);
       setScopeReady(true);
       return;
     }
+    // Match Items: seed from staff profile target when active, else saved View as, else All.
     const stored = readLivestockListScope(sessionUserId, view);
-    if (stored?.ownerScope) setOwnerScope(String(stored.ownerScope));
+    const staff = readStaffUserScope(sessionUserId);
+    if (staffScope?.scopedUserId) setOwnerScope(String(staffScope.scopedUserId));
+    else if (stored?.ownerScope) setOwnerScope(String(stored.ownerScope));
+    else if (staff?.targetUserId) setOwnerScope(String(staff.targetUserId));
+    else setOwnerScope(LIVESTOCK_VIEW_ALL);
     if (stored?.query != null) setQuery(String(stored.query));
     if (stored?.typeFilter) setTypeFilter(String(stored.typeFilter));
     if (stored?.page) setPage(Math.max(1, Number(stored.page) || 1));
@@ -516,12 +516,10 @@ export default function Livestock({ view = "active" } = {}) {
                             });
                           }
                         }}
-                        disabled={usersLoading || Boolean(staffScope?.scopedUserId)}
+                        disabled={usersLoading || !scopeReady}
                         className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                       >
-                        {!staffScope?.scopedUserId ? (
-                          <option value={LIVESTOCK_VIEW_ALL}>All</option>
-                        ) : null}
+                        <option value={LIVESTOCK_VIEW_ALL}>All</option>
                         {(usersList || []).map((u) => (
                           <option key={u.id} value={u.id}>
                             {displayUser(u) || u.id}
