@@ -8,7 +8,7 @@ import { displayUser } from "../lib/userDisplay.js";
 import { isAppAdminRole } from "../lib/roleUtils.js";
 import { writeItemsListScope } from "../lib/itemsListScopeStorage.js";
 import { staffUserEditPath } from "../lib/staffUserForm.js";
-import { staffProfilePath } from "../lib/userProfilePath.js";
+import { staffProfilePath, staffProfileUserKey } from "../lib/userProfilePath.js";
 import { writeLivestockListScope } from "../lib/livestockListScopeStorage.js";
 import { useAddItemPreflight } from "./useAddItemPreflight.js";
 
@@ -130,13 +130,14 @@ export function useStaffProfileUserActions({
       });
       return;
     }
-    navigate(`${base}/livestock/register?owner=${encodeURIComponent(targetId)}`, {
+    const ownerKey = staffProfileUserKey(targetUser) || targetId;
+    navigate(`${base}/livestock/register?owner=${encodeURIComponent(ownerKey)}`, {
       state: {
         registerForOwnerId: targetId,
         registerForOwnerLabel: displayName || null,
       },
     });
-  }, [accountActive, addToast, base, displayName, navigate, targetId]);
+  }, [accountActive, addToast, base, displayName, navigate, targetId, targetUser]);
 
   const goToTopup = useCallback(() => {
     if (!targetId) return;

@@ -19,6 +19,7 @@ import { displayUser } from "../../lib/userDisplay.js";
 import { useTaskPricing } from "../../hooks/useTaskPricing.js";
 import BrandOrientationField from "../../components/BrandOrientationField.jsx";
 import SearchableOptionsSelect from "../../components/SearchableOptionsSelect.jsx";
+import { isUserIdUuid } from "../../lib/userProfilePath.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const PACK_TASK = "LIVESTOCK_REGISTER_PACK";
@@ -40,45 +41,77 @@ export default function UserLivestockRegisterPage() {
   const { addToast } = useToast();
   const { confirm } = useModal();
   const { getCost } = useTaskPricing();
-  const ownerFromQuery = searchParams.get("owner") || "";
-  const registerOwnerId =
-    isPrivilegedRole(user?.role) && ownerFromQuery
-      ? ownerFromQuery
-      : user?.id != null
-        ? String(user.id)
-        : "";
-
-  const registeringForOther =
-    isPrivilegedRole(user?.role) &&
-    ownerFromQuery &&
-    ownerFromQuery !== String(user?.id);
-
+  const ownerParam = String(searchParams.get("owner") || "").trim();
+  const privileged = isPrivilegedRole(user?.role);
+  const idFromNav = String(location.state?.registerForOwnerId || "").trim();
   const labelFromNav = String(location.state?.registerForOwnerLabel || "").trim();
+
+  const [resolvedOwnerId, setResolvedOwnerId] = useState("");
   const [ownerLabel, setOwnerLabel] = useState(labelFromNav || "");
+  const [ownerResolveError, setOwnerResolveError] = useState("");
+
+  const scopedToOwner = Boolean(privileged && ownerParam);
+  const registeringForOther = Boolean(
+    scopedToOwner &&
+      (!resolvedOwnerId || resolvedOwnerId !== String(user?.id || "")),
+  );
+  const registerOwnerId = scopedToOwner
+    ? resolvedOwnerId
+    : user?.id != null
+      ? String(user.id)
+      : "";
 
   useEffect(() => {
-    if (!registeringForOther || !ownerFromQuery) {
+    if (!scopedToOwner || !ownerParam) {
+      setResolvedOwnerId("");
       setOwnerLabel("");
+      setOwnerResolveError("");
       return;
     }
-    if (labelFromNav) {
-      setOwnerLabel(labelFromNav);
-      return;
-    }
+
     let cancelled = false;
-    setOwnerLabel("");
+    setOwnerResolveError("");
+    if (labelFromNav) setOwnerLabel(labelFromNav);
+    if (idFromNav) setResolvedOwnerId(idFromNav);
+    else if (isUserIdUuid(ownerParam)) setResolvedOwnerId(ownerParam);
+    else setResolvedOwnerId("");
+
     void (async () => {
       const { data } = await invokeWithAuth("get-user-profile", {
-        body: { user_id: ownerFromQuery },
+        body: { user_id: ownerParam },
       });
-      if (cancelled || !data?.success || !data.user) return;
+      if (cancelled) return;
+      if (!data?.success || !data.user?.id) {
+        setOwnerResolveError(data?.message || "User not found");
+        setResolvedOwnerId("");
+        return;
+      }
+      const id = String(data.user.id);
+      const slug = String(data.user.slug || "").trim();
+      setResolvedOwnerId(id);
       const label = displayUser(data.user);
       if (label) setOwnerLabel(label);
+
+      // Prefer slug in the address bar when we landed on a UUID.
+      if (slug && isUserIdUuid(ownerParam) && slug.toLowerCase() !== ownerParam.toLowerCase()) {
+        const next = new URLSearchParams(searchParams);
+        next.set("owner", slug);
+        navigate({ pathname: location.pathname, search: `?${next.toString()}` }, {
+          replace: true,
+          state: {
+            ...(location.state || {}),
+            registerForOwnerId: id,
+            registerForOwnerLabel: label || labelFromNav || null,
+          },
+        });
+      }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [registeringForOther, ownerFromQuery, labelFromNav]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedToOwner, ownerParam, idFromNav, labelFromNav]);
 
   const listBack = roleIs(user?.role, "admin")
     ? "/admin/livestock"
@@ -318,6 +351,13 @@ export default function UserLivestockRegisterPage() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (scopedToOwner && !resolvedOwnerId) {
+      addToast({
+        type: "error",
+        message: ownerResolveError || "Could not resolve the customer for this registration.",
+      });
+      return;
+    }
     if (!files.length) {
       addToast({ type: "error", message: "Add at least one clear photo." });
       return;
@@ -430,7 +470,7 @@ export default function UserLivestockRegisterPage() {
     }
   }
 
-  const forCustomer = Boolean(registeringForOther);
+  const forCustomer = Boolean(scopedToOwner && registeringForOther);
   const customerLabel = ownerLabel || "the selected user";
 
   const headerSubtitle = forCustomer
@@ -438,24 +478,30 @@ export default function UserLivestockRegisterPage() {
     : "Clear photos are required for matching.";
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-3xl mx-auto p-4 sm:p-6">
+    <div className="min-h-screen bg-gray-100 -mx-4 sm:mx-0 sm:-my-0">
+      <div className="max-w-3xl mx-auto px-3 py-3 sm:p-6">
         <form
           onSubmit={(e) => void onSubmit(e)}
-          className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
+          className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
         >
-          <div className="px-5 py-4 sm:px-6 sm:py-5 bg-emerald-50/90 border-b border-emerald-100/90">
+          <div className="px-4 py-4 sm:px-6 sm:py-5 bg-emerald-50/90 border-b border-emerald-100/90">
             <h1 className="text-2xl font-bold text-gray-900">
               {forCustomer ? "Register animal for customer" : "Register animal"}
             </h1>
             <p className="text-sm text-gray-600 mt-1">{headerSubtitle}</p>
           </div>
 
-          <div className="p-6 sm:p-8 space-y-6">
+          <div className="p-4 sm:p-8 space-y-5 sm:space-y-6">
         {forCustomer ? (
           <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-sky-900">
             Registering for:{" "}
             <span className="font-semibold">{customerLabel}</span>
+          </div>
+        ) : null}
+
+        {ownerResolveError ? (
+          <div className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-800">
+            {ownerResolveError}
           </div>
         ) : null}
 

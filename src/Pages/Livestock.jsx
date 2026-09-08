@@ -23,6 +23,7 @@ import {
 } from "../lib/livestockListScopeStorage.js";
 import { useStaffUserScopeOptional } from "../contexts/StaffUserScopeContext.jsx";
 import { useRegisterAnimalPreflight } from "../hooks/useRegisterAnimalPreflight.js";
+import { staffProfileUserKey } from "../lib/userProfilePath.js";
 
 const PAGE_SIZE = 12;
 
@@ -52,11 +53,11 @@ function statusBadgeClass(status) {
   }
 }
 
-function registerPath(base, ownerId) {
+function registerPath(base, ownerKey) {
   if (base === "/user") return "/user/livestock/register";
   const q =
-    ownerId && ownerId !== LIVESTOCK_VIEW_ALL
-      ? `?owner=${encodeURIComponent(ownerId)}`
+    ownerKey && ownerKey !== LIVESTOCK_VIEW_ALL
+      ? `?owner=${encodeURIComponent(ownerKey)}`
       : "";
   return `${base}/livestock/register${q}`;
 }
@@ -236,6 +237,12 @@ export default function Livestock({ view = "active" } = {}) {
     return u ? displayUser(u) : null;
   }, [registrationOwnerId, usersList]);
 
+  const registrationOwnerKey = useMemo(() => {
+    if (!registrationOwnerId) return null;
+    const u = (usersList || []).find((x) => String(x.id) === String(registrationOwnerId));
+    return staffProfileUserKey(u) || registrationOwnerId;
+  }, [registrationOwnerId, usersList]);
+
   const allUsersLivestockCount = useMemo(
     () =>
       (usersList || []).reduce(
@@ -354,7 +361,7 @@ export default function Livestock({ view = "active" } = {}) {
 
   function goRegister() {
     void goToRegisterAnimal({
-      path: registerPath(base, registrationOwnerId || undefined),
+      path: registerPath(base, registrationOwnerKey || undefined),
       ownerId: registrationOwnerId || undefined,
       ownerLabel: registrationOwnerLabel || undefined,
     });
