@@ -356,6 +356,7 @@ export default function Livestock({ view = "active" } = {}) {
     void goToRegisterAnimal({
       path: registerPath(base, registrationOwnerId || undefined),
       ownerId: registrationOwnerId || undefined,
+      ownerLabel: registrationOwnerLabel || undefined,
     });
   }
 

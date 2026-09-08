@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import BillingCostBanner from "../../components/BillingCostBanner.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -15,6 +15,7 @@ import {
   POLICE_TOPUP_PATH,
 } from "../../lib/billingUx.js";
 import { roleIs } from "../../lib/roleUtils.js";
+import { displayUser } from "../../lib/userDisplay.js";
 import { useTaskPricing } from "../../hooks/useTaskPricing.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -38,6 +39,7 @@ export default function UserLivestockRegisterPage() {
   const isUserRole = roleIs(user?.role, "user");
   useUserSidebar({ visible: isUserRole });
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { addToast } = useToast();
   const { confirm } = useModal();
@@ -54,6 +56,33 @@ export default function UserLivestockRegisterPage() {
     isPrivilegedRole(user?.role) &&
     ownerFromQuery &&
     ownerFromQuery !== String(user?.id);
+
+  const labelFromNav = String(location.state?.registerForOwnerLabel || "").trim();
+  const [ownerLabel, setOwnerLabel] = useState(labelFromNav || "");
+
+  useEffect(() => {
+    if (!registeringForOther || !ownerFromQuery) {
+      setOwnerLabel("");
+      return;
+    }
+    if (labelFromNav) {
+      setOwnerLabel(labelFromNav);
+      return;
+    }
+    let cancelled = false;
+    setOwnerLabel("");
+    void (async () => {
+      const { data } = await invokeWithAuth("get-user-profile", {
+        body: { user_id: ownerFromQuery },
+      });
+      if (cancelled || !data?.success || !data.user) return;
+      const label = displayUser(data.user);
+      if (label) setOwnerLabel(label);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [registeringForOther, ownerFromQuery, labelFromNav]);
 
   const listBack = roleIs(user?.role, "admin")
     ? "/admin/livestock"
@@ -311,9 +340,10 @@ export default function UserLivestockRegisterPage() {
   }
 
   const forCustomer = Boolean(registeringForOther);
+  const customerLabel = ownerLabel || "the selected user";
 
   const headerSubtitle = forCustomer
-    ? "This animal will be added to the selected user’s livestock registry."
+    ? `This animal will be added to ${customerLabel}'s livestock registry.`
     : "Clear photos are required for matching.";
 
   return (
@@ -333,8 +363,8 @@ export default function UserLivestockRegisterPage() {
           <div className="p-6 sm:p-8 space-y-6">
         {forCustomer ? (
           <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-sky-900">
-            Registering for owner ID:{" "}
-            <span className="font-semibold tabular-nums">{ownerFromQuery}</span>
+            Registering for:{" "}
+            <span className="font-semibold">{customerLabel}</span>
           </div>
         ) : null}
 
@@ -419,8 +449,7 @@ export default function UserLivestockRegisterPage() {
         <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
           <div className="text-sm font-medium text-amber-950">Dwelling / kraal location</div>
           <p className="text-xs text-amber-900/80">
-            Used to tell you how far a sighting is (“some 5 km away”) without revealing the exact pin until you
-            pay to reveal.
+            Required for distance estimates when a sighting is reported.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input

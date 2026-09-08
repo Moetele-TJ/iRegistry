@@ -130,8 +130,13 @@ export function useStaffProfileUserActions({
       });
       return;
     }
-    navigate(`${base}/livestock/register?owner=${encodeURIComponent(targetId)}`);
-  }, [accountActive, addToast, base, navigate, targetId]);
+    navigate(`${base}/livestock/register?owner=${encodeURIComponent(targetId)}`, {
+      state: {
+        registerForOwnerId: targetId,
+        registerForOwnerLabel: displayName || null,
+      },
+    });
+  }, [accountActive, addToast, base, displayName, navigate, targetId]);
 
   const goToTopup = useCallback(() => {
     if (!targetId) return;

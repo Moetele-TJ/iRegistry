@@ -33,7 +33,7 @@ export function useRegisterAnimalPreflight() {
   const { getCost, loading: tasksLoading } = useTaskPricing();
 
   const goToRegisterAnimal = useCallback(
-    async ({ path, ownerId } = {}) => {
+    async ({ path, ownerId, ownerLabel } = {}) => {
       if (!path) return;
       if (tasksLoading) return;
 
@@ -42,6 +42,14 @@ export function useRegisterAnimalPreflight() {
         if (document.documentElement) document.documentElement.scrollTop = 0;
         if (document.body) document.body.scrollTop = 0;
       };
+
+      const navState =
+        ownerId && String(ownerId).trim()
+          ? {
+              registerForOwnerId: String(ownerId).trim(),
+              registerForOwnerLabel: ownerLabel || null,
+            }
+          : undefined;
 
       const billingOwnerId =
         ownerId && String(ownerId).trim()
@@ -57,7 +65,7 @@ export function useRegisterAnimalPreflight() {
 
       // Staff registering for a customer: don't block on the staff wallet — go register.
       if (registeringForOther) {
-        navigate(path);
+        navigate(path, { state: navState });
         scrollTop();
         return;
       }
@@ -80,7 +88,7 @@ export function useRegisterAnimalPreflight() {
       }
 
       if (packStatus.can_register) {
-        navigate(path);
+        navigate(path, { state: navState });
         scrollTop();
         return;
       }
@@ -145,7 +153,7 @@ export function useRegisterAnimalPreflight() {
           return;
         }
         addToast({ type: "success", message: "Registration pack unlocked (10 animals)." });
-        navigate(path);
+        navigate(path, { state: navState });
         scrollTop();
       } catch (e) {
         addToast({ type: "error", message: e?.message || "Could not buy registration pack" });
