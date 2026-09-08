@@ -1044,10 +1044,22 @@ async function runAddVocab(req: Request, session: Session, body: Record<string, 
 
   if (kind === "type") {
     const code = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    if (!code) return respond({ success: false, message: "Invalid type label" }, corsHeaders, 400);
+
+    const { data: existing, error: existingErr } = await supabase
+      .from("livestock_types")
+      .select("code, label, brand_bearing")
+      .eq("code", code)
+      .maybeSingle();
+    if (existingErr) return respond({ success: false, message: existingErr.message }, corsHeaders, 500);
+    if (existing) {
+      return respond({ success: true, type: existing }, corsHeaders, 200);
+    }
+
     const brand_bearing = Boolean(body.brand_bearing);
     const { data, error } = await supabase
       .from("livestock_types")
-      .upsert({ code, label, brand_bearing }, { onConflict: "code" })
+      .insert({ code, label, brand_bearing })
       .select("code, label, brand_bearing")
       .single();
     if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);

@@ -220,7 +220,12 @@ export default function UserLivestockRegisterPage() {
   async function ensureTypeCode(label) {
     const raw = String(label || "").trim();
     if (!raw) throw new Error("Type is required.");
-    const existing = (vocab.types || []).find(
+    let types = vocab.types || [];
+    if (!types.length) {
+      const data = await refreshVocab();
+      types = data?.types || [];
+    }
+    const existing = types.find(
       (t) =>
         String(t.label || "").toLowerCase() === raw.toLowerCase() ||
         String(t.code || "").toLowerCase() === raw.toLowerCase(),
@@ -634,7 +639,7 @@ export default function UserLivestockRegisterPage() {
             />
             <RippleButton
               type="button"
-              className="px-3 py-2 rounded-xl border bg-white text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:brightness-95 active:brightness-90"
               onClick={captureDwelling}
             >
               Use my current location
@@ -671,11 +676,11 @@ export default function UserLivestockRegisterPage() {
               value={zone_brand}
               onChange={(e) => setZoneBrand(e.target.value)}
             />
-            <div className="flex justify-center items-stretch gap-3 overflow-x-auto py-1">
+            <div className="w-full py-1">
               {brands.slice(0, 1).map((b, i) => (
                 <div
                   key={i}
-                  className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 min-w-[min(100%,20rem)]"
+                  className="w-full min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-3 sm:px-4"
                 >
                   <BrandOrientationField
                     layout={b.layout || "horizontal"}
@@ -712,9 +717,9 @@ export default function UserLivestockRegisterPage() {
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-800">Ear tags (up to 2)</div>
           {earTags.map((t, i) => (
-            <div key={i} className="flex gap-2">
+            <div key={i} className="flex gap-2 items-center min-w-0">
               <input
-                className="flex-1 border rounded-xl px-3 py-2 text-sm"
+                className="min-w-0 flex-1 border rounded-xl px-3 py-2 text-sm"
                 placeholder="Tag ID"
                 value={t.tag_id}
                 onChange={(e) =>
@@ -724,7 +729,7 @@ export default function UserLivestockRegisterPage() {
                 }
               />
               <select
-                className="border rounded-xl px-3 py-2 text-sm"
+                className="w-[5.5rem] shrink-0 border rounded-xl px-2 py-2 text-sm"
                 value={t.side}
                 onChange={(e) =>
                   setEarTags((rows) =>
