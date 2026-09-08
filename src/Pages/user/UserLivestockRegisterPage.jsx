@@ -93,7 +93,7 @@ export default function UserLivestockRegisterPage() {
   const [files, setFiles] = useState([]);
   const [packInfo, setPackInfo] = useState(null);
 
-  const [type_code, setTypeCode] = useState("cattle");
+  const [type_code, setTypeCode] = useState("");
   const [typeLabel, setTypeLabel] = useState("");
   const [gender, setGender] = useState("unknown");
   const [breed, setBreed] = useState("");
@@ -117,6 +117,18 @@ export default function UserLivestockRegisterPage() {
     return types.find((t) => String(t.label || "").toLowerCase() === label) || null;
   }, [vocab.types, type_code, typeLabel]);
   const brandBearing = Boolean(selectedType?.brand_bearing);
+
+  useEffect(() => {
+    if (!brandBearing) {
+      setBrands([]);
+      return;
+    }
+    setBrands((rows) => {
+      if (rows.length === 1) return rows;
+      if (rows.length > 1) return [rows[0]];
+      return [{ characters: "", layout: "horizontal", side: "left", body_part: "shoulder" }];
+    });
+  }, [brandBearing]);
 
   const refreshVocab = useCallback(async () => {
     const { data } = await invokeWithAuth("livestock-api", {
@@ -165,13 +177,7 @@ export default function UserLivestockRegisterPage() {
   }, [registerOwnerId, registeringForOther]);
 
   useEffect(() => {
-    void (async () => {
-      const data = await refreshVocab();
-      if (data?.types?.[0]) {
-        setTypeCode(data.types[0].code);
-        setTypeLabel(data.types[0].label || data.types[0].code);
-      }
-    })();
+    void refreshVocab();
   }, [refreshVocab]);
 
   useEffect(() => {
@@ -217,6 +223,21 @@ export default function UserLivestockRegisterPage() {
     if (!known) {
       await invokeWithAuth("livestock-api", {
         body: { operation: "livestock-add-vocab", kind: "colour", label: raw },
+      });
+      await refreshVocab();
+    }
+    return raw;
+  }
+
+  async function ensureEarMark(label) {
+    const raw = String(label || "").trim();
+    if (!raw) return null;
+    const known = (vocab.ear_mark_types || []).some(
+      (c) => String(c).toLowerCase() === raw.toLowerCase(),
+    );
+    if (!known) {
+      await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-add-vocab", kind: "ear_mark", label: raw },
       });
       await refreshVocab();
     }
@@ -313,6 +334,12 @@ export default function UserLivestockRegisterPage() {
     try {
       const resolvedTypeCode = await ensureTypeCode(typeLabel || type_code);
       const resolvedColour = await ensureColour(colour);
+      const resolvedEarMarks = [];
+      for (const m of earMarks) {
+        const label = await ensureEarMark(m.mark_label);
+        if (!label) continue;
+        resolvedEarMarks.push({ ...m, mark_label: label });
+      }
 
       const ok = await ensurePackSlot();
       if (!ok) return;
@@ -351,15 +378,18 @@ export default function UserLivestockRegisterPage() {
           dwelling_village: dwelling_village.trim() || null,
           photos,
           brands: brandBearing
-            ? brands.filter((b) => b.characters?.trim()).map((b) => ({
-              characters: b.characters.trim(),
-              layout: b.layout,
-              side: b.side,
-              body_part: b.body_part,
-            }))
+            ? brands
+                .slice(0, 1)
+                .filter((b) => b.characters?.trim())
+                .map((b) => ({
+                  characters: b.characters.trim(),
+                  layout: b.layout,
+                  side: b.side,
+                  body_part: b.body_part,
+                }))
             : [],
           ear_tags: earTags.filter((t) => t.tag_id?.trim()),
-          ear_marks: earMarks.filter((m) => m.mark_label?.trim()),
+          ear_marks: resolvedEarMarks.filter((m) => m.mark_label?.trim()),
         },
       });
 
@@ -585,77 +615,51 @@ export default function UserLivestockRegisterPage() {
 
         {brandBearing ? (
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-800">Brands (up to 4)</div>
-              <button
-                type="button"
-                className="text-sm text-iregistrygreen"
-                onClick={() =>
-                  setBrands((b) =>
-                    b.length >= 4
-                      ? b
-                      : [...b, { characters: "", layout: "horizontal", side: "left", body_part: "shoulder" }],
-                  )
-                }
-              >
-                + Add brand
-              </button>
-            </div>
+            <div className="text-sm font-medium text-gray-800">Brand</div>
+            <p className="text-xs text-gray-500">
+              One brand at registration. More brands can be added when editing the animal.
+            </p>
             <input
               className="w-full border rounded-xl px-3 py-2 text-sm"
               placeholder="Zone brand (optional)"
               value={zone_brand}
               onChange={(e) => setZoneBrand(e.target.value)}
             />
-            {brands.map((b, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2 rounded-xl border p-3">
-                <BrandOrientationField
-                  layout={b.layout || "horizontal"}
-                  characters={b.characters || ""}
-                  onLayoutChange={(layout) =>
-                    setBrands((rows) =>
-                      rows.map((r, idx) => (idx === i ? { ...r, layout } : r)),
-                    )
-                  }
-                  onCharactersChange={(characters) =>
-                    setBrands((rows) =>
-                      rows.map((r, idx) => (idx === i ? { ...r, characters } : r)),
-                    )
-                  }
-                />
-                <select
-                  className="border rounded-lg px-2 py-1.5 text-sm"
-                  value={b.side}
-                  onChange={(e) =>
-                    setBrands((rows) => rows.map((r, idx) => (idx === i ? { ...r, side: e.target.value } : r)))
-                  }
+            <div className="flex justify-center items-stretch gap-3 overflow-x-auto py-1">
+              {brands.slice(0, 1).map((b, i) => (
+                <div
+                  key={i}
+                  className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 min-w-[min(100%,20rem)]"
                 >
-                  <option value="left">Left</option>
-                  <option value="right">Right</option>
-                </select>
-                <select
-                  className="border rounded-lg px-2 py-1.5 text-sm"
-                  value={b.body_part}
-                  onChange={(e) =>
-                    setBrands((rows) =>
-                      rows.map((r, idx) => (idx === i ? { ...r, body_part: e.target.value } : r)),
-                    )
-                  }
-                >
-                  <option value="shoulder">Shoulder</option>
-                  <option value="thigh">Thigh</option>
-                  <option value="flank">Flank</option>
-                  <option value="neck">Neck</option>
-                </select>
-                <button
-                  type="button"
-                  className="col-span-2 text-left text-xs text-red-600 hover:underline"
-                  onClick={() => setBrands((rows) => rows.filter((_, idx) => idx !== i))}
-                >
-                  Remove brand
-                </button>
-              </div>
-            ))}
+                  <BrandOrientationField
+                    layout={b.layout || "horizontal"}
+                    characters={b.characters || ""}
+                    onLayoutChange={(layout) =>
+                      setBrands((rows) =>
+                        rows.map((r, idx) => (idx === i ? { ...r, layout } : r)),
+                      )
+                    }
+                    onCharactersChange={(characters) =>
+                      setBrands((rows) =>
+                        rows.map((r, idx) => (idx === i ? { ...r, characters } : r)),
+                      )
+                    }
+                    side={b.side}
+                    bodyPart={b.body_part}
+                    onSideChange={(side) =>
+                      setBrands((rows) =>
+                        rows.map((r, idx) => (idx === i ? { ...r, side } : r)),
+                      )
+                    }
+                    onBodyPartChange={(body_part) =>
+                      setBrands((rows) =>
+                        rows.map((r, idx) => (idx === i ? { ...r, body_part } : r)),
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -710,20 +714,30 @@ export default function UserLivestockRegisterPage() {
             </button>
           </div>
           {earMarks.map((m, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className="flex-1 border rounded-xl px-3 py-2 text-sm"
-                list="livestock-ear-marks"
-                placeholder="e.g. Lesifi"
-                value={m.mark_label}
-                onChange={(e) =>
-                  setEarMarks((rows) =>
-                    rows.map((r, idx) => (idx === i ? { ...r, mark_label: e.target.value } : r)),
-                  )
-                }
-              />
+            <div key={i} className="flex gap-2 items-start">
+              <div className="flex-1 min-w-0">
+                <SearchableOptionsSelect
+                  value={m.mark_label || ""}
+                  onChange={(v) =>
+                    setEarMarks((rows) =>
+                      rows.map((r, idx) => (idx === i ? { ...r, mark_label: v } : r)),
+                    )
+                  }
+                  onCommit={(v) => {
+                    void ensureEarMark(v).catch(() => {});
+                  }}
+                  placeholder="Select or type an ear mark…"
+                  allowOther
+                  variant="searchable"
+                  inputClassName={FIELD_INPUT_CLASS}
+                  reloadKey={vocabReloadKey}
+                  loadOptions={async () => vocab.ear_mark_types || []}
+                  listboxAriaLabel="Ear marks"
+                  typedValueLabel={(q) => `Add ear mark “${q}”`}
+                />
+              </div>
               <select
-                className="border rounded-xl px-3 py-2 text-sm"
+                className={`${FIELD_INPUT_CLASS} w-auto shrink-0`}
                 value={m.side || ""}
                 onChange={(e) =>
                   setEarMarks((rows) =>
@@ -737,11 +751,6 @@ export default function UserLivestockRegisterPage() {
               </select>
             </div>
           ))}
-          <datalist id="livestock-ear-marks">
-            {(vocab.ear_mark_types || []).map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
