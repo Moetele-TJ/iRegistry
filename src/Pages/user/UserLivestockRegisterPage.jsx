@@ -17,17 +17,11 @@ import {
 import { roleIs } from "../../lib/roleUtils.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { useTaskPricing } from "../../hooks/useTaskPricing.js";
+import BrandOrientationField from "../../components/BrandOrientationField.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const PACK_TASK = "LIVESTOCK_REGISTER_PACK";
 const FREE_LIFETIME = 2;
-
-const BRAND_LAYOUTS_3 = [
-  { value: "horizontal", label: "Horizontal" },
-  { value: "vertical", label: "Vertical" },
-  { value: "two_up_one_down", label: "Two up, one below" },
-  { value: "one_up_two_down", label: "One up, two below" },
-];
 
 function topupPathForRole(role) {
   if (roleIs(role, "police")) return POLICE_TOPUP_PATH;
@@ -510,42 +504,21 @@ export default function UserLivestockRegisterPage() {
               onChange={(e) => setZoneBrand(e.target.value)}
             />
             {brands.map((b, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2 rounded-xl border p-2">
-                <input
-                  className="border rounded-lg px-2 py-1.5 text-sm col-span-2"
-                  placeholder="Characters (3 or 4)"
-                  value={b.characters}
-                  onChange={(e) => {
-                    const v = e.target.value.toUpperCase();
+              <div key={i} className="grid grid-cols-2 gap-2 rounded-xl border p-3">
+                <BrandOrientationField
+                  layout={b.layout || "horizontal"}
+                  characters={b.characters || ""}
+                  onLayoutChange={(layout) =>
                     setBrands((rows) =>
-                      rows.map((r, idx) =>
-                        idx === i
-                          ? {
-                            ...r,
-                            characters: v,
-                            layout: v.length === 4 ? "square" : r.layout === "square" ? "horizontal" : r.layout,
-                          }
-                          : r,
-                      ),
-                    );
-                  }}
-                />
-                <select
-                  className="border rounded-lg px-2 py-1.5 text-sm"
-                  value={b.layout}
-                  onChange={(e) =>
-                    setBrands((rows) => rows.map((r, idx) => (idx === i ? { ...r, layout: e.target.value } : r)))
+                      rows.map((r, idx) => (idx === i ? { ...r, layout } : r)),
+                    )
                   }
-                >
-                  {(b.characters.length === 4
-                    ? [{ value: "square", label: "Square" }]
-                    : BRAND_LAYOUTS_3
-                  ).map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  onCharactersChange={(characters) =>
+                    setBrands((rows) =>
+                      rows.map((r, idx) => (idx === i ? { ...r, characters } : r)),
+                    )
+                  }
+                />
                 <select
                   className="border rounded-lg px-2 py-1.5 text-sm"
                   value={b.side}
@@ -557,7 +530,7 @@ export default function UserLivestockRegisterPage() {
                   <option value="right">Right</option>
                 </select>
                 <select
-                  className="border rounded-lg px-2 py-1.5 text-sm col-span-2"
+                  className="border rounded-lg px-2 py-1.5 text-sm"
                   value={b.body_part}
                   onChange={(e) =>
                     setBrands((rows) =>
@@ -570,6 +543,13 @@ export default function UserLivestockRegisterPage() {
                   <option value="flank">Flank</option>
                   <option value="neck">Neck</option>
                 </select>
+                <button
+                  type="button"
+                  className="col-span-2 text-left text-xs text-red-600 hover:underline"
+                  onClick={() => setBrands((rows) => rows.filter((_, idx) => idx !== i))}
+                >
+                  Remove brand
+                </button>
               </div>
             ))}
           </div>
