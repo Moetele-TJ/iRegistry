@@ -236,6 +236,15 @@ export default function Livestock({ view = "active" } = {}) {
     return u ? displayUser(u) : null;
   }, [registrationOwnerId, usersList]);
 
+  const allUsersLivestockCount = useMemo(
+    () =>
+      (usersList || []).reduce(
+        (sum, u) => sum + Math.max(0, Math.floor(Number(u?.active_livestock_count) || 0)),
+        0,
+      ),
+    [usersList],
+  );
+
   /** Match Items: Add on active when not “All”; also when a specific user is selected on other lists. */
   const showScopeAddAnimal =
     (!privileged || !privilegedViewAll) &&
@@ -519,12 +528,21 @@ export default function Livestock({ view = "active" } = {}) {
                         disabled={usersLoading || !scopeReady}
                         className="w-full min-w-0 sm:w-auto border rounded-lg px-2 py-1 text-sm"
                       >
-                        <option value={LIVESTOCK_VIEW_ALL}>All</option>
-                        {(usersList || []).map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {displayUser(u) || u.id}
-                          </option>
-                        ))}
+                        <option value={LIVESTOCK_VIEW_ALL}>
+                          All ({allUsersLivestockCount})
+                        </option>
+                        {(usersList || []).map((u) => {
+                          const name = displayUser(u) || String(u.id ?? "");
+                          const n = Math.max(
+                            0,
+                            Math.floor(Number(u?.active_livestock_count) || 0),
+                          );
+                          return (
+                            <option key={u.id} value={u.id}>
+                              {`${name} (${n})`}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   ) : null}

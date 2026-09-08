@@ -97,18 +97,41 @@ serve(async (req) => {
       }
     }
 
+    const activeLivestockCountByOwner = new Map<string, number>();
+    const { data: livestockCountRows, error: livestockCntErr } = await supabase.rpc(
+      "list_owner_active_livestock_counts",
+    );
+    if (livestockCntErr) {
+      console.error(
+        "list-users list_owner_active_livestock_counts:",
+        livestockCntErr.message,
+      );
+    } else {
+      for (const row of livestockCountRows || []) {
+        const oid = (row as any)?.owner_id;
+        const c = (row as any)?.animal_count;
+        if (oid == null) continue;
+        const n = typeof c === "number" && Number.isFinite(c) ? c : Number(c);
+        if (Number.isFinite(n)) {
+          activeLivestockCountByOwner.set(String(oid), Math.max(0, Math.floor(n)));
+        }
+      }
+    }
+
     const normalized = list.map((u: any) => {
       const bal = typeof u?.user_credits?.balance === "number" ? u.user_credits.balance : 0;
       const lastLogin = lastLoginByUserId.get(String(u?.id || "")) || null;
       const status = deriveUserStatus(u);
       const uidStr = String(u?.id || "");
       const active_items_count = activeItemCountByOwner.get(uidStr) ?? 0;
+      const active_livestock_count = activeLivestockCountByOwner.get(uidStr) ?? 0;
       return {
         ...u,
         status,
         credit_balance: bal,
         last_login_at: lastLogin,
         active_items_count,
+        active_livestock_count,
         user_credits: undefined,
       };
     });
