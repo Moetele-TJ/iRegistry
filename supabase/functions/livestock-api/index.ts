@@ -111,17 +111,30 @@ async function requireUser(req: Request) {
 
 async function runGetVocab(req: Request) {
   const corsHeaders = getCorsHeaders(req);
-  const [{ data: types }, { data: colours }, { data: earMarks }] = await Promise.all([
+  const [{ data: types }, { data: colours }, { data: earMarks }, { data: breedRows }] = await Promise.all([
     supabase.from("livestock_types").select("code, label, brand_bearing").eq("active", true).order("label"),
     supabase.from("livestock_colours").select("label").eq("active", true).order("label"),
     supabase.from("livestock_ear_mark_types").select("label").eq("active", true).order("label"),
+    supabase
+      .from("livestock_animals")
+      .select("breed")
+      .not("breed", "is", null)
+      .neq("breed", "")
+      .is("deleted_at", null),
   ]);
+  const breedSet = new Set<string>();
+  for (const row of breedRows || []) {
+    const b = String((row as { breed?: string | null }).breed || "").trim();
+    if (b) breedSet.add(b);
+  }
+  const breeds = Array.from(breedSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   return respond(
     {
       success: true,
       types: types || [],
       colours: (colours || []).map((c: { label: string }) => c.label),
       ear_mark_types: (earMarks || []).map((c: { label: string }) => c.label),
+      breeds,
     },
     corsHeaders,
     200,

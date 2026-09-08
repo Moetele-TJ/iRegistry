@@ -263,6 +263,7 @@ export default function SearchableOptionsSelect({
 
   const selectValue = !valueNorm ? "" : known ? valueNorm : "__OTHER__";
   const useSearchable = variant === "searchable" || variant === "combobox";
+  const showSearchablePicker = useSearchable && (options.length > 0 || allowOther);
 
   const loadRef = useRef(null);
   loadRef.current = async () => {
@@ -295,7 +296,7 @@ export default function SearchableOptionsSelect({
         </label>
       ) : null}
 
-      {options.length > 0 && useSearchable ? (
+      {showSearchablePicker ? (
         <SearchableListPicker
           options={options}
           value={value}

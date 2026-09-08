@@ -18,10 +18,12 @@ import { roleIs } from "../../lib/roleUtils.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { useTaskPricing } from "../../hooks/useTaskPricing.js";
 import BrandOrientationField from "../../components/BrandOrientationField.jsx";
+import SearchableOptionsSelect from "../../components/SearchableOptionsSelect.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const PACK_TASK = "LIVESTOCK_REGISTER_PACK";
 const FREE_LIFETIME = 2;
+const FIELD_INPUT_CLASS = "mt-1 w-full border rounded-xl px-3 py-2 text-sm";
 
 function topupPathForRole(role) {
   if (roleIs(role, "police")) return POLICE_TOPUP_PATH;
@@ -86,15 +88,17 @@ export default function UserLivestockRegisterPage() {
         ? "/police/livestock"
         : "/user/livestock";
 
-  const [vocab, setVocab] = useState({ types: [], colours: [], ear_mark_types: [] });
+  const [vocab, setVocab] = useState({ types: [], colours: [], ear_mark_types: [], breeds: [] });
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState([]);
   const [packInfo, setPackInfo] = useState(null);
 
   const [type_code, setTypeCode] = useState("cattle");
+  const [typeLabel, setTypeLabel] = useState("");
   const [gender, setGender] = useState("unknown");
   const [breed, setBreed] = useState("");
   const [colour, setColour] = useState("");
+  const [vocabReloadKey, setVocabReloadKey] = useState(0);
   const [name, setName] = useState("");
   const [zone_brand, setZoneBrand] = useState("");
   const [dwelling_village, setDwellingVillage] = useState("");
@@ -104,11 +108,32 @@ export default function UserLivestockRegisterPage() {
   const [earTags, setEarTags] = useState([{ tag_id: "", side: "left" }]);
   const [earMarks, setEarMarks] = useState([]);
 
-  const selectedType = useMemo(
-    () => (vocab.types || []).find((t) => t.code === type_code),
-    [vocab.types, type_code],
-  );
+  const selectedType = useMemo(() => {
+    const types = vocab.types || [];
+    const byCode = types.find((t) => t.code === type_code);
+    if (byCode) return byCode;
+    const label = String(typeLabel || "").trim().toLowerCase();
+    if (!label) return null;
+    return types.find((t) => String(t.label || "").toLowerCase() === label) || null;
+  }, [vocab.types, type_code, typeLabel]);
   const brandBearing = Boolean(selectedType?.brand_bearing);
+
+  const refreshVocab = useCallback(async () => {
+    const { data } = await invokeWithAuth("livestock-api", {
+      body: { operation: "livestock-get-vocab" },
+    });
+    if (data?.success) {
+      setVocab({
+        types: data.types || [],
+        colours: data.colours || [],
+        ear_mark_types: data.ear_mark_types || [],
+        breeds: data.breeds || [],
+      });
+      setVocabReloadKey((k) => k + 1);
+      return data;
+    }
+    return null;
+  }, []);
 
   const packCost = useMemo(() => {
     const n = getCost(PACK_TASK);
@@ -141,23 +166,62 @@ export default function UserLivestockRegisterPage() {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await invokeWithAuth("livestock-api", {
-        body: { operation: "livestock-get-vocab" },
-      });
-      if (data?.success) {
-        setVocab({
-          types: data.types || [],
-          colours: data.colours || [],
-          ear_mark_types: data.ear_mark_types || [],
-        });
-        if (data.types?.[0]?.code) setTypeCode(data.types[0].code);
+      const data = await refreshVocab();
+      if (data?.types?.[0]) {
+        setTypeCode(data.types[0].code);
+        setTypeLabel(data.types[0].label || data.types[0].code);
       }
     })();
-  }, []);
+  }, [refreshVocab]);
 
   useEffect(() => {
     void refreshPack();
   }, [refreshPack]);
+
+  async function ensureTypeCode(label) {
+    const raw = String(label || "").trim();
+    if (!raw) throw new Error("Type is required.");
+    const existing = (vocab.types || []).find(
+      (t) =>
+        String(t.label || "").toLowerCase() === raw.toLowerCase() ||
+        String(t.code || "").toLowerCase() === raw.toLowerCase(),
+    );
+    if (existing?.code) {
+      setTypeCode(existing.code);
+      setTypeLabel(existing.label || existing.code);
+      return existing.code;
+    }
+    const { data, error } = await invokeWithAuth("livestock-api", {
+      body: {
+        operation: "livestock-add-vocab",
+        kind: "type",
+        label: raw,
+        brand_bearing: false,
+      },
+    });
+    if (error || !data?.success || !data.type?.code) {
+      throw new Error(data?.message || error?.message || "Could not save new animal type");
+    }
+    await refreshVocab();
+    setTypeCode(data.type.code);
+    setTypeLabel(data.type.label || raw);
+    return data.type.code;
+  }
+
+  async function ensureColour(label) {
+    const raw = String(label || "").trim();
+    if (!raw) return null;
+    const known = (vocab.colours || []).some(
+      (c) => String(c).toLowerCase() === raw.toLowerCase(),
+    );
+    if (!known) {
+      await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-add-vocab", kind: "colour", label: raw },
+      });
+      await refreshVocab();
+    }
+    return raw;
+  }
 
   const captureDwelling = useCallback(() => {
     if (!navigator.geolocation) {
@@ -247,6 +311,9 @@ export default function UserLivestockRegisterPage() {
 
     setSaving(true);
     try {
+      const resolvedTypeCode = await ensureTypeCode(typeLabel || type_code);
+      const resolvedColour = await ensureColour(colour);
+
       const ok = await ensurePackSlot();
       if (!ok) return;
 
@@ -273,10 +340,10 @@ export default function UserLivestockRegisterPage() {
         body: {
           operation: "livestock-register",
           owner_id: registerOwnerId || undefined,
-          type_code,
+          type_code: resolvedTypeCode,
           gender,
           breed: breed.trim() || null,
-          colour: colour.trim() || null,
+          colour: resolvedColour,
           name: name.trim() || null,
           zone_brand: brandBearing ? zone_brand.trim() || null : null,
           dwelling_lat: Number(dwelling_lat),
@@ -382,22 +449,34 @@ export default function UserLivestockRegisterPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-gray-600">Type</label>
-            <select
-              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-              value={type_code}
-              onChange={(e) => setTypeCode(e.target.value)}
-            >
-              {(vocab.types || []).map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            <SearchableOptionsSelect
+              value={typeLabel}
+              onChange={(v) => {
+                setTypeLabel(v);
+                const match = (vocab.types || []).find(
+                  (t) => String(t.label || "").toLowerCase() === String(v || "").trim().toLowerCase(),
+                );
+                setTypeCode(match?.code || "");
+              }}
+              onCommit={(v) => {
+                void ensureTypeCode(v).catch((e) =>
+                  addToast({ type: "error", message: e?.message || "Could not save type" }),
+                );
+              }}
+              placeholder="Select or type a type…"
+              allowOther
+              variant="searchable"
+              inputClassName={FIELD_INPUT_CLASS}
+              reloadKey={vocabReloadKey}
+              loadOptions={async () => (vocab.types || []).map((t) => t.label || t.code)}
+              listboxAriaLabel="Animal types"
+              typedValueLabel={(q) => `Add type “${q}”`}
+            />
           </div>
           <div>
             <label className="text-xs text-gray-600">Gender</label>
             <select
-              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+              className={FIELD_INPUT_CLASS}
               value={gender}
               onChange={(e) => setGender(e.target.value)}
             >
@@ -408,32 +487,57 @@ export default function UserLivestockRegisterPage() {
           </div>
           <div>
             <label className="text-xs text-gray-600">Breed</label>
-            <input
-              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+            <SearchableOptionsSelect
               value={breed}
-              onChange={(e) => setBreed(e.target.value)}
-              placeholder="e.g. Brahman"
+              onChange={setBreed}
+              onCommit={(v) => {
+                const raw = String(v || "").trim();
+                if (!raw) return;
+                const known = (vocab.breeds || []).some(
+                  (b) => String(b).toLowerCase() === raw.toLowerCase(),
+                );
+                if (known) return;
+                setVocab((prev) => ({
+                  ...prev,
+                  breeds: [...(prev.breeds || []), raw].sort((a, b) =>
+                    a.localeCompare(b, undefined, { sensitivity: "base" }),
+                  ),
+                }));
+                setVocabReloadKey((k) => k + 1);
+              }}
+              placeholder="Select or type a breed…"
+              allowOther
+              variant="searchable"
+              inputClassName={FIELD_INPUT_CLASS}
+              reloadKey={vocabReloadKey}
+              loadOptions={async () => vocab.breeds || []}
+              listboxAriaLabel="Breeds"
+              typedValueLabel={(q) => `Add breed “${q}”`}
+              emptyNoMatchMessage="No matching breeds. Type to add one."
             />
           </div>
           <div>
             <label className="text-xs text-gray-600">Colour</label>
-            <input
-              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
-              list="livestock-colours"
+            <SearchableOptionsSelect
               value={colour}
-              onChange={(e) => setColour(e.target.value)}
-              placeholder="e.g. Tshumu"
+              onChange={setColour}
+              onCommit={(v) => {
+                void ensureColour(v).catch(() => {});
+              }}
+              placeholder="Select or type a colour…"
+              allowOther
+              variant="searchable"
+              inputClassName={FIELD_INPUT_CLASS}
+              reloadKey={vocabReloadKey}
+              loadOptions={async () => vocab.colours || []}
+              listboxAriaLabel="Colours"
+              typedValueLabel={(q) => `Add colour “${q}”`}
             />
-            <datalist id="livestock-colours">
-              {(vocab.colours || []).map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
           </div>
           <div className="sm:col-span-2">
             <label className="text-xs text-gray-600">Name (optional)</label>
             <input
-              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+              className={FIELD_INPUT_CLASS}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
