@@ -26,5 +26,6 @@ export function livestockPhotoSrc(entry, preferThumb = true) {
 }
 
 export function livestockThumb(animal) {
+  if (animal?.signed_thumb) return animal.signed_thumb;
   return livestockPhotoSrc(animal?.photos?.[0], true);
 }

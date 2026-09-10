@@ -83,6 +83,48 @@ function canAccessAnimal(session: Session, ownerId: string) {
   return session.user_id === ownerId || isPrivilegedRole(session.role);
 }
 
+function normalizeStoragePhotoPath(raw: unknown): string | null {
+  let p = typeof raw === "string" ? raw.trim() : "";
+  if (!p) return null;
+  const marker = "item-photos/";
+  const idx = p.lastIndexOf(marker);
+  if (idx !== -1) p = p.slice(idx + marker.length);
+  p = p.replace(/^\/+/, "").replace(/^item-photos\//i, "");
+  return p || null;
+}
+
+function photoPathsFromAnimalPhotos(photos: unknown, { firstOnly = false } = {}): string[] {
+  if (!Array.isArray(photos)) return [];
+  const out: string[] = [];
+  for (const entry of photos) {
+    let raw = "";
+    if (typeof entry === "string") raw = entry;
+    else if (entry && typeof entry === "object") {
+      const o = entry as Record<string, unknown>;
+      raw = String(o.original || o.thumb || o.path || o.url || "");
+    }
+    const path = normalizeStoragePhotoPath(raw);
+    if (path) out.push(path);
+    if (firstOnly && out.length) break;
+  }
+  return out;
+}
+
+async function signPhotoPaths(paths: string[], expiresSeconds = 60 * 60): Promise<(string | null)[]> {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (!unique.length) return paths.map(() => null);
+  const { data, error } = await supabase.storage
+    .from("item-photos")
+    .createSignedUrls(unique, expiresSeconds);
+  if (error || !data) return paths.map(() => null);
+  const byPath = new Map<string, string | null>();
+  for (const row of data) {
+    const key = normalizeStoragePhotoPath(row.path) || String(row.path || "");
+    byPath.set(key, row.signedUrl || null);
+  }
+  return paths.map((p) => byPath.get(p) || null);
+}
+
 async function resolveOwnerId(
   session: Session,
   requestedOwner: string,
@@ -257,13 +299,24 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
   if (error) {
     return respond({ success: false, message: error.message || "Failed to list animals" }, corsHeaders, 500);
   }
+
+  const animals = data || [];
+  const thumbPaths = animals.map(
+    (a: { photos?: unknown }) => photoPathsFromAnimalPhotos(a.photos, { firstOnly: true })[0] || "",
+  );
+  const signedThumbs = await signPhotoPaths(thumbPaths);
+  const withThumbs = animals.map((a: Record<string, unknown>, i: number) => ({
+    ...a,
+    signed_thumb: signedThumbs[i] || null,
+  }));
+
   return respond(
     {
       success: true,
-      animals: data || [],
+      animals: withThumbs,
       page,
       pageSize,
-      total: typeof count === "number" ? count : (data || []).length,
+      total: typeof count === "number" ? count : animals.length,
     },
     corsHeaders,
     200,
@@ -279,7 +332,24 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
   if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
   }
-  return respond({ success: true, animal }, corsHeaders, 200);
+
+  const paths = photoPathsFromAnimalPhotos(animal.photos);
+  const signed = await signPhotoPaths(paths);
+  const signed_photos = paths
+    .map((path, i) => (signed[i] ? { path, url: signed[i] as string } : null))
+    .filter(Boolean);
+
+  let owner: Record<string, unknown> | null = null;
+  if (String(animal.owner_id) !== String(session.user_id)) {
+    const { data: ownerRow } = await supabase
+      .from("users")
+      .select("id, slug, first_name, last_name, email, phone, id_number, village, ward")
+      .eq("id", animal.owner_id)
+      .maybeSingle();
+    owner = ownerRow || null;
+  }
+
+  return respond({ success: true, animal: { ...animal, signed_photos }, owner }, corsHeaders, 200);
 }
 
 async function runRegister(req: Request, session: Session, body: Record<string, unknown>) {

@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { livestockPhotoSrc } from "../../lib/livestockPhotos.js";
+import { BrandMarkPreview } from "../../components/BrandOrientationField.jsx";
 import { isPrivilegedRole } from "../../lib/billingUx.js";
 import { roleIs } from "../../lib/roleUtils.js";
+import { displayUser } from "../../lib/userDisplay.js";
+import { staffProfilePath } from "../../lib/userProfilePath.js";
 import { NAV } from "../../lib/navLabels.js";
 
 function listBackPath(role) {
@@ -44,6 +47,7 @@ export default function UserLivestockDetailPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [animal, setAnimal] = useState(null);
+  const [owner, setOwner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusBusy, setStatusBusy] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -52,6 +56,11 @@ export default function UserLivestockDetailPage() {
   const canMutate =
     Boolean(animal) &&
     (String(animal.owner_id) === String(user?.id) || isPrivilegedRole(user?.role));
+  const isOwner =
+    Boolean(animal?.owner_id) &&
+    Boolean(user?.id) &&
+    String(animal.owner_id) === String(user.id);
+  const showOwnerDetails = Boolean(animal && !isOwner);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,10 +72,12 @@ export default function UserLivestockDetailPage() {
         throw new Error(data?.message || error?.message || "Failed to load");
       }
       setAnimal(data.animal);
+      setOwner(data.owner || null);
       setActivePhoto(0);
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed to load animal" });
       setAnimal(null);
+      setOwner(null);
     } finally {
       setLoading(false);
     }
@@ -110,6 +121,16 @@ export default function UserLivestockDetailPage() {
     }
   }
 
+  const photoSrcs = useMemo(() => {
+    if (!animal) return [];
+    const signed = Array.isArray(animal.signed_photos)
+      ? animal.signed_photos.map((p) => p?.url).filter(Boolean)
+      : [];
+    if (signed.length) return signed;
+    const photos = Array.isArray(animal.photos) ? animal.photos : [];
+    return photos.map((p) => livestockPhotoSrc(p, false)).filter(Boolean);
+  }, [animal]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -146,16 +167,23 @@ export default function UserLivestockDetailPage() {
     );
   }
 
-  const photos = Array.isArray(animal.photos) ? animal.photos : [];
-  const photoSrcs = photos.map(livestockPhotoSrc).filter(Boolean);
   const brands = Array.isArray(animal.brands) ? animal.brands : [];
   const earTags = Array.isArray(animal.ear_tags) ? animal.ear_tags : [];
   const earMarks = Array.isArray(animal.ear_marks) ? animal.ear_marks : [];
   const status = String(animal.status || "active").toLowerCase();
   const isDeleted = status === "deleted" || Boolean(animal.deleted_at);
   const isMissing = status === "missing";
+  const isRecovered = status === "recovered";
   const mainSrc = photoSrcs[Math.min(activePhoto, Math.max(0, photoSrcs.length - 1))] || null;
   const title = animal.name || animal.breed || animal.type_code || "Animal";
+  const ownerLabel = displayUser(owner) || owner?.email || owner?.id_number || "Owner";
+  const ownerProfileHref =
+    isPrivilegedRole(user?.role) && owner
+      ? staffProfilePath(
+          roleIs(user?.role, "admin") ? "/admin" : roleIs(user?.role, "cashier") ? "/cashier" : "/police",
+          owner,
+        )
+      : null;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -224,27 +252,40 @@ export default function UserLivestockDetailPage() {
 
                 {canMutate && !isDeleted ? (
                   <>
-                    <RippleButton
-                      className={`px-4 py-2 rounded-xl text-white text-sm disabled:opacity-60 ${
-                        isMissing
-                          ? "bg-emerald-600 hover:bg-emerald-700"
-                          : "bg-red-600 hover:bg-red-700"
-                      }`}
-                      onClick={() => void setStatus(isMissing ? "active" : "missing")}
-                      disabled={statusBusy}
-                    >
-                      {isMissing ? "Mark active" : "Mark missing"}
-                    </RippleButton>
-
-                    {status !== "recovered" ? (
+                    {isMissing ? (
+                      <>
+                        <RippleButton
+                          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm disabled:opacity-60"
+                          onClick={() => void setStatus("recovered")}
+                          disabled={statusBusy}
+                        >
+                          Mark recovered
+                        </RippleButton>
+                        <RippleButton
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
+                          onClick={() => void setStatus("active")}
+                          disabled={statusBusy}
+                        >
+                          Mark active
+                        </RippleButton>
+                      </>
+                    ) : isRecovered ? (
                       <RippleButton
-                        className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm disabled:opacity-60"
-                        onClick={() => void setStatus("recovered")}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
+                        onClick={() => void setStatus("active")}
                         disabled={statusBusy}
                       >
-                        Mark recovered
+                        Mark active
                       </RippleButton>
-                    ) : null}
+                    ) : (
+                      <RippleButton
+                        className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm disabled:opacity-60"
+                        onClick={() => void setStatus("missing")}
+                        disabled={statusBusy}
+                      >
+                        Mark missing
+                      </RippleButton>
+                    )}
 
                     <RippleButton
                       className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm disabled:opacity-60"
@@ -306,6 +347,36 @@ export default function UserLivestockDetailPage() {
               </div>
 
               <div className="lg:col-span-7 space-y-4">
+                {showOwnerDetails ? (
+                  <div className="rounded-3xl border border-amber-100 bg-amber-50/70 shadow-sm p-5">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-amber-800 mb-3">
+                      Owner
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Fact label="Name">
+                        {ownerProfileHref ? (
+                          <Link
+                            to={ownerProfileHref}
+                            className="text-iregistrygreen font-semibold hover:underline"
+                          >
+                            {ownerLabel}
+                          </Link>
+                        ) : (
+                          ownerLabel
+                        )}
+                      </Fact>
+                      {owner?.phone ? <Fact label="Phone">{owner.phone}</Fact> : null}
+                      {owner?.email ? <Fact label="Email">{owner.email}</Fact> : null}
+                      {owner?.id_number ? <Fact label="ID number">{owner.id_number}</Fact> : null}
+                      {owner?.village || owner?.ward ? (
+                        <Fact label="Location">
+                          {[owner.village, owner.ward].filter(Boolean).join(" · ") || "—"}
+                        </Fact>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">
                     Details
@@ -345,15 +416,17 @@ export default function UserLivestockDetailPage() {
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                       Brands
                     </div>
-                    <ul className="space-y-2 text-sm text-gray-800">
+                    <div className="flex flex-wrap gap-3">
                       {brands.map((b) => (
-                        <li key={b.id || `${b.characters}-${b.side}-${b.body_part}`}>
-                          <span className="font-semibold tracking-wide">{b.characters}</span>
-                          {" · "}
-                          {b.layout} · {b.side} {b.body_part}
-                        </li>
+                        <BrandMarkPreview
+                          key={b.id || `${b.characters}-${b.side}-${b.body_part}`}
+                          layout={b.layout || "horizontal"}
+                          characters={b.characters || ""}
+                          side={b.side}
+                          body_part={b.body_part}
+                        />
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 ) : null}
 
