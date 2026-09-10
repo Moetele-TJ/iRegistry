@@ -1042,7 +1042,7 @@ async function runStoreEmbedding(req: Request, session: Session, body: Record<st
     .select("id, owner_id")
     .eq("id", animalId)
     .maybeSingle();
-  if (!animal || animal.owner_id !== session.user_id) {
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
     return respond({ success: false, message: "Forbidden" }, corsHeaders, 403);
   }
 
@@ -1167,24 +1167,18 @@ async function runAddBrand(req: Request, session: Session, body: Record<string, 
     return respond({ success: false, message: "Maximum 4 brands" }, corsHeaders, 400);
   }
 
-  const characters = asString(body.characters).toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const char_count = characters.length === 4 ? 4 : 3;
-  if (characters.length < 3) {
-    return respond({ success: false, message: "Brand needs at least 3 characters" }, corsHeaders, 400);
+  const parsed = parseBrandPayload(body);
+  if ("error" in parsed) {
+    return respond({ success: false, message: parsed.error }, corsHeaders, 400);
   }
-  const layout = asString(body.layout) || (char_count === 4 ? "square" : "horizontal");
-  const side = asString(body.side) === "right" ? "right" : "left";
-  const body_part = ["shoulder", "thigh", "flank", "neck"].includes(asString(body.body_part))
-    ? asString(body.body_part)
-    : "shoulder";
 
   const { error } = await supabase.from("livestock_brands").insert({
     animal_id: id,
-    characters,
-    char_count,
-    layout,
-    side,
-    body_part,
+    characters: parsed.characters,
+    char_count: parsed.char_count,
+    layout: parsed.layout,
+    side: parsed.side,
+    body_part: parsed.body_part,
     sort_order: existingBrands.length,
   });
   if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
@@ -1218,6 +1212,244 @@ async function runAddEarTag(req: Request, session: Session, body: Record<string,
     side,
   });
   if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(id, { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+function parseBrandPayload(body: Record<string, unknown>) {
+  const characters = asString(body.characters).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const char_count = characters.length === 4 ? 4 : 3;
+  if (characters.length < 3) return { error: "Brand needs at least 3 characters" as const };
+  const layout = asString(body.layout) || (char_count === 4 ? "square" : "horizontal");
+  const side = asString(body.side) === "right" ? "right" : "left";
+  const body_part = ["shoulder", "thigh", "flank", "neck"].includes(asString(body.body_part))
+    ? asString(body.body_part)
+    : "shoulder";
+  return { characters, char_count, layout, side, body_part };
+}
+
+async function runUpdateBrand(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const brandId = asString(body.brand_id) || asString(body.id);
+  if (!brandId) return respond({ success: false, message: "brand_id is required" }, corsHeaders, 400);
+
+  const { data: brand } = await supabase
+    .from("livestock_brands")
+    .select("id, animal_id")
+    .eq("id", brandId)
+    .maybeSingle();
+  if (!brand) return respond({ success: false, message: "Brand not found" }, corsHeaders, 404);
+
+  const animal = await loadAnimalBundle(String(brand.animal_id), { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const parsed = parseBrandPayload(body);
+  if ("error" in parsed) {
+    return respond({ success: false, message: parsed.error }, corsHeaders, 400);
+  }
+
+  const { error } = await supabase
+    .from("livestock_brands")
+    .update({
+      characters: parsed.characters,
+      char_count: parsed.char_count,
+      layout: parsed.layout,
+      side: parsed.side,
+      body_part: parsed.body_part,
+    })
+    .eq("id", brandId);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(String(brand.animal_id), { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runDeleteBrand(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const brandId = asString(body.brand_id) || asString(body.id);
+  if (!brandId) return respond({ success: false, message: "brand_id is required" }, corsHeaders, 400);
+
+  const { data: brand } = await supabase
+    .from("livestock_brands")
+    .select("id, animal_id")
+    .eq("id", brandId)
+    .maybeSingle();
+  if (!brand) return respond({ success: false, message: "Brand not found" }, corsHeaders, 404);
+
+  const animal = await loadAnimalBundle(String(brand.animal_id), { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { error } = await supabase.from("livestock_brands").delete().eq("id", brandId);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(String(brand.animal_id), { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runUpdateEarTag(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const tagRowId = asString(body.ear_tag_id) || asString(body.id);
+  if (!tagRowId) return respond({ success: false, message: "ear_tag_id is required" }, corsHeaders, 400);
+
+  const { data: tag } = await supabase
+    .from("livestock_ear_tags")
+    .select("id, animal_id")
+    .eq("id", tagRowId)
+    .maybeSingle();
+  if (!tag) return respond({ success: false, message: "Ear tag not found" }, corsHeaders, 404);
+
+  const animal = await loadAnimalBundle(String(tag.animal_id), { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const tag_id = asString(body.tag_id);
+  if (!tag_id) return respond({ success: false, message: "tag_id is required" }, corsHeaders, 400);
+  const side = asString(body.side) === "right" ? "right" : "left";
+
+  const { error } = await supabase
+    .from("livestock_ear_tags")
+    .update({ tag_id, side })
+    .eq("id", tagRowId);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(String(tag.animal_id), { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runDeleteEarTag(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const tagRowId = asString(body.ear_tag_id) || asString(body.id);
+  if (!tagRowId) return respond({ success: false, message: "ear_tag_id is required" }, corsHeaders, 400);
+
+  const { data: tag } = await supabase
+    .from("livestock_ear_tags")
+    .select("id, animal_id")
+    .eq("id", tagRowId)
+    .maybeSingle();
+  if (!tag) return respond({ success: false, message: "Ear tag not found" }, corsHeaders, 404);
+
+  const animal = await loadAnimalBundle(String(tag.animal_id), { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { error } = await supabase.from("livestock_ear_tags").delete().eq("id", tagRowId);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(String(tag.animal_id), { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runAddPhotos(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const incoming = Array.isArray(body.photos) ? body.photos : [];
+  if (!incoming.length) {
+    return respond({ success: false, message: "photos are required" }, corsHeaders, 400);
+  }
+
+  const existing = Array.isArray(animal.photos) ? [...animal.photos] : [];
+  if (existing.length + incoming.length > 5) {
+    return respond({ success: false, message: "Maximum 5 photos" }, corsHeaders, 400);
+  }
+
+  const nextPhotos = [...existing];
+  for (const p of incoming) {
+    if (!p || typeof p !== "object") continue;
+    const row = p as Record<string, unknown>;
+    const original = asString(row.original) || asString(row.path);
+    if (!original) continue;
+    nextPhotos.push({
+      original,
+      thumb: asString(row.thumb) || original,
+      url: asString(row.url) || null,
+    });
+  }
+
+  if (nextPhotos.length === existing.length) {
+    return respond({ success: false, message: "No valid photos provided" }, corsHeaders, 400);
+  }
+
+  const { error } = await supabase
+    .from("livestock_animals")
+    .update({ photos: nextPhotos })
+    .eq("id", id);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(id, { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runDeletePhoto(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const photos = Array.isArray(animal.photos) ? [...animal.photos] : [];
+  if (!photos.length) {
+    return respond({ success: false, message: "No photos to delete" }, corsHeaders, 400);
+  }
+
+  const pathHint = normalizeStoragePhotoPath(asString(body.path) || asString(body.photo_path));
+  const indexHint = asFiniteNumber(body.index);
+  let removeAt = -1;
+  if (pathHint) {
+    removeAt = photos.findIndex((entry) => {
+      if (typeof entry === "string") return normalizeStoragePhotoPath(entry) === pathHint;
+      if (entry && typeof entry === "object") {
+        const o = entry as Record<string, unknown>;
+        const candidates = [o.original, o.thumb, o.path, o.url].map((v) => normalizeStoragePhotoPath(v));
+        return candidates.includes(pathHint);
+      }
+      return false;
+    });
+  } else if (indexHint != null && indexHint >= 0 && indexHint < photos.length) {
+    removeAt = Math.floor(indexHint);
+  }
+
+  if (removeAt < 0) {
+    return respond({ success: false, message: "Photo not found" }, corsHeaders, 404);
+  }
+
+  if (photos.length <= 1) {
+    return respond({ success: false, message: "Keep at least one photo" }, corsHeaders, 400);
+  }
+
+  const [removed] = photos.splice(removeAt, 1);
+  const removedPath =
+    typeof removed === "string"
+      ? normalizeStoragePhotoPath(removed)
+      : normalizeStoragePhotoPath(
+          (removed as Record<string, unknown>)?.original ||
+            (removed as Record<string, unknown>)?.thumb ||
+            (removed as Record<string, unknown>)?.path,
+        );
+
+  const { error } = await supabase.from("livestock_animals").update({ photos }).eq("id", id);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  if (removedPath) {
+    await supabase.from("livestock_image_embeddings").delete().eq("animal_id", id).eq("photo_path", removedPath);
+    await supabase.storage.from("item-photos").remove([removedPath]);
+  }
 
   const bundle = await loadAnimalBundle(id, { includeDeleted: true });
   return respond({ success: true, animal: bundle }, corsHeaders, 200);
@@ -1347,8 +1579,20 @@ serve(async (req) => {
         return await runUpdateMine(req, session!, body);
       case "livestock-add-brand":
         return await runAddBrand(req, session!, body);
+      case "livestock-update-brand":
+        return await runUpdateBrand(req, session!, body);
+      case "livestock-delete-brand":
+        return await runDeleteBrand(req, session!, body);
       case "livestock-add-ear-tag":
         return await runAddEarTag(req, session!, body);
+      case "livestock-update-ear-tag":
+        return await runUpdateEarTag(req, session!, body);
+      case "livestock-delete-ear-tag":
+        return await runDeleteEarTag(req, session!, body);
+      case "livestock-add-photos":
+        return await runAddPhotos(req, session!, body);
+      case "livestock-delete-photo":
+        return await runDeletePhoto(req, session!, body);
       case "livestock-add-vocab":
         return await runAddVocab(req, session!, body);
       default:

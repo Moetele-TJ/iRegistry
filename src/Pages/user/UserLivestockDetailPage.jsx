@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
@@ -12,8 +12,12 @@ import { isPrivilegedRole } from "../../lib/billingUx.js";
 import { roleIs } from "../../lib/roleUtils.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { staffProfilePath } from "../../lib/userProfilePath.js";
+import { putSignedUpload } from "../../lib/putSignedUpload.js";
+import { useModal } from "../../contexts/ModalContext.jsx";
 import { NAV } from "../../lib/navLabels.js";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const MAX_PHOTOS = 5;
 const FIELD_CLASS = "mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white";
 const EMPTY_BRAND = {
   characters: "",
@@ -80,11 +84,13 @@ export default function UserLivestockDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addToast } = useToast();
+  const { confirm } = useModal();
   const [animal, setAnimal] = useState(null);
   const [owner, setOwner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusBusy, setStatusBusy] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+  const photoInputRef = useRef(null);
 
   const [editing, setEditing] = useState(false);
   const [editBusy, setEditBusy] = useState(false);
@@ -98,12 +104,15 @@ export default function UserLivestockDetailPage() {
   });
 
   const [addingBrand, setAddingBrand] = useState(false);
+  const [editingBrandId, setEditingBrandId] = useState(null);
   const [brandDraft, setBrandDraft] = useState(EMPTY_BRAND);
   const [brandBusy, setBrandBusy] = useState(false);
 
   const [addingEarTag, setAddingEarTag] = useState(false);
+  const [editingEarTagId, setEditingEarTagId] = useState(null);
   const [earTagDraft, setEarTagDraft] = useState({ tag_id: "", side: "left" });
   const [earTagBusy, setEarTagBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const backPath = listBackPath(user?.role);
   const canMutate =
@@ -121,20 +130,27 @@ export default function UserLivestockDetailPage() {
   const earTags = Array.isArray(animal?.ear_tags) ? animal.ear_tags : [];
   const earMarks = Array.isArray(animal?.ear_marks) ? animal.ear_marks : [];
 
+  const softReload = useCallback(async () => {
+    const { data, error } = await invokeWithAuth("livestock-api", {
+      body: { operation: "livestock-get-mine", id: animalId },
+    });
+    if (error || !data?.success) {
+      throw new Error(data?.message || error?.message || "Failed to refresh");
+    }
+    setAnimal(data.animal);
+    setOwner(data.owner || null);
+    return data.animal;
+  }, [animalId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await invokeWithAuth("livestock-api", {
-        body: { operation: "livestock-get-mine", id: animalId },
-      });
-      if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Failed to load");
-      }
-      setAnimal(data.animal);
-      setOwner(data.owner || null);
+      await softReload();
       setActivePhoto(0);
       setAddingBrand(false);
+      setEditingBrandId(null);
       setAddingEarTag(false);
+      setEditingEarTagId(null);
       setEditing(false);
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed to load animal" });
@@ -143,7 +159,7 @@ export default function UserLivestockDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [addToast, animalId]);
+  }, [addToast, softReload]);
 
   useEffect(() => {
     void load();
@@ -243,27 +259,67 @@ export default function UserLivestockDetailPage() {
     setBrandBusy(true);
     try {
       const { data, error } = await invokeWithAuth("livestock-api", {
-        body: {
-          operation: "livestock-add-brand",
-          id: animal.id,
-          characters: brandDraft.characters,
-          layout: brandDraft.layout,
-          side: brandDraft.side,
-          body_part: brandDraft.body_part,
-        },
+        body: editingBrandId
+          ? {
+              operation: "livestock-update-brand",
+              brand_id: editingBrandId,
+              characters: brandDraft.characters,
+              layout: brandDraft.layout,
+              side: brandDraft.side,
+              body_part: brandDraft.body_part,
+            }
+          : {
+              operation: "livestock-add-brand",
+              id: animal.id,
+              characters: brandDraft.characters,
+              layout: brandDraft.layout,
+              side: brandDraft.side,
+              body_part: brandDraft.body_part,
+            },
       });
       if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Could not add brand");
+        throw new Error(data?.message || error?.message || "Could not save brand");
       }
-      setAnimal((a) => ({
-        ...a,
-        brands: data.animal?.brands || [],
-      }));
+      const wasEdit = Boolean(editingBrandId);
+      setAnimal((a) => ({ ...a, brands: data.animal?.brands || [] }));
       setBrandDraft(EMPTY_BRAND);
       setAddingBrand(false);
-      addToast({ type: "success", message: "Brand added." });
+      setEditingBrandId(null);
+      addToast({ type: "success", message: wasEdit ? "Brand updated." : "Brand added." });
     } catch (e) {
-      addToast({ type: "error", message: e?.message || "Could not add brand" });
+      addToast({ type: "error", message: e?.message || "Could not save brand" });
+    } finally {
+      setBrandBusy(false);
+    }
+  }
+
+  async function deleteBrand(brandId) {
+    if (!animal || !canMutate || !brandId) return;
+    const ok = await confirm({
+      title: "Delete brand?",
+      message: "This brand mark will be removed from the animal.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    setBrandBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-delete-brand", brand_id: brandId },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not delete brand");
+      }
+      setAnimal((a) => ({ ...a, brands: data.animal?.brands || [] }));
+      if (editingBrandId === brandId) {
+        setEditingBrandId(null);
+        setAddingBrand(false);
+        setBrandDraft(EMPTY_BRAND);
+      }
+      addToast({ type: "success", message: "Brand deleted." });
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Could not delete brand" });
     } finally {
       setBrandBusy(false);
     }
@@ -278,27 +334,164 @@ export default function UserLivestockDetailPage() {
     setEarTagBusy(true);
     try {
       const { data, error } = await invokeWithAuth("livestock-api", {
+        body: editingEarTagId
+          ? {
+              operation: "livestock-update-ear-tag",
+              ear_tag_id: editingEarTagId,
+              tag_id: earTagDraft.tag_id,
+              side: earTagDraft.side,
+            }
+          : {
+              operation: "livestock-add-ear-tag",
+              id: animal.id,
+              tag_id: earTagDraft.tag_id,
+              side: earTagDraft.side,
+            },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not save ear tag");
+      }
+      const wasEdit = Boolean(editingEarTagId);
+      setAnimal((a) => ({ ...a, ear_tags: data.animal?.ear_tags || [] }));
+      setEarTagDraft({ tag_id: "", side: "left" });
+      setAddingEarTag(false);
+      setEditingEarTagId(null);
+      addToast({ type: "success", message: wasEdit ? "Ear tag updated." : "Ear tag added." });
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Could not save ear tag" });
+    } finally {
+      setEarTagBusy(false);
+    }
+  }
+
+  async function deleteEarTag(earTagId) {
+    if (!animal || !canMutate || !earTagId) return;
+    const ok = await confirm({
+      title: "Delete ear tag?",
+      message: "This ear tag will be removed from the animal.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    setEarTagBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-delete-ear-tag", ear_tag_id: earTagId },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not delete ear tag");
+      }
+      setAnimal((a) => ({ ...a, ear_tags: data.animal?.ear_tags || [] }));
+      if (editingEarTagId === earTagId) {
+        setEditingEarTagId(null);
+        setAddingEarTag(false);
+        setEarTagDraft({ tag_id: "", side: "left" });
+      }
+      addToast({ type: "success", message: "Ear tag deleted." });
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Could not delete ear tag" });
+    } finally {
+      setEarTagBusy(false);
+    }
+  }
+
+  async function onAddPhotosSelected(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length || !animal || !canMutate) return;
+    const existingCount = Array.isArray(animal.photos) ? animal.photos.length : 0;
+    const room = MAX_PHOTOS - existingCount;
+    if (room <= 0) {
+      addToast({ type: "error", message: `Maximum ${MAX_PHOTOS} photos.` });
+      return;
+    }
+    const selected = files.slice(0, room);
+    setPhotoBusy(true);
+    try {
+      const signRes = await invokeWithAuth("livestock-api", {
         body: {
-          operation: "livestock-add-ear-tag",
+          operation: "livestock-sign-uploads",
+          files: selected.map((f) => ({ contentType: f.type || "image/jpeg" })),
+        },
+      });
+      if (signRes.error || !signRes.data?.success) {
+        throw new Error(signRes.data?.message || "Failed to prepare uploads");
+      }
+      const uploads = signRes.data.uploads || [];
+      const photos = [];
+      for (let i = 0; i < uploads.length; i++) {
+        const u = uploads[i];
+        const file = selected[i];
+        await putSignedUpload(u.signedUrl, file);
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/item-photos/${u.path}`;
+        photos.push({ original: u.path, thumb: u.path, url: publicUrl });
+      }
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-add-photos", id: animal.id, photos },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not save photos");
+      }
+      for (const p of photos) {
+        void invokeWithAuth("livestock-api", {
+          body: {
+            operation: "livestock-store-embedding",
+            animal_id: animal.id,
+            photo_path: p.original,
+            imageUrl: p.url,
+          },
+        });
+      }
+      await softReload();
+      addToast({ type: "success", message: photos.length === 1 ? "Photo added." : "Photos added." });
+    } catch (err) {
+      addToast({ type: "error", message: err?.message || "Could not add photos" });
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function deletePhotoAt(index) {
+    if (!animal || !canMutate) return;
+    const photos = Array.isArray(animal.photos) ? animal.photos : [];
+    if (photos.length <= 1) {
+      addToast({ type: "error", message: "Keep at least one photo." });
+      return;
+    }
+    const ok = await confirm({
+      title: "Delete photo?",
+      message: "This photo will be removed from the animal.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    setPhotoBusy(true);
+    try {
+      const entry = photos[index];
+      const path =
+        typeof entry === "string"
+          ? entry
+          : entry?.original || entry?.thumb || entry?.path || "";
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: {
+          operation: "livestock-delete-photo",
           id: animal.id,
-          tag_id: earTagDraft.tag_id,
-          side: earTagDraft.side,
+          path,
+          index,
         },
       });
       if (error || !data?.success) {
-        throw new Error(data?.message || error?.message || "Could not add ear tag");
+        throw new Error(data?.message || error?.message || "Could not delete photo");
       }
-      setAnimal((a) => ({
-        ...a,
-        ear_tags: data.animal?.ear_tags || [],
-      }));
-      setEarTagDraft({ tag_id: "", side: "left" });
-      setAddingEarTag(false);
-      addToast({ type: "success", message: "Ear tag added." });
+      await softReload();
+      setActivePhoto((i) => Math.max(0, Math.min(i, Math.max(0, (photos.length - 2)))));
+      addToast({ type: "success", message: "Photo deleted." });
     } catch (e) {
-      addToast({ type: "error", message: e?.message || "Could not add ear tag" });
+      addToast({ type: "error", message: e?.message || "Could not delete photo" });
     } finally {
-      setEarTagBusy(false);
+      setPhotoBusy(false);
     }
   }
 
@@ -522,33 +715,82 @@ export default function UserLivestockDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-5 space-y-4">
                 <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-4">
-                  <PanelHeader title="Photos" />
+                  <PanelHeader
+                    title="Photos"
+                    action={
+                      canMutate &&
+                      (Array.isArray(animal.photos) ? animal.photos.length : 0) < MAX_PHOTOS ? (
+                        <>
+                          <input
+                            ref={photoInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => void onAddPhotosSelected(e)}
+                          />
+                          <PlusButton
+                            label="Add photos"
+                            disabled={photoBusy}
+                            onClick={() => photoInputRef.current?.click()}
+                          />
+                        </>
+                      ) : null
+                    }
+                  />
                   <div className="relative w-full aspect-square rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden">
                     {mainSrc ? (
-                      <img src={mainSrc} alt="" className="w-full h-full object-cover" />
+                      <>
+                        <img src={mainSrc} alt="" className="w-full h-full object-cover" />
+                        {canMutate && photoSrcs.length > 1 ? (
+                          <button
+                            type="button"
+                            disabled={photoBusy}
+                            onClick={() => void deletePhotoAt(activePhoto)}
+                            className="absolute top-2 right-2 rounded-lg bg-red-600/90 px-2 py-1 text-xs font-semibold text-white shadow disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        ) : null}
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
                         No photos
                       </div>
                     )}
                   </div>
-                  {photoSrcs.length > 1 ? (
+                  {photoSrcs.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {photoSrcs.map((src, i) => (
-                        <button
-                          key={src + i}
-                          type="button"
-                          onClick={() => setActivePhoto(i)}
-                          className={`w-14 h-14 rounded-xl overflow-hidden border-2 ${
-                            i === activePhoto
-                              ? "border-iregistrygreen"
-                              : "border-gray-200"
-                          }`}
-                        >
-                          <img src={src} alt="" className="w-full h-full object-cover" />
-                        </button>
+                        <div key={src + i} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActivePhoto(i)}
+                            className={`w-14 h-14 rounded-xl overflow-hidden border-2 block ${
+                              i === activePhoto
+                                ? "border-iregistrygreen"
+                                : "border-gray-200"
+                            }`}
+                          >
+                            <img src={src} alt="" className="w-full h-full object-cover" />
+                          </button>
+                          {canMutate && photoSrcs.length > 1 ? (
+                            <button
+                              type="button"
+                              title="Delete photo"
+                              disabled={photoBusy}
+                              onClick={() => void deletePhotoAt(i)}
+                              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white text-xs leading-none disabled:opacity-50"
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
+                  ) : null}
+                  {photoBusy ? (
+                    <p className="mt-2 text-xs text-gray-500">Updating photos…</p>
                   ) : null}
                 </div>
               </div>
@@ -686,10 +928,11 @@ export default function UserLivestockDetailPage() {
                     <PanelHeader
                       title="Brands"
                       action={
-                        canAddBrand && !addingBrand ? (
+                        canAddBrand && !addingBrand && !editingBrandId ? (
                           <PlusButton
                             label="Add brand"
                             onClick={() => {
+                              setEditingBrandId(null);
                               setBrandDraft(EMPTY_BRAND);
                               setAddingBrand(true);
                             }}
@@ -700,21 +943,57 @@ export default function UserLivestockDetailPage() {
                     {brands.length ? (
                       <div className="flex flex-wrap gap-3">
                         {brands.map((b) => (
-                          <BrandMarkPreview
+                          <div
                             key={b.id || `${b.characters}-${b.side}-${b.body_part}`}
-                            layout={b.layout || "horizontal"}
-                            characters={b.characters || ""}
-                            side={b.side}
-                            body_part={b.body_part}
-                          />
+                            className="flex flex-col items-center gap-1.5"
+                          >
+                            <BrandMarkPreview
+                              layout={b.layout || "horizontal"}
+                              characters={b.characters || ""}
+                              side={b.side}
+                              body_part={b.body_part}
+                            />
+                            {canMutate && b.id ? (
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  className="text-xs text-iregistrygreen hover:underline"
+                                  disabled={brandBusy}
+                                  onClick={() => {
+                                    setAddingBrand(false);
+                                    setEditingBrandId(b.id);
+                                    setBrandDraft({
+                                      characters: b.characters || "",
+                                      layout: b.layout || "horizontal",
+                                      side: b.side || "left",
+                                      body_part: b.body_part || "shoulder",
+                                    });
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs text-red-600 hover:underline"
+                                  disabled={brandBusy}
+                                  onClick={() => void deleteBrand(b.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
-                    ) : !addingBrand ? (
+                    ) : !addingBrand && !editingBrandId ? (
                       <p className="text-sm text-gray-500">No brands yet.</p>
                     ) : null}
 
-                    {addingBrand ? (
+                    {addingBrand || editingBrandId ? (
                       <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                          {editingBrandId ? "Edit brand" : "New brand"}
+                        </div>
                         <BrandOrientationField
                           layout={brandDraft.layout}
                           characters={brandDraft.characters}
@@ -737,6 +1016,7 @@ export default function UserLivestockDetailPage() {
                             className="px-3 py-1.5 rounded-xl border bg-white text-sm"
                             onClick={() => {
                               setAddingBrand(false);
+                              setEditingBrandId(null);
                               setBrandDraft(EMPTY_BRAND);
                             }}
                             disabled={brandBusy}
@@ -749,7 +1029,7 @@ export default function UserLivestockDetailPage() {
                             onClick={() => void saveBrand()}
                             disabled={brandBusy}
                           >
-                            {brandBusy ? "Saving…" : "Save brand"}
+                            {brandBusy ? "Saving…" : editingBrandId ? "Save changes" : "Save brand"}
                           </RippleButton>
                         </div>
                       </div>
@@ -761,10 +1041,11 @@ export default function UserLivestockDetailPage() {
                   <PanelHeader
                     title="Ear tags"
                     action={
-                      canAddEarTag && !addingEarTag ? (
+                      canAddEarTag && !addingEarTag && !editingEarTagId ? (
                         <PlusButton
                           label="Add ear tag"
                           onClick={() => {
+                            setEditingEarTagId(null);
                             setEarTagDraft({ tag_id: "", side: "left" });
                             setAddingEarTag(true);
                           }}
@@ -773,19 +1054,54 @@ export default function UserLivestockDetailPage() {
                     }
                   />
                   {earTags.length ? (
-                    <ul className="space-y-1 text-sm text-gray-800">
+                    <ul className="space-y-2 text-sm text-gray-800">
                       {earTags.map((t) => (
-                        <li key={t.id || t.tag_id}>
-                          {t.tag_id} ({t.side})
+                        <li
+                          key={t.id || t.tag_id}
+                          className="flex flex-wrap items-center justify-between gap-2"
+                        >
+                          <span>
+                            {t.tag_id} ({t.side})
+                          </span>
+                          {canMutate && t.id ? (
+                            <span className="flex gap-2">
+                              <button
+                                type="button"
+                                className="text-xs text-iregistrygreen hover:underline"
+                                disabled={earTagBusy}
+                                onClick={() => {
+                                  setAddingEarTag(false);
+                                  setEditingEarTagId(t.id);
+                                  setEarTagDraft({
+                                    tag_id: t.tag_id || "",
+                                    side: t.side || "left",
+                                  });
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 hover:underline"
+                                disabled={earTagBusy}
+                                onClick={() => void deleteEarTag(t.id)}
+                              >
+                                Delete
+                              </button>
+                            </span>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
-                  ) : !addingEarTag ? (
+                  ) : !addingEarTag && !editingEarTagId ? (
                     <p className="text-sm text-gray-500">No ear tags yet.</p>
                   ) : null}
 
-                  {addingEarTag ? (
+                  {addingEarTag || editingEarTagId ? (
                     <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 space-y-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                        {editingEarTagId ? "Edit ear tag" : "New ear tag"}
+                      </div>
                       <div className="flex gap-2 items-center min-w-0">
                         <input
                           className="min-w-0 flex-1 border rounded-xl px-3 py-2 text-sm bg-white"
@@ -812,6 +1128,7 @@ export default function UserLivestockDetailPage() {
                           className="px-3 py-1.5 rounded-xl border bg-white text-sm"
                           onClick={() => {
                             setAddingEarTag(false);
+                            setEditingEarTagId(null);
                             setEarTagDraft({ tag_id: "", side: "left" });
                           }}
                           disabled={earTagBusy}
@@ -824,7 +1141,7 @@ export default function UserLivestockDetailPage() {
                           onClick={() => void saveEarTag()}
                           disabled={earTagBusy}
                         >
-                          {earTagBusy ? "Saving…" : "Save tag"}
+                          {earTagBusy ? "Saving…" : editingEarTagId ? "Save changes" : "Save tag"}
                         </RippleButton>
                       </div>
                     </div>
