@@ -312,7 +312,7 @@ export default function UserLivestockDetailPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-5 space-y-4">
-                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-4">
+                <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-4">
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                     Photos
                   </div>
@@ -348,7 +348,7 @@ export default function UserLivestockDetailPage() {
 
               <div className="lg:col-span-7 space-y-4">
                 {showOwnerDetails ? (
-                  <div className="rounded-3xl border border-amber-100 bg-amber-50/70 shadow-sm p-5">
+                  <div className="rounded-3xl border border-amber-100 bg-amber-50/70 shadow-md shadow-amber-100/80 p-5">
                     <div className="text-xs font-semibold uppercase tracking-wide text-amber-800 mb-3">
                       Owner
                     </div>
@@ -377,7 +377,7 @@ export default function UserLivestockDetailPage() {
                   </div>
                 ) : null}
 
-                <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">
                     Details
                   </div>
@@ -412,7 +412,7 @@ export default function UserLivestockDetailPage() {
                 </div>
 
                 {brands.length ? (
-                  <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                  <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                       Brands
                     </div>
@@ -431,7 +431,7 @@ export default function UserLivestockDetailPage() {
                 ) : null}
 
                 {earTags.length ? (
-                  <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                  <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                       Ear tags
                     </div>
@@ -446,7 +446,7 @@ export default function UserLivestockDetailPage() {
                 ) : null}
 
                 {earMarks.length ? (
-                  <div className="rounded-3xl border border-gray-100 bg-white shadow-sm p-5">
+                  <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
                       Ear marks
                     </div>
