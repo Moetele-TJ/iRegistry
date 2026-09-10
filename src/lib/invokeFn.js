@@ -2,6 +2,7 @@
 import { supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import { getAuthHeaders } from "./authHeaders";
 import { emitSessionInvalidated, emitSessionTokenRefreshed } from "./sessionEvents";
+import { loginHrefWithReturn } from "./postLoginRedirect.js";
 
 /**
  * Invoke a Supabase edge function via fetch (reliable on mobile browsers).
@@ -141,7 +142,7 @@ export async function invokeFn(name, options = {}, { withAuth = true } = {}) {
     localStorage.removeItem("session");
     emitSessionInvalidated();
     if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
+      window.location.href = loginHrefWithReturn();
     }
     return { data: null, error };
   }

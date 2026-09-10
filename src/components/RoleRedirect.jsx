@@ -2,6 +2,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { normalizeRole } from "../lib/roleUtils.js";
+import { loginHrefWithReturn } from "../lib/postLoginRedirect.js";
 
 export default function RoleRedirect() {
   const { user, loading } = useAuth();
@@ -16,15 +17,10 @@ export default function RoleRedirect() {
     );
   }
 
-  // NOT logged in → go to login
+  // NOT logged in → go to login (keep return path)
   if (!user) {
     const redirect = `${location.pathname}${location.search}${location.hash}`;
-    return (
-      <Navigate
-        to={`/login?redirect=${encodeURIComponent(redirect)}`}
-        replace
-      />
-    );
+    return <Navigate to={loginHrefWithReturn(redirect)} replace />;
   }
 
   // Logged in → route by role (case-insensitive)

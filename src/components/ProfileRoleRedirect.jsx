@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Spinner from "./Spinner.jsx";
 import { roleIs } from "../lib/roleUtils.js";
+import { loginHrefWithReturn } from "../lib/postLoginRedirect.js";
 
 /** Sends /profile to the dashboard-scoped profile URL so layout sidebars stay correct. */
 export default function ProfileRoleRedirect() {
@@ -12,7 +13,8 @@ export default function ProfileRoleRedirect() {
   }
   const role = user?.role;
   if (!role) {
-    return <Navigate to="/login" replace />;
+    const redirect = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={loginHrefWithReturn(redirect)} replace />;
   }
   const target = roleIs(role, "admin")
     ? "/admin/profile"

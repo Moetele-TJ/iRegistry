@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import Spinner from "./Spinner";
 import { normalizeRole } from "../lib/roleUtils.js";
+import { loginHrefWithReturn } from "../lib/postLoginRedirect.js";
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -17,12 +18,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   if (!user || !user.role || !hasToken) {
     const redirect = `${location.pathname}${location.search}${location.hash}`;
-    return (
-      <Navigate
-        to={`/login?redirect=${encodeURIComponent(redirect)}`}
-        replace
-      />
-    );
+    return <Navigate to={loginHrefWithReturn(redirect)} replace />;
   }
 
   if (allowedRoles?.length) {

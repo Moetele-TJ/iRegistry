@@ -4,6 +4,7 @@ import { invokeFn } from "../lib/invokeFn";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { markPostLoginWelcome } from "../lib/firstItemOnboarding.js";
+import { resolvePostLoginTarget } from "../lib/postLoginRedirect.js";
 
 function getDeviceId() {
   try {
@@ -78,18 +79,7 @@ export default function Login() {
   }
 
   function getPostLoginTarget() {
-    const redirect = searchParams.get("redirect");
-    const serial = searchParams.get("serial");
-    if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) {
-      return null;
-    }
-    try {
-      const url = new URL(redirect, window.location.origin);
-      if (serial) url.searchParams.set("serial", serial);
-      return `${url.pathname}${url.search}${url.hash}`;
-    } catch {
-      return null;
-    }
+    return resolvePostLoginTarget(searchParams);
   }
 
   // 🔥 AUTO VERIFY WHEN 6 DIGITS ENTERED
