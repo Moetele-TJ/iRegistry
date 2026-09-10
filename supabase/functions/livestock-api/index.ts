@@ -349,7 +349,26 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
     owner = ownerRow || null;
   }
 
-  return respond({ success: true, animal: { ...animal, signed_photos }, owner }, corsHeaders, 200);
+  const { data: typeRow } = await supabase
+    .from("livestock_types")
+    .select("code, label, brand_bearing")
+    .eq("code", animal.type_code)
+    .maybeSingle();
+
+  return respond(
+    {
+      success: true,
+      animal: {
+        ...animal,
+        signed_photos,
+        brand_bearing: Boolean(typeRow?.brand_bearing),
+        type_label: typeRow?.label || animal.type_code,
+      },
+      owner,
+    },
+    corsHeaders,
+    200,
+  );
 }
 
 async function runRegister(req: Request, session: Session, body: Record<string, unknown>) {
@@ -1086,6 +1105,124 @@ async function runSetStatus(req: Request, session: Session, body: Record<string,
   return respond({ success: true, animal: updated }, corsHeaders, 200);
 }
 
+async function runUpdateMine(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const { data: existing } = await supabase
+    .from("livestock_animals")
+    .select("id, owner_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing || !canAccessAnimal(session, String(existing.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const patch: Record<string, unknown> = {};
+  if ("name" in body) patch.name = asString(body.name) || null;
+  if ("breed" in body) patch.breed = asString(body.breed) || null;
+  if ("colour" in body) patch.colour = asString(body.colour) || null;
+  if ("gender" in body) {
+    const g = asString(body.gender).toLowerCase();
+    patch.gender = ["male", "female", "unknown"].includes(g) ? g : "unknown";
+  }
+  if ("zone_brand" in body) patch.zone_brand = asString(body.zone_brand) || null;
+  if ("dwelling_village" in body) patch.dwelling_village = asString(body.dwelling_village) || null;
+  if ("dwelling_lat" in body) patch.dwelling_lat = asFiniteNumber(body.dwelling_lat);
+  if ("dwelling_lng" in body) patch.dwelling_lng = asFiniteNumber(body.dwelling_lng);
+
+  if (!Object.keys(patch).length) {
+    return respond({ success: false, message: "No fields to update" }, corsHeaders, 400);
+  }
+
+  const { error } = await supabase.from("livestock_animals").update(patch).eq("id", id);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  return respond({ success: true, animal }, corsHeaders, 200);
+}
+
+async function runAddBrand(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { data: typeRow } = await supabase
+    .from("livestock_types")
+    .select("brand_bearing")
+    .eq("code", animal.type_code)
+    .maybeSingle();
+  if (!typeRow?.brand_bearing) {
+    return respond({ success: false, message: "This animal type does not use brands" }, corsHeaders, 400);
+  }
+
+  const existingBrands = Array.isArray(animal.brands) ? animal.brands : [];
+  if (existingBrands.length >= 4) {
+    return respond({ success: false, message: "Maximum 4 brands" }, corsHeaders, 400);
+  }
+
+  const characters = asString(body.characters).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const char_count = characters.length === 4 ? 4 : 3;
+  if (characters.length < 3) {
+    return respond({ success: false, message: "Brand needs at least 3 characters" }, corsHeaders, 400);
+  }
+  const layout = asString(body.layout) || (char_count === 4 ? "square" : "horizontal");
+  const side = asString(body.side) === "right" ? "right" : "left";
+  const body_part = ["shoulder", "thigh", "flank", "neck"].includes(asString(body.body_part))
+    ? asString(body.body_part)
+    : "shoulder";
+
+  const { error } = await supabase.from("livestock_brands").insert({
+    animal_id: id,
+    characters,
+    char_count,
+    layout,
+    side,
+    body_part,
+    sort_order: existingBrands.length,
+  });
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(id, { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runAddEarTag(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const existingTags = Array.isArray(animal.ear_tags) ? animal.ear_tags : [];
+  if (existingTags.length >= 2) {
+    return respond({ success: false, message: "Maximum 2 ear tags" }, corsHeaders, 400);
+  }
+
+  const tag_id = asString(body.tag_id);
+  if (!tag_id) return respond({ success: false, message: "tag_id is required" }, corsHeaders, 400);
+  const side = asString(body.side) === "right" ? "right" : "left";
+
+  const { error } = await supabase.from("livestock_ear_tags").insert({
+    animal_id: id,
+    tag_id,
+    side,
+  });
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(id, { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
 async function runAddVocab(req: Request, session: Session, body: Record<string, unknown>) {
   const corsHeaders = getCorsHeaders(req);
   const kind = asString(body.kind); // colour | ear_mark | type
@@ -1206,6 +1343,12 @@ serve(async (req) => {
         return await runStoreEmbedding(req, session!, body);
       case "livestock-set-status":
         return await runSetStatus(req, session!, body);
+      case "livestock-update-mine":
+        return await runUpdateMine(req, session!, body);
+      case "livestock-add-brand":
+        return await runAddBrand(req, session!, body);
+      case "livestock-add-ear-tag":
+        return await runAddEarTag(req, session!, body);
       case "livestock-add-vocab":
         return await runAddVocab(req, session!, body);
       default:
