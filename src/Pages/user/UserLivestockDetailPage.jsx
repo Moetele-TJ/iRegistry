@@ -15,6 +15,7 @@ import { staffProfilePath } from "../../lib/userProfilePath.js";
 import { putSignedUpload } from "../../lib/putSignedUpload.js";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { NAV } from "../../lib/navLabels.js";
+import { Pencil, Trash2 } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const MAX_PHOTOS = 5;
@@ -759,7 +760,7 @@ export default function UserLivestockDetailPage() {
                       </div>
                     )}
                   </div>
-                  {photoSrcs.length > 0 ? (
+                  {photoSrcs.length > 1 ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {photoSrcs.map((src, i) => (
                         <div key={src + i} className="relative">
@@ -774,7 +775,7 @@ export default function UserLivestockDetailPage() {
                           >
                             <img src={src} alt="" className="w-full h-full object-cover" />
                           </button>
-                          {canMutate && photoSrcs.length > 1 ? (
+                          {canMutate ? (
                             <button
                               type="button"
                               title="Delete photo"
@@ -954,10 +955,12 @@ export default function UserLivestockDetailPage() {
                               body_part={b.body_part}
                             />
                             {canMutate && b.id ? (
-                              <div className="flex gap-2">
+                              <div className="flex gap-1.5">
                                 <button
                                   type="button"
-                                  className="text-xs text-iregistrygreen hover:underline"
+                                  title="Edit brand"
+                                  aria-label="Edit brand"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-iregistrygreen hover:bg-emerald-100 disabled:opacity-50"
                                   disabled={brandBusy}
                                   onClick={() => {
                                     setAddingBrand(false);
@@ -970,15 +973,17 @@ export default function UserLivestockDetailPage() {
                                     });
                                   }}
                                 >
-                                  Edit
+                                  <Pencil className="h-3.5 w-3.5" />
                                 </button>
                                 <button
                                   type="button"
-                                  className="text-xs text-red-600 hover:underline"
+                                  title="Delete brand"
+                                  aria-label="Delete brand"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
                                   disabled={brandBusy}
                                   onClick={() => void deleteBrand(b.id)}
                                 >
-                                  Delete
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
                             ) : null}
@@ -1064,10 +1069,12 @@ export default function UserLivestockDetailPage() {
                             {t.tag_id} ({t.side})
                           </span>
                           {canMutate && t.id ? (
-                            <span className="flex gap-2">
+                            <span className="flex gap-1.5">
                               <button
                                 type="button"
-                                className="text-xs text-iregistrygreen hover:underline"
+                                title="Edit ear tag"
+                                aria-label="Edit ear tag"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-iregistrygreen hover:bg-emerald-100 disabled:opacity-50"
                                 disabled={earTagBusy}
                                 onClick={() => {
                                   setAddingEarTag(false);
@@ -1078,15 +1085,17 @@ export default function UserLivestockDetailPage() {
                                   });
                                 }}
                               >
-                                Edit
+                                <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 type="button"
-                                className="text-xs text-red-600 hover:underline"
+                                title="Delete ear tag"
+                                aria-label="Delete ear tag"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
                                 disabled={earTagBusy}
                                 onClick={() => void deleteEarTag(t.id)}
                               >
-                                Delete
+                                <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </span>
                           ) : null}
