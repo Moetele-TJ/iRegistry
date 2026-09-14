@@ -51,6 +51,8 @@ export default function VerificationPanel({
   const resultRef = useRef(null);
   const autoCaptureRef = useRef(null);
   const lastFrameRef = useRef(null);
+  const itemsTabRef = useRef(null);
+  const livestockTabRef = useRef(null);
 
   // Context/Navigation
   const { user } = useAuth();
@@ -143,6 +145,25 @@ export default function VerificationPanel({
   // Handlers
   function handleVerify() {
     verify(serial);
+  }
+
+  function focusVerifyTab(tab) {
+    const el = tab === "livestock" ? livestockTabRef.current : itemsTabRef.current;
+    el?.focus();
+  }
+
+  function handleVerifyTabKeyDown(e) {
+    const order = ["items", "livestock"];
+    const idx = order.indexOf(verifyTab);
+    let next = null;
+    if (e.key === "ArrowRight") next = order[(idx + 1) % order.length];
+    else if (e.key === "ArrowLeft") next = order[(idx - 1 + order.length) % order.length];
+    else if (e.key === "Home") next = order[0];
+    else if (e.key === "End") next = order[order.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    setVerifyTab(next);
+    focusVerifyTab(next);
   }
 
   async function openCamera() {
@@ -289,13 +310,24 @@ export default function VerificationPanel({
         Check registered items, or identify livestock from a photo, ear tag, or brand.
       </div>
 
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div
+        role="tablist"
+        aria-label="Verification type"
+        className="flex gap-1 border-b border-gray-200 mb-5"
+        onKeyDown={handleVerifyTabKeyDown}
+      >
         <button
           type="button"
-          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+          role="tab"
+          id="verification-tab-items"
+          ref={itemsTabRef}
+          aria-selected={verifyTab === "items"}
+          aria-controls="verification-panel-items"
+          tabIndex={verifyTab === "items" ? 0 : -1}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
             verifyTab === "items"
-              ? "bg-iregistrygreen text-white border-iregistrygreen"
-              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+              ? "border-iregistrygreen text-iregistrygreen"
+              : "border-transparent text-gray-500 hover:text-gray-800"
           }`}
           onClick={() => setVerifyTab("items")}
         >
@@ -303,10 +335,16 @@ export default function VerificationPanel({
         </button>
         <button
           type="button"
-          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+          role="tab"
+          id="verification-tab-livestock"
+          ref={livestockTabRef}
+          aria-selected={verifyTab === "livestock"}
+          aria-controls="verification-panel-livestock"
+          tabIndex={verifyTab === "livestock" ? 0 : -1}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
             verifyTab === "livestock"
-              ? "bg-iregistrygreen text-white border-iregistrygreen"
-              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+              ? "border-iregistrygreen text-iregistrygreen"
+              : "border-transparent text-gray-500 hover:text-gray-800"
           }`}
           onClick={() => setVerifyTab("livestock")}
         >
@@ -315,9 +353,19 @@ export default function VerificationPanel({
       </div>
 
       {verifyTab === "livestock" ? (
-        <LivestockIdentifyPanel />
+        <div
+          role="tabpanel"
+          id="verification-panel-livestock"
+          aria-labelledby="verification-tab-livestock"
+        >
+          <LivestockIdentifyPanel />
+        </div>
       ) : (
-      <>
+      <div
+        role="tabpanel"
+        id="verification-panel-items"
+        aria-labelledby="verification-tab-items"
+      >
       <div className="text-sm text-gray-500 mb-4">
         🔎 Quick Safety Check — check the item&apos;s serial number before buying to ensure it is not stolen.
       </div>
@@ -717,7 +765,7 @@ export default function VerificationPanel({
       <div className="text-xs text-gray-400 text-center">
         Verifying an item protects you from buying stolen property and helps owners recover lost items.
       </div>
-      </>
+      </div>
       )}
     </div>
   );
