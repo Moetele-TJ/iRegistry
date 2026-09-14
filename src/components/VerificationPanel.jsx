@@ -23,18 +23,17 @@ import { attachBillingToError, willTransferRequestChargeRequester } from "../lib
 import { useBillingErrorMessage } from "../hooks/useBillingErrorMessage.js";
 import BillingCostBanner from "./BillingCostBanner.jsx";
 import LivestockIdentifyPanel from "./LivestockIdentifyPanel.jsx";
+import { searchParamsWithVerifyTab, verifyTabFromSearch } from "../lib/verifyTab.js";
 
-export default function VerificationPanel({
-  verifyTab: controlledTab,
-  onVerifyTabChange,
-} = {}) {
+export default function VerificationPanel() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const verifyTab = verifyTabFromSearch(searchParams);
+
+  function setVerifyTab(tab) {
+    setSearchParams(searchParamsWithVerifyTab(searchParams, tab), { replace: true });
+  }
+
   // State
-  const [internalTab, setInternalTab] = useState("items"); // items | livestock
-  const verifyTab = controlledTab ?? internalTab;
-  const setVerifyTab = (tab) => {
-    if (typeof onVerifyTabChange === "function") onVerifyTabChange(tab);
-    if (controlledTab === undefined) setInternalTab(tab);
-  };
   const [serial, setSerial] = useState("");
   const [action, setAction] = useState(null);
   const [message, setMessage] = useState("");
@@ -60,7 +59,6 @@ export default function VerificationPanel({
   const { addToast } = useToast();
   const navigate = useNavigate();
   const formatBilling = useBillingErrorMessage();
-  const [searchParams] = useSearchParams();
 
   function goToLoginForTransfer() {
     const params = new URLSearchParams();

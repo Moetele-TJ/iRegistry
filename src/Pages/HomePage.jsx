@@ -1,6 +1,6 @@
 // src/Pages/HomePage.jsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import RippleButton from "../components/RippleButton.jsx";
 import VerificationPanel from "../components/VerificationPanel.jsx";
 import HomeContactCard from "../components/HomeContactCard.jsx";
@@ -12,6 +12,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useDashboard } from "../hooks/useDashboard.js";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 import { roleIs } from "../lib/roleUtils.js";
+import { verifyTabFromSearch } from "../lib/verifyTab.js";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -72,6 +73,8 @@ function yAxisTicksForMax(maxValue) {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const verifyDomain = verifyTabFromSearch(searchParams);
   const { stats, initialLoading, refreshing, lastUpdated } = usePublicStats();
 
   const itemTimelineData = useMemo(
@@ -89,17 +92,16 @@ export default function HomePage() {
     [stats?.dailyAnimalTrend],
   );
 
-  const [verifyDomain, setVerifyDomain] = useState("items"); // items | livestock
-  const [trendMetric, setTrendMetric] = useState("items"); // items | animals | users
+  const [trendMetric, setTrendMetric] = useState(() =>
+    verifyDomain === "livestock" ? "animals" : "items",
+  ); // items | animals | users
 
-  function handleVerifyDomainChange(tab) {
-    setVerifyDomain(tab);
-    if (tab === "livestock") {
-      setTrendMetric((m) => (m === "items" ? "animals" : m));
-    } else {
-      setTrendMetric((m) => (m === "animals" ? "items" : m));
-    }
-  }
+  useEffect(() => {
+    setTrendMetric((m) => {
+      if (verifyDomain === "livestock") return m === "items" ? "animals" : m;
+      return m === "animals" ? "items" : m;
+    });
+  }, [verifyDomain]);
 
   const activityChart = useMemo(() => {
     const daily =
@@ -385,10 +387,7 @@ export default function HomePage() {
           </div>
         ) : null}
 
-        <VerificationPanel
-          verifyTab={verifyDomain}
-          onVerifyTabChange={handleVerifyDomainChange}
-        />
+        <VerificationPanel />
 
         {/* STAT CARDS */}
         <div
