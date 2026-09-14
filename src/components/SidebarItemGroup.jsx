@@ -235,6 +235,7 @@ export default function SidebarItemGroup({
       <div
         ref={anchorRef}
         className="relative"
+        data-sidebar-current={groupPathActive ? "true" : undefined}
         onMouseEnter={enterZone}
         onMouseLeave={leaveZone}
       >

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import SidebarItem from "./SidebarItem";
 import SidebarItemGroup from "./SidebarItemGroup";
 import { useLocation } from "react-router-dom";
@@ -8,6 +8,18 @@ const SIDEBAR_EXPAND_MS = 320;
 /** Slower ease-out when collapsing so the rail doesn’t feel like it snaps shut */
 const SIDEBAR_COLLAPSE_MS = 520;
 const ASIDE_LEAVE_DELAY_MS = 180;
+
+function scrollNavChildIntoView(nav, el) {
+  if (!nav || !el || !nav.contains(el)) return;
+  const navRect = nav.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const pad = 12;
+  if (elRect.top < navRect.top + pad) {
+    nav.scrollTop += elRect.top - navRect.top - pad;
+  } else if (elRect.bottom > navRect.bottom - pad) {
+    nav.scrollTop += elRect.bottom - navRect.bottom + pad;
+  }
+}
 
 export default function AppSidebar({ sidebar }) {
   /** Drives aside `width` only — can animate while labels stay visible during collapse */
@@ -30,6 +42,7 @@ export default function AppSidebar({ sidebar }) {
   const touchMode = !canHover;
 
   const asideRef = useRef(null);
+  const navRef = useRef(null);
   const flyoutOpenKeysRef = useRef(new Set());
   const expandFallbackTimer = useRef(null);
   const collapseContentTimer = useRef(null);
@@ -133,6 +146,19 @@ export default function AppSidebar({ sidebar }) {
     flyoutOpenKeysRef.current.clear();
     clearAsideLeaveTimer();
   }, [location.pathname, clearAsideLeaveTimer]);
+
+  useLayoutEffect(() => {
+    if (!visible) return;
+    const nav = navRef.current;
+    if (!nav) return;
+    const current = nav.querySelector("[data-sidebar-current='true']");
+    if (!current) return;
+
+    const run = () => scrollNavChildIntoView(nav, current);
+    run();
+    const frame = window.requestAnimationFrame(run);
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname, visible, railExpanded, expandAnimationComplete, items, sections]);
 
   const anyFlyoutOpen = useCallback(() => flyoutOpenKeysRef.current.size > 0, []);
 
@@ -291,6 +317,7 @@ export default function AppSidebar({ sidebar }) {
       onMouseLeave={handleAsideMouseLeave}
     >
       <nav
+        ref={navRef}
         className="app-sidebar-nav max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))] overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
         aria-label="Main navigation"
       >

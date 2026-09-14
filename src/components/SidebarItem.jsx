@@ -1,6 +1,14 @@
 // src/components/SidebarItem.jsx
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { isExactNavPath } from "../lib/navMatch.js";
+
+function isSidebarItemActive(pathname, to, end) {
+  if (!to) return false;
+  if (end) return isExactNavPath(pathname, to);
+  const path = String(pathname || "").replace(/\/+$/, "") || "/";
+  const target = String(to).replace(/\/+$/, "") || "/";
+  return path === target || path.startsWith(`${target}/`);
+}
 
 function sidebarItemClass(expanded, isActive) {
   const base =
@@ -54,6 +62,9 @@ export default function SidebarItem({
   touchMode,
   onTouchExpand,
 }) {
+  const location = useLocation();
+  const isCurrent = !onClick && isSidebarItemActive(location.pathname, to, end);
+
   if (onClick) {
     return (
       <button
@@ -85,9 +96,10 @@ export default function SidebarItem({
     <NavLink
       to={to}
       end={end}
+      data-sidebar-current={isCurrent ? "true" : undefined}
       isActive={
         end
-          ? (_api, location) => isExactNavPath(location.pathname, to)
+          ? (_api, loc) => isExactNavPath(loc.pathname, to)
           : undefined
       }
       onClick={(e) => {
