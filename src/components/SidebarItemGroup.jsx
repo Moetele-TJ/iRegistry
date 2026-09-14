@@ -9,6 +9,35 @@ const SUBMENU_ENTER_MS = 480;
 const SUBMENU_EXIT_MS = 420;
 /** Slightly larger travel so motion is visible (was 6px) */
 const SUBMENU_SLIDE_PX = 14;
+const VIEW_PAD = 8;
+const SUBITEM_ROW_H = 42;
+
+function readCssPx(name, fallback = 0) {
+  if (typeof window === "undefined") return fallback;
+  const n = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue(name),
+  );
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function sidebarViewportBand(pad = VIEW_PAD) {
+  const top = readCssPx("--app-header-h") + pad;
+  const bottom = window.innerHeight - readCssPx("--app-footer-h") - pad;
+  return { top, bottom, maxHeight: Math.max(0, bottom - top) };
+}
+
+function fitFlyoutBox(anchorRect, height) {
+  const { top: minTop, bottom: maxBottom, maxHeight } = sidebarViewportBand();
+  const h = Math.min(Math.max(height, 0), maxHeight);
+  let top = anchorRect.top;
+  if (top + h > maxBottom) top = maxBottom - h;
+  if (top < minTop) top = minTop;
+  return { top, left: anchorRect.right, maxHeight };
+}
+
+function estimateSubmenuHeight(count) {
+  return Math.max(0, Number(count) || 0) * SUBITEM_ROW_H;
+}
 
 /**
  * Flyout sub-links in a portal; coordinates with AppSidebar width transition + collapse order.
@@ -36,6 +65,7 @@ export default function SidebarItemGroup({
   const location = useLocation();
   const key = groupKey || baseTo || label;
   const anchorRef = useRef(null);
+  const flyoutRef = useRef(null);
   const leaveTimer = useRef(null);
   const prevCloseNonce = useRef(0);
   const [inHoverZone, setInHoverZone] = useState(false);
@@ -93,18 +123,40 @@ export default function SidebarItemGroup({
     const update = () => {
       const el = anchorRef.current;
       if (!el) return;
-      const r = el.getBoundingClientRect();
-      setPos({ top: r.top, left: r.right });
+      const measured =
+        flyoutRef.current?.offsetHeight || estimateSubmenuHeight(subItems.length);
+      const next = fitFlyoutBox(el.getBoundingClientRect(), measured);
+      setPos((prev) => {
+        if (
+          prev &&
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.maxHeight === next.maxHeight
+        ) {
+          return prev;
+        }
+        return next;
+      });
     };
 
     update();
+    let ro = null;
+    const frame = window.requestAnimationFrame(() => {
+      update();
+      if (flyoutRef.current) {
+        ro = new ResizeObserver(update);
+        ro.observe(flyoutRef.current);
+      }
+    });
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
+      ro?.disconnect();
     };
-  }, [wantShow, exiting, expanded, location.pathname]);
+  }, [wantShow, exiting, expanded, location.pathname, subItems.length]);
 
   useEffect(() => {
     if (!expanded) {
@@ -172,11 +224,12 @@ export default function SidebarItemGroup({
 
   const flyout = showPanel ? (
     <div
+      ref={flyoutRef}
       role="group"
       data-app-sidebar-flyout
       aria-label={`${label} views`}
       className={[
-        "flex flex-col overflow-hidden rounded-xl border border-white/15 bg-iregistrygreen shadow-lg min-w-[11.5rem]",
+        "flex flex-col overflow-x-hidden overflow-y-auto rounded-xl border border-white/15 bg-iregistrygreen shadow-lg min-w-[11.5rem]",
         "transition-[opacity,transform]",
         exiting
           ? "opacity-0"
@@ -188,6 +241,7 @@ export default function SidebarItemGroup({
         position: "fixed",
         top: pos?.top,
         left: pos?.left,
+        maxHeight: pos?.maxHeight,
         zIndex: FLYOUT_Z,
         transform: exiting || !enterVisible ? `translateX(-${SUBMENU_SLIDE_PX}px)` : "translateX(0)",
         transitionProperty: "opacity, transform",
@@ -236,6 +290,8 @@ export default function SidebarItemGroup({
         ref={anchorRef}
         className="relative"
         data-sidebar-current={groupPathActive ? "true" : undefined}
+        data-sidebar-flyout-open={wantShow ? "true" : undefined}
+        data-sidebar-submenu-count={subItems.length}
         onMouseEnter={enterZone}
         onMouseLeave={leaveZone}
       >

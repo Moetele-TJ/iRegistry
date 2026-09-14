@@ -9,6 +9,26 @@ const SIDEBAR_EXPAND_MS = 320;
 const SIDEBAR_COLLAPSE_MS = 520;
 const ASIDE_LEAVE_DELAY_MS = 180;
 
+function readCssPx(name, fallback = 0) {
+  if (typeof window === "undefined") return fallback;
+  const n = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue(name),
+  );
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function sidebarViewportBand(pad = 8) {
+  const top = readCssPx("--app-header-h") + pad;
+  const bottom = window.innerHeight - readCssPx("--app-footer-h") - pad;
+  return { top, bottom, maxHeight: Math.max(0, bottom - top) };
+}
+
+const SUBITEM_ROW_H = 42;
+
+function estimateSubmenuHeight(count) {
+  return Math.max(0, Number(count) || 0) * SUBITEM_ROW_H;
+}
+
 function scrollNavChildIntoView(nav, el) {
   if (!nav || !el || !nav.contains(el)) return;
   const navRect = nav.getBoundingClientRect();
@@ -18,6 +38,21 @@ function scrollNavChildIntoView(nav, el) {
     nav.scrollTop += elRect.top - navRect.top - pad;
   } else if (elRect.bottom > navRect.bottom - pad) {
     nav.scrollTop += elRect.bottom - navRect.bottom + pad;
+  }
+
+  const count = Number(el.getAttribute("data-sidebar-submenu-count") || 0);
+  if (count <= 0) return;
+
+  const after = el.getBoundingClientRect();
+  const { top: viewTop, bottom: viewBottom, maxHeight } = sidebarViewportBand(pad);
+  const flyoutH = Math.min(estimateSubmenuHeight(count), maxHeight);
+  const overflowBottom = after.top + flyoutH - viewBottom;
+  if (overflowBottom > 0) {
+    nav.scrollTop += overflowBottom;
+  }
+  const overflowTop = viewTop - el.getBoundingClientRect().top;
+  if (overflowTop > 0) {
+    nav.scrollTop -= overflowTop;
   }
 }
 
@@ -151,14 +186,16 @@ export default function AppSidebar({ sidebar }) {
     if (!visible) return;
     const nav = navRef.current;
     if (!nav) return;
-    const current = nav.querySelector("[data-sidebar-current='true']");
+    const current =
+      nav.querySelector("[data-sidebar-flyout-open='true']") ||
+      nav.querySelector("[data-sidebar-current='true']");
     if (!current) return;
 
     const run = () => scrollNavChildIntoView(nav, current);
     run();
     const frame = window.requestAnimationFrame(run);
     return () => window.cancelAnimationFrame(frame);
-  }, [location.pathname, visible, railExpanded, expandAnimationComplete, items, sections]);
+  }, [location.pathname, visible, railExpanded, expandAnimationComplete, items, sections, activeFlyoutKey]);
 
   const anyFlyoutOpen = useCallback(() => flyoutOpenKeysRef.current.size > 0, []);
 
