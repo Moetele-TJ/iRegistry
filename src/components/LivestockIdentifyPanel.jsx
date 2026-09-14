@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Search } from "lucide-react";
 import RippleButton from "./RippleButton.jsx";
 import { invokeFn } from "../lib/invokeFn.js";
-import { invokeWithAuth } from "../lib/invokeWithAuth.js";
-import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -18,6 +16,37 @@ function photoSrc(p) {
   if (!path) return null;
   if (String(path).startsWith("http")) return path;
   return `${SUPABASE_URL}/storage/v1/object/public/item-photos/${path}`;
+}
+
+function invokeLivestockIdentify(body) {
+  const hasSession =
+    typeof localStorage !== "undefined" && Boolean(localStorage.getItem("session"));
+  return invokeFn("livestock-api", { body }, { withAuth: hasSession });
+}
+
+/** Downscale camera/upload frames so identify POSTs stay under gateway body limits. */
+function snapshotForSearch(source, srcW, srcH) {
+  const minEdge = 480;
+  const maxEdge = 1280;
+  if (srcW < minEdge || srcH < minEdge) {
+    return {
+      error: "Photo is too low resolution. Use a clearer, higher-resolution photo.",
+    };
+  }
+  const scale = Math.min(1, maxEdge / Math.max(srcW, srcH));
+  const w = Math.max(1, Math.round(srcW * scale));
+  const h = Math.max(1, Math.round(srcH * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { error: "Could not process that image." };
+  ctx.drawImage(source, 0, 0, w, h);
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", 0.82),
+    width: w,
+    height: h,
+  };
 }
 
 function getPosition() {
@@ -43,7 +72,6 @@ function getPosition() {
  * Public Livestock identify: photo or ear-tag/brand → shortlist → pick → sighting.
  */
 export default function LivestockIdentifyPanel() {
-  const { user } = useAuth();
   const { addToast } = useToast();
   const [mode, setMode] = useState("photo"); // photo | text
   const [query, setQuery] = useState("");
@@ -125,14 +153,11 @@ export default function LivestockIdentifyPanel() {
     try {
       if (!geoAsked) await askGeo();
       setLastImageUrl(dataUrl);
-      const invoker = user ? invokeWithAuth : invokeFn;
-      const { data, error } = await invoker("livestock-api", {
-        body: {
-          operation: "livestock-search-photo",
-          imageUrl: dataUrl,
-          width,
-          height,
-        },
+      const { data, error } = await invokeLivestockIdentify({
+        operation: "livestock-search-photo",
+        imageUrl: dataUrl,
+        width,
+        height,
       });
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Photo search failed");
@@ -152,23 +177,13 @@ export default function LivestockIdentifyPanel() {
   async function captureFromCamera() {
     const video = videoRef.current;
     if (!video) return;
-    const w = video.videoWidth || 0;
-    const h = video.videoHeight || 0;
-    if (w < 480 || h < 480) {
-      addToast({
-        type: "error",
-        message: "Photo is too low resolution. Move closer and try again.",
-      });
+    const shot = snapshotForSearch(video, video.videoWidth || 0, video.videoHeight || 0);
+    if (shot.error) {
+      addToast({ type: "error", message: shot.error });
       return;
     }
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     closeCamera();
-    await runPhotoSearch(dataUrl, w, h);
+    await runPhotoSearch(shot.dataUrl, shot.width, shot.height);
   }
 
   async function onFileSelected(e) {
@@ -178,21 +193,13 @@ export default function LivestockIdentifyPanel() {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = async () => {
-      if (img.naturalWidth < 480 || img.naturalHeight < 480) {
-        addToast({
-          type: "error",
-          message: "Photo is too low resolution. Choose a clearer photo.",
-        });
-        URL.revokeObjectURL(url);
+      const shot = snapshotForSearch(img, img.naturalWidth, img.naturalHeight);
+      URL.revokeObjectURL(url);
+      if (shot.error) {
+        addToast({ type: "error", message: shot.error });
         return;
       }
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext("2d").drawImage(img, 0, 0);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      URL.revokeObjectURL(url);
-      await runPhotoSearch(dataUrl, img.naturalWidth, img.naturalHeight);
+      await runPhotoSearch(shot.dataUrl, shot.width, shot.height);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -212,13 +219,10 @@ export default function LivestockIdentifyPanel() {
     setPickedId(null);
     try {
       if (!geoAsked) await askGeo();
-      const invoker = user ? invokeWithAuth : invokeFn;
-      const { data, error } = await invoker("livestock-api", {
-        body: {
-          operation: "livestock-search-text",
-          query: q,
-          mode: textMode,
-        },
+      const { data, error } = await invokeLivestockIdentify({
+        operation: "livestock-search-text",
+        query: q,
+        mode: textMode,
       });
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Search failed");
@@ -258,21 +262,18 @@ export default function LivestockIdentifyPanel() {
     setBusy(true);
     try {
       const g = geo || (await askGeo());
-      const invoker = user ? invokeWithAuth : invokeFn;
       const source =
         mode === "photo" ? "photo" : textMode === "brand" ? "brand" : textMode === "ear_tag" ? "ear_tag" : "ear_tag";
-      const { data, error } = await invoker("livestock-api", {
-        body: {
-          operation: "livestock-pick-sighting",
-          animal_id: animalId,
-          session_id: sessionId,
-          source: mode === "photo" ? "photo" : source,
-          query_text: mode === "text" ? query.trim() : null,
-          lat: g?.lat ?? null,
-          lng: g?.lng ?? null,
-          accuracy_m: g?.accuracy_m ?? null,
-          sighting_photos: lastImageUrl ? [{ original: lastImageUrl }] : [],
-        },
+      const { data, error } = await invokeLivestockIdentify({
+        operation: "livestock-pick-sighting",
+        animal_id: animalId,
+        session_id: sessionId,
+        source: mode === "photo" ? "photo" : source,
+        query_text: mode === "text" ? query.trim() : null,
+        lat: g?.lat ?? null,
+        lng: g?.lng ?? null,
+        accuracy_m: g?.accuracy_m ?? null,
+        sighting_photos: lastImageUrl ? [{ original: lastImageUrl }] : [],
       });
       if (error || !data?.success) {
         throw new Error(data?.message || error?.message || "Failed to report sighting");
