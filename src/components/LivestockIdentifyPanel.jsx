@@ -59,6 +59,8 @@ export default function LivestockIdentifyPanel() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const videoRef = useRef(null);
   const fileRef = useRef(null);
+  const photoTabRef = useRef(null);
+  const textTabRef = useRef(null);
 
   const askGeo = useCallback(async ({ quiet = false } = {}) => {
     setGeoLoading(true);
@@ -233,6 +235,25 @@ export default function LivestockIdentifyPanel() {
     }
   }
 
+  function focusIdentifyTab(nextMode) {
+    const el = nextMode === "text" ? textTabRef.current : photoTabRef.current;
+    el?.focus();
+  }
+
+  function handleIdentifyTabKeyDown(e) {
+    const order = ["photo", "text"];
+    const idx = order.indexOf(mode);
+    let next = null;
+    if (e.key === "ArrowRight") next = order[(idx + 1) % order.length];
+    else if (e.key === "ArrowLeft") next = order[(idx - 1 + order.length) % order.length];
+    else if (e.key === "Home") next = order[0];
+    else if (e.key === "End") next = order[order.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    setMode(next);
+    focusIdentifyTab(next);
+  }
+
   async function pickMatch(animalId) {
     setBusy(true);
     try {
@@ -275,25 +296,7 @@ export default function LivestockIdentifyPanel() {
         owner know if their animal is astray (distance only — not your exact pin on the alert).
       </p>
 
-      <div className="flex gap-2 flex-wrap">
-        <button
-          type="button"
-          className={`px-3 py-1.5 rounded-xl border text-sm font-medium ${
-            mode === "photo" ? "bg-iregistrygreen text-white border-iregistrygreen" : "bg-white text-gray-700"
-          }`}
-          onClick={() => setMode("photo")}
-        >
-          Photo
-        </button>
-        <button
-          type="button"
-          className={`px-3 py-1.5 rounded-xl border text-sm font-medium ${
-            mode === "text" ? "bg-iregistrygreen text-white border-iregistrygreen" : "bg-white text-gray-700"
-          }`}
-          onClick={() => setMode("text")}
-        >
-          Ear tag / brand
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
         <span
           className={`inline-flex items-center px-3 py-1.5 rounded-xl border text-sm ${
             geo
@@ -321,8 +324,55 @@ export default function LivestockIdentifyPanel() {
         ) : null}
       </div>
 
+      <div
+        role="tablist"
+        aria-label="Livestock identify method"
+        className="flex w-full gap-1 border-b border-gray-200"
+        onKeyDown={handleIdentifyTabKeyDown}
+      >
+        <button
+          type="button"
+          role="tab"
+          id="livestock-identify-tab-photo"
+          ref={photoTabRef}
+          aria-selected={mode === "photo"}
+          aria-controls="livestock-identify-panel-photo"
+          tabIndex={mode === "photo" ? 0 : -1}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            mode === "photo"
+              ? "border-iregistrygreen text-iregistrygreen"
+              : "border-transparent text-gray-500 hover:text-gray-800"
+          }`}
+          onClick={() => setMode("photo")}
+        >
+          Photo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="livestock-identify-tab-text"
+          ref={textTabRef}
+          aria-selected={mode === "text"}
+          aria-controls="livestock-identify-panel-text"
+          tabIndex={mode === "text" ? 0 : -1}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            mode === "text"
+              ? "border-iregistrygreen text-iregistrygreen"
+              : "border-transparent text-gray-500 hover:text-gray-800"
+          }`}
+          onClick={() => setMode("text")}
+        >
+          Ear tag / brand
+        </button>
+      </div>
+
       {mode === "photo" ? (
-        <div className="flex flex-wrap gap-2">
+        <div
+          role="tabpanel"
+          id="livestock-identify-panel-photo"
+          aria-labelledby="livestock-identify-tab-photo"
+          className="flex flex-wrap gap-2"
+        >
           <RippleButton
             type="button"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm"
@@ -349,7 +399,12 @@ export default function LivestockIdentifyPanel() {
           />
         </div>
       ) : (
-        <div className="space-y-2">
+        <div
+          role="tabpanel"
+          id="livestock-identify-panel-text"
+          aria-labelledby="livestock-identify-tab-text"
+          className="space-y-2"
+        >
           <div className="flex flex-wrap gap-2">
             <select
               className="border rounded-xl px-3 py-2 text-sm bg-white"
