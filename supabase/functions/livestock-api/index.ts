@@ -243,10 +243,43 @@ async function runBuyPack(req: Request, session: Session) {
   );
 }
 
+function applyLivestockListFilters(
+  // deno-lint-ignore no-explicit-any
+  q: any,
+  view: string,
+  query: string,
+  typeCode: string,
+) {
+  if (view === "deleted") {
+    q = q.or("status.eq.deleted,deleted_at.not.is.null");
+  } else if (view === "missing") {
+    q = q.is("deleted_at", null).eq("status", "missing");
+  } else if (view === "recovered") {
+    q = q.is("deleted_at", null).eq("status", "recovered");
+  } else if (view === "dead") {
+    q = q.is("deleted_at", null).eq("status", "dead");
+  } else {
+    q = q.is("deleted_at", null).eq("status", "active");
+  }
+
+  if (query) {
+    const esc = query.replace(/%/g, "").replace(/,/g, " ");
+    q = q.or(
+      `name.ilike.%${esc}%,breed.ilike.%${esc}%,colour.ilike.%${esc}%,type_code.ilike.%${esc}%,dwelling_village.ilike.%${esc}%`,
+    );
+  }
+
+  if (typeCode && typeCode !== "all") {
+    q = q.eq("type_code", typeCode);
+  }
+  return q;
+}
+
 async function runListMine(req: Request, session: Session, body: Record<string, unknown> = {}) {
   const corsHeaders = getCorsHeaders(req);
   const view = asString(body.view).toLowerCase() || "active";
   const query = asString(body.query).toLowerCase();
+  const typeCode = asString(body.type_code).toLowerCase();
   const page = Math.max(1, Math.floor(asFiniteNumber(body.page) || 1));
   const pageSize = Math.min(50, Math.max(1, Math.floor(asFiniteNumber(body.pageSize) || 12)));
   const from = (page - 1) * pageSize;
@@ -275,26 +308,7 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
     );
 
   if (ownerId) q = q.eq("owner_id", ownerId);
-
-  if (view === "deleted") {
-    q = q.or("status.eq.deleted,deleted_at.not.is.null");
-  } else if (view === "missing") {
-    q = q.is("deleted_at", null).eq("status", "missing");
-  } else if (view === "recovered") {
-    q = q.is("deleted_at", null).eq("status", "recovered");
-  } else if (view === "dead") {
-    q = q.is("deleted_at", null).eq("status", "dead");
-  } else {
-    q = q.is("deleted_at", null).eq("status", "active");
-  }
-
-  if (query) {
-    const esc = query.replace(/%/g, "").replace(/,/g, " ");
-    q = q.or(
-      `name.ilike.%${esc}%,breed.ilike.%${esc}%,colour.ilike.%${esc}%,type_code.ilike.%${esc}%,dwelling_village.ilike.%${esc}%`,
-    );
-  }
-
+  q = applyLivestockListFilters(q, view, query, typeCode);
   q = q.order("created_at", { ascending: false }).range(from, to);
 
   const { data, error, count } = await q;
@@ -312,6 +326,19 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
     signed_thumb: signedThumbs[i] || null,
   }));
 
+  let owner_counts: Record<string, number> | undefined;
+  if (isPrivilegedRole(session.role)) {
+    let cq = supabase.from("livestock_animals").select("owner_id");
+    cq = applyLivestockListFilters(cq, view, query, typeCode);
+    const { data: ownerRows } = await cq;
+    owner_counts = {};
+    for (const row of ownerRows || []) {
+      const id = String((row as { owner_id?: string }).owner_id || "");
+      if (!id) continue;
+      owner_counts[id] = (owner_counts[id] || 0) + 1;
+    }
+  }
+
   return respond(
     {
       success: true,
@@ -319,6 +346,7 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
       page,
       pageSize,
       total: typeof count === "number" ? count : animals.length,
+      ...(owner_counts ? { owner_counts } : {}),
     },
     corsHeaders,
     200,

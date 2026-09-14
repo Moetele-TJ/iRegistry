@@ -148,6 +148,7 @@ export default function Livestock({ view = "active" } = {}) {
   const [pack, setPack] = useState(null);
   const [scopeReady, setScopeReady] = useState(!privileged);
   const [statusBusyId, setStatusBusyId] = useState(null);
+  const [ownerCounts, setOwnerCounts] = useState(null);
 
   useEffect(() => {
     if (!sessionUserId) return;
@@ -187,6 +188,7 @@ export default function Livestock({ view = "active" } = {}) {
         operation: "livestock-list-mine",
         view,
         query: query.trim() || undefined,
+        type_code: typeFilter && typeFilter !== "All" ? typeFilter : undefined,
         page,
         pageSize: PAGE_SIZE,
       };
@@ -198,18 +200,12 @@ export default function Livestock({ view = "active" } = {}) {
       if (listRes.error || !listRes.data?.success) {
         throw new Error(listRes.data?.message || listRes.error?.message || "Failed to load");
       }
-      let rows = Array.isArray(listRes.data.animals) ? listRes.data.animals : [];
-      if (typeFilter && typeFilter !== "All") {
-        rows = rows.filter(
-          (a) => String(a.type_code || "").toLowerCase() === typeFilter.toLowerCase(),
-        );
-      }
+      const rows = Array.isArray(listRes.data.animals) ? listRes.data.animals : [];
       setAnimals(rows);
-      setTotal(
-        typeFilter && typeFilter !== "All"
-          ? rows.length
-          : Number(listRes.data.total) || 0,
-      );
+      setTotal(Number(listRes.data.total) || 0);
+      if (listRes.data.owner_counts && typeof listRes.data.owner_counts === "object") {
+        setOwnerCounts(listRes.data.owner_counts);
+      }
 
       const packOwner =
         privileged && ownerScope && ownerScope !== LIVESTOCK_VIEW_ALL
@@ -280,14 +276,26 @@ export default function Livestock({ view = "active" } = {}) {
     return staffProfileUserKey(u) || registrationOwnerId;
   }, [registrationOwnerId, usersList]);
 
-  const allUsersLivestockCount = useMemo(
-    () =>
-      (usersList || []).reduce(
-        (sum, u) => sum + Math.max(0, Math.floor(Number(u?.active_livestock_count) || 0)),
+  const allUsersLivestockCount = useMemo(() => {
+    if (ownerCounts && typeof ownerCounts === "object") {
+      return Object.values(ownerCounts).reduce(
+        (sum, n) => sum + Math.max(0, Math.floor(Number(n) || 0)),
         0,
-      ),
-    [usersList],
-  );
+      );
+    }
+    return (usersList || []).reduce(
+      (sum, u) => sum + Math.max(0, Math.floor(Number(u?.active_livestock_count) || 0)),
+      0,
+    );
+  }, [ownerCounts, usersList]);
+
+  function livestockCountForOwner(userId) {
+    if (ownerCounts && typeof ownerCounts === "object") {
+      return Math.max(0, Math.floor(Number(ownerCounts[String(userId)]) || 0));
+    }
+    const u = (usersList || []).find((x) => String(x.id) === String(userId));
+    return Math.max(0, Math.floor(Number(u?.active_livestock_count) || 0));
+  }
 
   /** Match Items: Add on active when not “All”; also when a specific user is selected on other lists. */
   const showScopeAddAnimal =
@@ -594,10 +602,7 @@ export default function Livestock({ view = "active" } = {}) {
                         </option>
                         {(usersList || []).map((u) => {
                           const name = displayUser(u) || String(u.id ?? "");
-                          const n = Math.max(
-                            0,
-                            Math.floor(Number(u?.active_livestock_count) || 0),
-                          );
+                          const n = livestockCountForOwner(u.id);
                           return (
                             <option key={u.id} value={u.id}>
                               {`${name} (${n})`}
