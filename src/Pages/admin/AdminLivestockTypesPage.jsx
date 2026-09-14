@@ -25,6 +25,18 @@ const EMPTY_FORM = {
   isNew: true,
 };
 
+function formFromType(t) {
+  return {
+    code: t.code || "",
+    label: t.label || "",
+    brand_bearing: Boolean(t.brand_bearing),
+    ear_tag_bearing: Boolean(t.ear_tag_bearing),
+    ear_mark_bearing: Boolean(t.ear_mark_bearing),
+    active: t.active !== false,
+    isNew: false,
+  };
+}
+
 function FlagPills({ row }) {
   const flags = [
     row?.brand_bearing ? "Brands" : null,
@@ -55,8 +67,7 @@ export default function AdminLivestockTypesPage() {
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState(null);
   const [codeDirty, setCodeDirty] = useState(false);
 
   async function load() {
@@ -86,40 +97,33 @@ export default function AdminLivestockTypesPage() {
   const inactiveTypes = useMemo(() => (types || []).filter((t) => !t?.active), [types]);
 
   function closeForm() {
-    setForm({ ...EMPTY_FORM });
+    setForm(null);
     setCodeDirty(false);
-    setFormOpen(false);
   }
 
   function startNew() {
     setForm({ ...EMPTY_FORM });
     setCodeDirty(false);
-    setFormOpen(true);
   }
 
   function startEdit(t) {
-    setForm({
-      code: t.code || "",
-      label: t.label || "",
-      brand_bearing: Boolean(t.brand_bearing),
-      ear_tag_bearing: Boolean(t.ear_tag_bearing),
-      ear_mark_bearing: Boolean(t.ear_mark_bearing),
-      active: t.active !== false,
-      isNew: false,
-    });
+    setForm(formFromType(t));
     setCodeDirty(true);
-    setFormOpen(true);
   }
 
   function onLabelChange(label) {
-    setForm((f) => ({
-      ...f,
-      label,
-      code: f.isNew && !codeDirty ? slugTypeCode(label) : f.code,
-    }));
+    setForm((f) => {
+      if (!f) return f;
+      return {
+        ...f,
+        label,
+        code: f.isNew && !codeDirty ? slugTypeCode(label) : f.code,
+      };
+    });
   }
 
   async function save() {
+    if (!form) return;
     const label = String(form.label || "").trim();
     const code = form.isNew
       ? slugTypeCode(form.code) || slugTypeCode(label)
@@ -196,42 +200,63 @@ export default function AdminLivestockTypesPage() {
       icon={<PawPrint className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={headerActions}
     >
-      <div className={`grid grid-cols-1 gap-0 ${formOpen ? "lg:grid-cols-12" : ""}`}>
-        <section
-          className={`p-5 sm:p-6 ${
-            formOpen ? "lg:col-span-7 border-b lg:border-b-0 lg:border-r border-gray-100" : ""
-          }`}
-        >
-          <div className="text-sm font-semibold text-gray-800 mb-3">Catalog</div>
-          {loading ? (
-            <div className="text-sm text-gray-500">Loading…</div>
-          ) : (
-            <div className="space-y-6">
-              <TypeTable title="Active" types={activeTypes} onEdit={startEdit} />
-              {inactiveTypes.length > 0 ? (
-                <TypeTable title="Inactive" types={inactiveTypes} onEdit={startEdit} />
-              ) : null}
-            </div>
-          )}
-        </section>
-
-        {formOpen ? (
-        <section className="lg:col-span-5 p-5 sm:p-6 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-sm font-semibold text-gray-800">
-              {form.isNew ? "Add animal type" : "Edit animal type"}
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-              onClick={closeForm}
-              aria-label="Close"
-              title="Close"
-            >
-              <X size={16} />
-            </button>
+      <div className="p-5 sm:p-6">
+        {loading ? (
+          <div className="text-sm text-gray-500">Loading…</div>
+        ) : (
+          <div className="space-y-6">
+            <TypeTable title="Active" types={activeTypes} onEdit={startEdit} />
+            {inactiveTypes.length > 0 ? (
+              <TypeTable title="Inactive" types={inactiveTypes} onEdit={startEdit} />
+            ) : null}
           </div>
+        )}
+      </div>
 
+      {form ? (
+        <TypeEditorModal
+          form={form}
+          setForm={setForm}
+          setCodeDirty={setCodeDirty}
+          onLabelChange={onLabelChange}
+          onClose={closeForm}
+          onSave={() => void save()}
+          saving={saving}
+        />
+      ) : null}
+    </PageSectionCard>
+  );
+}
+
+function TypeEditorModal({ form, setForm, setCodeDirty, onLabelChange, onClose, onSave, saving }) {
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="animal-type-editor-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) onClose();
+      }}
+    >
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+          <h2 id="animal-type-editor-title" className="text-lg font-semibold text-gray-900">
+            {form.isNew ? "Add animal type" : "Edit animal type"}
+          </h2>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            onClick={onClose}
+            disabled={saving}
+            aria-label="Close"
+            title="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
           <div>
             <label className="text-xs text-gray-600">Display name</label>
             <input
@@ -249,7 +274,7 @@ export default function AdminLivestockTypesPage() {
               value={form.code}
               onChange={(e) => {
                 setCodeDirty(true);
-                setForm((f) => ({ ...f, code: e.target.value }));
+                setForm((f) => (f ? { ...f, code: e.target.value } : f));
               }}
               disabled={!form.isNew}
               className="mt-1 w-full border rounded-xl px-3 py-2 text-sm font-mono disabled:bg-gray-50 disabled:text-gray-500"
@@ -269,7 +294,7 @@ export default function AdminLivestockTypesPage() {
                 type="checkbox"
                 className="accent-emerald-600"
                 checked={form.brand_bearing}
-                onChange={(e) => setForm((f) => ({ ...f, brand_bearing: e.target.checked }))}
+                onChange={(e) => setForm((f) => (f ? { ...f, brand_bearing: e.target.checked } : f))}
               />
               Brands
             </label>
@@ -278,7 +303,7 @@ export default function AdminLivestockTypesPage() {
                 type="checkbox"
                 className="accent-emerald-600"
                 checked={form.ear_tag_bearing}
-                onChange={(e) => setForm((f) => ({ ...f, ear_tag_bearing: e.target.checked }))}
+                onChange={(e) => setForm((f) => (f ? { ...f, ear_tag_bearing: e.target.checked } : f))}
               />
               Ear tags
             </label>
@@ -287,7 +312,7 @@ export default function AdminLivestockTypesPage() {
                 type="checkbox"
                 className="accent-emerald-600"
                 checked={form.ear_mark_bearing}
-                onChange={(e) => setForm((f) => ({ ...f, ear_mark_bearing: e.target.checked }))}
+                onChange={(e) => setForm((f) => (f ? { ...f, ear_mark_bearing: e.target.checked } : f))}
               />
               Ear marks
             </label>
@@ -298,32 +323,31 @@ export default function AdminLivestockTypesPage() {
               type="checkbox"
               className="accent-emerald-600"
               checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+              onChange={(e) => setForm((f) => (f ? { ...f, active: e.target.checked } : f))}
             />
             Active (available when registering)
           </label>
+        </div>
 
-          <div className="flex gap-2">
-            <RippleButton
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-800 font-semibold"
-              onClick={closeForm}
-              disabled={saving}
-            >
-              Cancel
-            </RippleButton>
-            <RippleButton
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
-              onClick={() => void save()}
-              disabled={saving}
-            >
-              <Save size={18} />
-              {saving ? "Saving…" : form.isNew ? "Add type" : "Save type"}
-            </RippleButton>
-          </div>
-        </section>
-        ) : null}
+        <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
+          <RippleButton
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-800 font-semibold"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </RippleButton>
+          <RippleButton
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+            onClick={onSave}
+            disabled={saving}
+          >
+            <Save size={18} />
+            {saving ? "Saving…" : form.isNew ? "Add type" : "Save type"}
+          </RippleButton>
+        </div>
       </div>
-    </PageSectionCard>
+    </div>
   );
 }
 
