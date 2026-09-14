@@ -41,7 +41,7 @@ function viewSubtitle(view) {
     case "dead":
       return "Animals declared dead — they leave the living registry, like legacy items. You can restore a record if this was a mistake.";
     case "deleted":
-      return "Recycle bin — restore animals or permanently remove them from the detail page.";
+      return "Recycle bin — restore animals or permanently delete them.";
     default:
       return "Manage and monitor your registered livestock";
   }
@@ -57,7 +57,7 @@ function emptyListCopy(view) {
   if (view === "deleted") {
     return {
       title: "Recycle bin is empty",
-      body: "Deleted animals appear here until you restore them.",
+      body: "Deleted animals appear here until you restore or permanently delete them.",
     };
   }
   if (view === "missing") {
@@ -398,6 +398,33 @@ export default function Livestock({ view = "active" } = {}) {
     await setAnimalStatus(animal.id, "dead");
   }
 
+  async function hardDeleteAnimal(animal) {
+    const label = animal?.name || animal?.breed || animalTypeLabel(animal) || "this animal";
+    const ok = await confirm({
+      title: "Delete permanently?",
+      message: `“${label}” will be removed from the registry. Photos and marks cannot be restored.`,
+      confirmLabel: "Delete permanently",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    setStatusBusyId(animal.id);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-hard-delete", id: animal.id },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not delete animal");
+      }
+      addToast({ type: "success", message: `${label} permanently deleted.` });
+      await load();
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed to permanently delete" });
+    } finally {
+      setStatusBusyId(null);
+    }
+  }
+
   function handleExportCSV() {
     const header = ["id", "name", "type", "status", "breed", "colour", "gender", "village"];
     const lines = [header.join(",")];
@@ -721,13 +748,24 @@ export default function Livestock({ view = "active" } = {}) {
                               View
                             </RippleButton>
                             {view === "deleted" || view === "dead" ? (
-                              <RippleButton
-                                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-60"
-                                disabled={busy}
-                                onClick={() => void setAnimalStatus(a.id, "active")}
-                              >
-                                Restore
-                              </RippleButton>
+                              <>
+                                <RippleButton
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-60"
+                                  disabled={busy}
+                                  onClick={() => void setAnimalStatus(a.id, "active")}
+                                >
+                                  Restore
+                                </RippleButton>
+                                {view === "deleted" ? (
+                                  <RippleButton
+                                    className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-60"
+                                    disabled={busy}
+                                    onClick={() => void hardDeleteAnimal(a)}
+                                  >
+                                    Delete permanently
+                                  </RippleButton>
+                                ) : null}
+                              </>
                             ) : (
                               <>
                                 {view === "active" || view === "missing" ? (
@@ -800,13 +838,24 @@ export default function Livestock({ view = "active" } = {}) {
                           View
                         </RippleButton>
                         {view === "deleted" || view === "dead" ? (
-                          <RippleButton
-                            className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-60"
-                            disabled={busy}
-                            onClick={() => void setAnimalStatus(a.id, "active")}
-                          >
-                            Restore
-                          </RippleButton>
+                          <>
+                            <RippleButton
+                              className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() => void setAnimalStatus(a.id, "active")}
+                            >
+                              Restore
+                            </RippleButton>
+                            {view === "deleted" ? (
+                              <RippleButton
+                                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-60"
+                                disabled={busy}
+                                onClick={() => void hardDeleteAnimal(a)}
+                              >
+                                Delete
+                              </RippleButton>
+                            ) : null}
+                          </>
                         ) : (
                           <>
                             {view === "active" || view === "missing" ? (

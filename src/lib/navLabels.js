@@ -204,6 +204,10 @@ export const NAV_ACTIONS = Object.freeze({
 
   viewMyItems: "View My Items",
 
+  viewMyLivestock: "View My Livestock",
+
+  reportMissingAnimal: "Report Missing Animal",
+
   topUp: "Top Up",
 
   topUpCredits: "Top Up Credits",

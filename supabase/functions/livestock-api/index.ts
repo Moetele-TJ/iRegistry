@@ -7,6 +7,7 @@ import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { generateEmbedding } from "../shared/generateEmbedding.ts";
 import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
+import { logActivity } from "../shared/logActivity.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -1481,6 +1482,154 @@ async function runDeleteEarTag(req: Request, session: Session, body: Record<stri
   return respond({ success: true, animal: bundle }, corsHeaders, 200);
 }
 
+async function runAddEarMark(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { data: typeRow } = await supabase
+    .from("livestock_types")
+    .select("ear_mark_bearing")
+    .eq("code", animal.type_code)
+    .maybeSingle();
+  if (typeRow?.ear_mark_bearing === false) {
+    return respond({ success: false, message: "This animal type does not use ear marks" }, corsHeaders, 400);
+  }
+
+  const mark_label = asString(body.mark_label) || asString(body.label);
+  if (!mark_label) return respond({ success: false, message: "mark_label is required" }, corsHeaders, 400);
+  const sideRaw = asString(body.side);
+  const side = sideRaw === "right" ? "right" : sideRaw === "left" ? "left" : null;
+
+  const { error } = await supabase.from("livestock_ear_marks").insert({
+    animal_id: id,
+    mark_label,
+    side,
+  });
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(id, { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runUpdateEarMark(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const markId = asString(body.ear_mark_id) || asString(body.id);
+  if (!markId) return respond({ success: false, message: "ear_mark_id is required" }, corsHeaders, 400);
+
+  const { data: mark } = await supabase
+    .from("livestock_ear_marks")
+    .select("id, animal_id")
+    .eq("id", markId)
+    .maybeSingle();
+  if (!mark) return respond({ success: false, message: "Ear mark not found" }, corsHeaders, 404);
+
+  const animal = await loadAnimalBundle(String(mark.animal_id), { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const mark_label = asString(body.mark_label) || asString(body.label);
+  if (!mark_label) return respond({ success: false, message: "mark_label is required" }, corsHeaders, 400);
+  const sideRaw = asString(body.side);
+  const side = sideRaw === "right" ? "right" : sideRaw === "left" ? "left" : null;
+
+  const { error } = await supabase
+    .from("livestock_ear_marks")
+    .update({ mark_label, side })
+    .eq("id", markId);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(String(mark.animal_id), { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runDeleteEarMark(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const markId = asString(body.ear_mark_id) || asString(body.id);
+  if (!markId) return respond({ success: false, message: "ear_mark_id is required" }, corsHeaders, 400);
+
+  const { data: mark } = await supabase
+    .from("livestock_ear_marks")
+    .select("id, animal_id")
+    .eq("id", markId)
+    .maybeSingle();
+  if (!mark) return respond({ success: false, message: "Ear mark not found" }, corsHeaders, 404);
+
+  const animal = await loadAnimalBundle(String(mark.animal_id), { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { error } = await supabase.from("livestock_ear_marks").delete().eq("id", markId);
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+
+  const bundle = await loadAnimalBundle(String(mark.animal_id), { includeDeleted: true });
+  return respond({ success: true, animal: bundle }, corsHeaders, 200);
+}
+
+async function runHardDelete(req: Request, session: Session, body: Record<string, unknown>) {
+  const corsHeaders = getCorsHeaders(req);
+  const id = asString(body.id) || asString(body.animal_id);
+  if (!id) return respond({ success: false, message: "id is required" }, corsHeaders, 400);
+
+  const animal = await loadAnimalBundle(id, { includeDeleted: true });
+  if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
+    return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const inBin =
+    Boolean(animal.deleted_at) || String(animal.status || "").toLowerCase() === "deleted";
+  if (!inBin) {
+    return respond(
+      { success: false, message: "Move the animal to the recycle bin before permanently deleting it." },
+      corsHeaders,
+      409,
+    );
+  }
+
+  const paths = photoPathsFromAnimalPhotos(animal.photos);
+  if (paths.length) {
+    await supabase.storage.from("item-photos").remove(paths);
+  }
+
+  const { error, count } = await supabase
+    .from("livestock_animals")
+    .delete()
+    .eq("id", id)
+    .select("id", { count: "exact" });
+  if (error || !count) {
+    return respond(
+      { success: false, message: error?.message || "Failed to permanently delete animal" },
+      corsHeaders,
+      500,
+    );
+  }
+
+  const label = String(animal.name || animal.breed || animal.type_code || "Animal");
+  await logActivity(supabase, {
+    actorId: session.user_id,
+    actorRole: session.role,
+    resourceOwnerUserId: String(animal.owner_id),
+    entityType: "livestock",
+    entityId: id,
+    entityName: label,
+    action: "LIVESTOCK_HARD_DELETED",
+    message: `${label} was permanently deleted`,
+    metadata: {
+      reason: isPrivilegedRole(session.role) ? "STAFF_ACTION" : "OWNER_RECYCLE_BIN",
+      type_code: animal.type_code,
+    },
+  });
+
+  return respond({ success: true, permanentlyDeleted: true }, corsHeaders, 200);
+}
+
 async function runAddPhotos(req: Request, session: Session, body: Record<string, unknown>) {
   const corsHeaders = getCorsHeaders(req);
   const id = asString(body.id) || asString(body.animal_id);
@@ -1788,6 +1937,14 @@ serve(async (req) => {
         return await runUpdateEarTag(req, session!, body);
       case "livestock-delete-ear-tag":
         return await runDeleteEarTag(req, session!, body);
+      case "livestock-add-ear-mark":
+        return await runAddEarMark(req, session!, body);
+      case "livestock-update-ear-mark":
+        return await runUpdateEarMark(req, session!, body);
+      case "livestock-delete-ear-mark":
+        return await runDeleteEarMark(req, session!, body);
+      case "livestock-hard-delete":
+        return await runHardDelete(req, session!, body);
       case "livestock-add-photos":
         return await runAddPhotos(req, session!, body);
       case "livestock-delete-photo":

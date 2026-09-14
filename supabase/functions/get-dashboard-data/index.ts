@@ -236,6 +236,21 @@ serve(async (req) => {
       else activeItems++;
     });
 
+    const { data: animalStats } = await supabase
+      .from("livestock_animals")
+      .select("status")
+      .eq("owner_id", userId)
+      .is("deleted_at", null);
+
+    let activeLivestock = 0;
+    let missingLivestock = 0;
+    (animalStats || []).forEach((row: { status?: string | null }) => {
+      const s = String(row.status || "").toLowerCase();
+      if (s === "deleted") return;
+      if (s === "missing") missingLivestock++;
+      else if (s === "active" || s === "recovered") activeLivestock++;
+    });
+
     const { data: notificationStats } = await supabase
       .from("item_notifications")
       .select("isread")
@@ -303,6 +318,8 @@ serve(async (req) => {
       summary: {
         activeItems: activeItems ?? 0,
         stolenItems: stolenItems ?? 0,
+        activeLivestock: activeLivestock ?? 0,
+        missingLivestock: missingLivestock ?? 0,
         notifications: totalNotifications ?? 0,
         unreadNotifications: unreadNotifications ?? 0,
       },

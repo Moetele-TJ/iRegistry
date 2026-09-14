@@ -16,6 +16,7 @@ import { putSignedUpload } from "../../lib/putSignedUpload.js";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { NAV } from "../../lib/navLabels.js";
 import { Pencil, Trash2 } from "lucide-react";
+import SearchableOptionsSelect from "../../components/SearchableOptionsSelect.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const MAX_PHOTOS = 5;
@@ -120,6 +121,12 @@ export default function UserLivestockDetailPage() {
   const [editingEarTagId, setEditingEarTagId] = useState(null);
   const [earTagDraft, setEarTagDraft] = useState({ tag_id: "", side: "left" });
   const [earTagBusy, setEarTagBusy] = useState(false);
+  const [addingEarMark, setAddingEarMark] = useState(false);
+  const [editingEarMarkId, setEditingEarMarkId] = useState(null);
+  const [earMarkDraft, setEarMarkDraft] = useState({ mark_label: "", side: "left" });
+  const [earMarkBusy, setEarMarkBusy] = useState(false);
+  const [earMarkTypes, setEarMarkTypes] = useState([]);
+  const [earMarkReloadKey, setEarMarkReloadKey] = useState(0);
   const [photoBusy, setPhotoBusy] = useState(false);
 
   const animalStatus = String(animal?.status || "active").toLowerCase();
@@ -169,6 +176,8 @@ export default function UserLivestockDetailPage() {
       setEditingBrandId(null);
       setAddingEarTag(false);
       setEditingEarTagId(null);
+      setAddingEarMark(false);
+      setEditingEarMarkId(null);
       setEditing(false);
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Failed to load animal" });
@@ -182,6 +191,21 @@ export default function UserLivestockDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-get-vocab" },
+      });
+      if (cancelled || !data?.success) return;
+      setEarMarkTypes(data.ear_mark_types || []);
+      setEarMarkReloadKey((k) => k + 1);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function startEdit() {
     if (!animal) return;
@@ -280,6 +304,34 @@ export default function UserLivestockDetailPage() {
       }
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Update failed" });
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
+  async function hardDelete() {
+    if (!animal || !canManage || !isDeleted) return;
+    const label = animal.name || animal.breed || animal.type_label || animal.type_code || "this animal";
+    const ok = await confirm({
+      title: "Delete permanently?",
+      message: `“${label}” will be removed from the registry. Photos and marks cannot be restored.`,
+      confirmLabel: "Delete permanently",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    setStatusBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-hard-delete", id: animal.id },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not delete animal");
+      }
+      addToast({ type: "success", message: `${label} permanently deleted.` });
+      navigate(livestockListPath(user?.role, "deleted"));
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Failed to permanently delete" });
     } finally {
       setStatusBusy(false);
     }
@@ -428,6 +480,94 @@ export default function UserLivestockDetailPage() {
       addToast({ type: "error", message: e?.message || "Could not delete ear tag" });
     } finally {
       setEarTagBusy(false);
+    }
+  }
+
+  async function ensureEarMarkLabel(label) {
+    const raw = String(label || "").trim();
+    if (!raw) return null;
+    const known = (earMarkTypes || []).some(
+      (c) => String(c).toLowerCase() === raw.toLowerCase(),
+    );
+    if (!known) {
+      await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-add-vocab", kind: "ear_mark", label: raw },
+      });
+      setEarMarkTypes((rows) => (rows.includes(raw) ? rows : [...rows, raw]));
+      setEarMarkReloadKey((k) => k + 1);
+    }
+    return raw;
+  }
+
+  async function saveEarMark() {
+    if (!animal || !canMutate) return;
+    const label = await ensureEarMarkLabel(earMarkDraft.mark_label);
+    if (!label) {
+      addToast({ type: "error", message: "Select or type an ear mark." });
+      return;
+    }
+    setEarMarkBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: editingEarMarkId
+          ? {
+              operation: "livestock-update-ear-mark",
+              ear_mark_id: editingEarMarkId,
+              mark_label: label,
+              side: earMarkDraft.side,
+            }
+          : {
+              operation: "livestock-add-ear-mark",
+              id: animal.id,
+              mark_label: label,
+              side: earMarkDraft.side,
+            },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not save ear mark");
+      }
+      const wasEdit = Boolean(editingEarMarkId);
+      setAnimal((a) => ({ ...a, ear_marks: data.animal?.ear_marks || [] }));
+      setEarMarkDraft({ mark_label: "", side: "left" });
+      setAddingEarMark(false);
+      setEditingEarMarkId(null);
+      addToast({ type: "success", message: wasEdit ? "Ear mark updated." : "Ear mark added." });
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Could not save ear mark" });
+    } finally {
+      setEarMarkBusy(false);
+    }
+  }
+
+  async function deleteEarMark(earMarkId) {
+    if (!animal || !canMutate || !earMarkId) return;
+    const ok = await confirm({
+      title: "Delete ear mark?",
+      message: "This ear mark will be removed from the animal.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    setEarMarkBusy(true);
+    try {
+      const { data, error } = await invokeWithAuth("livestock-api", {
+        body: { operation: "livestock-delete-ear-mark", ear_mark_id: earMarkId },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.message || error?.message || "Could not delete ear mark");
+      }
+      setAnimal((a) => ({ ...a, ear_marks: data.animal?.ear_marks || [] }));
+      if (editingEarMarkId === earMarkId) {
+        setEditingEarMarkId(null);
+        setAddingEarMark(false);
+        setEarMarkDraft({ mark_label: "", side: "left" });
+      }
+      addToast({ type: "success", message: "Ear mark deleted." });
+    } catch (e) {
+      addToast({ type: "error", message: e?.message || "Could not delete ear mark" });
+    } finally {
+      setEarMarkBusy(false);
     }
   }
 
@@ -588,6 +728,7 @@ export default function UserLivestockDetailPage() {
       : null;
   const canAddBrand = canMutate && brandBearing && brands.length < 4;
   const canAddEarTag = canMutate && earTagBearing && earTags.length < 2;
+  const canAddEarMark = canMutate && earMarkBearing;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -682,6 +823,16 @@ export default function UserLivestockDetailPage() {
                   </RippleButton>
                 ) : null}
 
+                {canManage && isDeleted ? (
+                  <RippleButton
+                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm disabled:opacity-60"
+                    onClick={() => void hardDelete()}
+                    disabled={statusBusy}
+                  >
+                    Delete permanently
+                  </RippleButton>
+                ) : null}
+
                 {canManage && !isDeleted && !isDead ? (
                   <>
                     {isMissing ? (
@@ -758,7 +909,7 @@ export default function UserLivestockDetailPage() {
               <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
                 <div className="font-semibold">In your recycle bin</div>
                 <p className="mt-1 text-amber-900/90">
-                  You can restore this animal to active from the header actions.
+                  You can restore this animal to active from the header, or permanently delete it.
                 </p>
               </div>
             ) : null}
@@ -1211,19 +1362,134 @@ export default function UserLivestockDetailPage() {
 
                 {earMarkBearing || earMarks.length ? (
                   <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
-                    <PanelHeader title="Ear marks" />
+                    <PanelHeader
+                      title="Ear marks"
+                      action={
+                        canAddEarMark && !addingEarMark && !editingEarMarkId ? (
+                          <PlusButton
+                            label="Add ear mark"
+                            onClick={() => {
+                              setEditingEarMarkId(null);
+                              setEarMarkDraft({ mark_label: "", side: "left" });
+                              setAddingEarMark(true);
+                            }}
+                          />
+                        ) : null
+                      }
+                    />
                     {earMarks.length ? (
-                    <ul className="space-y-1 text-sm text-gray-800">
-                      {earMarks.map((m) => (
-                        <li key={m.id || m.mark_label}>
-                          {m.mark_label}
-                          {m.side ? ` (${m.side})` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                    ) : (
+                      <ul className="space-y-2 text-sm text-gray-800">
+                        {earMarks.map((m) => (
+                          <li
+                            key={m.id || m.mark_label}
+                            className="flex flex-wrap items-center justify-between gap-2"
+                          >
+                            <span>
+                              {m.mark_label}
+                              {m.side ? ` (${m.side})` : ""}
+                            </span>
+                            {canMutate && m.id ? (
+                              <span className="flex gap-1.5">
+                                <button
+                                  type="button"
+                                  title="Edit ear mark"
+                                  aria-label="Edit ear mark"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-iregistrygreen hover:bg-emerald-100 disabled:opacity-50"
+                                  disabled={earMarkBusy}
+                                  onClick={() => {
+                                    setAddingEarMark(false);
+                                    setEditingEarMarkId(m.id);
+                                    setEarMarkDraft({
+                                      mark_label: m.mark_label || "",
+                                      side: m.side || "left",
+                                    });
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete ear mark"
+                                  aria-label="Delete ear mark"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                                  disabled={earMarkBusy}
+                                  onClick={() => void deleteEarMark(m.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : !addingEarMark && !editingEarMarkId ? (
                       <p className="text-sm text-gray-500">No ear marks yet.</p>
-                    )}
+                    ) : null}
+
+                    {addingEarMark || editingEarMarkId ? (
+                      <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                          {editingEarMarkId ? "Edit ear mark" : "New ear mark"}
+                        </div>
+                        <div className="flex gap-2 items-start min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <SearchableOptionsSelect
+                              value={earMarkDraft.mark_label || ""}
+                              onChange={(v) =>
+                                setEarMarkDraft((d) => ({ ...d, mark_label: v }))
+                              }
+                              onCommit={(v) => {
+                                void ensureEarMarkLabel(v).catch(() => {});
+                              }}
+                              placeholder="Select or type an ear mark…"
+                              allowOther
+                              variant="searchable"
+                              inputClassName="mt-0 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+                              reloadKey={earMarkReloadKey}
+                              loadOptions={async () => earMarkTypes || []}
+                              listboxAriaLabel="Ear marks"
+                              typedValueLabel={(q) => `Add ear mark “${q}”`}
+                            />
+                          </div>
+                          <select
+                            className="w-[5.5rem] shrink-0 border rounded-xl px-2 py-2 text-sm bg-white"
+                            value={earMarkDraft.side || ""}
+                            onChange={(e) =>
+                              setEarMarkDraft((d) => ({ ...d, side: e.target.value || "left" }))
+                            }
+                          >
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          <RippleButton
+                            type="button"
+                            className="px-3 py-1.5 rounded-xl border bg-white text-sm"
+                            onClick={() => {
+                              setAddingEarMark(false);
+                              setEditingEarMarkId(null);
+                              setEarMarkDraft({ mark_label: "", side: "left" });
+                            }}
+                            disabled={earMarkBusy}
+                          >
+                            Cancel
+                          </RippleButton>
+                          <RippleButton
+                            type="button"
+                            className="px-3 py-1.5 rounded-xl bg-iregistrygreen text-white text-sm font-semibold disabled:opacity-60"
+                            onClick={() => void saveEarMark()}
+                            disabled={earMarkBusy}
+                          >
+                            {earMarkBusy
+                              ? "Saving…"
+                              : editingEarMarkId
+                                ? "Save changes"
+                                : "Save mark"}
+                          </RippleButton>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

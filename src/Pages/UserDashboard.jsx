@@ -50,11 +50,16 @@ export default function UserDashboard() {
 
   const activeCount = summary.activeItems || 0;
   const stolenCount = summary.stolenItems || 0;
+  const activeLivestock = summary.activeLivestock || 0;
+  const missingLivestock = summary.missingLivestock || 0;
   const { total: notifTotal, unread } = useNotificationCenter();
   const hasItems = activeCount + stolenCount > 0;
+  const hasLivestock = activeLivestock + missingLivestock > 0;
 
   const activeAnimated = useCountUp(activeCount);
   const stolenAnimated = useCountUp(stolenCount);
+  const livestockAnimated = useCountUp(activeLivestock);
+  const missingAnimated = useCountUp(missingLivestock);
   const notifAnimated = useCountUp(notifTotal);
 
   const activity = filterActivityForViewer(
@@ -68,7 +73,7 @@ export default function UserDashboard() {
   const totalPages = pagination?.totalPages || 1;
 
   const promoActive = Boolean(user?.promo_active);
-  const showFirstItemCallout = !loading && !hasItems;
+  const showFirstItemCallout = !loading && !hasItems && !hasLivestock;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -80,7 +85,7 @@ export default function UserDashboard() {
             </h1>
             <p className="text-sm text-gray-500 mt-1">
               {showFirstItemCallout
-                ? "Register your first item to start protecting what matters to you"
+                ? "Register your first item or animal to start protecting what matters to you"
                 : "Here’s a snapshot of your asset portfolio"}
             </p>
           </div>
@@ -173,6 +178,54 @@ export default function UserDashboard() {
                   <div className="h-8 w-10 bg-gray-200 rounded animate-pulse" />
                 ) : (
                   stolenAnimated
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Active livestock */}
+          <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-0.5 border border-gray-100 relative overflow-hidden">
+            <div className="absolute left-0 top-0 h-full w-1.5 bg-sky-500" />
+            <div className="flex items-center justify-between px-6 py-5">
+              <div>
+                <div className="text-sm uppercase tracking-wide text-gray-500">
+                  Active Animals
+                </div>
+                <div className="text-xs text-gray-400">
+                  Living registry
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-sky-700">
+                {loading ? (
+                  <div className="h-8 w-10 bg-gray-200 rounded animate-pulse" />
+                ) : (
+                  livestockAnimated
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Missing livestock */}
+          <div
+            className={`bg-white rounded-2xl shadow-sm hover:shadow-md transition border border-gray-100 relative overflow-hidden ${
+              missingLivestock > 0 ? "bg-red-50/40" : ""
+            }`}
+          >
+            <div className="absolute left-0 top-0 h-full w-1.5 bg-orange-500" />
+            <div className="flex items-center justify-between px-6 py-5">
+              <div>
+                <div className="text-sm uppercase tracking-wide text-gray-500">
+                  Missing Animals
+                </div>
+                <div className="text-xs text-gray-400">
+                  Requires attention
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-orange-600">
+                {loading ? (
+                  <div className="h-8 w-10 bg-gray-200 rounded animate-pulse" />
+                ) : (
+                  missingAnimated
                 )}
               </div>
             </div>

@@ -4,11 +4,13 @@ import RippleButton from "./RippleButton";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useAddItemPreflight } from "../hooks/useAddItemPreflight.js";
 import { NAV_ACTIONS } from "../lib/navLabels.js";
+import { useRegisterAnimalPreflight } from "../hooks/useRegisterAnimalPreflight.js";
 
 export default function QuickActionsPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { goToAddItem, tasksLoading } = useAddItemPreflight();
+  const { goToRegisterAnimal, tasksLoading: animalPreflightLoading } = useRegisterAnimalPreflight();
   const promoActive = Boolean(user?.promo_active);
 
   return (
@@ -39,6 +41,31 @@ export default function QuickActionsPanel() {
           onClick={() => navigate("/items")}
         >
           {NAV_ACTIONS.reportTheft}
+        </RippleButton>
+
+        <RippleButton
+          className="w-full py-2 rounded-xl bg-iregistrygreen text-white font-medium disabled:opacity-60"
+          onClick={() =>
+            void goToRegisterAnimal({ path: "/user/livestock/register" })
+          }
+          disabled={animalPreflightLoading}
+          title={animalPreflightLoading ? "Loading credit prices…" : undefined}
+        >
+          {`+ ${NAV_ACTIONS.registerAnimal}`}
+        </RippleButton>
+
+        <RippleButton
+          className="w-full py-2 rounded-xl bg-gray-100 text-gray-800"
+          onClick={() => navigate("/user/livestock")}
+        >
+          {NAV_ACTIONS.viewMyLivestock}
+        </RippleButton>
+
+        <RippleButton
+          className="w-full py-2 rounded-xl bg-orange-600 text-white"
+          onClick={() => navigate("/user/livestock/missing")}
+        >
+          {NAV_ACTIONS.reportMissingAnimal}
         </RippleButton>
       </div>
     </div>
