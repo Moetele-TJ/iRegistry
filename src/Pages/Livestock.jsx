@@ -28,6 +28,10 @@ import { useModal } from "../contexts/ModalContext.jsx";
 
 const PAGE_SIZE = 12;
 
+function animalTypeLabel(a) {
+  return a?.type_label || a?.type_code || "";
+}
+
 function viewSubtitle(view) {
   switch (view) {
     case "missing":
@@ -306,11 +310,13 @@ export default function Livestock({ view = "active" } = {}) {
     !privileged || String(ownerScope) === String(sessionUserId);
 
   const typeOptions = useMemo(() => {
-    const set = new Set();
+    const map = new Map();
     for (const a of animals) {
-      if (a?.type_code) set.add(String(a.type_code));
+      const code = String(a?.type_code || "").trim();
+      if (!code) continue;
+      if (!map.has(code)) map.set(code, a?.type_label || code);
     }
-    return [...set].sort((a, b) => a.localeCompare(b));
+    return [...map.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])));
   }, [animals]);
 
   const stats = useMemo(() => {
@@ -567,9 +573,12 @@ export default function Livestock({ view = "active" } = {}) {
                     className="border rounded-xl px-3 py-2"
                   >
                     <option value="All">All types</option>
-                    {typeOptions.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
+                    {typeFilter !== "All" && !typeOptions.some(([code]) => code === typeFilter) ? (
+                      <option value={typeFilter}>{typeFilter}</option>
+                    ) : null}
+                    {typeOptions.map(([code, label]) => (
+                      <option key={code} value={code}>
+                        {label}
                       </option>
                     ))}
                   </select>
@@ -684,7 +693,7 @@ export default function Livestock({ view = "active" } = {}) {
                             </div>
                             <div className="min-w-0">
                               <div className="font-medium text-gray-900 truncate">
-                                {a.name || a.breed || a.type_code || "Animal"}
+                                {a.name || a.breed || animalTypeLabel(a) || "Animal"}
                               </div>
                               <div className="text-xs text-gray-500 truncate">
                                 {[a.colour, a.breed, a.gender].filter(Boolean).join(" · ") || "—"}
@@ -692,7 +701,7 @@ export default function Livestock({ view = "active" } = {}) {
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-5 text-gray-700">{a.type_code || "—"}</td>
+                        <td className="py-4 px-5 text-gray-700">{animalTypeLabel(a) || "—"}</td>
                         <td className="py-4 px-5">
                           <span
                             className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusBadgeClass(a.status)}`}
@@ -777,10 +786,10 @@ export default function Livestock({ view = "active" } = {}) {
                     <div className="p-4 space-y-3">
                       <div>
                         <div className="font-semibold text-gray-900">
-                          {a.name || a.breed || a.type_code || "Animal"}
+                          {a.name || a.breed || animalTypeLabel(a) || "Animal"}
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5">
-                          {[a.type_code, a.colour, a.status].filter(Boolean).join(" · ")}
+                          {[animalTypeLabel(a), a.colour, a.status].filter(Boolean).join(" · ")}
                         </div>
                       </div>
                       <div className="flex gap-2">

@@ -6,7 +6,7 @@ import { getCorsHeaders } from "../shared/cors.ts";
 import { respond } from "../shared/respond.ts";
 import { validateSession } from "../shared/validateSession.ts";
 import { generateEmbedding } from "../shared/generateEmbedding.ts";
-import { isPrivilegedRole } from "../shared/roles.ts";
+import { isPrivilegedRole, roleIs } from "../shared/roles.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -19,8 +19,36 @@ const MAX_SHORTLIST = 8;
 
 type Session = { user_id: string; role: string };
 
+const TYPE_ATTR_SELECT =
+  "code, label, brand_bearing, ear_tag_bearing, ear_mark_bearing, active";
+
 function asString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
+}
+
+function slugTypeCode(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function typeAttrFlags(
+  row: {
+    brand_bearing?: boolean | null;
+    ear_tag_bearing?: boolean | null;
+    ear_mark_bearing?: boolean | null;
+  } | null | undefined,
+) {
+  return {
+    brand_bearing: Boolean(row?.brand_bearing),
+    ear_tag_bearing: row?.ear_tag_bearing !== false,
+    ear_mark_bearing: row?.ear_mark_bearing !== false,
+  };
+}
+
+function forbidUnlessAdmin(req: Request, session: Session) {
+  if (!roleIs(session.role, "admin")) {
+    return respond({ success: false, message: "Forbidden" }, getCorsHeaders(req), 403);
+  }
+  return null;
 }
 
 function asFiniteNumber(v: unknown): number | null {
@@ -154,7 +182,7 @@ async function requireUser(req: Request) {
 async function runGetVocab(req: Request) {
   const corsHeaders = getCorsHeaders(req);
   const [{ data: types }, { data: colours }, { data: earMarks }, { data: breedRows }] = await Promise.all([
-    supabase.from("livestock_types").select("code, label, brand_bearing").eq("active", true).order("label"),
+    supabase.from("livestock_types").select(TYPE_ATTR_SELECT).eq("active", true).order("label"),
     supabase.from("livestock_colours").select("label").eq("active", true).order("label"),
     supabase.from("livestock_ear_mark_types").select("label").eq("active", true).order("label"),
     supabase
@@ -321,10 +349,33 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
     (a: { photos?: unknown }) => photoPathsFromAnimalPhotos(a.photos, { firstOnly: true })[0] || "",
   );
   const signedThumbs = await signPhotoPaths(thumbPaths);
-  const withThumbs = animals.map((a: Record<string, unknown>, i: number) => ({
-    ...a,
-    signed_thumb: signedThumbs[i] || null,
-  }));
+  const typeCodes = [
+    ...new Set(
+      animals
+        .map((a: { type_code?: string }) => String(a.type_code || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const typeLabelByCode = new Map<string, string>();
+  if (typeCodes.length) {
+    const { data: typeRows } = await supabase
+      .from("livestock_types")
+      .select("code, label")
+      .in("code", typeCodes);
+    for (const row of typeRows || []) {
+      const code = String((row as { code?: string }).code || "");
+      if (code) typeLabelByCode.set(code, String((row as { label?: string }).label || code));
+    }
+  }
+
+  const withThumbs = animals.map((a: Record<string, unknown>, i: number) => {
+    const code = String(a.type_code || "");
+    return {
+      ...a,
+      signed_thumb: signedThumbs[i] || null,
+      type_label: typeLabelByCode.get(code) || code || null,
+    };
+  });
 
   let owner_counts: Record<string, number> | undefined;
   if (isPrivilegedRole(session.role)) {
@@ -381,9 +432,10 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
 
   const { data: typeRow } = await supabase
     .from("livestock_types")
-    .select("code, label, brand_bearing")
+    .select(TYPE_ATTR_SELECT)
     .eq("code", animal.type_code)
     .maybeSingle();
+  const flags = typeAttrFlags(typeRow);
 
   return respond(
     {
@@ -391,7 +443,7 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
       animal: {
         ...animal,
         signed_photos,
-        brand_bearing: Boolean(typeRow?.brand_bearing),
+        ...flags,
         type_label: typeRow?.label || animal.type_code,
       },
       owner,
@@ -439,7 +491,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
 
   const { data: typeRow } = await supabase
     .from("livestock_types")
-    .select("code, brand_bearing")
+    .select("code, brand_bearing, ear_tag_bearing, ear_mark_bearing")
     .eq("code", type_code)
     .eq("active", true)
     .maybeSingle();
@@ -447,8 +499,15 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
   if (!typeRow) {
     return respond({ success: false, message: "Unknown animal type" }, corsHeaders, 400);
   }
-  if (!typeRow.brand_bearing && brands.length > 0) {
+  const flags = typeAttrFlags(typeRow);
+  if (!flags.brand_bearing && brands.length > 0) {
     return respond({ success: false, message: "This animal type does not use brands" }, corsHeaders, 400);
+  }
+  if (!flags.ear_tag_bearing && ear_tags.length > 0) {
+    return respond({ success: false, message: "This animal type does not use ear tags" }, corsHeaders, 400);
+  }
+  if (!flags.ear_mark_bearing && ear_marks.length > 0) {
+    return respond({ success: false, message: "This animal type does not use ear marks" }, corsHeaders, 400);
   }
 
   const { data: canRows } = await supabase.rpc("livestock_can_register", { p_user_id: ownerId });
@@ -497,7 +556,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
       breed,
       colour,
       name,
-      zone_brand,
+      zone_brand: flags.brand_bearing ? zone_brand : null,
       dwelling_lat,
       dwelling_lng,
       dwelling_village,
@@ -513,7 +572,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
     return respond({ success: false, message: insErr?.message || "Failed to register animal" }, corsHeaders, 500);
   }
 
-  if (typeRow.brand_bearing && brands.length) {
+  if (flags.brand_bearing && brands.length) {
     const brandRows = brands.slice(0, 4).map((b: Record<string, unknown>, i: number) => {
       const characters = asString(b.characters).toUpperCase();
       const char_count = characters.length === 4 ? 4 : 3;
@@ -533,7 +592,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
     if (brandRows.length) await supabase.from("livestock_brands").insert(brandRows);
   }
 
-  if (ear_tags.length) {
+  if (flags.ear_tag_bearing && ear_tags.length) {
     const tagRows = ear_tags.slice(0, 2).map((t: Record<string, unknown>) => ({
       animal_id: animal.id,
       tag_id: asString(t.tag_id),
@@ -542,7 +601,7 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
     if (tagRows.length) await supabase.from("livestock_ear_tags").insert(tagRows);
   }
 
-  if (ear_marks.length) {
+  if (flags.ear_mark_bearing && ear_marks.length) {
     const markRows = ear_marks.map((m: Record<string, unknown>) => ({
       animal_id: animal.id,
       mark_label: asString(m.mark_label) || asString(m.label),
@@ -1160,7 +1219,7 @@ async function runUpdateMine(req: Request, session: Session, body: Record<string
 
   const { data: existing } = await supabase
     .from("livestock_animals")
-    .select("id, owner_id, status, deleted_at")
+    .select("id, owner_id, status, deleted_at, type_code")
     .eq("id", id)
     .maybeSingle();
   if (!existing || !canAccessAnimal(session, String(existing.owner_id))) {
@@ -1183,7 +1242,18 @@ async function runUpdateMine(req: Request, session: Session, body: Record<string
     const g = asString(body.gender).toLowerCase();
     patch.gender = ["male", "female", "unknown"].includes(g) ? g : "unknown";
   }
-  if ("zone_brand" in body) patch.zone_brand = asString(body.zone_brand) || null;
+  if ("zone_brand" in body) {
+    const { data: typeFlagsRow } = existing.type_code
+      ? await supabase
+          .from("livestock_types")
+          .select("brand_bearing")
+          .eq("code", existing.type_code)
+          .maybeSingle()
+      : { data: null };
+    if (typeFlagsRow?.brand_bearing) {
+      patch.zone_brand = asString(body.zone_brand) || null;
+    }
+  }
   if ("dwelling_village" in body) patch.dwelling_village = asString(body.dwelling_village) || null;
   if ("dwelling_lat" in body) patch.dwelling_lat = asFiniteNumber(body.dwelling_lat);
   if ("dwelling_lng" in body) patch.dwelling_lng = asFiniteNumber(body.dwelling_lng);
@@ -1251,6 +1321,15 @@ async function runAddEarTag(req: Request, session: Session, body: Record<string,
   const animal = await loadAnimalBundle(id, { includeDeleted: true });
   if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const { data: typeRow } = await supabase
+    .from("livestock_types")
+    .select("ear_tag_bearing")
+    .eq("code", animal.type_code)
+    .maybeSingle();
+  if (typeRow?.ear_tag_bearing === false) {
+    return respond({ success: false, message: "This animal type does not use ear tags" }, corsHeaders, 400);
   }
 
   const existingTags = Array.isArray(animal.ear_tags) ? animal.ear_tags : [];
@@ -1538,12 +1617,12 @@ async function runAddVocab(req: Request, session: Session, body: Record<string, 
   }
 
   if (kind === "type") {
-    const code = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    const code = slugTypeCode(label);
     if (!code) return respond({ success: false, message: "Invalid type label" }, corsHeaders, 400);
 
     const { data: existing, error: existingErr } = await supabase
       .from("livestock_types")
-      .select("code, label, brand_bearing")
+      .select(TYPE_ATTR_SELECT)
       .eq("code", code)
       .maybeSingle();
     if (existingErr) return respond({ success: false, message: existingErr.message }, corsHeaders, 500);
@@ -1552,16 +1631,80 @@ async function runAddVocab(req: Request, session: Session, body: Record<string, 
     }
 
     const brand_bearing = Boolean(body.brand_bearing);
+    const ear_tag_bearing = body.ear_tag_bearing === undefined ? true : Boolean(body.ear_tag_bearing);
+    const ear_mark_bearing = body.ear_mark_bearing === undefined ? true : Boolean(body.ear_mark_bearing);
     const { data, error } = await supabase
       .from("livestock_types")
-      .insert({ code, label, brand_bearing })
-      .select("code, label, brand_bearing")
+      .insert({ code, label, brand_bearing, ear_tag_bearing, ear_mark_bearing })
+      .select(TYPE_ATTR_SELECT)
       .single();
     if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
     return respond({ success: true, type: data }, corsHeaders, 200);
   }
 
   return respond({ success: false, message: "kind must be colour, ear_mark, or type" }, corsHeaders, 400);
+}
+
+async function runAdminListTypes(req: Request, session: Session) {
+  const forbidden = forbidUnlessAdmin(req, session);
+  if (forbidden) return forbidden;
+  const corsHeaders = getCorsHeaders(req);
+
+  const { data, error } = await supabase
+    .from("livestock_types")
+    .select(TYPE_ATTR_SELECT)
+    .order("label");
+  if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+  return respond({ success: true, types: data || [] }, corsHeaders, 200);
+}
+
+async function runAdminUpsertType(req: Request, session: Session, body: Record<string, unknown>) {
+  const forbidden = forbidUnlessAdmin(req, session);
+  if (forbidden) return forbidden;
+  const corsHeaders = getCorsHeaders(req);
+
+  const label = asString(body.label);
+  if (!label) return respond({ success: false, message: "label is required" }, corsHeaders, 400);
+  if (label.length > 80) {
+    return respond({ success: false, message: "Label must be 80 characters or fewer" }, corsHeaders, 400);
+  }
+
+  const brand_bearing = Boolean(body.brand_bearing);
+  const ear_tag_bearing = Boolean(body.ear_tag_bearing);
+  const ear_mark_bearing = Boolean(body.ear_mark_bearing);
+  const active = body.active === undefined ? true : Boolean(body.active);
+
+  const existingCode = slugTypeCode(asString(body.code));
+  const { data: existing } = existingCode
+    ? await supabase.from("livestock_types").select("code").eq("code", existingCode).maybeSingle()
+    : { data: null };
+
+  if (existing?.code) {
+    const { data, error } = await supabase
+      .from("livestock_types")
+      .update({ label, brand_bearing, ear_tag_bearing, ear_mark_bearing, active })
+      .eq("code", existing.code)
+      .select(TYPE_ATTR_SELECT)
+      .single();
+    if (error) return respond({ success: false, message: error.message }, corsHeaders, 500);
+    return respond({ success: true, type: data }, corsHeaders, 200);
+  }
+
+  const code = existingCode || slugTypeCode(label);
+  if (!code) return respond({ success: false, message: "Invalid type code" }, corsHeaders, 400);
+
+  const { data, error } = await supabase
+    .from("livestock_types")
+    .insert({ code, label, brand_bearing, ear_tag_bearing, ear_mark_bearing, active })
+    .select(TYPE_ATTR_SELECT)
+    .single();
+  if (error) {
+    if (String(error.message || "").toLowerCase().includes("duplicate")) {
+      return respond({ success: false, message: "A type with that code already exists" }, corsHeaders, 409);
+    }
+    return respond({ success: false, message: error.message }, corsHeaders, 500);
+  }
+  return respond({ success: true, type: data }, corsHeaders, 200);
 }
 
 serve(async (req) => {
@@ -1651,6 +1794,10 @@ serve(async (req) => {
         return await runDeletePhoto(req, session!, body);
       case "livestock-add-vocab":
         return await runAddVocab(req, session!, body);
+      case "livestock-admin-list-types":
+        return await runAdminListTypes(req, session!);
+      case "livestock-admin-upsert-type":
+        return await runAdminUpsertType(req, session!, body);
       default:
         return respond({ success: false, message: `Unknown operation: ${operation || "(none)"}` }, corsHeaders, 400);
     }

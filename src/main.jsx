@@ -40,6 +40,7 @@ import AdminLivestockMissingPage from "./Pages/admin/AdminLivestockMissingPage.j
 import AdminLivestockRecoveredPage from "./Pages/admin/AdminLivestockRecoveredPage.jsx";
 import AdminLivestockDeadPage from "./Pages/admin/AdminLivestockDeadPage.jsx";
 import AdminLivestockDeletedPage from "./Pages/admin/AdminLivestockDeletedPage.jsx";
+import AdminLivestockTypesPage from "./Pages/admin/AdminLivestockTypesPage.jsx";
 import CashierLivestockPage from "./Pages/cashier/CashierLivestockPage.jsx";
 import CashierLivestockMissingPage from "./Pages/cashier/CashierLivestockMissingPage.jsx";
 import CashierLivestockRecoveredPage from "./Pages/cashier/CashierLivestockRecoveredPage.jsx";
@@ -227,6 +228,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="livestock/recovered" element={<AdminLivestockRecoveredPage />} />
                     <Route path="livestock/dead" element={<AdminLivestockDeadPage />} />
                     <Route path="livestock/deleted" element={<AdminLivestockDeletedPage />} />
+                    <Route path="livestock/types" element={<AdminLivestockTypesPage />} />
                     <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
                     <Route path="activity" element={<AdminActivityPage />} />

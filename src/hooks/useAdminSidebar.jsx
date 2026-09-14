@@ -71,6 +71,7 @@ export function useAdminSidebar({ visible: visibleProp = true } = {}) {
           { to: "/admin/livestock/recovered", label: NAV.recoveredAnimals, end: true },
           { to: "/admin/livestock/dead", label: NAV.deadAnimals, end: true },
           { to: "/admin/livestock/deleted", label: NAV.deletedAnimals, end: true },
+          { to: "/admin/livestock/types", label: NAV.livestockTypes, end: true },
         ],
       },
       { to: "/admin/notifications", icon: <Bell size={20} />, label: NAV.notifications },

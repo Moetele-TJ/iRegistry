@@ -150,6 +150,8 @@ export default function UserLivestockRegisterPage() {
     return types.find((t) => String(t.label || "").toLowerCase() === label) || null;
   }, [vocab.types, type_code, typeLabel]);
   const brandBearing = Boolean(selectedType?.brand_bearing);
+  const earTagBearing = selectedType ? selectedType.ear_tag_bearing !== false : true;
+  const earMarkBearing = selectedType ? selectedType.ear_mark_bearing !== false : true;
 
   useEffect(() => {
     if (!brandBearing) {
@@ -162,6 +164,18 @@ export default function UserLivestockRegisterPage() {
       return [{ characters: "", layout: "horizontal", side: "left", body_part: "shoulder" }];
     });
   }, [brandBearing]);
+
+  useEffect(() => {
+    if (!earTagBearing) {
+      setEarTags([{ tag_id: "", side: "left" }]);
+    }
+  }, [earTagBearing]);
+
+  useEffect(() => {
+    if (!earMarkBearing) {
+      setEarMarks([]);
+    }
+  }, [earMarkBearing]);
 
   const refreshVocab = useCallback(async () => {
     const { data } = await invokeWithAuth("livestock-api", {
@@ -433,8 +447,8 @@ export default function UserLivestockRegisterPage() {
                   body_part: b.body_part,
                 }))
             : [],
-          ear_tags: earTags.filter((t) => t.tag_id?.trim()),
-          ear_marks: resolvedEarMarks.filter((m) => m.mark_label?.trim()),
+          ear_tags: earTagBearing ? earTags.filter((t) => t.tag_id?.trim()) : [],
+          ear_marks: earMarkBearing ? resolvedEarMarks.filter((m) => m.mark_label?.trim()) : [],
         },
       });
 
@@ -714,6 +728,7 @@ export default function UserLivestockRegisterPage() {
           </div>
         ) : null}
 
+        {earTagBearing ? (
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-800">Ear tags (up to 2)</div>
           {earTags.map((t, i) => (
@@ -752,7 +767,9 @@ export default function UserLivestockRegisterPage() {
             </button>
           ) : null}
         </div>
+        ) : null}
 
+        {earMarkBearing ? (
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium text-gray-800">Ear marks</div>
@@ -803,6 +820,7 @@ export default function UserLivestockRegisterPage() {
             </div>
           ))}
         </div>
+        ) : null}
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
           <RippleButton

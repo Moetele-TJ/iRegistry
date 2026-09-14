@@ -142,6 +142,8 @@ export default function UserLivestockDetailPage() {
     String(animal.owner_id) === String(user.id);
   const showOwnerDetails = Boolean(animal && !isOwner);
   const brandBearing = Boolean(animal?.brand_bearing);
+  const earTagBearing = animal?.ear_tag_bearing !== false;
+  const earMarkBearing = animal?.ear_mark_bearing !== false;
   const brands = Array.isArray(animal?.brands) ? animal.brands : [];
   const earTags = Array.isArray(animal?.ear_tags) ? animal.ear_tags : [];
   const earMarks = Array.isArray(animal?.ear_marks) ? animal.ear_marks : [];
@@ -218,6 +220,8 @@ export default function UserLivestockDetailPage() {
         ...data.animal,
         signed_photos: a?.signed_photos,
         brand_bearing: a?.brand_bearing,
+        ear_tag_bearing: a?.ear_tag_bearing,
+        ear_mark_bearing: a?.ear_mark_bearing,
         type_label: a?.type_label,
         brands: data.animal?.brands ?? a?.brands,
         ear_tags: data.animal?.ear_tags ?? a?.ear_tags,
@@ -583,7 +587,7 @@ export default function UserLivestockDetailPage() {
         )
       : null;
   const canAddBrand = canMutate && brandBearing && brands.length < 4;
-  const canAddEarTag = canMutate && earTags.length < 2;
+  const canAddEarTag = canMutate && earTagBearing && earTags.length < 2;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1088,6 +1092,7 @@ export default function UserLivestockDetailPage() {
                   </div>
                 ) : null}
 
+                {earTagBearing || earTags.length ? (
                 <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
                   <PanelHeader
                     title="Ear tags"
@@ -1202,10 +1207,12 @@ export default function UserLivestockDetailPage() {
                     </div>
                   ) : null}
                 </div>
+                ) : null}
 
-                {earMarks.length ? (
+                {earMarkBearing || earMarks.length ? (
                   <div className="rounded-3xl border border-gray-100/90 bg-white shadow-md shadow-slate-200/70 p-5">
                     <PanelHeader title="Ear marks" />
+                    {earMarks.length ? (
                     <ul className="space-y-1 text-sm text-gray-800">
                       {earMarks.map((m) => (
                         <li key={m.id || m.mark_label}>
@@ -1214,6 +1221,9 @@ export default function UserLivestockDetailPage() {
                         </li>
                       ))}
                     </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">No ear marks yet.</p>
+                    )}
                   </div>
                 ) : null}
               </div>
