@@ -22,7 +22,7 @@ function readCssPx(name, fallback = 0) {
 
 function sidebarViewportBand(pad = VIEW_PAD) {
   const top = readCssPx("--app-header-h") + pad;
-  const bottom = window.innerHeight - readCssPx("--app-footer-h") - pad;
+  const bottom = window.innerHeight - readCssPx("--app-sidebar-bottom-inset") - pad;
   return { top, bottom, maxHeight: Math.max(0, bottom - top) };
 }
 

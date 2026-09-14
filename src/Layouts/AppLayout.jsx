@@ -10,29 +10,77 @@ import { SidebarProvider, useSidebar } from "../contexts/SidebarContext";
 import AppSidebar from "../components/AppSidebar";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { roleIs } from "../lib/roleUtils.js";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 export default function AppLayout() {
   const footerWrapRef = useRef(null);
 
-  useEffect(() => {
-    const el = footerWrapRef.current;
-    if (!el) return;
+  useLayoutEffect(() => {
+    const footerEl = footerWrapRef.current;
+    const root = document.documentElement;
+    if (!footerEl) return;
+
+    const overlayTop = (el) => {
+      if (!el) return null;
+      const style = getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") return null;
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 && r.height <= 0) return null;
+      return r.top;
+    };
 
     const apply = () => {
-      const h = Math.max(0, Math.round(el.getBoundingClientRect().height || 0));
-      document.documentElement.style.setProperty("--app-footer-h", `${h}px`);
+      const footerRect = footerEl.getBoundingClientRect();
+      const footerH = Math.max(0, Math.round(footerRect.height || 0));
+      root.style.setProperty("--app-footer-h", `${footerH}px`);
+
+      const vh = window.innerHeight;
+      const headerH = parseFloat(getComputedStyle(root).getPropertyValue("--app-header-h")) || 0;
+      const minSidebarH = 96;
+      let inset = 0;
+
+      const raiseTo = (top) => {
+        if (!Number.isFinite(top) || top >= vh) return;
+        inset = Math.max(inset, vh - top);
+      };
+
+      raiseTo(footerRect.top);
+      raiseTo(overlayTop(document.querySelector("[data-app-bottom-nav]")));
+
+      const maxInset = Math.max(0, vh - headerH - minSidebarH);
+      const nextInset = `${Math.round(Math.min(Math.max(0, inset), maxInset))}px`;
+      if (root.style.getPropertyValue("--app-sidebar-bottom-inset") !== nextInset) {
+        root.style.setProperty("--app-sidebar-bottom-inset", nextInset);
+      }
+    };
+
+    let raf = 0;
+    const schedule = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        apply();
+      });
     };
 
     apply();
 
-    const ro = new ResizeObserver(() => apply());
-    ro.observe(el);
-    window.addEventListener("resize", apply);
+    const ro = new ResizeObserver(schedule);
+    ro.observe(footerEl);
+    if (document.body) ro.observe(document.body);
+
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, { capture: true, passive: true });
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
 
     return () => {
+      if (raf) window.cancelAnimationFrame(raf);
       ro.disconnect();
-      window.removeEventListener("resize", apply);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
     };
   }, []);
 
@@ -45,7 +93,7 @@ export default function AppLayout() {
             <div className="flex flex-1 flex-col min-h-0 pt-[var(--app-header-h)]">
               <LayoutBody />
             </div>
-            <div ref={footerWrapRef}>
+            <div ref={footerWrapRef} data-app-footer>
               <Footer />
             </div>
           </div>

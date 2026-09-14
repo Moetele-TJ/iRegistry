@@ -37,6 +37,10 @@
   --app-header-h: 80px;
   /* Measured at runtime in AppLayout; fallback is 0. */
   --app-footer-h: 0px;
+  /* Distance from the viewport bottom to the sidebar’s bottom edge.
+     0 when the page footer (and mobile bottom nav) are off-screen;
+     grows as they enter the viewport so the rail sits just above them. */
+  --app-sidebar-bottom-inset: 0px;
   --app-sidebar-collapsed-w: 56px; /* Tailwind w-14 */
   --app-sidebar-expanded-w: 176px; /* Tailwind w-44 */
   /* Space between sidebar and content (in addition to collapsed width). */
@@ -58,6 +62,15 @@
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+  scroll-behavior: smooth;
+  overflow-anchor: none;
+  scroll-padding-block: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar-nav {
+    scroll-behavior: auto;
+  }
 }
 
 .app-sidebar-nav::-webkit-scrollbar {

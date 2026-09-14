@@ -9,51 +9,20 @@ const SIDEBAR_EXPAND_MS = 320;
 const SIDEBAR_COLLAPSE_MS = 520;
 const ASIDE_LEAVE_DELAY_MS = 180;
 
-function readCssPx(name, fallback = 0) {
-  if (typeof window === "undefined") return fallback;
-  const n = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue(name),
-  );
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function sidebarViewportBand(pad = 8) {
-  const top = readCssPx("--app-header-h") + pad;
-  const bottom = window.innerHeight - readCssPx("--app-footer-h") - pad;
-  return { top, bottom, maxHeight: Math.max(0, bottom - top) };
-}
-
-const SUBITEM_ROW_H = 42;
-
-function estimateSubmenuHeight(count) {
-  return Math.max(0, Number(count) || 0) * SUBITEM_ROW_H;
-}
-
 function scrollNavChildIntoView(nav, el) {
   if (!nav || !el || !nav.contains(el)) return;
   const navRect = nav.getBoundingClientRect();
   const elRect = el.getBoundingClientRect();
   const pad = 12;
-  if (elRect.top < navRect.top + pad) {
-    nav.scrollTop += elRect.top - navRect.top - pad;
-  } else if (elRect.bottom > navRect.bottom - pad) {
-    nav.scrollTop += elRect.bottom - navRect.bottom + pad;
-  }
-
-  const count = Number(el.getAttribute("data-sidebar-submenu-count") || 0);
-  if (count <= 0) return;
-
-  const after = el.getBoundingClientRect();
-  const { top: viewTop, bottom: viewBottom, maxHeight } = sidebarViewportBand(pad);
-  const flyoutH = Math.min(estimateSubmenuHeight(count), maxHeight);
-  const overflowBottom = after.top + flyoutH - viewBottom;
-  if (overflowBottom > 0) {
-    nav.scrollTop += overflowBottom;
-  }
-  const overflowTop = viewTop - el.getBoundingClientRect().top;
-  if (overflowTop > 0) {
-    nav.scrollTop -= overflowTop;
-  }
+  const clipped =
+    elRect.top < navRect.top + pad || elRect.bottom > navRect.bottom - pad;
+  if (!clipped) return;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  el.scrollIntoView({
+    behavior: reduce ? "auto" : "smooth",
+    block: "nearest",
+    inline: "nearest",
+  });
 }
 
 export default function AppSidebar({ sidebar }) {
@@ -192,10 +161,9 @@ export default function AppSidebar({ sidebar }) {
     if (!current) return;
 
     const run = () => scrollNavChildIntoView(nav, current);
-    run();
     const frame = window.requestAnimationFrame(run);
     return () => window.cancelAnimationFrame(frame);
-  }, [location.pathname, visible, railExpanded, expandAnimationComplete, items, sections, activeFlyoutKey]);
+  }, [location.pathname, visible, items, sections]);
 
   const anyFlyoutOpen = useCallback(() => flyoutOpenKeysRef.current.size > 0, []);
 
@@ -338,11 +306,10 @@ export default function AppSidebar({ sidebar }) {
     <aside
       ref={asideRef}
       className={`
-        fixed left-0 top-[var(--app-header-h)] bottom-auto z-[70]
+        fixed left-0 top-[var(--app-header-h)] bottom-[var(--app-sidebar-bottom-inset,0px)] z-[70]
         flex flex-col overflow-hidden
         bg-iregistrygreen text-white
         rounded-br-3xl shadow-lg
-        max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))]
         transition-[width] ease-out
         ${
           isWide
@@ -355,7 +322,7 @@ export default function AppSidebar({ sidebar }) {
     >
       <nav
         ref={navRef}
-        className="app-sidebar-nav max-h-[calc(100dvh-var(--app-header-h)-var(--app-footer-h))] overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
+        className="app-sidebar-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain py-4 px-0 space-y-2"
         aria-label="Main navigation"
       >
         {sections.length > 0
