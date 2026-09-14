@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PawPrint, Plus, RefreshCw, Save } from "lucide-react";
+import { PawPrint, Plus, RefreshCw, Save, X } from "lucide-react";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -56,6 +56,7 @@ export default function AdminLivestockTypesPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [formOpen, setFormOpen] = useState(false);
   const [codeDirty, setCodeDirty] = useState(false);
 
   async function load() {
@@ -84,9 +85,16 @@ export default function AdminLivestockTypesPage() {
   const activeTypes = useMemo(() => (types || []).filter((t) => t?.active), [types]);
   const inactiveTypes = useMemo(() => (types || []).filter((t) => !t?.active), [types]);
 
+  function closeForm() {
+    setForm({ ...EMPTY_FORM });
+    setCodeDirty(false);
+    setFormOpen(false);
+  }
+
   function startNew() {
     setForm({ ...EMPTY_FORM });
     setCodeDirty(false);
+    setFormOpen(true);
   }
 
   function startEdit(t) {
@@ -100,6 +108,7 @@ export default function AdminLivestockTypesPage() {
       isNew: false,
     });
     setCodeDirty(true);
+    setFormOpen(true);
   }
 
   function onLabelChange(label) {
@@ -151,16 +160,7 @@ export default function AdminLivestockTypesPage() {
         throw new Error(data?.message || error?.message || "Failed to save type");
       }
       addToast({ type: "success", message: form.isNew ? "Animal type added." : "Animal type saved." });
-      setForm({
-        code: data.type?.code || code,
-        label: data.type?.label || label,
-        brand_bearing: Boolean(data.type?.brand_bearing),
-        ear_tag_bearing: Boolean(data.type?.ear_tag_bearing),
-        ear_mark_bearing: Boolean(data.type?.ear_mark_bearing),
-        active: data.type?.active !== false,
-        isNew: false,
-      });
-      setCodeDirty(true);
+      closeForm();
       await load();
     } catch (e) {
       addToast({ type: "error", message: e.message || "Failed to save type" });
@@ -196,8 +196,12 @@ export default function AdminLivestockTypesPage() {
       icon={<PawPrint className="w-6 h-6 text-iregistrygreen shrink-0" />}
       actions={headerActions}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-        <section className="lg:col-span-7 p-5 sm:p-6 border-b lg:border-b-0 lg:border-r border-gray-100">
+      <div className={`grid grid-cols-1 gap-0 ${formOpen ? "lg:grid-cols-12" : ""}`}>
+        <section
+          className={`p-5 sm:p-6 ${
+            formOpen ? "lg:col-span-7 border-b lg:border-b-0 lg:border-r border-gray-100" : ""
+          }`}
+        >
           <div className="text-sm font-semibold text-gray-800 mb-3">Catalog</div>
           {loading ? (
             <div className="text-sm text-gray-500">Loading…</div>
@@ -211,9 +215,21 @@ export default function AdminLivestockTypesPage() {
           )}
         </section>
 
+        {formOpen ? (
         <section className="lg:col-span-5 p-5 sm:p-6 space-y-4">
-          <div className="text-sm font-semibold text-gray-800">
-            {form.isNew ? "Add animal type" : "Edit animal type"}
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm font-semibold text-gray-800">
+              {form.isNew ? "Add animal type" : "Edit animal type"}
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+              onClick={closeForm}
+              aria-label="Close"
+              title="Close"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           <div>
@@ -287,15 +303,25 @@ export default function AdminLivestockTypesPage() {
             Active (available when registering)
           </label>
 
-          <RippleButton
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
-            onClick={() => void save()}
-            disabled={saving}
-          >
-            <Save size={18} />
-            {saving ? "Saving…" : form.isNew ? "Add type" : "Save type"}
-          </RippleButton>
+          <div className="flex gap-2">
+            <RippleButton
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-800 font-semibold"
+              onClick={closeForm}
+              disabled={saving}
+            >
+              Cancel
+            </RippleButton>
+            <RippleButton
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-iregistrygreen text-white font-semibold disabled:opacity-60"
+              onClick={() => void save()}
+              disabled={saving}
+            >
+              <Save size={18} />
+              {saving ? "Saving…" : form.isNew ? "Add type" : "Save type"}
+            </RippleButton>
+          </div>
         </section>
+        ) : null}
       </div>
     </PageSectionCard>
   );
