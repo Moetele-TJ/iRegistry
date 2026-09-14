@@ -20,6 +20,7 @@ import { useTaskPricing } from "../../hooks/useTaskPricing.js";
 import BrandOrientationField from "../../components/BrandOrientationField.jsx";
 import SearchableOptionsSelect from "../../components/SearchableOptionsSelect.jsx";
 import { isUserIdUuid } from "../../lib/userProfilePath.js";
+import { livestockAnimalPath } from "../../lib/livestockAnimalPath.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const PACK_TASK = "LIVESTOCK_REGISTER_PACK";
@@ -481,7 +482,15 @@ export default function UserLivestockRegisterPage() {
       }
 
       addToast({ type: "success", message: "Animal registered." });
-      navigate(`/livestock/${data.animal.id}`);
+      navigate(
+        livestockAnimalPath(data.animal.id, {
+          slug:
+            data.owner?.slug ||
+            data.animal?.owner_slug ||
+            (!isUserIdUuid(ownerParam) ? ownerParam : "") ||
+            user?.slug,
+        }),
+      );
     } catch (err) {
       addToast({ type: "error", message: err?.message || "Registration failed" });
     } finally {

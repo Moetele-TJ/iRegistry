@@ -386,6 +386,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   />
 
                   <Route
+                    path="/livestock/:ownerSlug/:animalId"
+                    element={
+                      <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>
+                        <UserLivestockDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
                     path="/livestock/:animalId"
                     element={
                       <ProtectedRoute allowedRoles={["user", "admin", "police", "cashier"]}>

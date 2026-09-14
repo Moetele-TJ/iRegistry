@@ -112,6 +112,21 @@ function canAccessAnimal(session: Session, ownerId: string) {
   return session.user_id === ownerId || isPrivilegedRole(session.role);
 }
 
+async function ownerSlugByIds(ownerIds: string[]): Promise<Map<string, string>> {
+  const ids = [
+    ...new Set(ownerIds.map((id) => String(id || "").trim()).filter(Boolean)),
+  ];
+  const map = new Map<string, string>();
+  if (!ids.length) return map;
+  const { data } = await supabase.from("users").select("id, slug").in("id", ids);
+  for (const row of data || []) {
+    const id = String((row as { id?: string }).id || "");
+    const slug = String((row as { slug?: string | null }).slug || "").trim();
+    if (id && slug) map.set(id, slug);
+  }
+  return map;
+}
+
 function normalizeStoragePhotoPath(raw: unknown): string | null {
   let p = typeof raw === "string" ? raw.trim() : "";
   if (!p) return null;
@@ -369,12 +384,17 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
     }
   }
 
+  const slugs = await ownerSlugByIds(
+    animals.map((a: { owner_id?: string }) => String(a.owner_id || "")),
+  );
   const withThumbs = animals.map((a: Record<string, unknown>, i: number) => {
     const code = String(a.type_code || "");
+    const ownerId = String(a.owner_id || "");
     return {
       ...a,
       signed_thumb: signedThumbs[i] || null,
       type_label: typeLabelByCode.get(code) || code || null,
+      owner_slug: slugs.get(ownerId) || null,
     };
   });
 
@@ -421,15 +441,12 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
     .map((path, i) => (signed[i] ? { path, url: signed[i] as string } : null))
     .filter(Boolean);
 
-  let owner: Record<string, unknown> | null = null;
-  if (String(animal.owner_id) !== String(session.user_id)) {
-    const { data: ownerRow } = await supabase
-      .from("users")
-      .select("id, slug, first_name, last_name, email, phone, id_number, village, ward")
-      .eq("id", animal.owner_id)
-      .maybeSingle();
-    owner = ownerRow || null;
-  }
+  const { data: ownerRow } = await supabase
+    .from("users")
+    .select("id, slug, first_name, last_name, email, phone, id_number, village, ward")
+    .eq("id", animal.owner_id)
+    .maybeSingle();
+  const owner = ownerRow || null;
 
   const { data: typeRow } = await supabase
     .from("livestock_types")
@@ -446,6 +463,7 @@ async function runGetMine(req: Request, session: Session, body: Record<string, u
         signed_photos,
         ...flags,
         type_label: typeRow?.label || animal.type_code,
+        owner_slug: owner?.slug || null,
       },
       owner,
     },
@@ -612,10 +630,13 @@ async function runRegister(req: Request, session: Session, body: Record<string, 
   }
 
   const bundle = await loadAnimalBundle(animal.id);
+  const slugs = await ownerSlugByIds([ownerId]);
+  const owner_slug = slugs.get(ownerId) || null;
   return respond(
     {
       success: true,
-      animal: bundle,
+      animal: bundle ? { ...bundle, owner_slug } : bundle,
+      owner: owner_slug ? { id: ownerId, slug: owner_slug } : { id: ownerId },
       pack: {
         lifetime_registered: slot.lifetime_registered,
         pack_slots_remaining: slot.pack_slots_remaining,

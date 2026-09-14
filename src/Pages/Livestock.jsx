@@ -24,6 +24,7 @@ import {
 import { useStaffUserScopeOptional } from "../contexts/StaffUserScopeContext.jsx";
 import { useRegisterAnimalPreflight } from "../hooks/useRegisterAnimalPreflight.js";
 import { staffProfileUserKey } from "../lib/userProfilePath.js";
+import { livestockAnimalPath } from "../lib/livestockAnimalPath.js";
 import { useModal } from "../contexts/ModalContext.jsx";
 
 const PAGE_SIZE = 12;
@@ -308,6 +309,17 @@ export default function Livestock({ view = "active" } = {}) {
 
   const isOwnerSelf =
     !privileged || String(ownerScope) === String(sessionUserId);
+
+  const animalHref = useCallback(
+    (a) => {
+      const fromRow = String(a?.owner_slug || a?.owner?.slug || "").trim();
+      if (fromRow) return livestockAnimalPath(a.id, fromRow);
+      if (String(a?.owner_id) === sessionUserId) return livestockAnimalPath(a.id, user);
+      const u = (usersList || []).find((x) => String(x.id) === String(a?.owner_id));
+      return livestockAnimalPath(a.id, u);
+    },
+    [sessionUserId, user, usersList],
+  );
 
   const typeOptions = useMemo(() => {
     const map = new Map();
@@ -743,7 +755,7 @@ export default function Livestock({ view = "active" } = {}) {
                           <div className="inline-flex gap-2">
                             <RippleButton
                               className="px-3 py-1.5 rounded-xl bg-gray-100 text-sm text-gray-800"
-                              onClick={() => navigate(`/livestock/${a.id}`)}
+                              onClick={() => navigate(animalHref(a))}
                             >
                               View
                             </RippleButton>
@@ -833,7 +845,7 @@ export default function Livestock({ view = "active" } = {}) {
                       <div className="flex gap-2">
                         <RippleButton
                           className="flex-1 py-2 rounded-xl bg-gray-100 text-sm text-gray-800"
-                          onClick={() => navigate(`/livestock/${a.id}`)}
+                          onClick={() => navigate(animalHref(a))}
                         >
                           View
                         </RippleButton>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -12,6 +12,7 @@ import { isPrivilegedRole } from "../../lib/billingUx.js";
 import { roleIs } from "../../lib/roleUtils.js";
 import { displayUser } from "../../lib/userDisplay.js";
 import { staffProfilePath } from "../../lib/userProfilePath.js";
+import { livestockAnimalPath } from "../../lib/livestockAnimalPath.js";
 import { putSignedUpload } from "../../lib/putSignedUpload.js";
 import { useModal } from "../../contexts/ModalContext.jsx";
 import { NAV } from "../../lib/navLabels.js";
@@ -89,8 +90,9 @@ function PlusButton({ onClick, label, disabled }) {
 }
 
 export default function UserLivestockDetailPage() {
-  const { animalId } = useParams();
+  const { ownerSlug: ownerSlugParam, animalId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { addToast } = useToast();
   const { confirm } = useModal();
@@ -191,6 +193,25 @@ export default function UserLivestockDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!animal?.id) return;
+    const ownerLike = owner?.slug
+      ? owner
+      : String(animal.owner_id) === String(user?.id)
+        ? user
+        : ownerSlugParam
+          ? { slug: ownerSlugParam }
+          : null;
+    const slug =
+      typeof ownerLike === "string"
+        ? ownerLike.trim()
+        : String(ownerLike?.slug || "").trim();
+    if (!slug) return;
+    const next = livestockAnimalPath(animal.id, ownerLike);
+    if (next === location.pathname) return;
+    navigate(next, { replace: true });
+  }, [animal, owner, user, ownerSlugParam, location.pathname, navigate]);
 
   useEffect(() => {
     let cancelled = false;

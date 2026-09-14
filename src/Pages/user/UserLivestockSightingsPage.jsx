@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import RippleButton from "../../components/RippleButton.jsx";
 import { invokeWithAuth } from "../../lib/invokeWithAuth.js";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useUserSidebar } from "../../hooks/useUserSidebar.jsx";
+import { livestockAnimalPath } from "../../lib/livestockAnimalPath.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -25,6 +27,7 @@ function mapsUrl(lat, lng) {
 
 export default function UserLivestockSightingsPage() {
   useUserSidebar({ visible: true });
+  const { user } = useAuth();
   const { addToast } = useToast();
   const [sightings, setSightings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +166,7 @@ export default function UserLivestockSightingsPage() {
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     <Link
-                      to={`/livestock/${s.animal_id}`}
+                      to={livestockAnimalPath(s.animal_id, user)}
                       className="font-semibold text-gray-900 hover:underline"
                     >
                       {label}
