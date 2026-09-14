@@ -45,7 +45,7 @@ export function clearLivestockListScope(sessionUserId, view) {
 
 export function clearAllLivestockListScopeForUser(sessionUserId) {
   if (!sessionUserId) return;
-  for (const v of ["active", "missing", "recovered", "deleted"]) {
+  for (const v of ["active", "missing", "recovered", "dead", "deleted"]) {
     clearLivestockListScope(sessionUserId, v);
   }
 }

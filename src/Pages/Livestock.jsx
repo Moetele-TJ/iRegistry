@@ -24,6 +24,7 @@ import {
 import { useStaffUserScopeOptional } from "../contexts/StaffUserScopeContext.jsx";
 import { useRegisterAnimalPreflight } from "../hooks/useRegisterAnimalPreflight.js";
 import { staffProfileUserKey } from "../lib/userProfilePath.js";
+import { useModal } from "../contexts/ModalContext.jsx";
 
 const PAGE_SIZE = 12;
 
@@ -33,11 +34,44 @@ function viewSubtitle(view) {
       return "Animals marked missing — treat like a stolen queue for livestock.";
     case "recovered":
       return "Animals marked recovered after being missing.";
+    case "dead":
+      return "Animals declared dead — they leave the living registry, like legacy items. You can restore a record if this was a mistake.";
     case "deleted":
       return "Recycle bin — restore animals or permanently remove them from the detail page.";
     default:
       return "Manage and monitor your registered livestock";
   }
+}
+
+function emptyListCopy(view) {
+  if (view === "dead") {
+    return {
+      title: "No dead animals",
+      body: "Animals you declare dead appear here. You can restore a record if this was a mistake.",
+    };
+  }
+  if (view === "deleted") {
+    return {
+      title: "Recycle bin is empty",
+      body: "Deleted animals appear here until you restore them.",
+    };
+  }
+  if (view === "missing") {
+    return {
+      title: "No missing animals",
+      body: "Animals marked missing appear here.",
+    };
+  }
+  if (view === "recovered") {
+    return {
+      title: "No recovered animals",
+      body: "Animals marked recovered after being missing appear here.",
+    };
+  }
+  return {
+    title: "No animals found",
+    body: "Try adjusting your search or filters.",
+  };
 }
 
 function statusBadgeClass(status) {
@@ -48,6 +82,8 @@ function statusBadgeClass(status) {
       return "bg-sky-50 text-sky-800 border border-sky-200";
     case "deleted":
       return "bg-gray-50 text-gray-600 border border-gray-200";
+    case "dead":
+      return "bg-slate-100 text-slate-700 border border-slate-200";
     default:
       return "bg-emerald-50 text-emerald-800 border border-emerald-200";
   }
@@ -78,6 +114,7 @@ function escapeCsv(v) {
 export default function Livestock({ view = "active" } = {}) {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { confirm } = useModal();
   const { user } = useAuth();
   const staffScope = useStaffUserScopeOptional();
   const { goToRegisterAnimal, tasksLoading: registerPreflightLoading } =
@@ -286,11 +323,13 @@ export default function Livestock({ view = "active" } = {}) {
   const headerTitle =
     view === "deleted"
       ? NAV.deletedAnimals
-      : view === "missing"
-        ? NAV.missingAnimals
-        : view === "recovered"
-          ? NAV.recoveredAnimals
-          : NAV_MOBILE.myLivestock;
+      : view === "dead"
+        ? NAV.deadAnimals
+        : view === "missing"
+          ? NAV.missingAnimals
+          : view === "recovered"
+            ? NAV.recoveredAnimals
+            : NAV_MOBILE.myLivestock;
 
   async function buyPack() {
     const { data, error } = await invokeWithAuth("livestock-api", {
@@ -320,6 +359,7 @@ export default function Livestock({ view = "active" } = {}) {
         active: "Marked as active.",
         missing: "Marked as missing.",
         recovered: "Marked as recovered.",
+        dead: "Declared dead.",
         deleted: "Moved to recycle bin.",
       };
       addToast({ type: "success", message: messages[status] || "Status updated." });
@@ -329,6 +369,19 @@ export default function Livestock({ view = "active" } = {}) {
     } finally {
       setStatusBusyId(null);
     }
+  }
+
+  async function declareDead(animal) {
+    const label = animal?.name || animal?.breed || animal?.type_code || "this animal";
+    const ok = await confirm({
+      title: "Declare this animal dead?",
+      message: `“${label}” will leave your living registry and appear under Dead Animals. You can restore the record later if this was a mistake.`,
+      confirmLabel: "Declare dead",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    }).catch(() => false);
+    if (!ok) return;
+    await setAnimalStatus(animal.id, "dead");
   }
 
   function handleExportCSV() {
@@ -653,7 +706,7 @@ export default function Livestock({ view = "active" } = {}) {
                             >
                               View
                             </RippleButton>
-                            {view === "deleted" ? (
+                            {view === "deleted" || view === "dead" ? (
                               <RippleButton
                                 className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-60"
                                 disabled={busy}
@@ -661,21 +714,32 @@ export default function Livestock({ view = "active" } = {}) {
                               >
                                 Restore
                               </RippleButton>
-                            ) : view === "active" || view === "missing" ? (
-                              <RippleButton
-                                className={`px-3 py-1.5 rounded-xl text-white text-sm font-medium disabled:opacity-60 ${
-                                  isMissing
-                                    ? "bg-emerald-600 hover:bg-emerald-700"
-                                    : "bg-red-600 hover:bg-red-700"
-                                }`}
-                                disabled={busy}
-                                onClick={() =>
-                                  void setAnimalStatus(a.id, isMissing ? "active" : "missing")
-                                }
-                              >
-                                {isMissing ? "Mark Active" : "Mark Missing"}
-                              </RippleButton>
-                            ) : null}
+                            ) : (
+                              <>
+                                {view === "active" || view === "missing" ? (
+                                  <RippleButton
+                                    className={`px-3 py-1.5 rounded-xl text-white text-sm font-medium disabled:opacity-60 ${
+                                      isMissing
+                                        ? "bg-emerald-600 hover:bg-emerald-700"
+                                        : "bg-red-600 hover:bg-red-700"
+                                    }`}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setAnimalStatus(a.id, isMissing ? "active" : "missing")
+                                    }
+                                  >
+                                    {isMissing ? "Mark Active" : "Mark Missing"}
+                                  </RippleButton>
+                                ) : null}
+                                <RippleButton
+                                  className="px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium disabled:opacity-60"
+                                  disabled={busy}
+                                  onClick={() => void declareDead(a)}
+                                >
+                                  Declare dead
+                                </RippleButton>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -721,7 +785,7 @@ export default function Livestock({ view = "active" } = {}) {
                         >
                           View
                         </RippleButton>
-                        {view === "deleted" ? (
+                        {view === "deleted" || view === "dead" ? (
                           <RippleButton
                             className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-60"
                             disabled={busy}
@@ -729,21 +793,32 @@ export default function Livestock({ view = "active" } = {}) {
                           >
                             Restore
                           </RippleButton>
-                        ) : view === "active" || view === "missing" ? (
-                          <RippleButton
-                            className={`flex-1 py-2 rounded-xl text-sm font-medium disabled:opacity-60 ${
-                              isMissing
-                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                : "bg-red-600 text-white hover:bg-red-700"
-                            }`}
-                            disabled={busy}
-                            onClick={() =>
-                              void setAnimalStatus(a.id, isMissing ? "active" : "missing")
-                            }
-                          >
-                            {isMissing ? "Mark Active" : "Mark Missing"}
-                          </RippleButton>
-                        ) : null}
+                        ) : (
+                          <>
+                            {view === "active" || view === "missing" ? (
+                              <RippleButton
+                                className={`flex-1 py-2 rounded-xl text-sm font-medium disabled:opacity-60 ${
+                                  isMissing
+                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    : "bg-red-600 text-white hover:bg-red-700"
+                                }`}
+                                disabled={busy}
+                                onClick={() =>
+                                  void setAnimalStatus(a.id, isMissing ? "active" : "missing")
+                                }
+                              >
+                                {isMissing ? "Mark Active" : "Mark Missing"}
+                              </RippleButton>
+                            ) : null}
+                            <RippleButton
+                              className="flex-1 py-2 rounded-xl bg-slate-700 text-white text-sm font-medium disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() => void declareDead(a)}
+                            >
+                              Declare dead
+                            </RippleButton>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -781,9 +856,9 @@ export default function Livestock({ view = "active" } = {}) {
                   </>
                 ) : (
                   <>
-                    <div className="text-lg font-semibold text-gray-800">No animals found</div>
+                    <div className="text-lg font-semibold text-gray-800">{emptyListCopy(view).title}</div>
                     <p className="text-sm text-gray-500 mt-2">
-                      Try adjusting your search or filters.
+                      {emptyListCopy(view).body}
                     </p>
                   </>
                 )}
@@ -799,14 +874,14 @@ export default function Livestock({ view = "active" } = {}) {
                   ? registrationOwnerId
                     ? "No animals for this user yet"
                     : "No animals registered yet"
-                  : "No animals found"}
+                  : emptyListCopy(view).title}
               </div>
               <p className="text-sm text-gray-500 mt-2">
                 {total === 0 && showScopeAddAnimal
                   ? registrationOwnerId
                     ? `Add an animal to ${registrationOwnerLabel || "this user"}'s registry.`
                     : "Register an animal to start tracking ownership and sightings."
-                  : "Try adjusting your search or filters."}
+                  : emptyListCopy(view).body}
               </p>
               {total === 0 && showScopeAddAnimal ? (
                 <RippleButton

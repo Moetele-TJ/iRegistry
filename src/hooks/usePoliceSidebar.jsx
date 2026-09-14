@@ -29,6 +29,7 @@ export function usePoliceSidebar({ visible = true } = {}) {
           { to: "/police/livestock", label: NAV.activeAnimals, end: true },
           { to: "/police/livestock/missing", label: NAV.missingAnimals, end: true },
           { to: "/police/livestock/recovered", label: NAV.recoveredAnimals, end: true },
+          { to: "/police/livestock/dead", label: NAV.deadAnimals, end: true },
           { to: "/police/livestock/deleted", label: NAV.deletedAnimals, end: true },
         ],
       },

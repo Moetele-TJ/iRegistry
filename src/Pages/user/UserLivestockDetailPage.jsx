@@ -27,11 +27,16 @@ const EMPTY_BRAND = {
   body_part: "shoulder",
 };
 
-function listBackPath(role) {
-  if (roleIs(role, "admin")) return "/admin/livestock";
-  if (roleIs(role, "cashier")) return "/cashier/livestock";
-  if (roleIs(role, "police")) return "/police/livestock";
-  return "/user/livestock";
+function livestockListPath(role, view) {
+  let base = "/user/livestock";
+  if (roleIs(role, "admin")) base = "/admin/livestock";
+  else if (roleIs(role, "cashier")) base = "/cashier/livestock";
+  else if (roleIs(role, "police")) base = "/police/livestock";
+  if (view === "dead") return `${base}/dead`;
+  if (view === "deleted") return `${base}/deleted`;
+  if (view === "missing") return `${base}/missing`;
+  if (view === "recovered") return `${base}/recovered`;
+  return base;
 }
 
 function statusBadgeClass(status) {
@@ -42,6 +47,8 @@ function statusBadgeClass(status) {
       return "bg-sky-50 text-sky-800 border-sky-100";
     case "deleted":
       return "bg-gray-50 text-gray-700 border-gray-200";
+    case "dead":
+      return "bg-slate-100 text-slate-800 border-slate-200";
     default:
       return "bg-emerald-50 text-emerald-800 border-emerald-100";
   }
@@ -115,12 +122,20 @@ export default function UserLivestockDetailPage() {
   const [earTagBusy, setEarTagBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
 
-  const backPath = listBackPath(user?.role);
-  const canMutate =
+  const animalStatus = String(animal?.status || "active").toLowerCase();
+  const isDeleted =
+    Boolean(animal) && (animalStatus === "deleted" || Boolean(animal?.deleted_at));
+  const isDead = Boolean(animal) && animalStatus === "dead";
+  const isMissing = Boolean(animal) && animalStatus === "missing";
+  const isRecovered = Boolean(animal) && animalStatus === "recovered";
+  const backPath = livestockListPath(
+    user?.role,
+    isDead ? "dead" : isDeleted ? "deleted" : isMissing ? "missing" : isRecovered ? "recovered" : "active",
+  );
+  const canManage =
     Boolean(animal) &&
-    !Boolean(animal?.deleted_at) &&
-    String(animal?.status || "").toLowerCase() !== "deleted" &&
     (String(animal.owner_id) === String(user?.id) || isPrivilegedRole(user?.role));
+  const canMutate = canManage && !isDeleted && !isDead;
   const isOwner =
     Boolean(animal?.owner_id) &&
     Boolean(user?.id) &&
@@ -218,8 +233,19 @@ export default function UserLivestockDetailPage() {
   }
 
   async function setStatus(status) {
-    if (!animal || !canMutate) return;
+    if (!animal || !canManage) return;
     if (animal.status === status && status !== "deleted") return;
+    if (status === "dead") {
+      const label = animal.name || animal.breed || animal.type_code || "this animal";
+      const ok = await confirm({
+        title: "Declare this animal dead?",
+        message: `“${label}” will leave your living registry and appear under Dead Animals. You can restore the record later if this was a mistake.`,
+        confirmLabel: "Declare dead",
+        cancelLabel: "Cancel",
+        variant: "danger",
+      }).catch(() => false);
+      if (!ok) return;
+    }
     setStatusBusy(true);
     try {
       const { data, error } = await invokeWithAuth("livestock-api", {
@@ -241,9 +267,13 @@ export default function UserLivestockDetailPage() {
         active: "Marked as active.",
         missing: "Marked as missing.",
         recovered: "Marked as recovered.",
+        dead: "Declared dead.",
         deleted: "Moved to recycle bin.",
       };
       addToast({ type: "success", message: messages[status] || "Status updated." });
+      if (status === "dead") {
+        navigate(livestockListPath(user?.role, "dead"));
+      }
     } catch (e) {
       addToast({ type: "error", message: e?.message || "Update failed" });
     } finally {
@@ -542,10 +572,6 @@ export default function UserLivestockDetailPage() {
     );
   }
 
-  const status = String(animal.status || "active").toLowerCase();
-  const isDeleted = status === "deleted" || Boolean(animal.deleted_at);
-  const isMissing = status === "missing";
-  const isRecovered = status === "recovered";
   const mainSrc = photoSrcs[Math.min(activePhoto, Math.max(0, photoSrcs.length - 1))] || null;
   const title = animal.name || animal.breed || animal.type_code || "Animal";
   const ownerLabel = displayUser(owner) || owner?.email || owner?.id_number || "Owner";
@@ -576,9 +602,9 @@ export default function UserLivestockDetailPage() {
                     </span>
                   ) : null}
                   <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border capitalize ${statusBadgeClass(status)}`}
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border capitalize ${statusBadgeClass(animalStatus)}`}
                   >
-                    {status}
+                    {animalStatus}
                   </span>
                   {animal.type_code ? (
                     <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-100">
@@ -642,7 +668,7 @@ export default function UserLivestockDetailPage() {
                   </Link>
                 ) : null}
 
-                {canMutate && isDeleted ? (
+                {canManage && (isDeleted || isDead) ? (
                   <RippleButton
                     className="px-4 py-2 rounded-xl bg-iregistrygreen text-white text-sm font-semibold shadow-sm hover:opacity-95 disabled:opacity-60"
                     onClick={() => void setStatus("active")}
@@ -652,7 +678,7 @@ export default function UserLivestockDetailPage() {
                   </RippleButton>
                 ) : null}
 
-                {canMutate && !isDeleted ? (
+                {canManage && !isDeleted && !isDead ? (
                   <>
                     {isMissing ? (
                       <>
@@ -690,19 +716,39 @@ export default function UserLivestockDetailPage() {
                     )}
 
                     <RippleButton
-                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm disabled:opacity-60"
-                      onClick={() => void setStatus("deleted")}
+                      className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-sm disabled:opacity-60"
+                      onClick={() => void setStatus("dead")}
                       disabled={statusBusy}
                     >
-                      Recycle bin
+                      Declare dead
                     </RippleButton>
                   </>
+                ) : null}
+
+                {canManage && !isDeleted ? (
+                  <RippleButton
+                    className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm disabled:opacity-60"
+                    onClick={() => void setStatus("deleted")}
+                    disabled={statusBusy}
+                  >
+                    Recycle bin
+                  </RippleButton>
                 ) : null}
               </div>
             </div>
           </div>
 
           <div className="p-5 sm:p-6">
+            {isDead && canManage ? (
+              <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                <div className="font-semibold">Declared dead</div>
+                <p className="mt-1 text-slate-700">
+                  This animal is out of the living registry. Restore it from the header if this was a
+                  mistake, or move it to the recycle bin.
+                </p>
+              </div>
+            ) : null}
+
             {isDeleted &&
             (String(animal.owner_id) === String(user?.id) || isPrivilegedRole(user?.role)) ? (
               <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
@@ -889,7 +935,7 @@ export default function UserLivestockDetailPage() {
                       ) : null}
                       <Fact label="Type">{animal.type_label || animal.type_code || "—"}</Fact>
                       <Fact label="Status">
-                        <span className="capitalize">{status}</span>
+                        <span className="capitalize">{animalStatus}</span>
                       </Fact>
                     </div>
                   ) : (
@@ -900,7 +946,7 @@ export default function UserLivestockDetailPage() {
                       <Fact label="Colour">{animal.colour || "—"}</Fact>
                       <Fact label="Gender">{animal.gender || "—"}</Fact>
                       <Fact label="Status">
-                        <span className="capitalize">{status}</span>
+                        <span className="capitalize">{animalStatus}</span>
                       </Fact>
                       <Fact label="Dwelling">
                         {animal.dwelling_village || "—"}

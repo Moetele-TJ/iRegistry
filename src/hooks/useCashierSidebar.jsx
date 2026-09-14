@@ -48,6 +48,7 @@ export function useCashierSidebar({ visible: visibleProp = true } = {}) {
           { to: "/cashier/livestock", label: NAV.activeAnimals, end: true },
           { to: "/cashier/livestock/missing", label: NAV.missingAnimals, end: true },
           { to: "/cashier/livestock/recovered", label: NAV.recoveredAnimals, end: true },
+          { to: "/cashier/livestock/dead", label: NAV.deadAnimals, end: true },
           { to: "/cashier/livestock/deleted", label: NAV.deletedAnimals, end: true },
         ],
       },

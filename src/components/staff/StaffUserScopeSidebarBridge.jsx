@@ -72,6 +72,7 @@ export default function StaffUserScopeSidebarBridge() {
           { to: `${base}/livestock`, label: NAV.activeAnimals, end: true },
           { to: `${base}/livestock/missing`, label: NAV.missingAnimals, end: true },
           { to: `${base}/livestock/recovered`, label: NAV.recoveredAnimals, end: true },
+          { to: `${base}/livestock/dead`, label: NAV.deadAnimals, end: true },
           { to: `${base}/livestock/deleted`, label: NAV.deletedAnimals, end: true },
         ],
       },

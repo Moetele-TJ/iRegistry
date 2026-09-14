@@ -30,6 +30,7 @@ import UserLegacyItemsPage from "./Pages/user/UserLegacyItemsPage.jsx";
 import UserLivestockPage from "./Pages/user/UserLivestockPage.jsx";
 import UserLivestockMissingPage from "./Pages/user/UserLivestockMissingPage.jsx";
 import UserLivestockRecoveredPage from "./Pages/user/UserLivestockRecoveredPage.jsx";
+import UserLivestockDeadPage from "./Pages/user/UserLivestockDeadPage.jsx";
 import UserLivestockDeletedPage from "./Pages/user/UserLivestockDeletedPage.jsx";
 import UserLivestockRegisterPage from "./Pages/user/UserLivestockRegisterPage.jsx";
 import UserLivestockDetailPage from "./Pages/user/UserLivestockDetailPage.jsx";
@@ -37,14 +38,17 @@ import UserLivestockSightingsPage from "./Pages/user/UserLivestockSightingsPage.
 import AdminLivestockPage from "./Pages/admin/AdminLivestockPage.jsx";
 import AdminLivestockMissingPage from "./Pages/admin/AdminLivestockMissingPage.jsx";
 import AdminLivestockRecoveredPage from "./Pages/admin/AdminLivestockRecoveredPage.jsx";
+import AdminLivestockDeadPage from "./Pages/admin/AdminLivestockDeadPage.jsx";
 import AdminLivestockDeletedPage from "./Pages/admin/AdminLivestockDeletedPage.jsx";
 import CashierLivestockPage from "./Pages/cashier/CashierLivestockPage.jsx";
 import CashierLivestockMissingPage from "./Pages/cashier/CashierLivestockMissingPage.jsx";
 import CashierLivestockRecoveredPage from "./Pages/cashier/CashierLivestockRecoveredPage.jsx";
+import CashierLivestockDeadPage from "./Pages/cashier/CashierLivestockDeadPage.jsx";
 import CashierLivestockDeletedPage from "./Pages/cashier/CashierLivestockDeletedPage.jsx";
 import PoliceLivestockPage from "./Pages/police/PoliceLivestockPage.jsx";
 import PoliceLivestockMissingPage from "./Pages/police/PoliceLivestockMissingPage.jsx";
 import PoliceLivestockRecoveredPage from "./Pages/police/PoliceLivestockRecoveredPage.jsx";
+import PoliceLivestockDeadPage from "./Pages/police/PoliceLivestockDeadPage.jsx";
 import PoliceLivestockDeletedPage from "./Pages/police/PoliceLivestockDeletedPage.jsx";
 import UserNotificationsPage from "./Pages/user/UserNotificationsPage.jsx";
 import UserActivityPage from "./Pages/user/UserActivityPage.jsx";
@@ -173,6 +177,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="livestock" element={<UserLivestockPage />} />
                     <Route path="livestock/missing" element={<UserLivestockMissingPage />} />
                     <Route path="livestock/recovered" element={<UserLivestockRecoveredPage />} />
+                    <Route path="livestock/dead" element={<UserLivestockDeadPage />} />
                     <Route path="livestock/deleted" element={<UserLivestockDeletedPage />} />
                     <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
                     <Route path="livestock/sightings" element={<UserLivestockSightingsPage />} />
@@ -220,6 +225,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="livestock" element={<AdminLivestockPage />} />
                     <Route path="livestock/missing" element={<AdminLivestockMissingPage />} />
                     <Route path="livestock/recovered" element={<AdminLivestockRecoveredPage />} />
+                    <Route path="livestock/dead" element={<AdminLivestockDeadPage />} />
                     <Route path="livestock/deleted" element={<AdminLivestockDeletedPage />} />
                     <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
                     <Route path="notifications" element={<AdminNotificationsPage />} />
@@ -269,6 +275,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="livestock" element={<PoliceLivestockPage />} />
                     <Route path="livestock/missing" element={<PoliceLivestockMissingPage />} />
                     <Route path="livestock/recovered" element={<PoliceLivestockRecoveredPage />} />
+                    <Route path="livestock/dead" element={<PoliceLivestockDeadPage />} />
                     <Route path="livestock/deleted" element={<PoliceLivestockDeletedPage />} />
                     <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
                     <Route path="impound" element={<PoliceImpoundPage />} />
@@ -294,6 +301,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                     <Route path="livestock" element={<CashierLivestockPage />} />
                     <Route path="livestock/missing" element={<CashierLivestockMissingPage />} />
                     <Route path="livestock/recovered" element={<CashierLivestockRecoveredPage />} />
+                    <Route path="livestock/dead" element={<CashierLivestockDeadPage />} />
                     <Route path="livestock/deleted" element={<CashierLivestockDeletedPage />} />
                     <Route path="livestock/register" element={<UserLivestockRegisterPage />} />
                     <Route path="users/new" element={<StaffUserFormPage variant="cashier" mode="add" />} />

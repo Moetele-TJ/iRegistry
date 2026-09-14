@@ -282,6 +282,8 @@ async function runListMine(req: Request, session: Session, body: Record<string, 
     q = q.is("deleted_at", null).eq("status", "missing");
   } else if (view === "recovered") {
     q = q.is("deleted_at", null).eq("status", "recovered");
+  } else if (view === "dead") {
+    q = q.is("deleted_at", null).eq("status", "dead");
   } else {
     q = q.is("deleted_at", null).eq("status", "active");
   }
@@ -575,7 +577,7 @@ async function runSearchText(req: Request, body: Record<string, unknown>) {
     .select("id, type_code, breed, colour, gender, photos, status")
     .in("id", ids)
     .is("deleted_at", null)
-    .neq("status", "deleted");
+    .not("status", "in", "(deleted,dead)");
 
   const matches = (animals || []).map((a: Record<string, unknown>) => publicAnimalCard(a, a.photos));
 
@@ -657,7 +659,8 @@ async function runSearchPhoto(req: Request, body: Record<string, unknown>) {
     .from("livestock_animals")
     .select("id, type_code, breed, colour, gender, photos, status")
     .in("id", ids)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .not("status", "in", "(deleted,dead)");
 
   const matches = (animals || []).map((a: Record<string, unknown>) => ({
     ...publicAnimalCard(a, a.photos),
@@ -703,6 +706,14 @@ async function runPickSighting(req: Request, body: Record<string, unknown>) {
   const animal = await loadAnimalBundle(animalId);
   if (!animal) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+  const animalStatus = String(animal.status || "").toLowerCase();
+  if (animal.deleted_at || animalStatus === "deleted" || animalStatus === "dead") {
+    return respond(
+      { success: false, message: "This animal is not available for public identification." },
+      corsHeaders,
+      409,
+    );
   }
 
   let distance_km: number | null = null;
@@ -1061,12 +1072,12 @@ async function runSetStatus(req: Request, session: Session, body: Record<string,
   const corsHeaders = getCorsHeaders(req);
   const id = asString(body.id) || asString(body.animal_id);
   const status = asString(body.status).toLowerCase();
-  const allowed = ["active", "missing", "recovered", "deleted"];
+  const allowed = ["active", "missing", "recovered", "deleted", "dead"];
   if (!id || !allowed.includes(status)) {
     return respond(
       {
         success: false,
-        message: "id and status (active|missing|recovered|deleted) are required",
+        message: "id and status (active|missing|recovered|deleted|dead) are required",
       },
       corsHeaders,
       400,
@@ -1081,6 +1092,15 @@ async function runSetStatus(req: Request, session: Session, body: Record<string,
 
   if (!animal || !canAccessAnimal(session, String(animal.owner_id))) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+
+  const current = String(animal.status || "").toLowerCase();
+  if (status === "dead" && (current === "deleted" || animal.deleted_at)) {
+    return respond(
+      { success: false, message: "Restore the animal from the recycle bin before declaring it dead." },
+      corsHeaders,
+      409,
+    );
   }
 
   const now = new Date().toISOString();
@@ -1112,11 +1132,19 @@ async function runUpdateMine(req: Request, session: Session, body: Record<string
 
   const { data: existing } = await supabase
     .from("livestock_animals")
-    .select("id, owner_id")
+    .select("id, owner_id, status, deleted_at")
     .eq("id", id)
     .maybeSingle();
   if (!existing || !canAccessAnimal(session, String(existing.owner_id))) {
     return respond({ success: false, message: "Animal not found" }, corsHeaders, 404);
+  }
+  const existingStatus = String(existing.status || "").toLowerCase();
+  if (existing.deleted_at || existingStatus === "deleted" || existingStatus === "dead") {
+    return respond(
+      { success: false, message: "Restore this animal before editing details." },
+      corsHeaders,
+      409,
+    );
   }
 
   const patch: Record<string, unknown> = {};
