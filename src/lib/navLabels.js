@@ -346,6 +346,11 @@ export const DISPLAY = Object.freeze({
 
   }),
 
+  cashierUsersScope: Object.freeze({
+    mine: "Registered by me",
+    all: "All users",
+  }),
+
 });
 
 

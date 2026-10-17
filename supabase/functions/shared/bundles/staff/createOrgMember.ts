@@ -147,6 +147,7 @@ export async function run(req: Request): Promise<Response> {
         identity_verified: false,
         email_verified: false,
         slug,
+        registered_by: session.user_id,
       })
       .select("id, first_name, last_name, email, phone, id_number, slug")
       .single();

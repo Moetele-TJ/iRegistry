@@ -1,3 +1,9 @@
+/** Cashier users list: accounts they registered vs the full directory. */
+export const CASHIER_USERS_SCOPE = Object.freeze({
+  mine: "mine",
+  all: "all",
+});
+
 /** Sidebar manage-users list views (`/…/users` vs `/…/users/non-active`). */
 
 export const STAFF_USERS_LIST_VIEWS = Object.freeze({

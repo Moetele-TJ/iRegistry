@@ -253,6 +253,7 @@ export async function run(req: Request): Promise<Response> {
       identity_verified: false,
       email_verified: false,
       slug,
+      registered_by: session.user_id,
     };
     if (dateOfBirth) {
       baseRow.date_of_birth = dateOfBirth;

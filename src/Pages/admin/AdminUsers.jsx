@@ -25,6 +25,7 @@ import {
   writeStaffUsersListScope,
 } from "../../lib/staffUsersListStorage.js";
 import {
+  CASHIER_USERS_SCOPE,
   STAFF_USERS_LIST_VIEWS,
   staffUsersListViewFromPath,
 } from "../../lib/staffUsersListView.js";
@@ -53,6 +54,7 @@ function staffUsersFiltersKey(snapshot) {
     statusFilter: snapshot.statusFilter,
     stationFilter: snapshot.stationFilter,
     itemsFilter: snapshot.itemsFilter,
+    cashierUsersScope: snapshot.cashierUsersScope,
     usersListView: snapshot.usersListView,
     sortBy: snapshot.sortBy,
     sortDir: snapshot.sortDir,
@@ -431,6 +433,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
   const [statusFilter, setStatusFilter] = useState("active");
   const [stationFilter, setStationFilter] = useState("");
   const [itemsFilter, setItemsFilter] = useState("all");
+  const [cashierUsersScope, setCashierUsersScope] = useState(CASHIER_USERS_SCOPE.mine);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("last_name");
   const [sortDir, setSortDir] = useState("asc");
@@ -492,6 +495,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         statusFilter: "active",
         stationFilter: "",
         itemsFilter: "without",
+        cashierUsersScope: canAdminister ? CASHIER_USERS_SCOPE.all : CASHIER_USERS_SCOPE.mine,
         usersListView,
         sortBy: "last_name",
         sortDir: "asc",
@@ -501,6 +505,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       setRoleFilter(snapshot.roleFilter);
       setStatusFilter(snapshot.statusFilter);
       setStationFilter(snapshot.stationFilter);
+      setCashierUsersScope(snapshot.cashierUsersScope);
       setPage(1);
       listScopeReadyRef.current = true;
       filtersReadyForPageResetRef.current = true;
@@ -514,6 +519,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         statusFilter: urlStatus,
         stationFilter: "",
         itemsFilter: "all",
+        cashierUsersScope: canAdminister ? CASHIER_USERS_SCOPE.all : CASHIER_USERS_SCOPE.mine,
         usersListView,
         sortBy: "last_name",
         sortDir: "asc",
@@ -523,6 +529,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       setRoleFilter(snapshot.roleFilter);
       setStatusFilter(snapshot.statusFilter);
       setStationFilter(snapshot.stationFilter);
+      setCashierUsersScope(snapshot.cashierUsersScope);
       setPage(1);
       listScopeReadyRef.current = true;
       filtersReadyForPageResetRef.current = true;
@@ -546,6 +553,11 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         statusFilter: nextStatus,
         stationFilter: scope.stationFilter != null ? String(scope.stationFilter) : "",
         itemsFilter: "all",
+        cashierUsersScope: canAdminister
+          ? CASHIER_USERS_SCOPE.all
+          : scope.cashierUsersScope === CASHIER_USERS_SCOPE.all
+            ? CASHIER_USERS_SCOPE.all
+            : CASHIER_USERS_SCOPE.mine,
         usersListView,
         sortBy: scope.sortBy != null ? String(scope.sortBy) : "last_name",
         sortDir: scope.sortDir != null ? String(scope.sortDir) : "asc",
@@ -555,6 +567,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       setRoleFilter(snapshot.roleFilter);
       setStatusFilter(snapshot.statusFilter);
       setStationFilter(snapshot.stationFilter);
+      setCashierUsersScope(snapshot.cashierUsersScope);
       if (scope.sortBy != null) setSortBy(snapshot.sortBy);
       if (scope.sortDir != null) setSortDir(snapshot.sortDir);
       const storedPage = Number(scope.page);
@@ -570,6 +583,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         statusFilter: isActiveUsersView ? "active" : "all",
         stationFilter: "",
         itemsFilter: "all",
+        cashierUsersScope: canAdminister ? CASHIER_USERS_SCOPE.all : CASHIER_USERS_SCOPE.mine,
         usersListView,
         sortBy: "last_name",
         sortDir: "asc",
@@ -579,6 +593,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       setRoleFilter(snapshot.roleFilter);
       setStatusFilter(snapshot.statusFilter);
       setStationFilter(snapshot.stationFilter);
+      setCashierUsersScope(snapshot.cashierUsersScope);
       setPage(1);
     }
 
@@ -594,6 +609,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       statusFilter,
       stationFilter,
       itemsFilter,
+      cashierUsersScope,
       usersListView,
       sortBy,
       sortDir,
@@ -611,6 +627,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     statusFilter,
     stationFilter,
     itemsFilter,
+    cashierUsersScope,
     usersListView,
     sortBy,
     sortDir,
@@ -625,12 +642,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       statusFilter,
       stationFilter,
       itemsFilter,
+      cashierUsersScope,
       page,
       sortBy,
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
     });
-  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, itemsFilter, page, sortBy, sortDir]);
+  }, [currentUserId, usersListView, q, roleFilter, statusFilter, stationFilter, itemsFilter, cashierUsersScope, page, sortBy, sortDir]);
 
   const persistUsersListScope = () => {
     if (!currentUserId) return;
@@ -641,6 +659,7 @@ export default function AdminUsers({ variant = "admin" } = {}) {
       statusFilter,
       stationFilter,
       itemsFilter,
+      cashierUsersScope,
       page,
       sortBy,
       sortDir,
@@ -712,6 +731,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
         const itemCount = Math.max(0, Math.floor(Number(u.active_items_count) || 0));
         if (itemCount > 0) return false;
       }
+      if (
+        !canAdminister &&
+        cashierUsersScope !== CASHIER_USERS_SCOPE.all &&
+        String(u.registered_by || "") !== currentUserId
+      ) {
+        return false;
+      }
 
       if (stationQ) {
         const st = String(u.police_station || "").toLowerCase();
@@ -736,7 +762,20 @@ export default function AdminUsers({ variant = "admin" } = {}) {
     const sorted = [...list];
     sorted.sort((a, b) => compareAdminUsersRow(a, b, sortBy, sortDir));
     return sorted;
-  }, [users, q, roleFilter, statusFilter, stationFilter, itemsFilter, sortBy, sortDir, isActiveUsersView]);
+  }, [
+    users,
+    q,
+    roleFilter,
+    statusFilter,
+    stationFilter,
+    itemsFilter,
+    sortBy,
+    sortDir,
+    isActiveUsersView,
+    canAdminister,
+    cashierUsersScope,
+    currentUserId,
+  ]);
 
   const usersTotal = filteredUsers.length;
   const usersTotalPages = Math.max(1, Math.ceil(usersTotal / USERS_PER_PAGE));
@@ -1052,9 +1091,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                 ? isActiveUsersView
                   ? "Active accounts only. Change roles, suspend, disable, or reactivate from each user row, or use Edit for the full form."
                   : "Suspended, disabled, and deleted accounts. Restore or remove users from this list."
-                : isActiveUsersView
-                  ? "Search active users, add new accounts, and update basic profile details. Roles, status, and deletion are admin-only."
-                  : "Search non-active users. Roles, status, and deletion are admin-only."
+                : cashierUsersScope === CASHIER_USERS_SCOPE.all
+                  ? isActiveUsersView
+                    ? "All active accounts. Add new users and update basic profile details. Roles, status, and deletion are admin-only."
+                    : "All non-active accounts. Roles, status, and deletion are admin-only."
+                  : isActiveUsersView
+                    ? "Active accounts you registered. Choose All users to search the full directory."
+                    : "Non-active accounts you registered. Choose All users to search the full directory."
           }
           icon={<Users className="w-6 h-6 text-iregistrygreen shrink-0" />}
           actions={
@@ -1099,6 +1142,26 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   placeholder="Name, email, phone, ID number…"
                 />
               </div>
+              {!canAdminister ? (
+                <div className="sm:w-52 min-w-[12rem]">
+                  <label className="text-xs text-gray-600" htmlFor="cashier-users-scope">
+                    Show
+                  </label>
+                  <select
+                    id="cashier-users-scope"
+                    value={cashierUsersScope}
+                    onChange={(e) => setCashierUsersScope(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value={CASHIER_USERS_SCOPE.mine}>
+                      {DISPLAY.cashierUsersScope.mine}
+                    </option>
+                    <option value={CASHIER_USERS_SCOPE.all}>
+                      {DISPLAY.cashierUsersScope.all}
+                    </option>
+                  </select>
+                </div>
+              ) : null}
               {canAdminister ? (
                 <>
                   <div className="sm:w-44 min-w-[170px]">
@@ -1184,6 +1247,8 @@ export default function AdminUsers({ variant = "admin" } = {}) {
                   if (canAdminister) {
                     setRoleFilter("all");
                     setStatusFilter("all");
+                  } else {
+                    setCashierUsersScope(CASHIER_USERS_SCOPE.mine);
                   }
                   setStationFilter("");
                   setSortBy("last_name");
@@ -1212,7 +1277,13 @@ export default function AdminUsers({ variant = "admin" } = {}) {
           {(usersDirectoryLoading || loading) && users.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">Loading…</div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-gray-500 py-6 text-center">No users yet.</div>
+            <div className="text-gray-500 py-6 text-center">
+              {String(q || "").trim()
+                ? "No matching users."
+                : !canAdminister && cashierUsersScope !== CASHIER_USERS_SCOPE.all
+                  ? "You have not registered any users yet. Add a user, or choose All users to search the full directory."
+                  : "No users yet."}
+            </div>
           ) : (
             <>
             <div className="space-y-2">
